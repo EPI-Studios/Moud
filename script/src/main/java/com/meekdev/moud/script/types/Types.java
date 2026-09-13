@@ -199,8 +199,15 @@ public final class Types {
                     format: ((body: Instance?, text: string) -> string?)?
                 end
 
+                declare class History
+                    function now(self): number
+                    function viewTime(self, body: Instance): number
+                    function rewind<T...>(self, time: number, query: () -> T...): T...
+                end
+
                 declare class Game
                     world: Instance
+                    history: History
                     players: Players
                     tags: Tags
                     chat: Chat

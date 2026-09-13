@@ -53,6 +53,7 @@ public final class MoudServer {
     }
 
     private static void stopped() {
+        ServerHistory.INSTANCE.clear();
         Broadcast.stop();
         place = null;
         ServerScene.stop();
@@ -83,12 +84,17 @@ public final class MoudServer {
         Stages.run(ServerScene.tree(), Stage.COMPOSE, 0);
         // once every frame of the tick has settled, so a touch is between where things really are
         Touches.step(ServerScene.tree());
-        Broadcast.tick(server, change -> Physics.apply(ServerScene.tree(), change, server));
+        Broadcast.tick(server, change -> {
+            Physics.apply(ServerScene.tree(), change, server);
+            ServerHistory.INSTANCE.note(ServerScene.tree(), change);
+        });
         Physics.settle();
         // before anything else this tick: a place that hears a client and then steps is a place that
         // acts on this tick's input rather than on last tick's
         Post.drainToServer(ServerScene.tree());
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
+        // last, once everything this tick has put itself where it is going to be
+        ServerHistory.INSTANCE.record(ServerScene.tree());
     }
 
     // every player gets a character, because a place that never mentions one still has to be

@@ -14,6 +14,7 @@ import com.meekdev.moud.script.bind.CameraMethods;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.api.ChatRef;
+import com.meekdev.moud.script.api.HistoryRef;
 import com.meekdev.moud.script.api.StoreRef;
 import com.meekdev.moud.script.bind.Audio;
 import com.meekdev.moud.script.bind.Blocks;
@@ -23,6 +24,7 @@ import com.meekdev.moud.script.bind.Inputs;
 import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
 import com.meekdev.moud.script.bind.Chat;
+import com.meekdev.moud.script.bind.History;
 import com.meekdev.moud.script.bind.Signals;
 import com.meekdev.moud.script.bind.Stores;
 import com.meekdev.moud.script.bind.SoundMethods;
@@ -114,6 +116,11 @@ public final class Vm implements ScriptEngine {
     public void bindAudio(AudioRef audio) {
         this.audio = audio;
         Audio.install(state, audio, beat, bar);
+    }
+
+    @Override
+    public void bindHistory(HistoryRef history) {
+        History.install(state, history);
     }
 
     @Override

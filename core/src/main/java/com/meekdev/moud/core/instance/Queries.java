@@ -4,7 +4,9 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vec3;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 // what is where: casts that stop at the first part in the way, and overlaps that list every part in
 // a volume. every part is a box with a turn on it
@@ -41,7 +43,7 @@ public final class Queries {
     record Box(Vec3 centre, Vec3[] axes, Vec3 half) {
 
         static Box of(Part part) {
-            return of(Transforms.world(part), part.size);
+            return of(FRAMES.get().apply(part), part.size);
         }
 
         static Box of(CFrame frame, Vec3 size) {
@@ -74,7 +76,23 @@ public final class Queries {
         }
     }
 
+    // where a part is as far as a query is concerned: where it is now, unless a rewind says otherwise.
+    // per thread, because the server and a client query from their own threads in one process
+    private static final ThreadLocal<Function<Part, CFrame>> FRAMES = ThreadLocal.withInitial(() -> Transforms::world);
+
     private Queries() {}
+
+    // runs query with every part where frames puts it, which is how a shot is tested against where the
+    // shooter saw things rather than where they are now
+    public static <T> T rewound(Function<Part, CFrame> frames, Supplier<T> query) {
+        Function<Part, CFrame> before = FRAMES.get();
+        FRAMES.set(frames);
+        try {
+            return query.get();
+        } finally {
+            FRAMES.set(before);
+        }
+    }
 
     // a ray that starts inside a part does not hit that part, so a ray from inside a head passes out of it
     public static Cast raycast(Instance root, Vec3 from, Vec3 direction, double range, Predicate<Part> filter) {
