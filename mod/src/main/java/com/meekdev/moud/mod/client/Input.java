@@ -1,13 +1,17 @@
 package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.script.api.InputRef;
+import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.platform.Window;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Supplier;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
-import com.mojang.blaze3d.platform.Window;
+import net.minecraft.resources.Identifier;
+import org.lwjgl.glfw.GLFW;
 
 // what a place asks about the player, over minecraft's own bindings so a rebind in the vanilla
 // controls screen is a rebind here too
@@ -15,6 +19,18 @@ import com.mojang.blaze3d.platform.Window;
 // 7.4 polls this once at the top of the frame and hands the frame an immutable answer. reading the
 // keyboard twice in one frame and getting two answers is how input bugs start
 public final class Input implements InputRef {
+
+    private static final KeyMapping.Category MOUD =
+            KeyMapping.Category.register(Identifier.fromNamespaceAndPath("moud", "moud"));
+
+    // frees the pointer so an interface can be clicked. registered with the game so it shows in the
+    // controls screen and can be rebound there
+    private static KeyMapping pointer;
+
+    public static void register() {
+        pointer = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.moud.pointer",
+                InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, MOUD));
+    }
 
     private final Map<String, Supplier<KeyMapping>> actions = new LinkedHashMap<>();
 
@@ -36,6 +52,7 @@ public final class Input implements InputRef {
         actions.put("sprint", () -> options.keySprint);
         actions.put("attack", () -> options.keyAttack);
         actions.put("use", () -> options.keyUse);
+        actions.put("pointer", () -> pointer);
     }
 
     public void poll() {
@@ -59,7 +76,7 @@ public final class Input implements InputRef {
     @Override
     public boolean down(String action) {
         Supplier<KeyMapping> key = actions.get(action);
-        return key != null && key.get().isDown();
+        return key != null && key.get() != null && key.get().isDown();
     }
 
     @Override

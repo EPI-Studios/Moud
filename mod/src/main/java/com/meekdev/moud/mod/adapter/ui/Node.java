@@ -10,6 +10,7 @@ import com.meekdev.moud.core.instance.SurfaceGui;
 import com.meekdev.moud.core.instance.TextButton;
 import com.meekdev.moud.core.instance.TextLabel;
 import com.meekdev.moud.core.math.Color;
+import com.meekdev.amnetic.client.surface.Surfaces;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;
 import com.meekdev.amnetic.client.surface.widget.Widget;
 import com.mojang.blaze3d.opengl.GlTexture;
@@ -66,7 +67,14 @@ final class Node extends Widget {
                 d.image(texture, x, y, w, h, argb(image.imageColor, (1 - image.imageTransparency) * alpha));
             }
         }
-        if (source instanceof TextLabel label && !label.text.isEmpty()) text(d, label, alpha);
+        if (source instanceof TextLabel label && !label.text.isEmpty()) {
+            // a draw call has no font until it is given one, and without one every text call
+            // quietly draws nothing
+            Identifier previous = d.currentFont();
+            d.font(Surfaces.defaultFont());
+            text(d, label, alpha);
+            if (previous != null) d.font(previous);
+        }
 
         if (object.clipsDescendants) d.pushClip(x, y, w, h);
     }

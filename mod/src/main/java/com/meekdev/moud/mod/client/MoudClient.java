@@ -18,6 +18,7 @@ public final class MoudClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        Input.register();
         Post.installOnClient(() -> Minecraft.getInstance().player instanceof LocalPlayer me
                 ? me.getUUID().toString() : "");
         Switches.install(MoudMod.features());
