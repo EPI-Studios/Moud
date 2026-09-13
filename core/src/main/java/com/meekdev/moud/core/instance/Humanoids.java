@@ -92,6 +92,28 @@ public final class Humanoids {
         }
     }
 
+    // the height of the ground under a point, looking a little above it and a few blocks below, or NaN when
+    // there is none that close. a tree's place says what counts as ground
+    @FunctionalInterface
+    public interface Ground {
+        double below(double x, double y, double z);
+    }
+
+    private static final Map<InstanceTree, Ground> GROUNDS = new WeakHashMap<>();
+
+    public static void ground(InstanceTree tree, Ground ground) {
+        if (ground == null) {
+            GROUNDS.remove(tree);
+        } else {
+            GROUNDS.put(tree, ground);
+        }
+    }
+
+    // metres a second a body rises onto a step and sinks toward lower ground. a path corner is only where it
+    // turns, so between two the ground can go up and down and the body follows that, not the straight line
+    private static final double RISE = 10;
+    private static final double SINK = 14;
+
     // radians a second a walking body turns at most
     private static final double TURN_RATE = 10;
 
@@ -125,6 +147,12 @@ public final class Humanoids {
         Vec3 moved = at.add(way.mul(step));
         // up or down a step as it goes, in proportion, so a path over uneven ground does not float
         moved = new Vec3(moved.x(), at.y() + toward.y() * (step / away), moved.z());
+        Ground ground = GROUNDS.get(character.tree());
+        double floor = ground == null ? Double.NaN : ground.below(moved.x(), at.y(), moved.z());
+        if (!Double.isNaN(floor)) {
+            double y = floor > at.y() ? Math.min(floor, at.y() + RISE * dt) : Math.max(floor, at.y() - SINK * dt);
+            moved = new Vec3(moved.x(), y, moved.z());
+        }
 
         // facing where it is going, the way a body that walks somewhere does. our forward is -z,
         // so the heading is measured from that rather than from +x

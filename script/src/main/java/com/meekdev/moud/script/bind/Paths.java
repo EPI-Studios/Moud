@@ -11,7 +11,8 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vec3;
-import com.meekdev.moud.core.nav.GridPath;
+import com.meekdev.moud.core.nav.NavMeshes;
+import com.meekdev.moud.core.instance.Humanoids;
 import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.script.api.BlockRef;
 import java.util.LinkedHashMap;
@@ -20,6 +21,8 @@ import com.meekdev.moud.core.instance.Part;
 import com.meekdev.moud.core.instance.SpatialIndex;
 import java.util.function.Predicate;
 import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.function.BiConsumer;
 import java.util.Random;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.LuaFunc;
@@ -30,41 +33,81 @@ import net.hollowcube.luau.LuaType;
 public final class Paths {
 
     private static final Random RANDOM = new Random();
-    private static final Vec3 CELL = new Vec3(0.98, 0.98, 0.98);
 
     private Paths() {}
 
-    // solid where a block is, or where a part that collides fills the cell
-    public static GridPath.Terrain terrain(LuaState state, Instance world) {
-        BlockRef blocks = QueryMethods.blocksOf(state);
+    // one navmesh per place, built as its bodies ask for paths
+    private static final Map<Instance, NavMeshes> MESHES = new WeakHashMap<>();
+
+    private static NavMeshes mesh(Instance world) {
+        return MESHES.computeIfAbsent(world, w -> new NavMeshes());
+    }
+
+    // parts a body can stand on or bump into, never the body itself
+    private static Predicate<Part> ground() {
         Queries.Filter solid = new Queries.Filter(List.of(), false, true, null, null, null, Classes.PART);
-        Predicate<Part> ground = part -> solid.test(part)
+        return part -> solid.test(part)
                 && !(part.parent() instanceof Character) && !(part.parent() != null && part.parent().parent() instanceof Character);
-        return new GridPath.Terrain() {
+    }
+
+    // what the navmesh is built from: the level's blocks and the place's parts
+    private static NavMeshes.World source(LuaState state, Instance world) {
+        BlockRef blocks = QueryMethods.blocksOf(state);
+        Predicate<Part> ground = ground();
+        return new NavMeshes.World() {
             @Override
             public boolean solid(int x, int y, int z) {
-                if (blocks != null && blocks.solid(x, y, z)) return true;
-                return !Queries.inBox(world, CFrame.at(x + 0.5, y + 0.5, z + 0.5), CELL, ground).isEmpty();
+                return blocks != null && blocks.solid(x, y, z);
             }
 
-            // a floor part's top is rarely on a block line, and a body stood a block line up floats
             @Override
-            public double floor(int x, int y, int z) {
-                if (blocks != null && blocks.solid(x, y - 1, z)) return y;
-                double top = Double.NEGATIVE_INFINITY;
-                for (Part part : Queries.inBox(world, CFrame.at(x + 0.5, y - 0.5, z + 0.5), CELL, ground)) {
-                    top = Math.max(top, Math.min(y, SpatialIndex.bounds(Transforms.world(part), part.size).maxY()));
+            public void boxes(Vec3 min, Vec3 max, BiConsumer<CFrame, Vec3> out) {
+                Vec3 size = max.sub(min);
+                for (Part part : Queries.inBox(world, CFrame.at(min.add(size.mul(0.5))), size, ground)) {
+                    out.accept(Transforms.world(part), part.size);
                 }
-                return top == Double.NEGATIVE_INFINITY ? y : top;
             }
         };
     }
 
+    public static Walkers.Finder finder(LuaState state, Instance world) {
+        NavMeshes.World source = source(state, world);
+        NavMeshes mesh = mesh(world);
+        return (from, to, partial) -> mesh.find(source, from, to, partial);
+    }
+
+    // a block changed under this place: the navmesh tiles around it are built again
+    public static void blockChanged(Instance world, int x, int y, int z) {
+        NavMeshes mesh = MESHES.get(world);
+        if (mesh != null) mesh.blockChanged(x, y, z);
+    }
+
+    // the top of whatever is under a point, from a little above it, so a walking body stays on it
+    private static Humanoids.Ground groundOf(LuaState state, Instance world) {
+        Predicate<Part> ground = ground();
+        Vec3 down = new Vec3(0, -1, 0);
+        return (x, y, z) -> {
+            Vec3 from = new Vec3(x, y + 1.1, z);
+            double range = 1.1 + 4;
+            Queries.Cast part = Queries.raycast(world, from, down, range, ground);
+            BlockRef blocks = QueryMethods.blocksOf(state);
+            BlockRef.Hit block = blocks == null ? null : blocks.raycast(from, down, part == null ? range : part.distance());
+            if (block != null) return block.at().y();
+            return part == null ? Double.NaN : part.at().y();
+        };
+    }
+
+    public static void forget(Instance world) {
+        MESHES.remove(world);
+        if (world.tree() != null) Humanoids.ground(world.tree(), null);
+    }
+
     public static void install(LuaState state, Instance world) {
+        if (world.tree() != null) Humanoids.ground(world.tree(), groundOf(state, world));
         state.getGlobal("game");
         state.newTable();
         function(state, "find", s -> {
-            List<Vec3> path = GridPath.find(terrain(s, world), Values.vec3(s, 2), Values.vec3(s, 3), options(s, 4));
+            List<Vec3> path = mesh(world).find(source(s, world), Values.vec3(s, 2), Values.vec3(s, 3), partial(s, 4));
             if (path == null) {
                 s.pushNil();
             } else {
@@ -73,11 +116,11 @@ public final class Paths {
             return 1;
         });
         function(state, "isReachable", s -> {
-            s.pushBoolean(GridPath.find(terrain(s, world), Values.vec3(s, 2), Values.vec3(s, 3), options(s, 4)) != null);
+            s.pushBoolean(mesh(world).find(source(s, world), Values.vec3(s, 2), Values.vec3(s, 3), false) != null);
             return 1;
         });
         function(state, "randomPointNear", s -> {
-            Vec3 point = GridPath.randomNear(terrain(s, world), Values.vec3(s, 2), s.checkNumber(3), options(s, 4), RANDOM);
+            Vec3 point = mesh(world).randomNear(source(s, world), Values.vec3(s, 2), s.checkNumber(3), RANDOM);
             if (point == null) {
                 s.pushNil();
             } else {
@@ -92,7 +135,7 @@ public final class Paths {
         // walks there along a path around what is in the way. false when there is no way
         methods.put("walkTo", s -> {
             Character body = BodyMethods.body(s);
-            List<Vec3> path = GridPath.find(terrain(s, world), Transforms.world(body).position(), Values.vec3(s, 2), options(s, 3));
+            List<Vec3> path = mesh(world).find(source(s, world), Transforms.world(body).position(), Values.vec3(s, 2), partial(s, 3));
             if (path == null) {
                 s.pushBoolean(false);
                 return 1;
@@ -144,14 +187,11 @@ public final class Paths {
                 Transforms.localFor(body, new CFrame(world.position(), Quat.euler(0, yaw, 0))));
     }
 
-    private static GridPath.Options options(LuaState s, int at) {
-        if (s.isNoneOrNil(at) || s.type(at) != LuaType.TABLE) return GridPath.Options.DEFAULT;
-        return new GridPath.Options(number(s, at, "maxNodes", 20000), number(s, at, "maxDrop", 3), number(s, at, "height", 2));
-    }
-
-    private static int number(LuaState s, int at, String key, int fallback) {
-        s.getField(at, key);
-        int value = s.isNumber(-1) ? (int) s.toNumber(-1) : fallback;
+    // { partial = true } ends a path as close to an unreachable goal as the ground gets, instead of none
+    private static boolean partial(LuaState s, int at) {
+        if (s.isNoneOrNil(at) || s.type(at) != LuaType.TABLE) return false;
+        s.getField(at, "partial");
+        boolean value = s.toBoolean(-1);
         s.pop(1);
         return value;
     }

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.HashMap;
 import java.util.ArrayList;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Vec3;
 import com.meekdev.moud.script.api.BlockRef;
 import java.util.function.ToIntFunction;
@@ -330,14 +331,17 @@ public final class Blocks {
     private static final Map<LuaState, Watch> CHANGED = new HashMap<>();
 
     // fires changed for each block that changed since the last tick
-    public static void drain(LuaState state, Consumer<ScriptError> onError) {
+    public static void drain(LuaState state, Instance world, Consumer<ScriptError> onError) {
         Watch watch = CHANGED.get(state.mainThread());
         if (watch == null) return;
-        watch.blocks().drainChanges(change -> Signals.fire(state, watch.changed(), onError, s -> {
-            Values.push(s, new Vec3(change.x(), change.y(), change.z()));
-            s.pushString(change.block());
-            return 2;
-        }));
+        watch.blocks().drainChanges(change -> {
+            Paths.blockChanged(world, change.x(), change.y(), change.z());
+            Signals.fire(state, watch.changed(), onError, s -> {
+                Values.push(s, new Vec3(change.x(), change.y(), change.z()));
+                s.pushString(change.block());
+                return 2;
+            });
+        });
     }
 
     public static void forget(LuaState state) {

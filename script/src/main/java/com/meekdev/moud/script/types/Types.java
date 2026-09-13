@@ -374,7 +374,7 @@ public final class Types {
                     function falloff(distance: number, min: number, max: number, rolloff: number?): number
                 end
 
-                type PathOptions = { maxNodes: number?, maxDrop: number?, height: number? }
+                type PathOptions = { partial: boolean? }
 
                 declare class Path
                     function find(self, from: Vector3, to: Vector3, options: PathOptions?): { Vector3 }?

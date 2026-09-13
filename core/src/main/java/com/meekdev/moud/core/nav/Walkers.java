@@ -89,7 +89,13 @@ public final class Walkers {
         return PLANS.containsKey(body);
     }
 
-    public static void step(GridPath.Terrain terrain, double now) {
+    // where paths come from: the place's navmesh
+    @FunctionalInterface
+    public interface Finder {
+        List<Vec3> find(Vec3 from, Vec3 to, boolean partial);
+    }
+
+    public static void step(Finder finder, double now) {
         for (Iterator<Map.Entry<Character, Plan>> it = PLANS.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Character, Plan> entry = it.next();
             Character body = entry.getKey();
@@ -123,7 +129,8 @@ public final class Walkers {
                 }
                 boolean moved = plan.lastTarget == null || plan.lastTarget.sub(goal).lengthSq() > 1;
                 if (plan.waypoints == null || moved && now - plan.lastRepath >= REPATH) {
-                    plan.waypoints = GridPath.find(terrain, at, goal, GridPath.Options.DEFAULT);
+                    // as close as it can get: a follower whose target stands somewhere unreachable still comes over
+                    plan.waypoints = finder.find(at, goal, true);
                     plan.next = 0;
                     plan.lastRepath = now;
                     plan.lastTarget = goal;

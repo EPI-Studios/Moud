@@ -81,7 +81,9 @@ public final class Autopilot {
         double wz = dz / length;
         float forward = (float) (wx * forwardX + wz * forwardZ);
         float left = (float) (wx * forwardZ - wz * forwardX);
-        boolean climb = waypoint.y() > at.y() + 0.5;
+        // a corner is only where the path turns, so a step up can come between two of them: walking into
+        // something while on the ground is the step, and a jump takes it
+        boolean climb = waypoint.y() > at.y() + 0.5 || player.horizontalCollision && player.onGround();
         input.keyPresses = new Input(forward > 0.3f, forward < -0.3f, left > 0.3f, left < -0.3f, jumpNow || climb, false, false);
         MoveVector.set(input, new Vec2(left, forward).normalized());
     }

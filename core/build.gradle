@@ -1,0 +1,5 @@
+dependencies {
+    // recast builds a navmesh from triangles and detour walks it, the same pair roblox paths on
+    api 'org.recast4j:recast:1.5.12'
+    api 'org.recast4j:detour:1.5.12'
+}

@@ -90,6 +90,8 @@ dependencies {
     include project(':core')
     include project(':script')
     include project(':net')
+    include 'org.recast4j:recast:1.5.12'
+    include 'org.recast4j:detour:1.5.12'
 }
 
 processResources {

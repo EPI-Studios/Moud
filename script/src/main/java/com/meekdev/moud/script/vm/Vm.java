@@ -287,8 +287,8 @@ public final class Vm implements ScriptEngine {
         if (scripts != null) scripts.poll(world.tree());
         if (!client) stepTweens(dt);
         scheduler.advance(dt);
-        Blocks.drain(state, onError);
-        Walkers.step(Paths.terrain(state, world), System.nanoTime() / 1e9);
+        Blocks.drain(state, world, onError);
+        Walkers.step(Paths.finder(state, world), System.nanoTime() / 1e9);
         fire(game.stepped(), dt);
     }
 
@@ -296,7 +296,7 @@ public final class Vm implements ScriptEngine {
         if (scripts != null && client) scripts.poll(world.tree());
         // per frame on a client, so a tween is as smooth as the screen
         if (client) stepTweens(dt);
-        if (client) Blocks.drain(state, onError);
+        if (client) Blocks.drain(state, world, onError);
         if (audio != null) audio.drainBeats(n -> fire(beat, n), n -> fire(bar, n));
         fire(game.renderStepped(), dt);
     }
@@ -348,6 +348,7 @@ public final class Vm implements ScriptEngine {
         Callbacks.forget(state);
         Profiler.forget(state);
         Blocks.forget(state);
+        if (world != null) Paths.forget(world);
         if (scripts != null) scripts.stopAll();
         Ownership.forget(state);
         if (tags != null) tags.close();
