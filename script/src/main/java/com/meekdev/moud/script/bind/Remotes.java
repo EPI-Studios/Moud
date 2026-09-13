@@ -82,6 +82,12 @@ public final class Remotes {
             throw state.error("fireServer is the client's, and this is the server."
                     + " the server says fireClient or fireAllClients");
         }
+        // a remote the server destroyed has an id nothing answers to any more, and a send down it vanished
+        // without a word. the usual reason is a reload handing out new ones
+        if (!remote.isAlive()) {
+            throw state.error("the remote '%s' was destroyed, most likely by the server place reloading."
+                    + " look it up again, like game.world:find(\"%s\"), rather than keeping the old one", remote.name(), remote.name());
+        }
         side.post().toServer(remote.id(), declared(state, remote, 2), reliable(remote));
         return 0;
     }

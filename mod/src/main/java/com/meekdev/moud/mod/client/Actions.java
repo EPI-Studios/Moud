@@ -66,12 +66,27 @@ public final class Actions {
             DOWN.merge(action.name(), down, Boolean::logicalOr);
             boolean was = WAS.getOrDefault(action, false);
             WAS.put(action, down);
-            if (down && !was) {
-                MoudMod.LOG.info("TRACE input action {} began, {} java handlers", action.name(), action.began.count());
-                action.began.fire(action);
-            }
+            if (down && !was) action.began.fire(action);
             if (!down && was) action.ended.fire(action);
         }
+    }
+
+    // a letter or a digit names what is printed on the key, not where it sits: glfw's key codes are the
+    // positions of a us keyboard, so "m" read as a code was the comma on an azerty one and "q" was its a.
+    // the layout is asked what each printable key types, and asked again when a name is not found in case
+    // the player switched layouts
+    private static final Map<Character, Integer> TYPED = new HashMap<>();
+
+    private static Integer typed(char c) {
+        char wanted = Character.toLowerCase(c);
+        Integer code = TYPED.get(wanted);
+        if (code != null) return code;
+        TYPED.clear();
+        for (int key = GLFW.GLFW_KEY_SPACE; key <= GLFW.GLFW_KEY_GRAVE_ACCENT; key++) {
+            String name = GLFW.glfwGetKeyName(key, 0);
+            if (name != null && name.length() == 1) TYPED.putIfAbsent(Character.toLowerCase(name.charAt(0)), key);
+        }
+        return TYPED.get(wanted);
     }
 
     // null when no action of that name exists, so input can fall back to the built in ones
@@ -88,7 +103,8 @@ public final class Actions {
         for (String raw : keys.split(",")) {
             String name = raw.trim().toLowerCase(Locale.ROOT);
             if (name.isEmpty()) continue;
-            Integer code = KEYS.get(name);
+            Integer code = name.length() == 1 ? typed(name.charAt(0)) : null;
+            if (code == null) code = KEYS.get(name);
             if (code == null) {
                 if (UNKNOWN.add(name)) MoudMod.LOG.warn("an input action names the key '{}', which is not one of {}", raw.trim(), KEYS.keySet());
                 continue;

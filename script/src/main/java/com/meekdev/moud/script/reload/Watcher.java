@@ -44,7 +44,11 @@ public final class Watcher implements AutoCloseable {
             if (key == null) continue;
             boolean touched = false;
             for (var event : key.pollEvents()) {
-                if (String.valueOf(event.context()).endsWith(".luau")) touched = true;
+                // the definitions a place writes for its editor end in .luau too, and a client starting writes
+                // them: the server reloaded every time somebody joined, and handed out new remotes the
+                // client had already looked up the old ones of
+                String file = String.valueOf(event.context());
+                if (file.endsWith(".luau") && !file.endsWith(".d.luau")) touched = true;
                 // a folder made after the watch started is not watched until it is registered, so a
                 // new lib/ full of modules would never reload anything
                 if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE
@@ -62,6 +66,7 @@ public final class Watcher implements AutoCloseable {
         Files.walkFileTree(top, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                if (dir.getFileName() != null && dir.getFileName().toString().equals(".moud")) return FileVisitResult.SKIP_SUBTREE;
                 dir.register(service, StandardWatchEventKinds.ENTRY_CREATE,
                         StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_DELETE);
                 return FileVisitResult.CONTINUE;
