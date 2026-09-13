@@ -17,4 +17,7 @@ public final class SurfaceGui extends Instance {
     @Prop(min = 0) public double maxDistance = 64;
 
     public boolean alwaysOnTop;
+
+    // the font every text inside is drawn in unless it names its own
+    @Prop(asset = true) public String font = "";
 }

@@ -26,13 +26,10 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.Identifier;
 import org.joml.Vector3fc;
 
 // keeps the widgets in step with the interface instances in the client's tree
 public final class Ui {
-
-    private static final Identifier FONT = Identifier.fromNamespaceAndPath("moud", "fonts/noto_sans.ttf");
 
     // a surface in the world, and the size its canvas was made at
     private record Placed(WorldSurface surface, float width, float height, int resolution) {}
@@ -48,7 +45,7 @@ public final class Ui {
     private Ui() {}
 
     public static void install() {
-        if (Surfaces.defaultFont() == null) Surfaces.defaultFont(FONT);
+        if (Surfaces.defaultFont() == null) Surfaces.defaultFont(UiFonts.DEFAULT);
     }
 
     public static void frame(float partialTick) {
@@ -233,6 +230,7 @@ public final class Ui {
         if (hud != null) {
             for (Widget child : new ArrayList<>(hud.root().children())) hud.root().removeChild(child);
         }
+        UiFonts.forget();
         built = null;
         epoch = -1;
         capturing = false;

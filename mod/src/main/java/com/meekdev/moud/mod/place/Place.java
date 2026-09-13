@@ -53,6 +53,10 @@ public final class Place {
         return new Place(world, classes, "client/main", instance -> instance.id() < 0, extend);
     }
 
+    public Path root() {
+        return root;
+    }
+
     public @Nullable ScriptEngine vm() {
         return vm;
     }

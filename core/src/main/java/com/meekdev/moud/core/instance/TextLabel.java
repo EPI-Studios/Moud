@@ -15,4 +15,8 @@ public class TextLabel extends GuiObject {
     public boolean textWrapped;
     public HorizontalAlign textXAlignment = HorizontalAlign.CENTER;
     public VerticalAlign textYAlignment = VerticalAlign.CENTER;
+
+    // the font this text is drawn in: a res:// .ttf in the place, or a font in a resource pack.
+    // empty takes the nearest one set above it, and failing that the default
+    @Prop(asset = true) public String font = "";
 }

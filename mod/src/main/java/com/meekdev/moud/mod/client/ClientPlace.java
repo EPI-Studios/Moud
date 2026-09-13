@@ -12,6 +12,7 @@ import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.script.engine.ScriptEngine;
+import java.nio.file.Path;
 import org.jspecify.annotations.Nullable;
 
 // the client's own place: client/main.luau, the camera it draws through, and the input it reads
@@ -28,6 +29,11 @@ public final class ClientPlace {
     private static final CameraApi LENS = new CameraApi();
 
     private ClientPlace() {}
+
+    // where the running place's files are, or nothing before one has started
+    public static @Nullable Path root() {
+        return place == null ? null : place.root();
+    }
 
     public static @Nullable Camera camera() {
         return camera;

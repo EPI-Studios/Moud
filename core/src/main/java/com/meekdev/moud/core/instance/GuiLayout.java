@@ -38,6 +38,22 @@ public final class GuiLayout {
         return order;
     }
 
+    // the font a label is drawn in: its own, or the nearest one set on anything it sits inside.
+    // empty means nobody chose one
+    public static String font(TextLabel label) {
+        for (Instance at = label; at != null; at = at.parent()) {
+            String chosen = switch (at) {
+                case TextLabel text -> text.font;
+                case ScreenGui screen -> screen.font;
+                case BillboardGui billboard -> billboard.font;
+                case SurfaceGui surface -> surface.font;
+                default -> "";
+            };
+            if (!chosen.isEmpty()) return chosen;
+        }
+        return "";
+    }
+
     // what a billboard or surface is stuck to: its adornee, or failing that its parent
     public static Instance adornee(Instance gui) {
         Instance chosen = switch (gui) {

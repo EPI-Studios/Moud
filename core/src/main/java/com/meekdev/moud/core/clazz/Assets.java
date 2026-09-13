@@ -1,5 +1,7 @@
 package com.meekdev.moud.core.clazz;
 
+import com.meekdev.moud.core.asset.Res;
+
 // what a property that names a file is allowed to hold
 //
 // the check is here, in core, rather than at the renderer that resolves it, because the renderer runs
@@ -34,7 +36,17 @@ public final class Assets {
     }
 
     public static void check(String where, String value) {
-        if (value.isEmpty() || names(value)) return;
+        if (value.isEmpty()) return;
+        // a file in the place, which has its own rules and its own message
+        if (value.startsWith(Res.SCHEME)) {
+            try {
+                Res.parse(value);
+            } catch (IllegalArgumentException wrong) {
+                throw new IllegalArgumentException(where + ": " + wrong.getMessage());
+            }
+            return;
+        }
+        if (names(value)) return;
         throw new IllegalArgumentException(where + " is \"" + value + "\", which does not name a"
                 + " file. a name is namespace:path or path, in lowercase letters, digits, and"
                 + " . _ - and / -- and empty, which means the engine picks");
