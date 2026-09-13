@@ -2,6 +2,8 @@ package com.meekdev.moud.mod.client;
 
 import net.minecraft.client.player.LocalPlayer;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.adapter.chat.ChatView;
+import com.meekdev.moud.mod.adapter.chat.ClientChat;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.adapter.render.Meshes;
 import com.meekdev.moud.mod.adapter.render.Parts;
@@ -23,6 +25,8 @@ public final class MoudClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         Input.register();
+        ClientChat.listen();
+        ChatView.install();
         Post.installOnClient(() -> Minecraft.getInstance().player instanceof LocalPlayer me
                 ? me.getUUID().toString() : "");
         Pipeline.install();
@@ -41,6 +45,7 @@ public final class MoudClient implements ClientModInitializer {
     private static void frames() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ClientScene.tick();
+            ClientChat.INSTANCE.tick();
             ClientPlace.tick();
         });
         // the place itself is stepped earlier, from GameRenderer.update, because the camera it

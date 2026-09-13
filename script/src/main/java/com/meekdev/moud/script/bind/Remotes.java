@@ -140,7 +140,7 @@ public final class Remotes {
             pushed++;
         }
         for (Object arg : sent.args()) {
-            write(state, arg);
+            Plain.push(state, arg);
             pushed++;
         }
         return pushed;
@@ -159,83 +159,8 @@ public final class Remotes {
     private static List<Object> read(LuaState state, int first) {
         int top = state.top();
         List<Object> args = new ArrayList<>(Math.max(0, top - first + 1));
-        for (int at = first; at <= top; at++) args.add(one(state, at, 0));
+        for (int at = first; at <= top; at++) args.add(Plain.read(state, at));
         return args;
     }
 
-    private static Object one(LuaState state, int at, int depth) {
-        if (depth > 16) throw state.error("a table nested that deep is not a message");
-        LuaType type = state.type(at);
-        return switch (type) {
-            case NIL, NONE -> null;
-            case BOOLEAN -> state.toBoolean(at);
-            case NUMBER -> state.toNumber(at);
-            case STRING -> state.toString(at);
-            case TABLE -> table(state, at, depth);
-            case USERDATA -> userdata(state, at);
-            default -> throw state.error("a %s cannot be sent", type.name().toLowerCase());
-        };
-    }
-
-    private static Object userdata(LuaState state, int at) {
-        Object value = Values.value(state, at);
-        if (value != null) return value;
-        Object instance = state.toUserDataTagged(at, Proxies.TAG);
-        if (instance != null) return instance;
-        throw state.error("that is not something that can be sent");
-    }
-
-    // a list or a table keyed by text, never both
-    private static Object table(LuaState state, int at, int depth) {
-        int length = state.len(at);
-        if (length > 0) {
-            List<Object> list = new ArrayList<>(length);
-            for (int n = 1; n <= length; n++) {
-                state.rawGetI(at, n);
-                list.add(one(state, state.top(), depth + 1));
-                state.pop(1);
-            }
-            return list;
-        }
-        Map<String, Object> map = new LinkedHashMap<>();
-        state.pushNil();
-        while (state.next(at < 0 ? at - 1 : at)) {
-            if (state.type(-2) != LuaType.STRING) {
-                throw state.error("a table that is sent is a list or is keyed by text");
-            }
-            map.put(state.toString(-2), one(state, state.top(), depth + 1));
-            state.pop(1);
-        }
-        return map;
-    }
-
-    private static void write(LuaState state, Object value) {
-        switch (value) {
-            case null -> state.pushNil();
-            case Boolean b -> state.pushBoolean(b);
-            case Double d -> state.pushNumber(d);
-            case String s -> state.pushString(s);
-            case Vec3 v -> Values.push(state, v);
-            case Quat q -> Values.push(state, q);
-            case CFrame c -> Values.push(state, c);
-            case Color c -> Values.push(state, c);
-            case UDim2 u -> Values.push(state, u);
-            case Instance i -> Proxies.push(state, i);
-            case List<?> list -> {
-                state.createTable(list.size(), 0);
-                for (int n = 0; n < list.size(); n++) {
-                    write(state, list.get(n));
-                    state.rawSetI(-2, n + 1);
-                }
-            }
-            case Map<?, ?> map -> {
-                state.createTable(0, map.size());
-                for (Map.Entry<?, ?> entry : map.entrySet()) {
-                    write(state, entry.getValue());
-                    state.rawSetField(-2, String.valueOf(entry.getKey()));
-                }
-            }
-            default -> state.pushNil();
-        }
-    }
 }

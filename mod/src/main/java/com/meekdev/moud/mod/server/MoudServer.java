@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.server;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.transport.Broadcast;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.addon.Addons;
@@ -53,6 +54,7 @@ public final class MoudServer {
     }
 
     private static void stopped() {
+        ServerChat.INSTANCE.stop();
         ServerHistory.INSTANCE.clear();
         Broadcast.stop();
         place = null;
@@ -92,6 +94,7 @@ public final class MoudServer {
         // before anything else this tick: a place that hears a client and then steps is a place that
         // acts on this tick's input rather than on last tick's
         Post.drainToServer(ServerScene.tree());
+        ServerChat.INSTANCE.tick(server);
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
         // last, once everything this tick has put itself where it is going to be
         ServerHistory.INSTANCE.record(ServerScene.tree());

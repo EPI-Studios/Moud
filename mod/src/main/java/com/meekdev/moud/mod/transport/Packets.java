@@ -87,6 +87,63 @@ public final class Packets {
         }
     }
 
+    // a chat line, an edit of one, a deletion, a status for the sender, or a clear. one shape for all of
+    // them, since each is a few fields of the same message
+    public record ChatDown(int kind, long id, int channel, int source, int body, String text, String prefix,
+                           String metadata, long timestamp, String status) implements CustomPacketPayload {
+
+        public static final int LINE = 0;
+        public static final int EDIT = 1;
+        public static final int DELETE = 2;
+        public static final int STATUS = 3;
+        public static final int CLEAR = 4;
+
+        public static final Type<ChatDown> TYPE = named("chat_down");
+
+        public static final StreamCodec<FriendlyByteBuf, ChatDown> CODEC = CustomPacketPayload.codec(
+                (m, out) -> {
+                    out.writeVarInt(m.kind());
+                    out.writeVarLong(m.id());
+                    out.writeVarInt(m.channel() + 1);
+                    out.writeVarInt(m.source() + 1);
+                    out.writeVarInt(m.body() + 1);
+                    out.writeUtf(m.text(), CHAT_TEXT);
+                    out.writeUtf(m.prefix(), CHAT_TEXT);
+                    out.writeUtf(m.metadata(), CHAT_TEXT);
+                    out.writeVarLong(m.timestamp());
+                    out.writeUtf(m.status(), 64);
+                },
+                in -> new ChatDown(in.readVarInt(), in.readVarLong(), in.readVarInt() - 1, in.readVarInt() - 1,
+                        in.readVarInt() - 1, in.readUtf(CHAT_TEXT), in.readUtf(CHAT_TEXT), in.readUtf(CHAT_TEXT),
+                        in.readVarLong(), in.readUtf(64)));
+
+        @Override
+        public Type<ChatDown> type() {
+            return TYPE;
+        }
+    }
+
+    // what a player typed, and the channel they typed it into
+    public record ChatUp(int channel, String text) implements CustomPacketPayload {
+
+        public static final Type<ChatUp> TYPE = named("chat_up");
+
+        public static final StreamCodec<FriendlyByteBuf, ChatUp> CODEC = CustomPacketPayload.codec(
+                (m, out) -> {
+                    out.writeVarInt(m.channel() + 1);
+                    out.writeUtf(m.text(), 4096);
+                },
+                in -> new ChatUp(in.readVarInt() - 1, in.readUtf(4096)));
+
+        @Override
+        public Type<ChatUp> type() {
+            return TYPE;
+        }
+    }
+
+    // markup is longer than what it shows, and a place styling a line should not run out of room
+    private static final int CHAT_TEXT = 16384;
+
     private Packets() {}
 
     private static <T extends CustomPacketPayload> CustomPacketPayload.Type<T> named(String path) {
@@ -100,6 +157,8 @@ public final class Packets {
         PayloadTypeRegistry<RegistryFriendlyByteBuf> down = PayloadTypeRegistry.clientboundPlay();
         down.registerLarge(Delta.TYPE, Delta.CODEC.cast(), BASELINE_CAP);
         down.register(Down.TYPE, Down.CODEC.cast());
+        down.register(ChatDown.TYPE, ChatDown.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(Up.TYPE, Up.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(ChatUp.TYPE, ChatUp.CODEC.cast());
     }
 }

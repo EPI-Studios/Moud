@@ -3,6 +3,7 @@ package com.meekdev.moud.script.bind;
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.core.clazz.CallbackDef;
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Character;
@@ -221,6 +222,11 @@ public final class Proxies {
             Signals.push(state, InstanceSignals.of(instance, event));
             return 1;
         }
+        CallbackDef callback = instance.def().callback(key);
+        if (callback != null) {
+            Callbacks.push(state, instance, callback);
+            return 1;
+        }
 
         if (instance instanceof Spatial spatial) {
             // where the thing actually is, not where it is stated
@@ -387,6 +393,11 @@ public final class Proxies {
 
     // the one place a member is written, so :add and assignment can never drift apart
     private static void apply(LuaState state, Instance instance, String key, int value) {
+        CallbackDef callback = instance.def().callback(key);
+        if (callback != null) {
+            Callbacks.assign(state, instance, callback, value);
+            return;
+        }
         if (key.equals("name")) {
             Instances.rename(instance, state.checkString(value));
             return;

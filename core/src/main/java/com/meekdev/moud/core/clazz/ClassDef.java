@@ -1,5 +1,6 @@
 package com.meekdev.moud.core.clazz;
 
+import com.meekdev.moud.core.event.Callback;
 import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Stage;
@@ -35,6 +36,9 @@ public final class ClassDef<T extends Instance> {
     // Signal field is an event. nothing is declared twice and nothing has to be registered, so a
     // class an addon writes carries its own events without the binding learning about it
     private final Map<String, EventDef> events;
+
+    // and a public final Callback is a question it asks, answered by assigning a function
+    private Map<String, CallbackDef> callbacks = Map.of();
 
     // which stages of a tick this class takes part in, one bit per Stage
     //
@@ -84,6 +88,8 @@ public final class ClassDef<T extends Instance> {
 
         Map<String, EventDef> events = new HashMap<>();
         if (parent != null) events.putAll(parent.events);
+        Map<String, CallbackDef> callbacks = new HashMap<>();
+        if (parent != null) callbacks.putAll(parent.callbacks);
 
         List<Field> fields = new ArrayList<>();
         for (Field f : type.getDeclaredFields()) {
@@ -95,6 +101,9 @@ public final class ClassDef<T extends Instance> {
             if (Modifier.isFinal(mods)) {
                 if (Signal.class.isAssignableFrom(f.getType())) {
                     events.put(f.getName(), new EventDef(f.getName(), f));
+                }
+                if (Callback.class.isAssignableFrom(f.getType())) {
+                    callbacks.put(f.getName(), new CallbackDef(f.getName(), f));
                 }
                 continue;
             }
@@ -110,7 +119,9 @@ public final class ClassDef<T extends Instance> {
             }
             props.add(define(name, type, f, prototype, lookup, props.size()));
         }
-        return new ClassDef<>(name, parent, factory, props, events, stagesOf(type));
+        ClassDef<T> def = new ClassDef<>(name, parent, factory, props, events, stagesOf(type));
+        def.callbacks = Map.copyOf(callbacks);
+        return def;
     }
 
     // every stage whose method is declared anywhere between this class and Instance
@@ -202,6 +213,10 @@ public final class ClassDef<T extends Instance> {
     public long driven() { return driven; }
 
     public EventDef event(String name) { return events.get(name); }
+
+    public CallbackDef callback(String name) { return callbacks.get(name); }
+
+    public java.util.Collection<CallbackDef> callbacks() { return callbacks.values(); }
 
     public boolean takesPart(Stage stage) { return (stages & stage.bit) != 0; }
 

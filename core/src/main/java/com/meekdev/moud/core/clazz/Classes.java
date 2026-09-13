@@ -20,6 +20,11 @@ import com.meekdev.moud.core.instance.Cape;
 import com.meekdev.moud.core.instance.Character;
 import com.meekdev.moud.core.instance.ChatCommand;
 import com.meekdev.moud.core.instance.ChatWindow;
+import com.meekdev.moud.core.instance.TextChannel;
+import com.meekdev.moud.core.instance.TextSource;
+import com.meekdev.moud.core.instance.ChatInputBar;
+import com.meekdev.moud.core.instance.ChatTabs;
+import com.meekdev.moud.core.instance.ChatTextShader;
 import com.meekdev.moud.core.instance.CollisionGroup;
 import com.meekdev.moud.core.instance.Folder;
 import com.meekdev.moud.core.instance.Frame;
@@ -205,6 +210,16 @@ public final class Classes {
 
     public static final ClassDef<ChatWindow> CHAT_WINDOW =
             ClassDef.of("ChatWindow", null, ChatWindow.class, ChatWindow::new);
+    public static final ClassDef<TextChannel> TEXT_CHANNEL =
+            ClassDef.of("TextChannel", null, TextChannel.class, TextChannel::new);
+    public static final ClassDef<TextSource> TEXT_SOURCE =
+            ClassDef.of("TextSource", null, TextSource.class, TextSource::new);
+    public static final ClassDef<ChatInputBar> CHAT_INPUT_BAR =
+            ClassDef.of("ChatInputBar", null, ChatInputBar.class, ChatInputBar::new);
+    public static final ClassDef<ChatTabs> CHAT_TABS =
+            ClassDef.of("ChatTabs", null, ChatTabs.class, ChatTabs::new);
+    public static final ClassDef<ChatTextShader> CHAT_TEXT_SHADER =
+            ClassDef.of("ChatTextShader", null, ChatTextShader.class, ChatTextShader::new);
     public static final ClassDef<ChatCommand> CHAT_COMMAND =
             ClassDef.of("ChatCommand", null, ChatCommand.class, ChatCommand::new);
 
@@ -295,6 +310,11 @@ public final class Classes {
         r.register(COLLISION_GROUP);
         r.register(CHAT_WINDOW);
         r.register(CHAT_COMMAND);
+        r.register(TEXT_CHANNEL);
+        r.register(TEXT_SOURCE);
+        r.register(CHAT_INPUT_BAR);
+        r.register(CHAT_TABS);
+        r.register(CHAT_TEXT_SHADER);
         r.register(JOINT);
         r.register(MOTOR);
         for (Addon addon : addons) {

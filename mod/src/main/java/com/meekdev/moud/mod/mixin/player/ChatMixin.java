@@ -21,7 +21,7 @@ abstract class ChatMixin {
 
     @Inject(method = "broadcastChatMessage", at = @At("HEAD"), cancellable = true)
     private void moud$message(PlayerChatMessage message, CallbackInfo ci) {
-        if (ServerChat.message(player, message.signedContent())) ci.cancel();
+        if (ServerChat.vanilla(player, message.signedContent())) ci.cancel();
     }
 
     @Inject(method = "performUnsignedChatCommand", at = @At("HEAD"), cancellable = true)

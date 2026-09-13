@@ -23,6 +23,7 @@ import com.meekdev.moud.script.bind.Scenes;
 import com.meekdev.moud.script.bind.Inputs;
 import com.meekdev.moud.script.bind.Players;
 import com.meekdev.moud.script.bind.Proxies;
+import com.meekdev.moud.script.bind.Callbacks;
 import com.meekdev.moud.script.bind.Chat;
 import com.meekdev.moud.script.bind.History;
 import com.meekdev.moud.script.bind.Signals;
@@ -65,7 +66,7 @@ public final class Vm implements ScriptEngine {
 
     private final LuaState state;
     private final Game game = new Game();
-    private final Signals.Handlers chatMessaged = new Signals.Handlers();
+    private Chat chat;
     private Consumer<ScriptError> onError = e -> { throw e; };
     private final Scheduler scheduler;
     private AudioRef audio;
@@ -93,6 +94,7 @@ public final class Vm implements ScriptEngine {
         Signals.install(state);
         Players.install(state);
         InstanceSignals.install(state, e -> onError.accept(e));
+        Callbacks.install(state, e -> onError.accept(e));
         Proxies.install(state, registry);
         SoundMethods.install(state);
         TweenMethods.install(state, tweens, e -> onError.accept(e));
@@ -125,12 +127,22 @@ public final class Vm implements ScriptEngine {
 
     @Override
     public void bindChat(ChatRef chat) {
-        Chat.install(state, chat, chatMessaged);
+        chat().install(chat);
     }
 
     @Override
-    public String chatted(Instance body, String name, String text) {
-        return Chat.format(state, body, name, text, chatMessaged, onError);
+    public Object[] chatHook(String name, Object... args) {
+        return chat == null ? null : chat.hook(name, args);
+    }
+
+    @Override
+    public void chatEvent(String name, Object... args) {
+        if (chat != null) chat.fire(name, args);
+    }
+
+    private Chat chat() {
+        if (chat == null) chat = new Chat(state, e -> onError.accept(e));
+        return chat;
     }
 
     @Override
@@ -306,6 +318,7 @@ public final class Vm implements ScriptEngine {
         // before the state goes, because what is keyed by it cannot be dropped after: a state's
         // identity is a native pointer, and the next state may be handed the same one
         Remotes.forget(state);
+        Callbacks.forget(state);
         if (scripts != null) scripts.stopAll();
         Ownership.forget(state);
         if (tags != null) tags.close();

@@ -2,6 +2,7 @@ package com.meekdev.moud.script.types;
 
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.EventDef;
+import com.meekdev.moud.core.clazz.CallbackDef;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.ClassRegistry;
@@ -188,15 +189,46 @@ public final class Types {
                     function connect(self, handler: (body: Instance?, text: string, args: { string }) -> ()): Connection
                 end
 
-                declare class ChatSignal
-                    function connect(self, handler: (body: Instance?, text: string) -> ()): Connection
+                type ChatMessage = { id: number, text: string, prefix: string, metadata: string, channel: Instance?, source: Instance?, body: Instance?, timestamp: number, status: string, [string]: any }
+
+                declare class ChatMessageSignal
+                    function connect(self, handler: (message: ChatMessage) -> ()): Connection
+                end
+
+                declare class ChatAnySignal
+                    function connect(self, handler: (...any) -> ()): Connection
                 end
 
                 declare class Chat
-                    function say(self, text: string, to: Instance?): ()
+                    function send(self, channelOrText: Instance | string, textOrOptions: (string | { [string]: any })?, options: { [string]: any }?): number
+                    function system(self, text: string, options: { [string]: any }?): number
+                    function edit(self, id: number, changes: string | { [string]: any }): ()
+                    function delete(self, id: number): ()
+                    function addPlayer(self, channel: Instance, body: Instance): ()
+                    function removePlayer(self, channel: Instance, body: Instance): ()
+                    function open(self, prefill: string?): ()
+                    function close(self): ()
+                    function isOpen(self): boolean
+                    function clear(self): ()
+                    function setTarget(self, channel: Instance?): ()
+                    function getTarget(self): Instance?
+                    function messages(self): { ChatMessage }
                     function escape(text: string): string
-                    messaged: ChatSignal
-                    format: ((body: Instance?, text: string) -> string?)?
+                    function plain(text: string): string
+                    function bodyLink(body: Instance, label: string?): string
+                    function itemLink(id: string, count: number?): string
+                    onIncoming: ((message: ChatMessage) -> { [string]: any }?)?
+                    shouldSend: ((message: ChatMessage) -> boolean?)?
+                    messageReceived: ChatMessageSignal
+                    sending: ChatMessageSignal
+                    edited: ChatMessageSignal
+                    deleted: ChatAnySignal
+                    linkClicked: ChatAnySignal
+                    bodyClicked: ChatAnySignal
+                    messageClicked: ChatMessageSignal
+                    opened: ChatAnySignal
+                    closed: ChatAnySignal
+                    typing: ChatAnySignal
                 end
 
                 declare class History
@@ -352,6 +384,11 @@ public final class Types {
             out.append("    position: Vector3\n");
             out.append("    rotation: Quat\n");
             out.append("    worldCframe: CFrame\n");
+        }
+
+        for (CallbackDef callback : def.callbacks()) {
+            if (def.parent() != null && def.parent().callback(callback.name()) != null) continue;
+            out.append("    ").append(callback.name()).append(": ((...any) -> ...any)?\n");
         }
 
         for (EventDef event : def.events()) {

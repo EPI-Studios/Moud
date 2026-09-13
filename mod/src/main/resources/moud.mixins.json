@@ -29,7 +29,8 @@
   "client": [
     "client.ClickMixin",
     "client.ChatInputMixin",
-    "client.ChatWindowMixin",
+    "client.ChatComponentMixin",
+    "client.ChatScreenMixin",
     "client.CloudsMixin",
     "client.DebugScreenMixin",
     "client.EntityRenderMixin",

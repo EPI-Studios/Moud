@@ -11,24 +11,24 @@ import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
 
 // turns what a place wrote in font into a way to draw it: one of the game's own fonts, or a .ttf
-final class UiFonts {
+public final class UiFonts {
 
-    sealed interface Face permits Game, Vector {}
+    public sealed interface Face permits Game, Vector {}
 
     // a font the game loaded, the default one unless a place names another like minecraft:uniform
-    record Game(FontDescription font) implements Face {}
+    public record Game(FontDescription font) implements Face {}
 
     // a .ttf, drawn as a distance field
-    record Vector(Identifier font) implements Face {}
+    public record Vector(Identifier font) implements Face {}
 
-    static final Game DEFAULT = new Game(FontDescription.DEFAULT);
+    public static final Game DEFAULT = new Game(FontDescription.DEFAULT);
 
     private static final Set<String> KNOWN = new HashSet<>();
     private static final Set<String> MISSING = new HashSet<>();
 
     private UiFonts() {}
 
-    static Face of(String chosen) {
+    public static Face of(String chosen) {
         if (chosen.isEmpty()) return DEFAULT;
         String lower = chosen.toLowerCase(Locale.ROOT);
         boolean file = lower.endsWith(".ttf") || lower.endsWith(".otf");

@@ -50,11 +50,15 @@ public interface ScriptEngine extends AutoCloseable {
 
     void bindChat(ChatRef chat);
 
+    // a hook the place assigned on game.chat, like onIncoming. null when there is none
+    Object[] chatHook(String name, Object... args);
+
+    // one of game.chat's signals
+    void chatEvent(String name, Object... args);
+
     // the server's half only
     void bindHistory(HistoryRef history);
 
-    // a player typed text. the line to show everyone, or null when the place dropped it
-    String chatted(Instance body, String name, String text);
 
     // starts the script instances of this vm's side, after everything else is bound
     void runScripts();
