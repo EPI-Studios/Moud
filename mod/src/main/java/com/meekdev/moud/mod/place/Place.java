@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.script.engine.PlaceModules;
 import com.meekdev.moud.script.reload.Watcher;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.engine.ScriptLanguage;
@@ -137,6 +138,7 @@ public final class Place {
         fresh.bind(world, classes);
         // the server's side of a channel, and the server's half of the verbs
         fresh.bindPost(Post.SERVER, false);
+        fresh.bindModules(new PlaceModules(root, main.startsWith("client/")));
         fresh.onError(Errors::record);
         fresh.persist(carried);
         extend.accept(fresh);

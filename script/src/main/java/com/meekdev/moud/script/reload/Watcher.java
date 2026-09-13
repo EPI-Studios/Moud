@@ -22,14 +22,7 @@ public final class Watcher implements AutoCloseable {
 
     public Watcher(Path root) throws IOException {
         service = root.getFileSystem().newWatchService();
-        Files.walkFileTree(root, new SimpleFileVisitor<>() {
-            @Override
-            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-                dir.register(service, StandardWatchEventKinds.ENTRY_CREATE,
-                        StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_DELETE);
-                return FileVisitResult.CONTINUE;
-            }
-        });
+        register(root);
 
         thread = new Thread(this::watch, "moud-watcher");
         thread.setDaemon(true);
@@ -52,10 +45,38 @@ public final class Watcher implements AutoCloseable {
             boolean touched = false;
             for (var event : key.pollEvents()) {
                 if (String.valueOf(event.context()).endsWith(".luau")) touched = true;
+                // a folder made after the watch started is not watched until it is registered, so a
+                // new lib/ full of modules would never reload anything
+                if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE
+                        && key.watchable() instanceof Path parent
+                        && event.context() instanceof Path name) {
+                    touched |= watchNew(parent.resolve(name));
+                }
             }
             key.reset();
             if (touched) dirty.set(true);
         }
+    }
+
+    private void register(Path top) throws IOException {
+        Files.walkFileTree(top, new SimpleFileVisitor<>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                dir.register(service, StandardWatchEventKinds.ENTRY_CREATE,
+                        StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.ENTRY_DELETE);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
+    private boolean watchNew(Path created) {
+        if (!Files.isDirectory(created)) return false;
+        try {
+            register(created);
+        } catch (IOException | RuntimeException ignored) {
+            return false;
+        }
+        return true;
     }
 
     @Override

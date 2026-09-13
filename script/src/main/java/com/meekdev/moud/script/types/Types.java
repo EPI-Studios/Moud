@@ -166,6 +166,7 @@ public final class Types {
                 declare camera: Camera
                 declare input: Input
 
+                declare function require(path: string): any
                 declare function vec3(x: number, y: number, z: number): Vector3
                 declare function color(r: number, g: number, b: number, a: number?): Color
 

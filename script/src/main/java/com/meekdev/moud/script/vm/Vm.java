@@ -8,6 +8,7 @@ import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.bind.CameraMethods;
+import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.bind.Remotes;
 import com.meekdev.moud.script.bind.Inputs;
@@ -70,6 +71,11 @@ public final class Vm implements ScriptEngine {
     @Override
     public void bindPost(PostRef post, boolean client) {
         Remotes.install(state, post, client);
+    }
+
+    @Override
+    public void bindModules(ModuleSource source) {
+        Modules.install(state, source);
     }
 
     public void bindClient(Instance camera, CameraRef lens, InputRef input,
