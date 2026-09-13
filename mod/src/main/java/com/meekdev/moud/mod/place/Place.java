@@ -99,7 +99,10 @@ public final class Place {
         MoudMod.LOG.info("reloading the place");
 
         Map<String, Object> carried = vm == null ? Map.of() : vm.persist();
+        // gone before anything else runs: a script of the next vm calling back into the engine must never be
+        // handed this one, whose native state is freed
         if (vm != null) vm.close();
+        vm = null;
         for (Instance child : List.copyOf(world.children())) {
             if (dropped.test(child)) Instances.destroy(child);
         }
@@ -183,6 +186,8 @@ public final class Place {
         fresh.onError(Errors::record);
         fresh.persist(carried);
         extend.accept(fresh);
+        // the place's vm from here on, since running main calls back into code that asks the place for it
+        vm = fresh;
         if (source != null) {
             try {
                 fresh.run(file, source);
