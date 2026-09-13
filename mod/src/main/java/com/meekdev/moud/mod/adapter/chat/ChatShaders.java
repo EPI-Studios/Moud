@@ -112,54 +112,14 @@ final class ChatShaders {
 
     // the place's file defines vec4 textColor(vec4 color, vec2 uv, vec2 glyph, float time)
     private static String textSource(String body) {
-        return """
-                #version 330 core
-                in vec2 vUv;
-                in vec4 vColor;
-                in vec2 vPos;
-                flat in vec4 vParams;
-                flat in vec2 vExtra;
-                flat in vec4 vClip;
-                uniform sampler2D Tex;
-                uniform vec2 ScreenSize;
-                uniform float Time;
-                out vec4 FragColor;
-                #line 1
-                """ + body + """
-
-                void main() {
-                    if (vClip.z > 0.0 && (vPos.x < vClip.x || vPos.y < vClip.y || vPos.x > vClip.z || vPos.y > vClip.w)) discard;
-                    vec4 base = texture(Tex, vUv) * vColor;
-                    vec4 rect = vec4(vParams.y, vParams.z, vParams.w, vExtra.x);
-                    vec2 glyph = (vUv - rect.xy) / max(rect.zw - rect.xy, vec2(1e-6));
-                    vec4 result = textColor(base, vPos / ScreenSize, glyph, Time);
-                    if (result.a <= 0.001) discard;
-                    FragColor = result;
-                }
-                """;
+        return part("text_head") + body + part("text_main");
     }
 
-    // the place's file defines vec4 windowColor(vec2 uv, vec2 local, float time), reading the picture
-    // through scene(uv). local runs from 0 to 1 across the window
     private static String windowSource(String body) {
-        return """
-                #version 330 core
-                in vec2 vUV;
-                out vec4 FragColor;
-                uniform sampler2D SceneColorSampler;
-                uniform vec2 ScreenSize;
-                uniform vec4 Rect;
-                uniform float Time;
-                vec4 scene(vec2 uv) { return texture(SceneColorSampler, uv); }
-                #line 1
-                """ + body + """
+        return part("window_head") + body + part("window_main");
+    }
 
-                void main() {
-                    vec2 px = vec2(vUV.x, 1.0 - vUV.y) * ScreenSize;
-                    vec2 local = (px - Rect.xy) / max(Rect.zw, vec2(1.0));
-                    if (local.x < 0.0 || local.y < 0.0 || local.x > 1.0 || local.y > 1.0) discard;
-                    FragColor = windowColor(vUV, local, Time);
-                }
-                """;
+    private static String part(String name) {
+        return ShaderProgram.readSource(Identifier.fromNamespaceAndPath("moud", "shaders/chat/" + name + ".glsl"));
     }
 }

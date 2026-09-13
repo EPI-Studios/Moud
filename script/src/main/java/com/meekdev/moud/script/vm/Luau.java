@@ -19,4 +19,13 @@ public final class Luau {
             throw new ScriptError(name, e.getMessage(), e);
         }
     }
+
+    public static String optional(String name) {
+        String path = "/moud/" + name;
+        try (InputStream in = Luau.class.getResourceAsStream(path)) {
+            return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new ScriptError(name, e.getMessage(), e);
+        }
+    }
 }
