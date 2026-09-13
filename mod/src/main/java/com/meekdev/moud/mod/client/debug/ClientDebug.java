@@ -10,7 +10,9 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.core.ui.HorizontalAlign;
-import com.meekdev.moud.mod.adapter.chat.ChatView;
+import com.meekdev.moud.mod.adapter.text.Argb;
+import com.meekdev.moud.mod.adapter.text.TextLook;
+import com.meekdev.moud.mod.adapter.text.TextPainter;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.transport.payload.DebugPayload;
 import com.meekdev.moud.script.api.DebugRef;
@@ -105,7 +107,7 @@ public final class ClientDebug implements DebugRef {
 
     private void add(List<Vector3[]> lines, Vector3 label, String text, Color color, double seconds) {
         long until = System.nanoTime() + (long) (Math.max(0, seconds) * 1e9);
-        shapes.add(new Shape(lines, label, text, ChatView.argbOf(color, 1), seconds <= 0 ? 0 : until));
+        shapes.add(new Shape(lines, label, text, Argb.of(color, 1), seconds <= 0 ? 0 : until));
     }
 
     private void drain() {
@@ -156,8 +158,8 @@ public final class ClientDebug implements DebugRef {
                     float[] at = Gizmos.project(camera, scratch, shape.label().x(), shape.label().y(), shape.label().z(), d.width(), d.height());
                     if (at != null) {
                         Color c = new Color(((shape.argb() >> 16) & 255) / 255f, ((shape.argb() >> 8) & 255) / 255f, (shape.argb() & 255) / 255f, 1);
-                        ChatView.text(d, RichText.escape(shape.text()), at[0] - 100, at[1], 200, 9,
-                                new ChatView.Look(c, "", true, Color.BLACK, 0), 1, HorizontalAlign.CENTER);
+                        TextPainter.draw(d, RichText.escape(shape.text()), at[0] - 100, at[1], 200, 9,
+                                new TextLook(c, "", true, Color.BLACK, 0), 1, HorizontalAlign.CENTER);
                     }
                 }
                 if (shape.until() == 0 || now > shape.until()) it.remove();
@@ -167,8 +169,8 @@ public final class ClientDebug implements DebugRef {
         for (Map.Entry<String, String> entry : watched.entrySet()) {
             String line = entry.getKey() + ": " + entry.getValue();
             d.rect(d.width() - 204, y - 1, 200, 11, 0x80000000);
-            ChatView.text(d, RichText.escape(line), d.width() - 202, y, 196, 9,
-                    new ChatView.Look(Color.WHITE, "", true, Color.BLACK, 0), 1, HorizontalAlign.LEFT);
+            TextPainter.draw(d, RichText.escape(line), d.width() - 202, y, 196, 9,
+                    new TextLook(Color.WHITE, "", true, Color.BLACK, 0), 1, HorizontalAlign.LEFT);
             y += 12;
         }
     }

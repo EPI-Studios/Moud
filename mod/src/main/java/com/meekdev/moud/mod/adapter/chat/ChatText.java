@@ -1,7 +1,7 @@
 package com.meekdev.moud.mod.adapter.chat;
 
-import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.text.RichText;
+import com.meekdev.moud.mod.adapter.text.Argb;
 import java.net.URI;
 import java.util.Locale;
 import java.util.Optional;
@@ -37,7 +37,7 @@ public final class ChatText {
     static Style style(RichText.Style s) {
         Style style = Style.EMPTY.withBold(s.bold()).withItalic(s.italic()).withUnderlined(s.underline())
                 .withStrikethrough(s.strike()).withObfuscated(s.obfuscated());
-        if (s.color() != null) style = style.withColor(TextColor.fromRgb(rgb(s.color())));
+        if (s.color() != null) style = style.withColor(TextColor.fromRgb(Argb.rgb(s.color())));
         if (s.font() != null) {
             Identifier font = Identifier.tryParse(s.font());
             if (font != null) style = style.withFont(new FontDescription.Resource(font));
@@ -102,7 +102,4 @@ public final class ChatText {
         return value.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;");
     }
 
-    public static int rgb(Color color) {
-        return (Math.round(color.r() * 255) << 16) | (Math.round(color.g() * 255) << 8) | Math.round(color.b() * 255);
-    }
 }

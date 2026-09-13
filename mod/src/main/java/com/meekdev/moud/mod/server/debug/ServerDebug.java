@@ -4,7 +4,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
-import com.meekdev.moud.mod.adapter.chat.ChatView;
+import com.meekdev.moud.mod.adapter.text.Argb;
 import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.mod.transport.payload.DebugPayload;
 import com.meekdev.moud.script.api.DebugRef;
@@ -53,7 +53,7 @@ public final class ServerDebug implements DebugRef {
     private static void send(int kind, double[] numbers, String text, Color color, double seconds) {
         MinecraftServer server = ServerScene.server();
         if (server == null) return;
-        DebugPayload payload = new DebugPayload(kind, numbers, text, ChatView.argbOf(color, 1), seconds);
+        DebugPayload payload = new DebugPayload(kind, numbers, text, Argb.of(color, 1), seconds);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (ServerPlayNetworking.canSend(player, DebugPayload.TYPE)) ServerPlayNetworking.send(player, payload);
         }

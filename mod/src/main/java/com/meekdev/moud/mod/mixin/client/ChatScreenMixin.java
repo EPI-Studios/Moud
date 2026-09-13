@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.adapter.chat.ChatLook;
 import com.meekdev.moud.mod.adapter.chat.ChatText;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.mod.adapter.chat.ClientChat;
+import com.meekdev.moud.mod.adapter.text.Argb;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.CommandSuggestions;
@@ -30,9 +31,9 @@ abstract class ChatScreenMixin {
         if (!ChatView.active()) return;
         ChatInputBar bar = ChatLook.inputBarOrDefault();
         input.setMaxLength(bar.maxLength);
-        input.setTextColor(ChatView.argbOf(bar.textColor, 1));
+        input.setTextColor(Argb.of(bar.textColor, 1));
         if (!bar.placeholder.isEmpty()) {
-            input.setHint(ChatText.of("<color=" + String.format("#%06x", ChatText.rgb(bar.placeholderColor)) + ">"
+            input.setHint(ChatText.of("<color=" + Argb.hex(bar.placeholderColor) + ">"
                     + bar.placeholder + "</color>"));
         }
         if (!bar.autocomplete) commandSuggestions.setAllowSuggestions(false);
@@ -52,7 +53,7 @@ abstract class ChatScreenMixin {
             return;
         }
         ChatInputBar bar = ChatLook.inputBarOrDefault();
-        int argb = ChatView.argbOf(bar.backgroundColor, 1 - bar.backgroundTransparency);
+        int argb = Argb.of(bar.backgroundColor, 1 - bar.backgroundTransparency);
         if ((argb >>> 24) != 0) graphics.fill(x0, y0, x1, y1, argb);
     }
 

@@ -4,7 +4,6 @@ import com.meekdev.amnetic.client.framebuffer.Framebuffer;
 import com.meekdev.amnetic.client.framebuffer.Framebuffers;
 import com.meekdev.amnetic.client.render.GlState;
 import com.meekdev.amnetic.client.render.ShaderProgram;
-import com.meekdev.amnetic.client.surface.HudSurface;
 import com.meekdev.amnetic.client.surface.Surfaces;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;
 import com.meekdev.moud.core.chat.ChatAnimation;
@@ -12,16 +11,16 @@ import com.meekdev.moud.core.chat.ChatBackdrop;
 import com.meekdev.moud.core.chat.ChatTabs;
 import com.meekdev.moud.core.chat.ChatWindow;
 import com.meekdev.moud.core.chat.TextChannel;
-import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.core.tween.Easing;
-import com.meekdev.moud.core.ui.HorizontalAlign;
 import com.meekdev.moud.core.ui.VerticalAlign;
-import com.meekdev.moud.mod.adapter.ui.UiFonts;
-import com.meekdev.moud.mod.adapter.ui.UiImages;
+import com.meekdev.moud.mod.adapter.text.Argb;
+import com.meekdev.moud.mod.adapter.text.TextLayout;
+import com.meekdev.moud.mod.adapter.text.TextLook;
+import com.meekdev.moud.mod.adapter.text.TextPainter;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.script.engine.ScriptEngine;
@@ -31,10 +30,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import net.minecraft.client.Minecraft;
@@ -45,23 +41,10 @@ import net.minecraft.client.gui.font.glyphs.BakedGlyph;
 import net.minecraft.client.gui.font.glyphs.BakedSheetGlyph;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.ConfirmLinkScreen;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.FontDescription;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
 public final class ChatView {
-
-    private static final float LINE = 9f;
-
-    private enum Kind { TEXT, IMAGE, ITEM }
-
-    private record Glyph(Kind kind, int codepoint, float x, float width, float height, RichText.Style style,
-                         int index, int spanStart, int spanLength, Object extra) {}
-
-    private record Row(List<Glyph> glyphs, float width, float height) {}
-
-    private record Laid(List<Row> rows, float width, float height, int glyphs) {}
 
     private record Hit(float x0, float y0, float x1, float y1, RichText.Style style, ClientChat.Shown shown,
                        ItemStack item, TextChannel tab) {}
@@ -70,20 +53,10 @@ public final class ChatView {
 
     private record Rect(float x, float y, float w, float h) {}
 
-    public record Look(Color textColor, String font, boolean shadow, Color strokeColor, double strokeAlpha) {
+    private record Placed(ClientChat.Shown shown, TextLayout layout, float alpha, double enter, double exit, float height) {}
 
-        static Look of(ChatWindow window, Map<String, Object> look) {
-            return new Look(color(look, "textColor", window.textColor), string(look, "font", window.font),
-                    bool(look, "textShadow", window.textShadow), color(look, "textStrokeColor", window.textStrokeColor),
-                    1 - number(look, "textStrokeTransparency", window.textStrokeTransparency));
-        }
-    }
-
-    private static HudSurface hud;
     private static final List<Hit> HITS = new ArrayList<>();
     private static final List<ItemDraw> ITEMS = new ArrayList<>();
-    private static final Map<String, ItemStack> STACKS = new HashMap<>();
-    private static final long START = System.nanoTime();
 
     private static float scroll;
     private static float maxScroll;
@@ -94,8 +67,7 @@ public final class ChatView {
     private ChatView() {}
 
     public static void install() {
-        hud = Surfaces.hud();
-        hud.onDraw(ChatView::draw);
+        Surfaces.hud().onDraw(ChatView::draw);
     }
 
     public static boolean active() {
@@ -118,7 +90,7 @@ public final class ChatView {
         hidden = window.visible ? Math.max(0, hidden - dt * speed) : Math.min(1, hidden + dt * speed);
         if (!window.enabled || hidden >= 1 && window.hideAnimation != ChatAnimation.NONE || !window.visible && window.hideAnimation == ChatAnimation.NONE) return;
 
-        float time = (float) ((now - START) / 1e9);
+        float time = TextPainter.time();
         boolean focused = focused();
         if (!focused) scroll = 0;
         Rect rect = rect(d, window);
@@ -144,7 +116,7 @@ public final class ChatView {
         boolean backdrop = window.backdrop == ChatBackdrop.ALWAYS || window.backdrop == ChatBackdrop.FOCUSED && focused;
         if (backdrop) {
             d.roundedRect(rect.x(), rect.y(), rect.w(), rect.h(), (float) window.cornerRadius,
-                    argb(window.backgroundColor, (1 - window.backgroundTransparency) * windowAlpha));
+                    Argb.of(window.backgroundColor, (1 - window.backgroundTransparency) * windowAlpha));
         }
         if (focused) tabs(d, window, rect, windowAlpha);
 
@@ -170,14 +142,13 @@ public final class ChatView {
         float contentWidth = rect.w() - padding * 2;
         long now = System.nanoTime();
 
-        record Placed(ClientChat.Shown shown, Laid laid, float alpha, double enter, double exit, float height) {}
         List<Placed> placed = new ArrayList<>();
         float total = 0;
         for (int n = lines.size() - 1; n >= 0; n--) {
             ClientChat.Shown shown = lines.get(n);
             double age = (now - shown.added) / 1e9;
             float alpha = 1;
-            double visibleTime = number(shown.look, "visibleTime", window.visibleTime);
+            double visibleTime = Looks.number(shown.look, "visibleTime", window.visibleTime);
             if (!focused && visibleTime > 0 && shown.removed < 0) {
                 if (age > visibleTime + window.fadeTime) continue;
                 if (age > visibleTime) alpha = (float) (1 - (age - visibleTime) / Math.max(0.0001, window.fadeTime));
@@ -185,10 +156,9 @@ public final class ChatView {
             double enter = window.animationTime <= 0 ? 1 : Math.min(1, age / window.animationTime);
             double exit = shown.removed < 0 ? 0 : window.animationTime <= 0 ? 1 : Math.min(1, (now - shown.removed) / 1e9 / window.animationTime);
             if (exit >= 1) continue;
-            float textWidth = contentWidth - (float) window.linePaddingX * 2;
-            Laid laid = layout(d, window, shown, textWidth);
-            float height = laid.height() + (float) window.linePaddingY * 2;
-            placed.add(new Placed(shown, laid, alpha, enter, exit, height));
+            TextLayout layout = layout(d, window, shown, contentWidth - (float) window.linePaddingX * 2);
+            float height = layout.height() + (float) window.linePaddingY * 2;
+            placed.add(new Placed(shown, layout, alpha, enter, exit, height));
             total += height + (float) window.lineGap;
         }
         maxScroll = Math.max(0, total - (rect.h() - padding * 2));
@@ -196,28 +166,25 @@ public final class ChatView {
 
         boolean bottom = window.verticalAlignment != VerticalAlign.TOP;
         float y = bottom ? rect.y() + rect.h() - padding + scroll : rect.y() + padding - scroll;
-        List<Placed> order = placed;
         if (!bottom) {
-            order = new ArrayList<>(placed);
-            Collections.reverse(order);
-            float overflow = Math.max(0, total - (rect.h() - padding * 2));
-            y -= overflow - scroll * 2;
+            Collections.reverse(placed);
+            y -= maxScroll - scroll * 2;
         }
-        for (Placed one : order) {
+        for (Placed one : placed) {
             float top = bottom ? y - one.height() : y;
             if (bottom) y -= one.height() + (float) window.lineGap;
             else y += one.height() + (float) window.lineGap;
             if (top > rect.y() + rect.h() || top + one.height() < rect.y()) continue;
-            line(d, window, rect, one.shown(), one.laid(), top, one.height(), one.alpha() * windowAlpha,
-                    one.enter(), one.exit(), time);
+            line(d, window, rect, one, top, one.alpha() * windowAlpha, time);
         }
     }
 
-    private static void line(UiDraw d, ChatWindow window, Rect rect, ClientChat.Shown shown, Laid laid, float top,
-                             float height, float alpha, double enter, double exit, float time) {
-        ChatAnimation in = animation(shown.look, "animation", window.enterAnimation);
-        double progress = window.easing.apply(enter, Easing.Direction.OUT) * (1 - window.easing.apply(exit, Easing.Direction.IN));
-        ChatAnimation motion = exit > 0 ? window.exitAnimation : in;
+    private static void line(UiDraw d, ChatWindow window, Rect rect, Placed placed, float top, float alpha, float time) {
+        ClientChat.Shown shown = placed.shown();
+        float height = placed.height();
+        ChatAnimation in = Looks.animation(shown.look, "animation", window.enterAnimation);
+        double progress = window.easing.apply(placed.enter(), Easing.Direction.OUT) * (1 - window.easing.apply(placed.exit(), Easing.Direction.IN));
+        ChatAnimation motion = placed.exit() > 0 ? window.exitAnimation : in;
         float offsetX = 0;
         float offsetY = 0;
         int reveal = Integer.MAX_VALUE;
@@ -227,7 +194,7 @@ public final class ChatView {
             case SLIDE_RIGHT -> offsetX = (float) ((1 - progress) * rect.w());
             case SLIDE_UP -> offsetY = (float) ((1 - progress) * height);
             case SLIDE_DOWN -> offsetY = (float) (-(1 - progress) * height);
-            case TYPEWRITER -> reveal = (int) Math.ceil(progress * laid.glyphs());
+            case TYPEWRITER -> reveal = (int) Math.ceil(progress * placed.layout().glyphCount());
             default -> {}
         }
         if (alpha <= 0.003) return;
@@ -238,245 +205,60 @@ public final class ChatView {
         boolean pop = motion == ChatAnimation.POP && progress < 1;
         if (pop) d.pushTransform(x + lineWidth / 2, top + height / 2, 0, 0, (float) (0.5 + 0.5 * progress), 0);
 
-        float stripWidth = window.lineFitsText ? laid.width() + (float) window.linePaddingX * 2 : lineWidth;
-        float stripX = switch (window.horizontalAlignment) {
-            case LEFT -> x;
-            case CENTER -> x + (lineWidth - stripWidth) / 2;
-            case RIGHT -> x + lineWidth - stripWidth;
-        };
-        Color background = color(shown.look, "backgroundColor", window.lineBackgroundColor);
-        double transparency = number(shown.look, "backgroundTransparency", window.lineBackgroundTransparency);
-        float radius = (float) number(shown.look, "cornerRadius", window.lineCornerRadius);
-        int strip = argb(background, (1 - transparency) * alpha);
+        float stripWidth = window.lineFitsText ? placed.layout().width() + (float) window.linePaddingX * 2 : lineWidth;
+        float stripX = x + TextLayout.align(window.horizontalAlignment, stripWidth, lineWidth);
+        Color background = Looks.color(shown.look, "backgroundColor", window.lineBackgroundColor);
+        double transparency = Looks.number(shown.look, "backgroundTransparency", window.lineBackgroundTransparency);
+        float radius = (float) Looks.number(shown.look, "cornerRadius", window.lineCornerRadius);
+        int strip = Argb.of(background, (1 - transparency) * alpha);
         if ((strip >>> 24) != 0) d.roundedRect(stripX, top, stripWidth, height, radius, strip);
         HITS.add(new Hit(stripX, top, stripX + stripWidth, top + height, null, shown, null, null));
 
-        float rowTop = top + (float) window.linePaddingY;
-        float innerX = stripX + (float) window.linePaddingX;
-        float innerWidth = stripWidth - (float) window.linePaddingX * 2;
-        List<Runnable> shaded = new ArrayList<>();
-        Look look = Look.of(window, shown.look);
-        for (Row row : laid.rows()) {
-            float rowX = switch (window.horizontalAlignment) {
-                case LEFT -> innerX;
-                case CENTER -> innerX + (innerWidth - row.width()) / 2;
-                case RIGHT -> innerX + innerWidth - row.width();
-            };
-            for (Glyph glyph : row.glyphs()) {
-                if (glyph.index() >= reveal) break;
-                float gx = rowX + glyph.x();
-                float gy = rowTop + row.height() - glyph.height();
-                glyph(d, look, shown, glyph, gx, gy, alpha, time, shaded);
+        TextPainter.Hits hits = new TextPainter.Hits() {
+            @Override
+            public void glyph(TextLayout.Glyph glyph, float gx, float gy) {
+                ItemStack item = glyph.kind() == TextLayout.Kind.ITEM ? (ItemStack) glyph.extra() : null;
+                HITS.add(new Hit(gx, gy, gx + glyph.width(), gy + glyph.height(), glyph.style(), shown, item, null));
             }
-            rowTop += row.height();
-        }
+
+            @Override
+            public void item(ItemStack stack, float ix, float iy, float size) {
+                ITEMS.add(new ItemDraw(stack, ix, iy, size));
+            }
+        };
+        float innerWidth = stripWidth - (float) window.linePaddingX * 2;
+        TextPainter.draw(d, placed.layout(), stripX + (float) window.linePaddingX, top + (float) window.linePaddingY,
+                innerWidth, window.horizontalAlignment, look(window, shown.look), alpha, time, reveal, hits);
         if (pop) d.popTransform();
     }
 
-    private static void glyph(UiDraw d, Look look, ClientChat.Shown shown, Glyph glyph, float x, float y,
-                              float alpha, float time, List<Runnable> shaded) {
-        RichText.Style style = glyph.style();
-        if (shown != null && (style.click() != null || style.hover() != null || style.body() >= 0 || glyph.kind() == Kind.ITEM)) {
-            HITS.add(new Hit(x, y, x + glyph.width(), y + glyph.height(), style, shown,
-                    glyph.kind() == Kind.ITEM ? (ItemStack) glyph.extra() : null, null));
-        }
-        float a = (float) (alpha * (1 - style.transparency()));
-        float dx = 0;
-        float dy = 0;
-        float spin = 0;
-        float px = glyph.height();
-        for (RichText.Effect effect : style.effects()) {
-            double strength = effect.number("strength", 1) * px / LINE;
-            double speed = effect.number("speed", 1);
-            int i = glyph.index() - glyph.spanStart();
-            switch (effect.name()) {
-                case "wave" -> dy += (float) (Math.sin(time * speed * 5 + i * 0.6) * strength);
-                case "bounce" -> dy -= (float) (Math.abs(Math.sin(time * speed * 4 + i * 0.35)) * strength * 2);
-                case "shake" -> {
-                    long tick = (long) (time * 30 * speed);
-                    dx += (float) ((hash(i, tick) - 0.5) * strength);
-                    dy += (float) ((hash(i + 7919, tick) - 0.5) * strength);
-                }
-                case "pulse" -> a *= (float) (0.55 + 0.45 * Math.sin(time * speed * 4));
-                case "fade" -> a *= (float) (0.5 + 0.5 * Math.sin(time * speed * 3 + i * 0.4));
-                case "spin" -> spin += (float) (time * speed * 3);
-                default -> {}
-            }
-        }
-        if (a <= 0.003) return;
-        x += dx;
-        y += dy;
-
-        if (style.mark() != null) {
-            d.rect(x, y, glyph.width(), glyph.height(), argb(style.mark(), style.mark().a() * a));
-        }
-        switch (glyph.kind()) {
-            case IMAGE -> {
-                int texture = UiImages.texture((String) glyph.extra());
-                if (texture != 0) d.image(texture, x, y, glyph.width(), glyph.height(), argb(Color.WHITE, a));
-                return;
-            }
-            case ITEM -> {
-                if (a > 0.5 && shown != null) ITEMS.add(new ItemDraw((ItemStack) glyph.extra(), x, y, glyph.height()));
-                return;
-            }
-            default -> {}
-        }
-
-        Color base = style.color() != null ? style.color() : look.textColor();
-        if (style.gradientTo() != null && glyph.spanLength() > 1) {
-            float t = (glyph.index() - glyph.spanStart()) / (float) (glyph.spanLength() - 1);
-            base = lerp(base, style.gradientTo(), t);
-        }
-        if (style.rainbow() > 0) {
-            float hue = (float) ((glyph.index() * 0.06 + time * 0.25 * style.rainbow()) % 1.0);
-            int rgb = hsb(hue, 0.7f, 1f);
-            base = new Color(((rgb >> 16) & 255) / 255f, ((rgb >> 8) & 255) / 255f, (rgb & 255) / 255f, 1);
-        }
-        int fill = argb(base, a);
-        int codepoint = glyph.codepoint();
-        if (style.obfuscated() && codepoint != ' ') codepoint = 33 + (int) (hash(glyph.index(), (long) (time * 20)) * 93);
-
-        String fontName = style.font() != null ? style.font() : look.font();
-        UiFonts.Face face = UiFonts.of(fontName);
-        float scale = px / LINE;
-        ShaderProgram shader = style.shader() == null ? null : ChatShaders.text(style.shader());
-
-        Color strokeColor = style.stroke() != null ? style.stroke() : look.strokeColor();
-        double strokeAlpha = style.stroke() != null ? style.stroke().a() : look.strokeAlpha();
-        float thickness = (float) (style.stroke() != null ? style.strokeThickness() : 1) * scale;
-        boolean shadow = style.shadow() != null ? style.shadow().a() > 0 : look.shadow();
-        int shadowArgb = style.shadow() != null ? argb(style.shadow(), a) : (fill & 0xFF000000) | ((fill & 0xFCFCFC) >> 2);
-
-        if (face instanceof UiFonts.Vector vector) {
-            Identifier previous = d.currentFont();
-            d.font(vector.font());
-            float baseline = y + px * 0.8f;
-            if (shadow) d.glyph(codepoint, x + scale, baseline + scale, px, shadowArgb, 0, 0);
-            if (strokeAlpha > 0.003) d.glyph(codepoint, x, baseline, px, argb(strokeColor, strokeAlpha * a), -thickness, 0);
-            d.glyph(codepoint, x, baseline, px, fill, 0, 0);
-            if (style.bold()) d.glyph(codepoint, x + scale * 0.5f, baseline, px, fill, 0, 0);
-            if (previous != null) d.font(previous);
-        } else {
-            FontDescription font = ((UiFonts.Game) face).font();
-            BakedGlyph baked = glyphs(font).getGlyph(codepoint);
-            if (baked instanceof BakedSheetGlyph sheet && sheet.textureView.texture() instanceof GlTexture gl) {
-                if (shadow) quad(d, gl.glId(), sheet, x + scale, y + scale, scale, style.italic(), spin, shadowArgb, null, shaded);
-                if (strokeAlpha > 0.003) {
-                    int strokeArgb = argb(strokeColor, strokeAlpha * a);
-                    for (int ox = -1; ox <= 1; ox++) {
-                        for (int oy = -1; oy <= 1; oy++) {
-                            if (ox == 0 && oy == 0) continue;
-                            quad(d, gl.glId(), sheet, x + ox * thickness, y + oy * thickness, scale, style.italic(), spin, strokeArgb, null, shaded);
-                        }
-                    }
-                }
-                quad(d, gl.glId(), sheet, x, y, scale, style.italic(), spin, fill, shader, shaded);
-                if (style.bold()) quad(d, gl.glId(), sheet, x + scale, y, scale, style.italic(), spin, fill, shader, shaded);
-            }
-        }
-        if (style.underline()) d.rect(x, y + px - scale, glyph.width(), scale, fill);
-        if (style.strike()) d.rect(x, y + px * 0.45f, glyph.width(), scale, fill);
-        if (!shaded.isEmpty()) {
-            List<Runnable> run = new ArrayList<>(shaded);
-            shaded.clear();
-            d.withProgram(shader, program -> program.setFloat("Time", time), () -> run.forEach(Runnable::run));
-        }
+    private static TextLook look(ChatWindow window, Map<String, Object> look) {
+        return new TextLook(Looks.color(look, "textColor", window.textColor), Looks.string(look, "font", window.font),
+                Looks.bool(look, "textShadow", window.textShadow), Looks.color(look, "textStrokeColor", window.textStrokeColor),
+                1 - Looks.number(look, "textStrokeTransparency", window.textStrokeTransparency));
     }
 
-    private static void quad(UiDraw d, int texture, BakedSheetGlyph sheet, float x, float y, float scale, boolean italic,
-                             float spin, int argb, ShaderProgram shader, List<Runnable> shaded) {
-        float x0 = x + sheet.left * scale;
-        float x1 = x + sheet.right * scale;
-        float y0 = y + sheet.up * scale;
-        float y1 = y + sheet.down * scale;
-        float lean = italic ? (y1 - y0) * 0.25f : 0;
-        float[] corners = {x0 + lean, y0, x1 + lean, y0, x1, y1, x0, y1};
-        if (spin != 0) {
-            float cx = (x0 + x1) / 2;
-            float cy = (y0 + y1) / 2;
-            float cos = (float) Math.cos(spin);
-            float sin = (float) Math.sin(spin);
-            for (int i = 0; i < 8; i += 2) {
-                float px = corners[i] - cx;
-                float py = corners[i + 1] - cy;
-                corners[i] = cx + px * cos - py * sin;
-                corners[i + 1] = cy + px * sin + py * cos;
-            }
-        }
-        Runnable draw = () -> d.imageQuad(texture, corners[0], corners[1], corners[2], corners[3], corners[4], corners[5],
-                corners[6], corners[7], sheet.u0, sheet.v0, sheet.u1, sheet.v1, argb, true);
-        if (shader != null) {
-            shaded.add(draw);
-        } else {
-            draw.run();
-        }
-    }
-
-    private static final Map<String, Laid> LAID = new LinkedHashMap<>(64, 0.75f, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<String, Laid> eldest) {
-            return size() > 256;
-        }
-    };
-
-    public record Size(float width, float height) {}
-
-    public static Size measure(UiDraw d, String markup, float width, float px, String font) {
-        Laid laid = layoutText(d, markup, width, px, font);
-        return new Size(laid.width(), laid.height());
-    }
-
-    public static void text(UiDraw d, String markup, float x, float y, float width, float px, Look look, float alpha,
-                     HorizontalAlign align) {
-        Laid laid = layoutText(d, markup, width, px, look.font());
-        float time = (float) ((System.nanoTime() - START) / 1e9);
-        List<Runnable> shaded = new ArrayList<>();
-        float rowTop = y;
-        for (Row row : laid.rows()) {
-            float rowX = switch (align) {
-                case LEFT -> x;
-                case CENTER -> x + (width - row.width()) / 2;
-                case RIGHT -> x + width - row.width();
-            };
-            for (Glyph glyph : row.glyphs()) {
-                glyph(d, look, null, glyph, rowX + glyph.x(), rowTop + row.height() - glyph.height(), alpha, time, shaded);
-            }
-            rowTop += row.height();
-        }
-    }
-
-    private static Laid layoutText(UiDraw d, String markup, float width, float px, String font) {
-        String key = markup + "\u0000" + width + "\u0000" + px + "\u0000" + font;
-        Laid laid = LAID.get(key);
-        if (laid == null) {
-            laid = wrap(d, glyphs(d, RichText.parse(markup), px, font), width);
-            LAID.put(key, laid);
-        }
-        return laid;
-    }
-
-    private static Laid layout(UiDraw d, ChatWindow window, ClientChat.Shown shown, float width) {
+    private static TextLayout layout(UiDraw d, ChatWindow window, ClientChat.Shown shown, float width) {
         String composed = compose(window, shown);
-        float px = (float) number(shown.look, "textSize", window.textSize);
-        String font = string(shown.look, "font", window.font);
+        float px = (float) Looks.number(shown.look, "textSize", window.textSize);
+        String font = Looks.string(shown.look, "font", window.font);
         int key = Objects.hash(composed, width, px, font);
-        if (shown.layout instanceof Laid laid && shown.layoutKey == key) return laid;
+        if (shown.layout instanceof TextLayout layout && shown.layoutKey == key) return layout;
         if (!composed.equals(shown.composed)) {
             shown.composed = composed;
             shown.pieces = RichText.parse(composed);
         }
-        Laid laid = wrap(d, glyphs(d, shown.pieces, px, font), width);
-        shown.layout = laid;
+        TextLayout layout = TextLayout.wrap(d, shown.pieces, width, px, font);
+        shown.layout = layout;
         shown.layoutKey = key;
-        return laid;
+        return layout;
     }
 
     private static String compose(ChatWindow window, ClientChat.Shown shown) {
-        String text = string(shown.look, "text", shown.line.text);
-        String prefix = string(shown.look, "prefix", shown.line.prefix);
+        String text = Looks.string(shown.look, "text", shown.line.text);
+        String prefix = Looks.string(shown.look, "prefix", shown.line.prefix);
         StringBuilder out = new StringBuilder();
-        String icon = string(shown.look, "icon", "");
+        String icon = Looks.string(shown.look, "icon", "");
         if (!icon.isEmpty()) out.append("<img src=\"").append(icon.replace("\"", "")).append("\"/> ");
         if (window.timestamps && shown.line.timestamp > 0) {
             String stamp;
@@ -486,123 +268,14 @@ public final class ChatView {
             } catch (IllegalArgumentException ignored) {
                 stamp = "";
             }
-            out.append("<color=").append(hex(window.timestampColor)).append(">[").append(RichText.escape(stamp)).append("]</color> ");
+            out.append("<color=").append(Argb.hex(window.timestampColor)).append(">[").append(RichText.escape(stamp)).append("]</color> ");
         }
         if (!prefix.isEmpty()) {
-            Color prefixColor = color(shown.look, "prefixColor", window.prefixColor);
-            out.append("<color=").append(hex(prefixColor)).append(">").append(prefix).append("</color>: ");
+            Color prefixColor = Looks.color(shown.look, "prefixColor", window.prefixColor);
+            out.append("<color=").append(Argb.hex(prefixColor)).append(">").append(prefix).append("</color>: ");
         }
         out.append(text);
         return out.toString();
-    }
-
-    private static List<Glyph> glyphs(UiDraw d, List<RichText.Piece> pieces, float px, String windowFont) {
-        List<Glyph> out = new ArrayList<>();
-        int index = 0;
-        for (RichText.Piece piece : pieces) {
-            RichText.Style style = piece.style();
-            float size = (float) (px * style.size());
-            switch (piece) {
-                case RichText.Text text -> {
-                    String shown = style.uppercase() ? text.text().toUpperCase(Locale.ROOT) : text.text();
-                    UiFonts.Face face = UiFonts.of(style.font() != null ? style.font() : windowFont);
-                    int start = index;
-                    int length = shown.codePointCount(0, shown.length());
-                    for (int i = 0; i < shown.length(); ) {
-                        int cp = shown.codePointAt(i);
-                        i += Character.charCount(cp);
-                        float glyphSize = size;
-                        if (style.smallcaps() && Character.isLowerCase(cp)) {
-                            cp = Character.toUpperCase(cp);
-                            glyphSize = size * 0.8f;
-                        }
-                        float advance = advance(d, face, cp, glyphSize, style.bold());
-                        out.add(new Glyph(Kind.TEXT, cp, 0, advance, glyphSize, style, index++, start, length, null));
-                    }
-                }
-                case RichText.Break ignored -> out.add(new Glyph(Kind.TEXT, '\n', 0, 0, size, style, index++, index, 1, null));
-                case RichText.Image image -> out.add(new Glyph(Kind.IMAGE, 0, 0, (float) (image.width() * size),
-                        (float) (image.height() * size), style, index++, index, 1, image.src()));
-                case RichText.Item item -> {
-                    ItemStack stack = stack(item.id(), item.count());
-                    if (stack.isEmpty()) continue;
-                    float edge = size * 1.2f;
-                    out.add(new Glyph(Kind.ITEM, 0, 0, edge, edge, style, index++, index, 1, stack));
-                }
-            }
-        }
-        return out;
-    }
-
-    private static float advance(UiDraw d, UiFonts.Face face, int codepoint, float size, boolean bold) {
-        if (face instanceof UiFonts.Vector vector) {
-            Identifier previous = d.currentFont();
-            d.font(vector.font());
-            float width = d.textWidth(new String(Character.toChars(codepoint)), size);
-            if (previous != null) d.font(previous);
-            return width + (bold ? size / LINE * 0.5f : 0);
-        }
-        GlyphSource source = glyphs(((UiFonts.Game) face).font());
-        return source.getGlyph(codepoint).info().getAdvance(bold) * size / LINE;
-    }
-
-    private static Laid wrap(UiDraw d, List<Glyph> glyphs, float width) {
-        List<Row> rows = new ArrayList<>();
-        List<Glyph> row = new ArrayList<>();
-        float rowWidth = 0;
-        int i = 0;
-        while (i < glyphs.size()) {
-            Glyph first = glyphs.get(i);
-            if (first.kind() == Kind.TEXT && first.codepoint() == '\n') {
-                rows.add(row(row, rowWidth, first.height()));
-                row = new ArrayList<>();
-                rowWidth = 0;
-                i++;
-                continue;
-            }
-            int end = i;
-            float wordWidth = 0;
-            while (end < glyphs.size()) {
-                Glyph g = glyphs.get(end);
-                if (g.kind() == Kind.TEXT && g.codepoint() == '\n') break;
-                wordWidth += g.width();
-                end++;
-                if (g.kind() != Kind.TEXT || g.codepoint() == ' ') break;
-            }
-            if (rowWidth + wordWidth > width && !row.isEmpty()) {
-                rows.add(row(row, rowWidth, 0));
-                row = new ArrayList<>();
-                rowWidth = 0;
-            }
-            for (int n = i; n < end; n++) {
-                Glyph g = glyphs.get(n);
-                if (rowWidth + g.width() > width && !row.isEmpty()) {
-                    rows.add(row(row, rowWidth, 0));
-                    row = new ArrayList<>();
-                    rowWidth = 0;
-                }
-                if (row.isEmpty() && g.kind() == Kind.TEXT && g.codepoint() == ' ') continue;
-                row.add(new Glyph(g.kind(), g.codepoint(), rowWidth, g.width(), g.height(), g.style(), g.index(),
-                        g.spanStart(), g.spanLength(), g.extra()));
-                rowWidth += g.width();
-            }
-            i = end;
-        }
-        if (!row.isEmpty() || rows.isEmpty()) rows.add(row(row, rowWidth, 0));
-        float widest = 0;
-        float height = 0;
-        for (Row r : rows) {
-            widest = Math.max(widest, r.width());
-            height += r.height();
-        }
-        return new Laid(rows, widest, height, glyphs.size());
-    }
-
-    private static Row row(List<Glyph> glyphs, float width, float least) {
-        float height = least;
-        for (Glyph g : glyphs) height = Math.max(height, g.height());
-        if (height == 0) height = LINE;
-        return new Row(glyphs, width, height);
     }
 
     private static void tabs(UiDraw d, ChatWindow window, Rect rect, float alpha) {
@@ -615,17 +288,43 @@ public final class ChatView {
         float x = rect.x();
         float height = px + 4;
         float y = rect.y() - height - 2;
-        FontDescription font = FontDescription.DEFAULT;
         for (TextChannel channel : channels) {
             String name = channel.displayName.isEmpty() ? channel.name() : channel.displayName;
             int unread = ClientChat.INSTANCE.unreadCount(channel);
             String label = unread > 0 ? name + " (" + unread + ")" : name;
-            float w = plainWidth(font, label, px) + 8;
+            float w = plainWidth(label, px) + 8;
             boolean selected = channel == target;
-            d.roundedRect(x, y, w, height, 2, argb(selected ? tabs.selectedColor : tabs.backgroundColor, 0.75 * alpha));
-            plain(d, font, label, x + 4, y + 2, px, argb(unread > 0 && !selected ? tabs.unreadColor : tabs.textColor, alpha));
+            d.roundedRect(x, y, w, height, 2, Argb.of(selected ? tabs.selectedColor : tabs.backgroundColor, 0.75 * alpha));
+            plain(d, label, x + 4, y + 2, px, Argb.of(unread > 0 && !selected ? tabs.unreadColor : tabs.textColor, alpha));
             HITS.add(new Hit(x, y, x + w, y + height, null, null, null, channel));
             x += w + 2;
+        }
+    }
+
+    private static float plainWidth(String text, float px) {
+        GlyphSource source = Minecraft.getInstance().font.getGlyphSource(FontDescription.DEFAULT);
+        float width = 0;
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            width += source.getGlyph(cp).info().getAdvance() * px / TextLayout.LINE;
+            i += Character.charCount(cp);
+        }
+        return width;
+    }
+
+    private static void plain(UiDraw d, String text, float x, float y, float px, int argb) {
+        float scale = px / TextLayout.LINE;
+        GlyphSource source = Minecraft.getInstance().font.getGlyphSource(FontDescription.DEFAULT);
+        float pen = x;
+        for (int i = 0; i < text.length(); ) {
+            int cp = text.codePointAt(i);
+            BakedGlyph glyph = source.getGlyph(cp);
+            if (glyph instanceof BakedSheetGlyph sheet && sheet.textureView.texture() instanceof GlTexture gl) {
+                d.imageRegion(gl.glId(), pen + sheet.left * scale, y + sheet.up * scale, pen + sheet.right * scale,
+                        y + sheet.down * scale, sheet.u0, sheet.v0, sheet.u1, sheet.v1, argb, true);
+            }
+            pen += glyph.info().getAdvance() * scale;
+            i += Character.charCount(cp);
         }
     }
 
@@ -689,14 +388,10 @@ public final class ChatView {
             return true;
         }
         if (style != null && style.body() >= 0 && tree != null) {
-            Instance body = tree.byId(style.body());
-            if (vm != null) vm.chatEvent("bodyClicked", body, message);
+            if (vm != null) vm.chatEvent("bodyClicked", tree.byId(style.body()), message);
             return true;
         }
-        if (hit.shown() != null && vm != null) {
-            vm.chatEvent("messageClicked", message, (double) button);
-            return false;
-        }
+        if (hit.shown() != null && vm != null) vm.chatEvent("messageClicked", message, (double) button);
         return false;
     }
 
@@ -741,112 +436,5 @@ public final class ChatView {
             if (found == null || hit.style() != null || hit.tab() != null || hit.item() != null) found = hit;
         }
         return found;
-    }
-
-    private static GlyphSource glyphs(FontDescription font) {
-        return Minecraft.getInstance().font.getGlyphSource(font);
-    }
-
-    private static float plainWidth(FontDescription font, String text, float px) {
-        float pen = 0;
-        GlyphSource source = glyphs(font);
-        for (int i = 0; i < text.length(); ) {
-            int cp = text.codePointAt(i);
-            pen += source.getGlyph(cp).info().getAdvance() * px / LINE;
-            i += Character.charCount(cp);
-        }
-        return pen;
-    }
-
-    private static void plain(UiDraw d, FontDescription font, String text, float x, float y, float px, int argb) {
-        float scale = px / LINE;
-        GlyphSource source = glyphs(font);
-        float pen = x;
-        for (int i = 0; i < text.length(); ) {
-            int cp = text.codePointAt(i);
-            BakedGlyph glyph = source.getGlyph(cp);
-            if (glyph instanceof BakedSheetGlyph sheet && sheet.textureView.texture() instanceof GlTexture gl) {
-                d.imageRegion(gl.glId(), pen + sheet.left * scale, y + sheet.up * scale, pen + sheet.right * scale,
-                        y + sheet.down * scale, sheet.u0, sheet.v0, sheet.u1, sheet.v1, argb, true);
-            }
-            pen += glyph.info().getAdvance() * scale;
-            i += Character.charCount(cp);
-        }
-    }
-
-    private static ItemStack stack(String id, int count) {
-        String key = id + "*" + count;
-        return STACKS.computeIfAbsent(key, k -> {
-            Identifier item = Identifier.tryParse(id);
-            if (item == null || !BuiltInRegistries.ITEM.containsKey(item)) return ItemStack.EMPTY;
-            return new ItemStack(BuiltInRegistries.ITEM.getValue(item), Math.max(1, count));
-        });
-    }
-
-    private static double hash(long a, long b) {
-        long h = a * 0x9E3779B97F4A7C15L ^ b * 0xC2B2AE3D27D4EB4FL;
-        h ^= h >>> 33;
-        h *= 0xFF51AFD7ED558CCDL;
-        h ^= h >>> 33;
-        return (h & 0xFFFFFF) / (double) 0x1000000;
-    }
-
-    private static int hsb(float hue, float saturation, float brightness) {
-        float h = (hue - (float) Math.floor(hue)) * 6f;
-        float c = brightness * saturation;
-        float x = c * (1 - Math.abs(h % 2 - 1));
-        float m = brightness - c;
-        float r, g, b;
-        switch ((int) h) {
-            case 0 -> { r = c; g = x; b = 0; }
-            case 1 -> { r = x; g = c; b = 0; }
-            case 2 -> { r = 0; g = c; b = x; }
-            case 3 -> { r = 0; g = x; b = c; }
-            case 4 -> { r = x; g = 0; b = c; }
-            default -> { r = c; g = 0; b = x; }
-        }
-        return Math.round((r + m) * 255) << 16 | Math.round((g + m) * 255) << 8 | Math.round((b + m) * 255);
-    }
-
-    private static Color lerp(Color a, Color b, float t) {
-        return new Color(a.r() + (b.r() - a.r()) * t, a.g() + (b.g() - a.g()) * t, a.b() + (b.b() - a.b()) * t,
-                a.a() + (b.a() - a.a()) * t);
-    }
-
-    private static String hex(Color c) {
-        return String.format("#%06x", ChatText.rgb(c));
-    }
-
-    public static int argbOf(Color c, double alpha) {
-        return argb(c, alpha);
-    }
-
-    static int argb(Color c, double alpha) {
-        int a = (int) Math.round(Math.clamp(c.a() * alpha, 0, 1) * 255);
-        return a << 24 | ChatText.rgb(new Color(Math.clamp(c.r(), 0f, 1f), Math.clamp(c.g(), 0f, 1f), Math.clamp(c.b(), 0f, 1f), 1));
-    }
-
-    private static double number(Map<String, Object> look, String key, double fallback) {
-        return ChatViewNumbers.number(look, key, fallback);
-    }
-
-    private static boolean bool(Map<String, Object> look, String key, boolean fallback) {
-        return ChatViewNumbers.bool(look, key, fallback);
-    }
-
-    private static String string(Map<String, Object> look, String key, String fallback) {
-        return ChatViewNumbers.string(look, key, fallback);
-    }
-
-    private static Color color(Map<String, Object> look, String key, Color fallback) {
-        return ChatViewNumbers.color(look, key, fallback);
-    }
-
-    private static ChatAnimation animation(Map<String, Object> look, String key, ChatAnimation fallback) {
-        if (!(look.get(key) instanceof String name)) return fallback;
-        for (ChatAnimation one : ChatAnimation.values()) {
-            if (Enums.name(one).equals(name)) return one;
-        }
-        return fallback;
     }
 }

@@ -14,7 +14,9 @@ import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.core.ui.HorizontalAlign;
 import com.meekdev.moud.core.zone.ProximityPrompt;
-import com.meekdev.moud.mod.adapter.chat.ChatView;
+import com.meekdev.moud.mod.adapter.text.Argb;
+import com.meekdev.moud.mod.adapter.text.TextLook;
+import com.meekdev.moud.mod.adapter.text.TextPainter;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.input.Actions;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
@@ -47,23 +49,23 @@ public final class ClientPrompts {
         protected void drawSelf(UiDraw d, float alpha) {
             ProximityPrompt prompt = active;
             if (prompt == null) return;
-            d.roundedRect(x, y, w, h, 6, ChatView.argbOf(prompt.backgroundColor, 1 - prompt.backgroundTransparency));
+            d.roundedRect(x, y, w, h, 6, Argb.of(prompt.backgroundColor, 1 - prompt.backgroundTransparency));
             float key = h - 12;
-            d.roundedRect(x + 6, y + 6, key, key, 4, ChatView.argbOf(prompt.keyColor, 0.9));
+            d.roundedRect(x + 6, y + 6, key, key, 4, Argb.of(prompt.keyColor, 0.9));
             String letter = prompt.keys.split(",")[0].trim().toUpperCase(Locale.ROOT);
-            ChatView.Look dark = new ChatView.Look(new Color(0.05f, 0.05f, 0.07f, 1), "", false, Color.BLACK, 0);
-            ChatView.text(d, RichText.escape(letter), x + 6, y + 6 + (key - 9) / 2, key, 9, dark, 1, HorizontalAlign.CENTER);
-            ChatView.Look light = new ChatView.Look(prompt.textColor, "", true, Color.BLACK, 0);
+            TextLook dark = new TextLook(new Color(0.05f, 0.05f, 0.07f, 1), "", false, Color.BLACK, 0);
+            TextPainter.draw(d, RichText.escape(letter), x + 6, y + 6 + (key - 9) / 2, key, 9, dark, 1, HorizontalAlign.CENTER);
+            TextLook light = new TextLook(prompt.textColor, "", true, Color.BLACK, 0);
             float textX = x + key + 14;
             float textW = w - key - 20;
             if (!prompt.objectText.isEmpty()) {
-                ChatView.text(d, "<alpha=0.7>" + RichText.escape(prompt.objectText) + "</alpha>", textX, y + 7, textW, 9, light, 1, HorizontalAlign.LEFT);
+                TextPainter.draw(d, "<alpha=0.7>" + RichText.escape(prompt.objectText) + "</alpha>", textX, y + 7, textW, 9, light, 1, HorizontalAlign.LEFT);
             }
             float actionY = prompt.objectText.isEmpty() ? y + (h - 9) / 2 : y + 21;
-            ChatView.text(d, RichText.escape(prompt.actionText), textX, actionY, textW, 9, light, 1, HorizontalAlign.LEFT);
+            TextPainter.draw(d, RichText.escape(prompt.actionText), textX, actionY, textW, 9, light, 1, HorizontalAlign.LEFT);
             if (prompt.holdDuration > 0 && held > 0) {
                 float fill = (float) Math.min(1, held / prompt.holdDuration);
-                d.rect(x + 6, y + h - 4, (w - 12) * fill, 2, ChatView.argbOf(prompt.keyColor, 1));
+                d.rect(x + 6, y + h - 4, (w - 12) * fill, 2, Argb.of(prompt.keyColor, 1));
             }
         }
     }

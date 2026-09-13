@@ -16,6 +16,10 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.tween.Easing;
 import com.meekdev.moud.core.ui.HorizontalAlign;
+import com.meekdev.moud.mod.adapter.text.Argb;
+import com.meekdev.moud.mod.adapter.text.TextLayout;
+import com.meekdev.moud.mod.adapter.text.TextLook;
+import com.meekdev.moud.mod.adapter.text.TextPainter;
 import com.meekdev.moud.mod.client.ClientScene;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -62,7 +66,7 @@ public final class Bubbles {
             for (int n = bubbles.size() - 1; n >= 0; n--) {
                 Bubble bubble = bubbles.get(n);
                 double age = (now - bubble.added) / 1e9;
-                double life = ChatViewNumbers.number(bubble.look, "visibleTime", config.visibleTime);
+                double life = Looks.number(bubble.look, "visibleTime", config.visibleTime);
                 float a = alpha;
                 if (age > life) a *= (float) Math.max(0, 1 - (age - life) / 0.3);
                 double enter = config.animationTime <= 0 ? 1 : Math.min(1, age / config.animationTime);
@@ -70,8 +74,8 @@ public final class Bubbles {
                 if (config.animation == ChatAnimation.FADE) a *= (float) enter;
                 if (a <= 0.003) continue;
 
-                String font = ChatViewNumbers.string(bubble.look, "font", config.font);
-                ChatView.Size size = ChatView.measure(d, bubble.markup, (float) config.maxWidth, px, font);
+                String font = Looks.string(bubble.look, "font", config.font);
+                TextLayout size = TextLayout.of(d, bubble.markup, (float) config.maxWidth, px, font);
                 float bw = size.width() + pad * 2;
                 float bh = size.height() + pad * 2;
                 float bx = x + (w - bw) / 2;
@@ -80,9 +84,9 @@ public final class Bubbles {
                 boolean pop = config.animation == ChatAnimation.POP && enter < 1;
                 if (pop) d.pushTransform(bx + bw / 2, by + bh, 0, 0, (float) Math.max(0.01, eased), 0);
 
-                Color back = ChatViewNumbers.color(bubble.look, "backgroundColor", config.backgroundColor);
-                double transparency = ChatViewNumbers.number(bubble.look, "backgroundTransparency", config.backgroundTransparency);
-                int backArgb = ChatView.argbOf(back, (1 - transparency) * a);
+                Color back = Looks.color(bubble.look, "backgroundColor", config.backgroundColor);
+                double transparency = Looks.number(bubble.look, "backgroundTransparency", config.backgroundTransparency);
+                int backArgb = Argb.of(back, (1 - transparency) * a);
                 d.roundedRect(bx, by, bw, bh, (float) config.cornerRadius, backArgb);
                 if (tail > 0) {
                     float side = tail * (float) Math.sqrt(2);
@@ -92,9 +96,9 @@ public final class Bubbles {
                     d.popTransform();
                     d.popClip();
                 }
-                ChatView.Look look = new ChatView.Look(ChatViewNumbers.color(bubble.look, "textColor", config.textColor),
+                TextLook look = new TextLook(Looks.color(bubble.look, "textColor", config.textColor),
                         font, false, Color.BLACK, 0);
-                ChatView.text(d, bubble.markup, bx + pad, by + pad, size.width(), px, look, a, HorizontalAlign.CENTER);
+                TextPainter.draw(d, bubble.markup, bx + pad, by + pad, size.width(), px, look, a, HorizontalAlign.CENTER);
                 if (pop) d.popTransform();
                 bottom = by - pad;
             }
@@ -127,7 +131,7 @@ public final class Bubbles {
         for (Iterator<Map.Entry<Instance, Stack>> it = STACKS.entrySet().iterator(); it.hasNext(); ) {
             Stack stack = it.next().getValue();
             stack.bubbles.removeIf(b -> config == null
-                    || (now - b.added) / 1e9 > ChatViewNumbers.number(b.look, "visibleTime", config.visibleTime) + 0.3);
+                    || (now - b.added) / 1e9 > Looks.number(b.look, "visibleTime", config.visibleTime) + 0.3);
             if (config == null || !config.enabled || stack.bubbles.isEmpty() || !stack.target.isAlive()
                     || stack.target.tree() != ClientScene.tree()) {
                 if (stack.surface != null) stack.surface.remove();

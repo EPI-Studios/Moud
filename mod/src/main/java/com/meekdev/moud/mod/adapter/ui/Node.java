@@ -12,7 +12,9 @@ import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextButton;
 import com.meekdev.moud.core.ui.TextLabel;
-import com.meekdev.moud.mod.adapter.chat.ChatView;
+import com.meekdev.moud.mod.adapter.text.TextLayout;
+import com.meekdev.moud.mod.adapter.text.TextLook;
+import com.meekdev.moud.mod.adapter.text.TextPainter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToDoubleFunction;
@@ -123,13 +125,13 @@ final class Node extends Widget {
         float fade = (float) (1 - label.textTransparency) * alpha;
         if (fade <= 0) return;
         String font = GuiLayout.font(label);
-        float total = ChatView.measure(d, label.text, w, px, font).height();
+        float total = TextLayout.of(d, label.text, w, px, font).height();
         float top = switch (label.textYAlignment) {
             case TOP -> y;
             case CENTER -> y + (h - total) * 0.5f;
             case BOTTOM -> y + h - total;
         };
-        ChatView.text(d, label.text, x, top, w, px, new ChatView.Look(label.textColor, font, label.textShadow, Color.BLACK, 0),
+        TextPainter.draw(d, label.text, x, top, w, px, new TextLook(label.textColor, font, label.textShadow, Color.BLACK, 0),
                 fade, label.textXAlignment);
     }
 

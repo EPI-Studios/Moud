@@ -17,7 +17,7 @@ import java.util.function.Function;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
-final class ChatShaders {
+public final class ChatShaders {
 
     private static final Identifier UI_VERTEX = Identifier.fromNamespaceAndPath("amnetic", "shaders/surface/ui.vsh");
     private static final Identifier FULLSCREEN = Identifier.fromNamespaceAndPath("amnetic", "shaders/util/fullscreen.vsh");
@@ -41,7 +41,7 @@ final class ChatShaders {
 
     private ChatShaders() {}
 
-    static @Nullable ShaderProgram text(String name) {
+    public static @Nullable ShaderProgram text(String name) {
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return null;
         for (ChatTextShader shader : tree.ofClass(Classes.CHAT_TEXT_SHADER)) {
