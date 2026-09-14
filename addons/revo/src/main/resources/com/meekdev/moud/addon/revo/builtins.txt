@@ -1,0 +1,1 @@
+print require type len string number panic inspect hash math iter table

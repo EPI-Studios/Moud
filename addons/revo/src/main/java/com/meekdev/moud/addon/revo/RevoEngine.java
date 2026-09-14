@@ -81,6 +81,7 @@ final class RevoEngine implements ScriptEngine {
     private long nextRef = 1;
     private int pushes;
     private boolean closed;
+    private String prelude;
 
     private final class Function implements Callable {
         private final long id;
@@ -505,9 +506,14 @@ final class RevoEngine implements ScriptEngine {
         return result.getAsLong();
     }
 
+    private String typed(String source) {
+        if (prelude == null) prelude = RevoTypes.prelude(host.api(), host.classes());
+        return prelude + source;
+    }
+
     @Override
     public void run(String chunk, String source) {
-        baton.onVm(() -> evaluate(chunk, source));
+        baton.onVm(() -> evaluate(chunk, typed(source)));
     }
 
     @Override
@@ -537,7 +543,7 @@ final class RevoEngine implements ScriptEngine {
     public Fiber script(String chunk, String source, Instance script) {
         baton.onVm(() -> {
             setGlobal("script", push(script));
-            return evaluate(chunk, source);
+            return evaluate(chunk, typed(source));
         });
         return null;
     }

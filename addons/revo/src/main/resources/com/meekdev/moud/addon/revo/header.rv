@@ -1,2 +1,2 @@
-#* moud api for revo, written by the revo addon *#
+#* moud api for revo. instances stay `any` because their children are reached by name *#
 

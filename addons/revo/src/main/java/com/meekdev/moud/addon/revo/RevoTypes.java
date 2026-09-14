@@ -1,96 +1,164 @@
 package com.meekdev.moud.addon.revo;
 
-import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
-import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.script.host.Api;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 final class RevoTypes {
 
     private static final String HEADER = Resources.text("header.rv");
     private static final Map<String, String> TYPES = Resources.table("types.properties");
+    private static final Set<String> BUILTIN = Resources.words("builtins.txt");
 
     private RevoTypes() {}
 
-    static String declare(Api api, ClassRegistry classes) {
-        StringBuilder out = new StringBuilder(32768);
-        out.append(HEADER);
-        for (ClassDef<?> def : classes.all()) {
-            List<String> fields = new ArrayList<>(List.of("name: string", "className: string"));
-            for (ClassDef<?> at = def; at != null; at = at.parent()) {
-                for (PropertyDef property : at.properties()) {
-                    if (property.index() < (at.parent() == null ? 0 : at.parent().properties().length)) continue;
-                    fields.add(property.name() + ": any");
-                }
-                Api.Decl methods = api.decl(at.name());
-                if (methods != null) collect(methods, fields);
+    static String prelude(Api api, ClassRegistry classes) {
+        StringBuilder out = new StringBuilder();
+        for (String line : declare(api, classes).split("\n")) {
+            String text = line.strip();
+            if (text.isEmpty() || text.startsWith("#")) continue;
+            if (text.startsWith("pub declare ")) {
+                String rest = text.substring("pub declare ".length());
+                int equals = rest.indexOf(" = ");
+                String name = rest.substring(0, equals);
+                out.append("const ").append(name).append(": ").append(rest.substring(equals + 3)).append(" = ").append(name).append(' ');
+            } else {
+                out.append(text.startsWith("pub ") ? text.substring(4) : text).append(' ');
             }
-            Api.Decl shared = api.decl("Instance");
-            if (shared != null) collect(shared, fields);
-            type(out, def.name(), fields);
-        }
-        for (Api.Decl decl : api.classes()) {
-            if (classes.find(decl.name()) != null || decl.name().equals("Instance")) continue;
-            List<String> fields = new ArrayList<>();
-            collect(decl, fields);
-            type(out, decl.name(), fields);
-        }
-        for (Map.Entry<String, String> global : api.globals().entrySet()) {
-            String type = global.getValue();
-            out.append("pub declare ").append(global.getKey()).append(" = ")
-                    .append(type.startsWith("(") ? function(type) : simple(type)).append('\n');
         }
         return out.toString();
     }
 
-    private static void collect(Api.Decl decl, List<String> fields) {
-        for (Api.Member member : decl.members()) {
-            String field = member.name() + ": " + (member.kind() == Api.Kind.FIELD ? simple(member.type()) : "function");
-            if (!fields.contains(field)) fields.add(field);
+    static String declare(Api api, ClassRegistry classes) {
+        Set<String> records = new HashSet<>();
+        for (Api.Decl decl : api.classes()) {
+            if (classes.find(decl.name()) == null && !decl.name().equals("Instance")) records.add(decl.name());
         }
+        StringBuilder out = new StringBuilder(32768);
+        out.append(HEADER);
+        for (Api.Decl decl : api.classes()) {
+            if (!records.contains(decl.name())) continue;
+            out.append("pub type ").append(decl.name()).append(" = {\n");
+            for (Api.Member member : decl.members()) {
+                String type = switch (member.kind()) {
+                    case FIELD -> type(member.type(), records);
+                    case METHOD -> function(member.type(), records, true);
+                    case FUNCTION -> member.type().startsWith("(") ? function(member.type(), records, false) : type(member.type(), records);
+                };
+                out.append("  ").append(member.name()).append(": ").append(type).append(",\n");
+            }
+            out.append("}\n\n");
+        }
+        for (Map.Entry<String, String> global : api.globals().entrySet()) {
+            if (BUILTIN.contains(global.getKey())) continue;
+            String type = global.getValue();
+            out.append("pub declare ").append(global.getKey()).append(" = ")
+                    .append(type.startsWith("(") ? function(type, records, false) : type(type, records)).append('\n');
+        }
+        return out.toString();
     }
 
-    private static void type(StringBuilder out, String name, List<String> fields) {
-        out.append("pub type ").append(name).append(" = {\n");
-        for (String field : fields) out.append("  ").append(field).append(",\n");
-        out.append("}\n\n");
-    }
-
-    private static String simple(String type) {
-        String bare = type.endsWith("?") ? type.substring(0, type.length() - 1) : type;
-        String mapped = TYPES.get(bare);
+    static String type(String luau, Set<String> records) {
+        String type = luau.trim();
+        if (type.isEmpty() || type.equals("()")) return "any";
+        List<String> union = split(type, '|');
+        if (union.size() > 1) {
+            List<String> parts = new ArrayList<>();
+            for (String part : union) {
+                String mapped = type(part, records);
+                if (mapped.equals("any")) return "any";
+                if (!parts.contains(mapped)) parts.add(mapped);
+            }
+            return String.join(" | ", parts);
+        }
+        if (type.endsWith("?")) {
+            String inner = type(type.substring(0, type.length() - 1), records);
+            return inner.equals("any") ? "any" : inner + "?";
+        }
+        if (type.startsWith("\"")) return "string";
+        if (type.startsWith("{")) return "table";
+        if (type.startsWith("(")) return isFunctionType(type) ? "function" : "table";
+        String mapped = TYPES.get(type);
         if (mapped != null) return mapped;
-        if (bare.startsWith("{")) return "table";
-        if (bare.startsWith("(")) return "function";
-        return "any";
+        return records.contains(type) ? type : "any";
     }
 
-    private static String function(String signature) {
-        int close = signature.indexOf(')');
-        String params = signature.substring(1, Math.max(1, close)).trim();
+    private static String function(String signature, Set<String> records, boolean self) {
+        int close = matching(signature, 0);
+        String params = signature.substring(1, close).trim();
+        String rest = signature.substring(close + 1).trim();
+        String returns = rest.startsWith("->") ? rest.substring(2).trim() : "()";
         List<String> typed = new ArrayList<>();
-        if (!params.isEmpty() && !params.startsWith("...")) {
-            int depth = 0;
-            int start = 0;
-            for (int i = 0; i <= params.length(); i++) {
-                char c = i < params.length() ? params.charAt(i) : ',';
-                if (c == '(' || c == '{') depth++;
-                if (c == ')' || c == '}') depth--;
-                if (c == ',' && depth == 0) {
-                    String param = params.substring(start, i).trim();
-                    int colon = param.indexOf(':');
-                    if (colon > 0) {
-                        String type = param.substring(colon + 1).trim();
-                        String name = param.substring(0, colon).trim();
-                        typed.add((type.endsWith("?") ? "?" : "") + name + ": " + simple(type));
-                    }
-                    start = i + 1;
-                }
+        if (self) typed.add("self: any");
+        int index = 0;
+        for (String param : params.isEmpty() ? List.<String>of() : split(params, ',')) {
+            String text = param.trim();
+            index++;
+            if (text.startsWith("...")) {
+                typed.add("?rest: any...");
+                break;
+            }
+            int colon = topLevelColon(text);
+            String name = colon < 0 ? "arg" + index : text.substring(0, colon).trim();
+            String type = colon < 0 ? text : text.substring(colon + 1).trim();
+            boolean optional = type.endsWith("?") && split(type, '|').size() == 1;
+            String mapped = type(optional ? type.substring(0, type.length() - 1) : type, records);
+            typed.add((optional ? "?" : "") + name + ": " + mapped);
+        }
+        String result = returns.startsWith("...") ? "any" : type(returns, records);
+        return "fn(" + String.join(", ", typed) + ") -> " + result;
+    }
+
+    private static boolean isFunctionType(String type) {
+        int close = matching(type, 0);
+        return type.substring(close + 1).trim().startsWith("->");
+    }
+
+    private static int matching(String text, int open) {
+        int depth = 0;
+        for (int i = open; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '(' || c == '{' || c == '[') depth++;
+            if (c == ')' || c == '}' || c == ']') {
+                depth--;
+                if (depth == 0) return i;
             }
         }
-        return "fn(" + String.join(", ", typed) + ") -> any";
+        return text.length() - 1;
+    }
+
+    private static int topLevelColon(String text) {
+        int depth = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '(' || c == '{' || c == '[') depth++;
+            if (c == ')' || c == '}' || c == ']') depth--;
+            if (c == ':' && depth == 0) return i;
+        }
+        return -1;
+    }
+
+    private static List<String> split(String text, char separator) {
+        List<String> parts = new ArrayList<>();
+        int depth = 0;
+        int start = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '(' || c == '{' || c == '[') depth++;
+            if (c == ')' || c == '}' || c == ']') depth--;
+            if (c == '-' && i + 1 < text.length() && text.charAt(i + 1) == '>') {
+                if (depth == 0 && separator == '|') return List.of(text);
+            }
+            if (c == separator && depth == 0) {
+                parts.add(text.substring(start, i).trim());
+                start = i + 1;
+            }
+        }
+        parts.add(text.substring(start).trim());
+        return parts;
     }
 }

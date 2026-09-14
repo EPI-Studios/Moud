@@ -32,7 +32,7 @@ final class Natives {
     private static final long BOX = 0x7FF8_0000_0000_0000L;
     private static final long BOX_MASK = 0xFFF8_0000_0000_0000L;
     private static final long PAYLOAD = 0x0000_FFFF_FFFF_FFFFL;
-    private static final int ERROR_LIMIT = 1 << 16;
+    private static final int ERROR_LIMIT = 1 << 20;
     private static final String LIBRARY = "/natives/linux-x86_64/libmoudrevo.so";
 
     static final long NIL = boxed(ATOM, 0);
