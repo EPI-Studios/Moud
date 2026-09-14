@@ -17,6 +17,7 @@ public final class Api {
     private final Map<String, Decl> classes = new LinkedHashMap<>();
     private final Map<String, String> globals = new LinkedHashMap<>();
     private final Map<String, String> aliases = new LinkedHashMap<>();
+    private final Map<String, String> extensions = new LinkedHashMap<>();
 
     public void declare(Decl decl) {
         Decl existing = classes.get(decl.name());
@@ -34,6 +35,14 @@ public final class Api {
 
     public void global(String name, String type) {
         globals.put(name, type);
+    }
+
+    public void extension(String global, String type) {
+        extensions.put(global, type);
+    }
+
+    public Map<String, String> extensions() {
+        return extensions;
     }
 
     public void alias(String name, String type) {

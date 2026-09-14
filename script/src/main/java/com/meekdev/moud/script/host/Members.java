@@ -47,6 +47,11 @@ public class Members implements HostObject {
         return this;
     }
 
+    public Members declareMethod(String name, String signature) {
+        declared.add(new Api.Member(name, Api.Kind.METHOD, signature));
+        return this;
+    }
+
     public Members declare(String name, String fieldType) {
         declared.add(new Api.Member(name, Api.Kind.FIELD, fieldType));
         return this;

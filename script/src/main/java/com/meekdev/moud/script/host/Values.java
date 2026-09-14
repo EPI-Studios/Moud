@@ -108,6 +108,7 @@ public final class Values {
                         a -> CFrame.angles(a.number(0), a.number(1), a.number(2)))
                 .function("lookAt", "(from: Vector3, to: Vector3) -> CFrame", a -> CFrame.lookAt(a.vector(0), a.vector(1)))
                 .value("identity", "CFrame", CFrame.IDENTITY);
+        cframes.declareMethod("__call", "(x: number | Vector3, y: (number | Vector3)?, z: number?) -> CFrame");
         host.global("cframe", "CFrameConstructors", callable(cframes, Values::newCFrame));
         host.declare(cframes);
 
@@ -125,6 +126,7 @@ public final class Values {
                 .function("new", "(xScale: number, xOffset: number, yScale: number, yOffset: number) -> UDim2", Values::newUDim2)
                 .function("fromScale", "(x: number, y: number) -> UDim2", a -> UDim2.fromScale(a.number(0), a.number(1)))
                 .function("fromOffset", "(x: number, y: number) -> UDim2", a -> UDim2.fromOffset(a.number(0), a.number(1)));
+        udims.declareMethod("__call", "(xScale: number, xOffset: number, yScale: number, yOffset: number) -> UDim2");
         host.global("udim2", "UDim2Constructors", callable(udims, Values::newUDim2));
         host.declare(udims);
     }

@@ -218,6 +218,7 @@ public final class Host {
 
     public void extend(String name, Members members) {
         extensions.put(name, members);
+        api.extension(name, members.typeName());
     }
 
     public Map<String, Members> extensions() {

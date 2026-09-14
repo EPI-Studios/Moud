@@ -38,7 +38,7 @@ public final class HostSignal implements HostObject {
         double timeout = args.number(1, -1);
         Object[][] fired = {null};
         Connection connection = signal.connect(values -> {
-            fired[0] = values;
+            if (fired[0] == null) fired[0] = values;
             return null;
         });
         double[] waited = {0};
@@ -56,8 +56,21 @@ public final class HostSignal implements HostObject {
         }, connection::disconnect);
     });
 
+    private static final Builtin FIRE = new Builtin("Signal:fire", args -> {
+        HostSignal signal = args.self(HostSignal.class);
+        if (!signal.firable) throw new HostError("%s is fired by the engine, not by scripts", signal.type);
+        signal.fire(args.from(1));
+        return null;
+    });
+
+    private static final Builtin DISCONNECT_ALL = new Builtin("Signal:disconnectAll", args -> {
+        args.self(HostSignal.class).clear();
+        return null;
+    });
+
     private final Host host;
     private final String type;
+    private boolean firable;
     private final String where;
     private List<Handler> handlers = List.of();
 
@@ -65,6 +78,13 @@ public final class HostSignal implements HostObject {
         this.host = host;
         this.type = type;
         this.where = where;
+    }
+
+    public static HostSignal scripted(Host host, String name) {
+        HostSignal signal = new HostSignal(host, "Signal", name);
+        signal.firable = true;
+        host.onClose(signal::clear);
+        return signal;
     }
 
     public Connection connect(Callable fn) {
@@ -117,6 +137,9 @@ public final class HostSignal implements HostObject {
             case "once" -> ONCE;
             case "every" -> EVERY;
             case "wait" -> WAIT;
+            case "fire" -> FIRE;
+            case "disconnectAll" -> DISCONNECT_ALL;
+            case "count" -> (double) handlers.size();
             default -> throw new HostError("%s has no member '%s'", type, key);
         };
     }
@@ -126,6 +149,7 @@ public final class HostSignal implements HostObject {
                 new Api.Member("connect", Api.Kind.METHOD, "(handler: " + handler + ") -> Connection"),
                 new Api.Member("once", Api.Kind.METHOD, "(handler: " + handler + ") -> Connection"),
                 new Api.Member("every", Api.Kind.METHOD, "(n: number, handler: " + handler + ") -> Connection"),
-                new Api.Member("wait", Api.Kind.METHOD, "(timeout: number?) -> ...any")));
+                new Api.Member("wait", Api.Kind.METHOD, "(timeout: number?) -> ...any"),
+                new Api.Member("count", Api.Kind.FIELD, "number")));
     }
 }

@@ -36,19 +36,29 @@ public final class LuauTypes {
         }
         for (Api.Decl decl : api.classes()) {
             if (instanceClasses.contains(decl.name()) || decl.name().equals(ROOT)) continue;
-            line(out, "declare class ", decl.name());
+            line(out, "declare extern type ", decl.name(), " with");
             out.append(builtInMembers(decl.name()));
             members(out, decl);
             end(out);
         }
 
-        line(out, "declare class ", ROOT);
+        line(out, "declare extern type ", ROOT, " with");
         out.append(builtInMembers(ROOT));
         Api.Decl shared = api.decl(ROOT);
         if (shared != null) members(out, shared);
         end(out);
 
         for (ClassDef<?> def : classes.all()) classDeclaration(out, api, def);
+
+        for (Map.Entry<String, String> extension : api.extensions().entrySet()) {
+            Api.Decl decl = api.decl(extension.getValue());
+            if (decl == null) continue;
+            line(out, "declare ", extension.getKey(), ": typeof(", extension.getKey(), ") & {");
+            for (Api.Member member : decl.members()) {
+                line(out, INDENT, member.name(), ": ", member.type(), ",");
+            }
+            line(out, "}");
+        }
 
         for (Map.Entry<String, String> global : api.globals().entrySet()) {
             String type = global.getValue();
@@ -66,18 +76,18 @@ public final class LuauTypes {
         for (Api.Member member : decl.members()) {
             switch (member.kind()) {
                 case FIELD -> line(out, INDENT, member.name(), ": ", member.type());
-                case METHOD, FUNCTION -> {
+                case METHOD -> {
                     Signature signature = Signature.parse(member.type());
-                    String params = signature.params(member.kind() == Api.Kind.METHOD);
-                    line(out, INDENT, "function ", member.name(), "(", params, "): ", signature.returns());
+                    line(out, INDENT, "function ", member.name(), "(", signature.params(true), "): ", signature.returns());
                 }
+                case FUNCTION -> line(out, INDENT, member.name(), ": ", member.type());
             }
         }
     }
 
     private static void classDeclaration(StringBuilder out, Api api, ClassDef<?> def) {
         String parent = def.parent() == null ? ROOT : def.parent().name();
-        line(out, "declare class ", def.name(), " extends ", parent);
+        line(out, "declare extern type ", def.name(), " extends ", parent, " with");
         PropertyDef frame = def.property("cframe");
         if (frame != null && frame.index() >= inherited(def)) out.append(PLACED);
         for (CallbackDef callback : def.callbacks()) {

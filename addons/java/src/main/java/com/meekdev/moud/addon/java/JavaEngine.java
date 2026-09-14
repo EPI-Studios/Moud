@@ -7,6 +7,7 @@ import com.meekdev.moud.script.host.Callable;
 import com.meekdev.moud.script.host.Fiber;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.ScriptValue;
+import com.meekdev.moud.script.host.ThreadFiber;
 import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -52,13 +53,16 @@ final class JavaEngine implements ScriptEngine {
 
     @Override
     public Fiber fiber(Callable fn) {
-        return null;
+        return new ThreadFiber("moud-java-task", fn::call);
     }
 
     @Override
     public Fiber script(String chunk, String source, Instance script) {
-        instantiate(chunk, source, script).run();
-        return null;
+        PlaceScript place = instantiate(chunk, source, script);
+        return new ThreadFiber("moud-java-" + chunk, args -> {
+            place.run();
+            return null;
+        });
     }
 
     @Override

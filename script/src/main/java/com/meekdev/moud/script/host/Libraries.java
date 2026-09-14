@@ -13,7 +13,9 @@ import com.meekdev.moud.script.host.world.Blocks;
 import com.meekdev.moud.script.host.world.Paths;
 import com.meekdev.moud.script.host.world.Trees;
 import com.meekdev.moud.script.host.world.WorldQueries;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +31,14 @@ final class Libraries {
         host.api().declare(HostSignal.decl("ChangedSignal", "(property: string) -> ()"));
         host.api().declare(HostSignal.decl("InstanceSignal", "(instance: Instance) -> ()"));
         host.api().declare(HostSignal.decl("PlayerSignal", "(player: Player) -> ()"));
+        host.api().declare(HostSignal.decl("ChatCommandSignal", "(body: Instance?, text: string, args: { string }) -> ()"));
+        host.api().declare(HostSignal.decl("ChatMessageSignal", "(message: { [string]: any }) -> ()"));
+        Api.Decl scripted = HostSignal.decl("Signal", "(...any) -> ()");
+        List<Api.Member> signalMembers = new ArrayList<>(scripted.members());
+        signalMembers.add(new Api.Member("fire", Api.Kind.METHOD, "(...any) -> ()"));
+        signalMembers.add(new Api.Member("disconnectAll", Api.Kind.METHOD, "() -> ()"));
+        host.api().declare(new Api.Decl("Signal", null, signalMembers));
+        host.global("signal", "(name: string?) -> Signal", new Builtin("signal", a -> HostSignal.scripted(host, a.string(0, "signal"))));
 
         Members game = new Members("Game")
                 .value("world", "Instance", host.world())

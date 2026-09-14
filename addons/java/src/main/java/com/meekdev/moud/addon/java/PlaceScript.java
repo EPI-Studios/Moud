@@ -14,6 +14,7 @@ import com.meekdev.moud.script.host.HostSignal;
 import com.meekdev.moud.script.host.Results;
 import com.meekdev.moud.script.host.Suspend;
 import com.meekdev.moud.script.host.Tasks;
+import com.meekdev.moud.script.host.ThreadFiber;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -121,6 +122,15 @@ public abstract class PlaceScript {
         });
     }
 
+    protected final double sleep(double seconds) {
+        Object[] waited = ThreadFiber.await(Suspend.seconds(seconds));
+        return waited.length > 0 && waited[0] instanceof Number n ? n.doubleValue() : seconds;
+    }
+
+    protected final void spawn(Runnable action) {
+        Tasks.spawn(host, callable(action));
+    }
+
     protected final void delay(double seconds, Runnable action) {
         Tasks.delay(host, seconds, callable(action));
     }
@@ -163,10 +173,7 @@ public abstract class PlaceScript {
         return switch (result) {
             case null -> new Object[0];
             case Results many -> many.values();
-            case Suspend suspend -> {
-                suspend.cancel().run();
-                throw new HostError("java places cannot wait, use delay or connect to a signal instead");
-            }
+            case Suspend suspend -> ThreadFiber.await(suspend);
             default -> new Object[] {result};
         };
     }
