@@ -110,7 +110,7 @@ tasks.register('checkArchitecture') {
             }
         }
 
-        ['core', 'script', 'net', 'mod', 'addons/revo'].each { module ->
+        ['core', 'script', 'net', 'mod', 'addons/revo', 'addons/java'].each { module ->
             fileTree("${rootDir}/${module}/src/main").matching { include '**/*.java' }.each { file ->
                 def where = file.absolutePath - "${rootDir}/"
                 if (where.contains('/moud/script/luau/')) return
@@ -125,7 +125,7 @@ tasks.register('checkArchitecture') {
         def qualified = ~/(?<!["\w.])(?:com\.meekdev|net\.minecraft|com\.mojang)\.[a-z][\w.]*\.[A-Z]\w+/
         def taken = [:].withDefault { [] }
         def nested = [:].withDefault { [] as Set }
-        ['core', 'script', 'net', 'mod', 'addons/revo'].each { module ->
+        ['core', 'script', 'net', 'mod', 'addons/revo', 'addons/java'].each { module ->
             fileTree("${rootDir}/${module}/src/main").matching { include '**/*.java' }.each { file ->
                 def names = []
                 file.eachLine { line ->

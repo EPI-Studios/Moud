@@ -1,0 +1,5 @@
+name = "java example"
+
+[entry]
+server = "res://server/Main"
+client = "res://client/Main"

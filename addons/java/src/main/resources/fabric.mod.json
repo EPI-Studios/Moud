@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "moud-java",
+  "version": "${version}",
+  "name": "Moud Java",
+  "description": "write moud places in java",
+  "authors": ["Meekiavelique"],
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "moud:addon": ["com.meekdev.moud.addon.java.JavaAddon"]
+  },
+  "depends": {
+    "moud": "*"
+  }
+}

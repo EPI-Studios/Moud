@@ -1,0 +1,13 @@
+dependencies {
+    compileOnly project(':core')
+    compileOnly project(':script')
+    testImplementation project(':core')
+    testImplementation project(':script')
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand 'version': project.version
+    }
+}

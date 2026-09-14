@@ -78,6 +78,7 @@ dependencies {
     implementation project(':script')
     implementation project(':net')
     localRuntime project(':addons:revo')
+    localRuntime project(':addons:java')
     include project(':core')
     include project(':script')
     include project(':net')
