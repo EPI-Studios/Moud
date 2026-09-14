@@ -82,6 +82,7 @@ final class RevoEngine implements ScriptEngine {
     private int pushes;
     private boolean closed;
     private String prelude;
+    private boolean reported;
 
     private final class Function implements Callable {
         private final long id;
@@ -215,6 +216,7 @@ final class RevoEngine implements ScriptEngine {
                 });
             } catch (Throwable ignored) {
             }
+            reported = true;
             result = errorValue(message);
         } finally {
             for (Function function : fresh) {
@@ -471,9 +473,11 @@ final class RevoEngine implements ScriptEngine {
     }
 
     private long invoke(long fn, long[] args) {
+        reported = false;
         OptionalLong result = Natives.call(vm, fn, args);
-        if (result.isEmpty()) throw new ScriptError("revo", lastError(), null);
-        return result.getAsLong();
+        if (result.isPresent()) return result.getAsLong();
+        if (reported) return Natives.NIL;
+        throw new ScriptError("revo", lastError(), null);
     }
 
     private String lastError() {

@@ -14,7 +14,11 @@ import java.util.Map;
 
 final class JavaEngine implements ScriptEngine {
 
-    private record Table(Map<String, Object> data) implements ScriptValue {}
+    private static final class Table extends LinkedHashMap<String, Object> implements ScriptValue {
+        Table(Map<String, Object> data) {
+            super(data);
+        }
+    }
 
     private final Host host;
     private final Compiler compiler = new Compiler();
@@ -80,12 +84,12 @@ final class JavaEngine implements ScriptEngine {
 
     @Override
     public ScriptValue table(Map<String, Object> data) {
-        return new Table(new LinkedHashMap<>(data));
+        return new Table(data);
     }
 
     @Override
     public Map<String, Object> read(ScriptValue table) {
-        return table instanceof Table t ? t.data() : Map.of();
+        return table instanceof Table t ? t : Map.of();
     }
 
     @Override
