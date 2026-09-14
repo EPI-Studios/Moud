@@ -10,19 +10,53 @@ dependencies {
     testImplementation project(':script')
 }
 
-tasks.register('buildNative', Exec) {
+def revoCheckout = file("${rootDir}/../revo")
+def patchedRevo = layout.buildDirectory.dir('revo-src')
+def nativeSrc = layout.buildDirectory.dir('native-src')
+
+tasks.register('patchRevo', Sync) {
     group = 'build'
-    description = 'Builds libmoudrevo from the revo checkout next to this repo'
-    workingDir nativeDir
-    inputs.dir(nativeDir).withPropertyName('native').optional()
-    inputs.files(fileTree("${rootDir}/../revo") { include 'build.zig', 'build.zig.zon', 'src/**/*.zig' })
-    outputs.dir(nativeOut)
-    commandLine zig, 'build', '-Doptimize=ReleaseFast', '--prefix', nativeOut.get().asFile.absolutePath
+    description = 'Copies revo next to the build and applies the embedding patch'
+    from(revoCheckout) {
+        exclude '.git/**', 'zig-out/**', '.zig-cache/**', 'zig-pkg/**'
+    }
+    into patchedRevo
     doFirst {
-        if (!file("${rootDir}/../revo/build.zig").exists()) {
-            throw new GradleException("the revo addon needs revo cloned next to this repo at ${rootDir}/../revo")
+        if (!file("${revoCheckout}/build.zig").exists()) {
+            throw new GradleException("the revo addon needs revo cloned next to this repo at ${revoCheckout}")
         }
     }
+    doLast {
+        def result = providers.exec {
+            workingDir patchedRevo.get().asFile
+            commandLine 'patch', '-p1', '--forward', '-i', file('native/revo-embedding.patch').absolutePath
+            ignoreExitValue = true
+        }
+        if (result.result.get().exitValue != 0) {
+            throw new GradleException("revo moved and the embedding patch no longer applies:\n" + result.standardOutput.asText.get())
+        }
+    }
+}
+
+tasks.register('prepareNative', Sync) {
+    from(nativeDir) {
+        exclude 'zig-out/**', '.zig-cache/**', 'zig-pkg/**', '*.patch'
+    }
+    into nativeSrc
+    filesMatching('build.zig.zon') {
+        filter { line -> line.replace('"../../../../revo"', '"../revo-src"') }
+    }
+}
+
+tasks.register('buildNative', Exec) {
+    group = 'build'
+    description = 'Builds libmoudrevo from the patched revo copy'
+    dependsOn 'patchRevo', 'prepareNative'
+    workingDir nativeSrc
+    inputs.dir(nativeDir)
+    inputs.files(fileTree(revoCheckout) { include 'build.zig', 'build.zig.zon', 'src/**/*.zig' })
+    outputs.dir(nativeOut)
+    commandLine zig, 'build', '-Doptimize=ReleaseFast', '--prefix', nativeOut.get().asFile.absolutePath
 }
 
 processResources {

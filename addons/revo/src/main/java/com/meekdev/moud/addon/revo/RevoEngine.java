@@ -82,7 +82,20 @@ final class RevoEngine implements ScriptEngine {
     private int pushes;
     private boolean closed;
     private String prelude;
+    private final List<Wake> wakes = new ArrayList<>();
+    private long[] raw;
     private boolean reported;
+
+    private static final class Wake {
+        private final long channel;
+        private double left;
+        private double waited;
+
+        Wake(long channel, double left) {
+            this.channel = channel;
+            this.left = left;
+        }
+    }
 
     private final class Function implements Callable {
         private final long id;
@@ -147,6 +160,7 @@ final class RevoEngine implements ScriptEngine {
     RevoEngine(Host host) {
         this.host = host;
         Natives.load();
+        host.onStep(this::tick);
         baton.onVm(() -> {
             vm = Natives.createVm();
             if (vm.address() == 0) throw new IllegalStateException("revo could not create a vm");
@@ -154,8 +168,6 @@ final class RevoEngine implements ScriptEngine {
             setGlobal("__moud_refs", refs);
             setMeta = getGlobal("set_meta");
             toText = getGlobal("string");
-            evaluate("moud", Resources.text("moud.rv"));
-            keys = getGlobal("__moud_keys");
             proxyMeta = table();
             setName(proxyMeta, "__index", nativeFunction("index", args -> push(host.index(args[0], name(args[1])))));
             setName(proxyMeta, "__newindex", nativeFunction("newindex", args -> {
@@ -174,8 +186,23 @@ final class RevoEngine implements ScriptEngine {
             setName(valueMeta, "__index", nativeFunction("value", args -> push(host.index(args[0], name(args[1])))));
             setName(valueMeta, "__tostring", nativeFunction("text", args -> push(host.text(args[0]))));
             setGlobal("__moud_value_meta", valueMeta);
+            setGlobal("__moud_fiber", nativeFunction("fiber", args -> Natives.number(Natives.fiber(vm))));
+            setGlobal("__moud_wake", nativeFunction("wake", args -> {
+                double seconds = args.length > 0 && args[0] instanceof Number n ? n.doubleValue() : 0;
+                long channel = refPut(raw.length > 1 ? raw[1] : Natives.NIL);
+                wakes.add(new Wake(channel, Math.max(0, seconds)));
+                return Natives.NIL;
+            }));
             for (Map.Entry<String, Object> global : host.globals().entrySet()) {
                 setGlobal(global.getKey(), push(global.getValue()));
+            }
+            evaluate("moud", Resources.text("moud.rv"));
+            keys = getGlobal("__moud_keys");
+            long task = getGlobal("task");
+            if (Natives.tag(task) == Natives.TABLE) {
+                setName(task, "wait", getGlobal("__moud_wait"));
+                setName(task, "spawn", getGlobal("__moud_spawn"));
+                setName(task, "delay", getGlobal("__moud_delay"));
             }
             for (Map.Entry<String, Members> extension : host.extensions().entrySet()) {
                 long target = getGlobal(extension.getKey());
@@ -185,6 +212,33 @@ final class RevoEngine implements ScriptEngine {
                 }
                 Members members = extension.getValue();
                 for (String name : members.names()) setName(target, name, push(members.get(name)));
+            }
+            return null;
+        });
+    }
+
+    private void tick(double dt) {
+        if (closed) return;
+        baton.onVm(() -> {
+            List<Wake> due = new ArrayList<>();
+            for (Wake wake : wakes) {
+                wake.left -= dt;
+                wake.waited += dt;
+                if (wake.left <= 0) due.add(wake);
+            }
+            wakes.removeAll(due);
+            for (Wake wake : due) {
+                long channel = refGet(wake.channel);
+                refRemove(wake.channel);
+                Natives.send(vm, channel, Natives.number(wake.waited));
+            }
+            reported = false;
+            boolean ok = Natives.pump(vm);
+            if (!ok && !reported) {
+                baton.onCaller(() -> {
+                    host.error("revo task", new HostError("a revo task failed"));
+                    return null;
+                });
             }
             return null;
         });
@@ -201,11 +255,14 @@ final class RevoEngine implements ScriptEngine {
     private void dispatch(int slot, MemorySegment vmPointer, long argc, MemorySegment argv, MemorySegment out) {
         long result;
         List<Function> outer = fresh;
+        long[] outerRaw = raw;
         fresh = new ArrayList<>();
         try {
             MemorySegment values = argv.reinterpret(argc * 8);
+            raw = new long[(int) argc];
+            for (int n = 0; n < argc; n++) raw[n] = values.getAtIndex(ValueLayout.JAVA_LONG, n);
             Object[] args = new Object[(int) argc];
-            for (int n = 0; n < argc; n++) args[n] = read(values.getAtIndex(ValueLayout.JAVA_LONG, n), 0);
+            for (int n = 0; n < argc; n++) args[n] = read(raw[n], 0);
             result = natives.get(slot).run(args);
         } catch (Throwable e) {
             String message = e.getMessage() == null ? e.toString() : e.getMessage();
@@ -223,6 +280,7 @@ final class RevoEngine implements ScriptEngine {
                 if (function.holds <= 0) function.drop();
             }
             fresh = outer;
+            raw = outerRaw;
         }
         out.reinterpret(8).set(ValueLayout.JAVA_LONG, 0, result);
     }
@@ -547,7 +605,7 @@ final class RevoEngine implements ScriptEngine {
     public Fiber script(String chunk, String source, Instance script) {
         baton.onVm(() -> {
             setGlobal("script", push(script));
-            return evaluate(chunk, typed(source));
+            return evaluate(chunk, typed("spawn (fn() do " + source + "\nend)()"));
         });
         return null;
     }

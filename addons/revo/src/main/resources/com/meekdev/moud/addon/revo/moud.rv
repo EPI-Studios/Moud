@@ -1,1 +1,18 @@
 global __moud_keys = fn(t) t:keys()
+
+global __moud_wait = fn(seconds) do
+    if __moud_fiber() == 0 panic("task.wait only works inside task.spawn or a script")
+    const woken = chan()
+    __moud_wake(seconds or 0, woken)
+    recv(woken)
+end
+
+global __moud_spawn = fn(handler) do spawn handler() end
+
+global __moud_delay = fn(seconds, handler) do
+    const later = fn() do
+        __moud_wait(seconds)
+        handler()
+    end
+    spawn later()
+end

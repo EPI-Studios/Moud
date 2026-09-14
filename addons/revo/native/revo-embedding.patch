@@ -1,0 +1,26 @@
+--- a/src/vm/exec.zig	2026-09-14 20:22:36.685991046 +0200
++++ b/src/vm/exec.zig	2026-09-14 20:22:36.719984142 +0200
+@@ -1,3 +1,6 @@
++/// set by an embedder that drives fibers itself: eval returns once the main fiber is done
++pub var detach_main: bool = false;
++
+ pub fn runReport(self: *VM) !@TypeOf(self.*).EvalResult {
+     self.clearPanicMessage();
+     self.clearRuntimeMessage();
+@@ -17,6 +20,7 @@
+         if (try runReadyFibers(self)) |failure| {
+             return .{ .err = failure };
+         }
++        if (detach_main and self.sched.fibers.items[fid].state == .dead) break;
+ 
+         // wait errors become eval failures here so the main loop keeps a
+         // narrow error set for its compile-time callers
+@@ -115,7 +119,7 @@
+     return null;
+ }
+ 
+-inline fn runReadyFibers(self: *VM) !?@TypeOf(self.*).EvalFailure {
++pub inline fn runReadyFibers(self: *VM) !?@TypeOf(self.*).EvalFailure {
+     while (self.sched.dequeueRunnable()) |fid| {
+         @branchHint(.unlikely);
+         self.sched.current_fiber = fid;

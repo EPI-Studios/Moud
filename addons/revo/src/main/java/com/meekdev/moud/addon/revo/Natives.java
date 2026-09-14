@@ -70,6 +70,10 @@ final class Natives {
     private static MethodHandle okValue;
     private static MethodHandle isError;
     private static MethodHandle function;
+    private static MethodHandle detach;
+    private static MethodHandle pump;
+    private static MethodHandle send;
+    private static MethodHandle fiber;
 
     private interface Body<T> {
         T run(Arena scratch) throws Throwable;
@@ -108,6 +112,14 @@ final class Natives {
         okValue = handle("revo_ok_value", FunctionDescriptor.of(flag, pointer, data, pointer));
         isError = handle("revo_is_err", FunctionDescriptor.of(flag, pointer, data));
         function = handle("moud_revo_function", FunctionDescriptor.of(data, pointer, pointer, pointer));
+        detach = handle("moud_revo_detach", FunctionDescriptor.ofVoid(flag));
+        pump = handle("moud_revo_pump", FunctionDescriptor.of(flag, pointer));
+        send = handle("moud_revo_send", FunctionDescriptor.of(flag, pointer, data, data));
+        fiber = handle("moud_revo_fiber", FunctionDescriptor.of(data, pointer));
+        guarded(scratch -> {
+            detach.invokeExact(true);
+            return null;
+        });
     }
 
     static Linker linker() {
@@ -278,6 +290,18 @@ final class Natives {
 
     static long function(MemorySegment vm, String name, MemorySegment stub) {
         return guarded(scratch -> (long) function.invokeExact(vm, scratch.allocateFrom(name), stub));
+    }
+
+    static boolean pump(MemorySegment vm) {
+        return guarded(scratch -> (boolean) pump.invokeExact(vm));
+    }
+
+    static void send(MemorySegment vm, long channel, long value) {
+        guarded(scratch -> (boolean) send.invokeExact(vm, channel, value));
+    }
+
+    static long fiber(MemorySegment vm) {
+        return guarded(scratch -> (long) fiber.invokeExact(vm));
     }
 
     private static <T> T guarded(Body<T> body) {
