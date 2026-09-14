@@ -18,6 +18,7 @@ import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PostRef;
+import com.meekdev.moud.script.api.ShaderRef;
 import com.meekdev.moud.script.api.StoreRef;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.engine.ScriptLanguage;
@@ -76,6 +77,7 @@ public final class Host {
     private AudioRef audio;
     private CameraRef lens;
     private InputRef input;
+    private ShaderRef shaders;
     private Instance camera;
     private Supplier<Instance> own = () -> null;
 
@@ -122,6 +124,7 @@ public final class Host {
     public AudioRef audio() { return audio; }
     public CameraRef lens() { return lens; }
     public InputRef input() { return input; }
+    public ShaderRef shaders() { return shaders; }
     public Instance camera() { return camera; }
     public Supplier<Instance> own() { return own; }
 
@@ -134,6 +137,7 @@ public final class Host {
     public Host history(HistoryRef history) { this.history = history; return this; }
     public Host debug(DebugRef debug) { this.debug = debug; return this; }
     public Host audio(AudioRef audio) { this.audio = audio; return this; }
+    public Host shaders(ShaderRef shaders) { this.shaders = shaders; return this; }
 
     public Host clientSide(Instance camera, CameraRef lens, InputRef input, Supplier<Instance> own) {
         this.camera = camera;

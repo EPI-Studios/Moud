@@ -17,6 +17,7 @@ public final class Editor {
         }
         AmneticEditor.register(new TreeInspector());
         AmneticEditor.register(new PlaceInspector());
+        AmneticEditor.register(new MixinInspector());
         MoudMod.LOG.info("editor ready (right shift)");
     }
 }

@@ -6,11 +6,13 @@ import com.meekdev.moud.mod.adapter.audio.Sounds;
 import com.meekdev.moud.mod.adapter.chat.Bubbles;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.mod.adapter.chat.ClientChat;
+import com.meekdev.moud.mod.adapter.java.GameTypes;
 import com.meekdev.moud.mod.adapter.render.Meshes;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.adapter.render.PostStack;
 import com.meekdev.moud.mod.adapter.render.SceneLights;
+import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
@@ -42,6 +44,7 @@ public final class MoudClient implements ClientModInitializer {
         Pipeline.install();
         ResonaAudio.INSTANCE.install();
         Editor.install();
+        GameTypes.install(ClientScene::tree, id -> Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getPlayerByUUID(id));
         Parts.register();
         Meshes.register();
         PostStack.register();
@@ -70,6 +73,7 @@ public final class MoudClient implements ClientModInitializer {
             Bubbles.frame(partialTick);
             ClientPrompts.frame();
             PostStack.frame();
+            ShaderPatches.frame();
             if (ClientScene.motion().consumeStaticChanged()) Parts.invalidateStatic();
         });
     }

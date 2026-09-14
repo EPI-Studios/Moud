@@ -344,7 +344,7 @@ final class LuauEngine implements ScriptEngine {
 
     private Object table(LuaState s, int at, int depth) {
         int length = s.len(at);
-        if (length > 0) {
+        if (length > 0 && !keyed(s, at, length)) {
             List<Object> list = new ArrayList<>(length);
             for (int n = 1; n <= length; n++) {
                 s.rawGetI(at, n);
@@ -365,6 +365,19 @@ final class LuauEngine implements ScriptEngine {
             s.pop(1);
         }
         return map;
+    }
+
+    private static boolean keyed(LuaState s, int at, int length) {
+        int count = 0;
+        s.pushNil();
+        while (s.next(at)) {
+            s.pop(1);
+            if (++count > length) {
+                s.pop(1);
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String withScript(String source) {

@@ -12,6 +12,7 @@ import com.meekdev.moud.mod.adapter.chat.ClientChat;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
+import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
 import com.meekdev.moud.mod.client.input.Actions;
@@ -80,7 +81,8 @@ public final class ClientPlace {
                     .blocks(new BlockRays(() -> Minecraft.getInstance().level, false))
                     .audio(ResonaAudio.INSTANCE)
                     .chat(ClientChat.INSTANCE)
-                    .debug(ClientDebug.INSTANCE);
+                    .debug(ClientDebug.INSTANCE)
+                    .shaders(ShaderPatches.INSTANCE);
         });
         place.start();
         placeWorld = world;

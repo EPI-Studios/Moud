@@ -16,14 +16,17 @@ import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.script.engine.PlaceModules;
 import com.meekdev.moud.script.engine.ScriptLanguage;
 import com.meekdev.moud.script.host.Host;
+import com.meekdev.moud.script.host.java.Mixins;
 import com.meekdev.moud.script.reload.Watcher;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 import net.fabricmc.loader.api.FabricLoader;
 import org.jspecify.annotations.Nullable;
 
@@ -94,7 +97,17 @@ public final class Place {
     }
 
     public boolean pollReload() {
-        if (watcher == null || !watcher.take()) return false;
+        if (watcher == null) return false;
+        Set<Path> changes = watcher.changes();
+        if (changes.isEmpty()) return false;
+        Path mixins = mixins().toAbsolutePath().normalize();
+        List<Path> ours = changes.stream().map(path -> path.toAbsolutePath().normalize()).filter(path -> path.startsWith(mixins)).toList();
+        boolean rest = changes.stream().map(path -> path.toAbsolutePath().normalize()).anyMatch(path -> !path.startsWith(mixins) && !isMixin(path));
+        if (!rest) {
+            if (host == null || ours.isEmpty()) return false;
+            for (Path file : ours) mixin(host, file);
+            return true;
+        }
         MoudMod.LOG.info("reloading the place");
 
         Map<String, Object> carried = host == null ? Map.of() : host.persist();
@@ -107,6 +120,47 @@ public final class Place {
         host = load(carried);
         if (host != null) host.reloaded();
         return true;
+    }
+
+    private Path mixins() {
+        Path entry = root.resolve(main).getParent();
+        return (entry == null ? root : entry).resolve("mixins");
+    }
+
+    private static boolean isMixin(Path path) {
+        Path parent = path.getParent();
+        return parent != null && parent.getFileName() != null && parent.getFileName().toString().equals("mixins");
+    }
+
+    private void mixins(Host host) {
+        Path dir = mixins();
+        if (language == null || !Files.isDirectory(dir)) return;
+        try (Stream<Path> files = Files.list(dir)) {
+            files.filter(this::isScript).sorted().forEach(file -> mixin(host, file));
+        } catch (IOException e) {
+            MoudMod.LOG.error("could not list {}", dir, e);
+        }
+    }
+
+    private boolean isScript(Path file) {
+        String name = file.getFileName().toString();
+        return language != null && language.extensions().stream().anyMatch(extension -> name.endsWith("." + extension) && !name.endsWith(".d." + extension));
+    }
+
+    private void mixin(Host host, Path file) {
+        String chunk = root.toAbsolutePath().normalize().relativize(file.toAbsolutePath().normalize()).toString().replace('\\', '/');
+        Mixins.unload(host, chunk);
+        if (!Files.isRegularFile(file) || !isScript(file)) {
+            MoudMod.LOG.info("took the hooks of {} off", chunk);
+            return;
+        }
+        try {
+            String source = Files.readString(file);
+            Mixins.loading(host, chunk, () -> host.engine().run(chunk, source));
+            MoudMod.LOG.info("mixins in {} are on", chunk);
+        } catch (IOException | RuntimeException e) {
+            MoudMod.LOG.error("{} failed", chunk, e);
+        }
     }
 
     private void types() {
@@ -188,6 +242,7 @@ public final class Place {
             host = null;
             return null;
         }
+        mixins(fresh);
         if (source != null) {
             try {
                 fresh.engine().run(file, source);

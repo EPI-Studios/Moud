@@ -10,12 +10,13 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class Watcher implements AutoCloseable {
 
-    private final AtomicBoolean dirty = new AtomicBoolean();
+    private final Set<Path> changed = new LinkedHashSet<>();
     private final WatchService service;
     private final Thread thread;
     private final Collection<String> extensions;
@@ -31,7 +32,15 @@ public final class Watcher implements AutoCloseable {
     }
 
     public boolean take() {
-        return dirty.getAndSet(false);
+        return !changes().isEmpty();
+    }
+
+    public Set<Path> changes() {
+        synchronized (changed) {
+            Set<Path> out = new LinkedHashSet<>(changed);
+            changed.clear();
+            return out;
+        }
     }
 
     private void watch() {
@@ -43,18 +52,19 @@ public final class Watcher implements AutoCloseable {
                 return;
             }
             if (key == null) continue;
-            boolean touched = false;
+            Set<Path> touched = new LinkedHashSet<>();
             for (var event : key.pollEvents()) {
-                String file = String.valueOf(event.context());
-                if (isScript(file)) touched = true;
-                if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE
-                        && key.watchable() instanceof Path parent
-                        && event.context() instanceof Path name) {
-                    touched |= watchNew(parent.resolve(name));
-                }
+                if (!(key.watchable() instanceof Path parent) || !(event.context() instanceof Path name)) continue;
+                Path path = parent.resolve(name);
+                if (isScript(name.toString())) touched.add(path);
+                if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE && watchNew(path)) touched.add(path);
             }
             key.reset();
-            if (touched) dirty.set(true);
+            if (!touched.isEmpty()) {
+                synchronized (changed) {
+                    changed.addAll(touched);
+                }
+            }
         }
     }
 

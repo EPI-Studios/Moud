@@ -40,9 +40,11 @@
     "client.HandMixin",
     "client.HeldItemsMixin",
     "client.HudMixin",
+    "client.InstanceShaderMixin",
     "client.NameTagMixin",
     "client.PilotMixin",
     "client.ScreensMixin",
+    "client.ShaderSourceMixin",
     "client.SkyMixin",
     "client.SoundMixin"
   ],

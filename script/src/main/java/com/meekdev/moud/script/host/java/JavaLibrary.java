@@ -78,6 +78,7 @@ public final class JavaLibrary {
         @Override
         public Object get(String key) {
             if (key.equals("new")) return caller("new");
+            if (!methods(type, key, true).isEmpty() || !methods(type, key, false).isEmpty()) return new JavaMethod(type, key, List.of());
             return member(type, key, true, null);
         }
 
@@ -96,6 +97,7 @@ public final class JavaLibrary {
 
     public static void install(Host host) {
         Members java = new Members("Java")
+                .function("use", "(name: string) -> any", a -> new JavaClass(load(a.string(0))))
                 .function("class", "(name: string) -> any", a -> new JavaClass(load(a.string(0))))
                 .function("typeof", "(value: any) -> string?", a -> a.get(0) instanceof JavaObject o ? o.value().getClass().getName() : null)
                 .function("instanceOf", "(value: any, className: string) -> boolean",
@@ -128,6 +130,10 @@ public final class JavaLibrary {
 
     public static Object convert(Object value, Class<?> want) {
         Class<?> type = box(want);
+        if (value != null && !want.isPrimitive() && !(value instanceof JavaObject o && want.isInstance(o.value()))) {
+            Object converted = Conversions.toJava(value, want);
+            if (converted != MISMATCH) return converted;
+        }
         return switch (value) {
             case null -> want.isPrimitive() ? MISMATCH : null;
             case Boolean b -> type == Boolean.class || type == Object.class ? b : MISMATCH;
@@ -204,10 +210,13 @@ public final class JavaLibrary {
         Object self = a.get(0) instanceof JavaObject o ? o.value() : null;
         if (!statics && self == null) throw new HostError("call %s with a colon: thing:%s(...)", name, name);
         Class<?> type = statics ? ((JavaClass) a.get(0)).type() : self.getClass();
-        Object[] given = a.from(1);
         List<? extends Executable> candidates = name.equals("new") && statics
                 ? List.of(type.getDeclaredConstructors())
                 : methods(type, name, statics);
+        return invoke(type, name, self, a.from(1), candidates);
+    }
+
+    static Object invoke(Class<?> type, String name, Object self, Object[] given, List<? extends Executable> candidates) {
         for (Executable candidate : candidates) {
             Object[] args = arguments(candidate, given);
             if (args == null) continue;
