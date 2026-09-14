@@ -18,13 +18,16 @@ final class JavaEngine implements ScriptEngine {
 
     private final Host host;
     private final Compiler compiler = new Compiler();
+    private Map<String, String> api;
 
     JavaEngine(Host host) {
         this.host = host;
     }
 
     private PlaceScript instantiate(String chunk, String source, Instance script) {
-        Class<?> type = compiler.compile(chunk, source);
+        if (api == null) api = Map.of(JavaTypes.CLASS, JavaTypes.source(host.api(), host.classes()));
+        Class<?> type = compiler.compile(chunk, source, api);
+        bindApi();
         if (!PlaceScript.class.isAssignableFrom(type)) {
             throw new ScriptError(chunk, type.getSimpleName() + " has to extend PlaceScript", null);
         }
@@ -36,6 +39,16 @@ final class JavaEngine implements ScriptEngine {
             throw new ScriptError(chunk, String.valueOf(e.getCause()), e.getCause());
         } catch (ReflectiveOperationException e) {
             throw new ScriptError(chunk, type.getSimpleName() + " needs a public constructor that takes nothing", e);
+        }
+    }
+
+    private void bindApi() {
+        Class<?> apiClass = compiler.load(JavaTypes.CLASS);
+        if (apiClass == null) return;
+        try {
+            if (apiClass.getField("bridge").get(null) == null) apiClass.getField("bridge").set(null, new Bridge(host));
+        } catch (ReflectiveOperationException e) {
+            throw new ScriptError("moud.Api", e.toString(), e);
         }
     }
 

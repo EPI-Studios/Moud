@@ -1,0 +1,4 @@
+public {{modifiers}}{{returns}} {{name}}({{params}}) {
+    {{body}};
+}
+

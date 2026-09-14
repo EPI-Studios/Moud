@@ -1,0 +1,24 @@
+package moud;
+
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Color;
+import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
+import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.addon.java.Bridge;
+import java.util.Map;
+import java.util.function.Function;
+
+public final class Api {
+
+    public static Bridge bridge;
+
+    private Api() {}
+
+{{globals}}{{records}}    public static final class Methods {
+
+        private Methods() {}
+
+{{methods}}    }
+}

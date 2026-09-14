@@ -47,6 +47,10 @@ final class Compiler {
     };
 
     Class<?> compile(String chunk, String source) {
+        return compile(chunk, source, Map.of());
+    }
+
+    Class<?> compile(String chunk, String source, Map<String, String> companions) {
         if (javac == null) {
             throw new ScriptError(chunk, "java places need a jdk to run on, this java has no compiler", null);
         }
@@ -71,18 +75,35 @@ final class Compiler {
                 return source;
             }
         };
+        List<JavaFileObject> units = new ArrayList<>(List.of(unit));
+        for (Map.Entry<String, String> companion : companions.entrySet()) {
+            units.add(new SimpleJavaFileObject(URI.create("mem:///" + companion.getKey().replace('.', '/') + ".java"), JavaFileObject.Kind.SOURCE) {
+                @Override
+                public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                    return companion.getValue();
+                }
+            });
+        }
         List<String> options = List.of("--release", "25", "-proc:none", "-classpath", classpath());
-        boolean ok = javac.getTask(null, files, diagnostics, options, null, List.of(unit)).call();
+        boolean ok = javac.getTask(null, files, diagnostics, options, null, units).call();
         try {
             files.close();
         } catch (IOException ignored) {
         }
         if (!ok) throw new ScriptError(chunk, describe(diagnostics), null);
-        for (Map.Entry<String, ByteArrayOutputStream> entry : output.entrySet()) classes.put(entry.getKey(), entry.getValue().toByteArray());
+        for (Map.Entry<String, ByteArrayOutputStream> entry : output.entrySet()) classes.putIfAbsent(entry.getKey(), entry.getValue().toByteArray());
         try {
             return loader.loadClass(name);
         } catch (ClassNotFoundException e) {
             throw new ScriptError(chunk, "compiled but found no class " + name, e);
+        }
+    }
+
+    Class<?> load(String name) {
+        try {
+            return loader.loadClass(name);
+        } catch (ClassNotFoundException e) {
+            return null;
         }
     }
 
@@ -104,6 +125,10 @@ final class Compiler {
     }
 
     private static String classpath() {
+        return String.join(File.pathSeparator, classpathEntries());
+    }
+
+    static List<String> classpathEntries() {
         Set<String> entries = new LinkedHashSet<>();
         for (Class<?> anchor : List.of(Host.class, Instance.class, PlaceScript.class)) {
             CodeSource source = anchor.getProtectionDomain().getCodeSource();
@@ -117,6 +142,6 @@ final class Compiler {
         if (!system.isEmpty()) {
             for (String entry : system.split(File.pathSeparator)) entries.add(entry);
         }
-        return String.join(File.pathSeparator, new ArrayList<>(entries));
+        return new ArrayList<>(entries);
     }
 }
