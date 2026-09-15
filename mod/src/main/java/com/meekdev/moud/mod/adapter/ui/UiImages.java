@@ -2,7 +2,9 @@ package com.meekdev.moud.mod.adapter.ui;
 
 import com.meekdev.amnetic.client.render.ImportedTextures;
 import com.meekdev.moud.core.asset.Res;
+import com.meekdev.moud.mod.adapter.gl.Textures;
 import com.meekdev.moud.mod.client.ClientPlace;
+import com.meekdev.moud.mod.place.ImportSettings;
 import com.mojang.blaze3d.opengl.GlTexture;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -21,16 +23,20 @@ public final class UiImages {
         Integer known = KNOWN.get(src);
         if (known != null && known != 0) return known;
         Identifier id;
+        boolean nearest = false;
         if (src.startsWith(Res.SCHEME)) {
             Path root = ClientPlace.root();
             if (root == null) return 0;
-            id = ImportedTextures.idForPath(root.resolve(Res.parse(src)).toAbsolutePath().toString());
+            Path file = root.resolve(Res.parse(src));
+            nearest = ImportSettings.of(file).nearest();
+            id = ImportedTextures.idForPath(file.toAbsolutePath().toString());
         } else {
             id = Identifier.tryParse(src);
         }
         if (id == null) return 0;
         AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(id);
         int gl = texture != null && texture.getTexture() instanceof GlTexture glTexture ? glTexture.glId() : 0;
+        if (gl != 0 && nearest) Textures.filterNearest(gl);
         KNOWN.put(src, gl);
         return gl;
     }

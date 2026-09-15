@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.editor.shell;
 
 import com.meekdev.amnetic.client.ui.AmneticEditor;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.mod.adapter.render.Meshes;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.editor.EditMode;
 import com.meekdev.moud.mod.client.editor.Editor;
@@ -124,6 +125,7 @@ public final class EditorShell {
     public EditorShell() {
         addCommands();
         document.spawnPoint(viewport::spawnPoint);
+        document.meshSizes(Meshes::naturalSize);
     }
 
     private void addCommands() {

@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor.assets;
 
+import com.meekdev.moud.mod.place.ImportSettings;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,7 +21,7 @@ public final class AssetScanner {
 
     public static boolean hidden(Path path) {
         String name = path.getFileName() == null ? "" : path.getFileName().toString();
-        return name.startsWith(".") || HIDDEN.contains(name);
+        return name.startsWith(".") || HIDDEN.contains(name) || name.endsWith(ImportSettings.SUFFIX);
     }
 
     public static List<AssetEntry> list(Path directory) {
@@ -69,6 +70,10 @@ public final class AssetScanner {
         } catch (IOException e) {
             return new AssetEntry(name, path, AssetKind.of(name), 0, 0);
         }
+    }
+
+    static boolean insideHiddenPublic(Path root, Path path) {
+        return insideHidden(root, path);
     }
 
     private static boolean insideHidden(Path root, Path path) {

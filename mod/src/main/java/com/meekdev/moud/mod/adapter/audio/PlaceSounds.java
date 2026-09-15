@@ -9,7 +9,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.Sound;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.client.sounds.WeighedSoundEvents;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.RandomSource;
 import org.jspecify.annotations.Nullable;
 
 final class PlaceSounds implements SoundSource {
@@ -31,10 +35,19 @@ final class PlaceSounds implements SoundSource {
             return id;
         }
         Identifier id = Identifier.tryParse(soundId);
-        if (id == null || Minecraft.getInstance().getResourceManager().getResource(id).isEmpty()) {
-            return unknown(soundId);
-        }
-        return id;
+        if (id == null) return unknown(soundId);
+        if (Minecraft.getInstance().getResourceManager().getResource(id).isPresent()) return id;
+        Identifier file = eventFile(id);
+        return file != null ? file : unknown(soundId);
+    }
+
+    static @Nullable Identifier eventFile(Identifier event) {
+        WeighedSoundEvents sounds = Minecraft.getInstance().getSoundManager().getSoundEvent(event);
+        if (sounds == null) return null;
+        Sound picked = sounds.getSound(RandomSource.create());
+        if (picked == null || picked == SoundManager.EMPTY_SOUND) return null;
+        Identifier path = picked.getPath();
+        return Minecraft.getInstance().getResourceManager().getResource(path).isPresent() ? path : null;
     }
 
     private @Nullable Identifier unknown(String soundId) {

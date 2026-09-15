@@ -33,13 +33,20 @@ final class Thumbnails {
     }
 
     OptionalLong get(AssetEntry entry) {
-        String key = entry.path() + "@" + entry.modified();
+        return get(entry.path(), entry.path() + "@" + entry.modified());
+    }
+
+    OptionalLong get(Path file, String key) {
+        return get(() -> Files.newInputStream(file), key, false);
+    }
+
+    OptionalLong get(Opener opener, String key, boolean firstFrame) {
         if (failed.contains(key)) return OptionalLong.empty();
         Loaded loaded = cache.get(key);
         if (loaded == null) {
             if (budget <= 0) return OptionalLong.empty();
             budget--;
-            loaded = load(entry.path());
+            loaded = load(opener, key, firstFrame);
             if (loaded == null) {
                 failed.add(key);
                 return OptionalLong.empty();
@@ -64,12 +71,22 @@ final class Thumbnails {
         }
     }
 
-    private static Loaded load(Path path) {
+    interface Opener {
+        InputStream open() throws IOException;
+    }
+
+    private static Loaded load(Opener opener, String key, boolean firstFrame) {
         NativeImage image;
-        try (InputStream in = Files.newInputStream(path)) {
+        try (InputStream in = opener.open()) {
             image = NativeImage.read(in);
         } catch (IOException | RuntimeException e) {
             return null;
+        }
+        if (firstFrame && image.getHeight() > image.getWidth() && image.getHeight() % image.getWidth() == 0) {
+            NativeImage frame = new NativeImage(image.getWidth(), image.getWidth(), false);
+            image.copyRect(frame, 0, 0, 0, 0, image.getWidth(), image.getWidth(), false, false);
+            image.close();
+            image = frame;
         }
         int longest = Math.max(image.getWidth(), image.getHeight());
         if (longest > LARGEST) {
@@ -80,7 +97,7 @@ final class Thumbnails {
             image.close();
             image = scaled;
         }
-        DynamicTexture texture = new DynamicTexture(() -> "moud asset " + path.getFileName(), image);
+        DynamicTexture texture = new DynamicTexture(() -> "moud asset " + key, image);
         return new Loaded(texture, ImGuiMC.getTexture(texture));
     }
 }

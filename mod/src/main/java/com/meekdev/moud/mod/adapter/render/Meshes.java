@@ -112,6 +112,14 @@ public final class Meshes {
         return model(meshId);
     }
 
+    public static @Nullable Vector3 naturalSize(String meshId) {
+        Model model = model(meshId);
+        if (model == null || !model.isReady()) return null;
+        Vector3f min = model.boundsMin();
+        Vector3f max = model.boundsMax();
+        return new Vector3(Math.max(0.05, max.x - min.x), Math.max(0.05, max.y - min.y), Math.max(0.05, max.z - min.z));
+    }
+
     public static void fillMask(MeshPart part, Matrix4fc projectionView, Vector3 camera, float partialTick, float r, float g, float b, float a) {
         if (part.meshId.isEmpty()) return;
         Model model = model(part.meshId);

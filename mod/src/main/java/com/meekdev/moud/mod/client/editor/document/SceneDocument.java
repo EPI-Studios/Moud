@@ -19,8 +19,10 @@ import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
 import com.meekdev.moud.mod.addon.Addons;
+import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.PlaceFiles;
+import com.meekdev.moud.mod.place.ImportSettings;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.transport.payload.ScenePastedPayload;
@@ -40,6 +42,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -54,6 +57,7 @@ public final class SceneDocument {
     private final Map<Integer, InstanceRef> refs = new HashMap<>();
     private final Map<Integer, Paste> waiting = new HashMap<>();
     private Supplier<Vector3> spawnPoint = () -> Vector3.ZERO;
+    private Function<String, @Nullable Vector3> meshSize = id -> null;
     private @Nullable InstanceTree seen;
 
     public Selection selection() {
@@ -62,6 +66,10 @@ public final class SceneDocument {
 
     public History history() {
         return history;
+    }
+
+    public void meshSizes(Function<String, @Nullable Vector3> source) {
+        meshSize = source;
     }
 
     public void spawnPoint(Supplier<Vector3> source) {
@@ -375,6 +383,8 @@ public final class SceneDocument {
         String file = res.substring(res.lastIndexOf('/') + 1);
         int dot = file.indexOf('.', 1);
         String name = dot < 0 ? file : file.substring(0, dot);
+        boolean vanilla = !res.startsWith(Res.SCHEME) && res.indexOf(':') > 0 && !res.contains("/");
+        if (vanilla) name = res.substring(res.lastIndexOf('.') + 1);
         String lower = file.toLowerCase(Locale.ROOT);
         String text;
         try {
@@ -387,8 +397,9 @@ public final class SceneDocument {
                 if (at != null) shiftTo(loaded, parent, at);
                 text = snapshot(loaded);
             } else {
-                Instance made = madeFor(lower, res, name, holder);
+                Instance made = vanilla ? vanillaSound(res, name, holder) : madeFor(lower, res, name, holder);
                 if (made == null) return false;
+                settle(made, res);
                 if (made instanceof Spatial spatial) {
                     Vector3 point = at != null ? at : spawnPoint.get();
                     if (made instanceof Part part) point = point.add(new Vector3(0, part.size.y() * 0.5, 0));
@@ -402,6 +413,28 @@ public final class SceneDocument {
         }
         history.execute(Paste.fresh(text, ref(parentId), "Place " + name));
         return true;
+    }
+
+    private void settle(Instance made, String res) {
+        Path root = ClientPlace.root();
+        ImportSettings settings = root == null ? ImportSettings.DEFAULT : ImportSettings.of(root.resolve(Res.parse(res)));
+        switch (made) {
+            case MeshPart mesh -> {
+                Vector3 natural = meshSize.apply(res);
+                if (natural != null) mesh.size = natural.mul(settings.scale());
+            }
+            case Sound sound -> {
+                sound.stream = settings.stream();
+                sound.volume = settings.volume();
+            }
+            default -> { }
+        }
+    }
+
+    private static Instance vanillaSound(String id, String name, Instance holder) {
+        Sound sound = Instances.create(Classes.SOUND, holder, name);
+        sound.soundId = id;
+        return sound;
     }
 
     private static @Nullable Instance madeFor(String lower, String res, String name, Instance holder) {

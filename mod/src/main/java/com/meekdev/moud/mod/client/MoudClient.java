@@ -11,6 +11,7 @@ import com.meekdev.moud.mod.adapter.render.Meshes;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
+import com.meekdev.moud.mod.adapter.render.ModelSnapshots;
 import com.meekdev.moud.mod.adapter.render.PostStack;
 import com.meekdev.moud.mod.adapter.render.Viewports;
 import com.meekdev.moud.mod.adapter.render.ViewportCapture;
@@ -52,6 +53,7 @@ public final class MoudClient implements ClientModInitializer {
         Meshes.register();
         PostStack.register();
         Viewports.register();
+        ModelSnapshots.register();
         EditorOverlay.register();
         ViewportCapture.register();
         frames();

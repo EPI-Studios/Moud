@@ -20,6 +20,14 @@ public final class Textures {
         GL13.glActiveTexture(unit);
     }
 
+    public static void filterNearest(int texture) {
+        int bound = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
+    }
+
     public static void readPixels(int x, int y, int width, int height, ByteBuffer rgba) {
         GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
         GL11.glReadPixels(x, y, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, rgba);

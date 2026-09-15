@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.assets;
 
 import com.meekdev.moud.core.asset.Res;
+import com.meekdev.moud.mod.place.ImportSettings;
 import com.meekdev.moud.mod.place.PlaceToml;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -70,12 +71,16 @@ public final class AssetFiles {
         Path target = path.resolveSibling(clean);
         if (target.equals(path)) return path;
         if (Files.exists(target)) throw new IOException(clean + " already exists");
-        return Files.move(path, target);
+        return carrySidecar(path, Files.move(path, target));
     }
 
     public static Path duplicate(Path path) throws IOException {
         Path target = unique(path.getParent(), path.getFileName().toString());
-        if (!Files.isDirectory(path)) return Files.copy(path, target);
+        if (!Files.isDirectory(path)) {
+            Path sidecar = ImportSettings.sidecar(path);
+            if (Files.isRegularFile(sidecar)) Files.copy(sidecar, ImportSettings.sidecar(target));
+            return Files.copy(path, target);
+        }
         Files.walkFileTree(path, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attributes) throws IOException {
@@ -97,12 +102,13 @@ public final class AssetFiles {
         if (target.equals(path)) return path;
         if (directory.toAbsolutePath().normalize().startsWith(path.toAbsolutePath().normalize())) throw new IOException("a folder can not go inside itself");
         if (Files.exists(target)) throw new IOException(path.getFileName() + " is already there");
-        return Files.move(path, target);
+        return carrySidecar(path, Files.move(path, target));
     }
 
     public static void delete(Path path) throws IOException {
         if (!Files.isDirectory(path)) {
             Files.deleteIfExists(path);
+            Files.deleteIfExists(ImportSettings.sidecar(path));
             return;
         }
         Files.walkFileTree(path, new SimpleFileVisitor<>() {
@@ -119,5 +125,11 @@ public final class AssetFiles {
                 return FileVisitResult.CONTINUE;
             }
         });
+    }
+
+    private static Path carrySidecar(Path from, Path to) throws IOException {
+        Path sidecar = ImportSettings.sidecar(from);
+        if (!Files.isDirectory(to) && Files.isRegularFile(sidecar)) Files.move(sidecar, ImportSettings.sidecar(to));
+        return to;
     }
 }
