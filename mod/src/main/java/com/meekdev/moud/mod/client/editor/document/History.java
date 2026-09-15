@@ -20,6 +20,15 @@ public final class History {
     }
 
     public Optional<String> execute(Edit edit) {
+        Optional<String> refused = run(edit);
+        refused.ifPresent(why -> {
+            MoudMod.LOG.warn("editor could not {}: {}", edit.label(), why);
+            SceneLink.local(edit.label() + " failed: " + why);
+        });
+        return refused;
+    }
+
+    private Optional<String> run(Edit edit) {
         Entry top = undoStack.peek();
         boolean continues = top != null && top.open && edit.gesture() != null && Objects.equals(edit.gesture(), top.gesture);
         Edit inverse = null;

@@ -33,6 +33,11 @@ public final class SceneLink {
         if (status.inserted() != 0) inserted = status.inserted();
     }
 
+    static void local(String why) {
+        message = why;
+        messageAt = System.nanoTime();
+    }
+
     public static boolean dirty() {
         return dirty;
     }
