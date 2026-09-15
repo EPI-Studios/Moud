@@ -104,27 +104,57 @@ public final class Place {
         watcher = null;
     }
 
+    private @Nullable String sceneOnDisk;
+
     public boolean editing() {
         return editing;
     }
 
     public void edit() {
+        edit(true);
+    }
+
+    public void edit(boolean unsaved) {
         if (editing) return;
         editing = true;
         if (host != null) host.close();
         host = null;
         clearWorld();
         if (client) return;
+        if (!unsaved) adoptChangedScene();
         if (edited != null) Scene.load(edited, world, classes);
         else scene();
     }
 
     public void play() {
+        play(true);
+    }
+
+    public void play(boolean unsaved) {
         if (!editing) return;
         editing = false;
-        if (!client) edited = Scene.save(world.children().stream().filter(Place::authored).toList());
+        if (!client) {
+            edited = Scene.save(world.children().stream().filter(Place::authored).toList());
+            if (!unsaved) adoptChangedScene();
+        }
         clearWorld();
         host = load(Map.of());
+    }
+
+    private void adoptChangedScene() {
+        String path = PlaceToml.config().scene();
+        if (path.isEmpty()) return;
+        String disk;
+        try {
+            disk = new PlaceFileRef(root).read(path);
+        } catch (RuntimeException e) {
+            return;
+        }
+        if (disk == null || disk.equals(sceneOnDisk)) return;
+        sceneOnDisk = disk;
+        edited = disk;
+        MoudMod.LOG.info("{} changed on disk, using it", path);
+        Output.add(Output.Level.SYSTEM, "server", path + " changed on disk, loaded it");
     }
 
     public static final String DEFAULT_SCENE = "res://scenes/main.scene";
@@ -137,7 +167,9 @@ public final class Place {
     public String saveScene() {
         List<Instance> roots = world.children().stream().filter(Place::authored).toList();
         String file = sceneFile();
-        new PlaceFileRef(root).write(file, Scene.save(roots));
+        String text = Scene.save(roots);
+        new PlaceFileRef(root).write(file, text);
+        sceneOnDisk = text;
         return file;
     }
 
@@ -256,6 +288,7 @@ public final class Place {
                 MoudMod.LOG.error("start scene {} from place.toml not found", path);
                 return;
             }
+            sceneOnDisk = text;
             Scene.load(text, world, classes);
         } catch (RuntimeException e) {
             MoudMod.LOG.error("failed to load scene {}: {}", path, e.getMessage());
