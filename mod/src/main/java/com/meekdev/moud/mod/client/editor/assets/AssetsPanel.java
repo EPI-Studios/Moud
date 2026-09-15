@@ -91,6 +91,7 @@ public final class AssetsPanel implements Panel {
     private Consumer<String> nameAction = name -> {};
     private List<Path> pendingDelete = List.of();
     private final MinecraftBrowser minecraft;
+    private Consumer<String> sceneOpener = scene -> {};
     private List<AssetReferences.Reference> references = List.of();
     private String referencesOf = "";
     private boolean openReferences;
@@ -447,7 +448,8 @@ public final class AssetsPanel implements Panel {
     private void activate(AssetEntry entry) {
         switch (entry.kind()) {
             case FOLDER -> navigateTo(entry.path());
-            case SCRIPT, SHADER, SCENE -> CodeEditor.open(entry.path(), 1);
+            case SCENE -> openScene(entry);
+            case SCRIPT, SHADER -> CodeEditor.open(entry.path(), 1);
             case MODEL, SOUND -> place(entry);
             default -> reveal(entry.path());
         }
@@ -468,6 +470,7 @@ public final class AssetsPanel implements Panel {
             selection.add(entry.path());
         }
         if (entry.folder() && ImGui.menuItem("Open")) navigateTo(entry.path());
+        if (entry.kind() == AssetKind.SCENE && ImGui.menuItem("Open scene")) openScene(entry);
         if (entry.kind() == AssetKind.SCRIPT || entry.kind() == AssetKind.SHADER || entry.kind() == AssetKind.SCENE) {
             if (ImGui.menuItem("Open in Zed")) CodeEditor.open(entry.path(), 1);
         }
@@ -484,6 +487,15 @@ public final class AssetsPanel implements Panel {
         if (ImGui.menuItem("Duplicate")) duplicate(entry.path());
         if (ImGui.menuItem("Delete", "Del")) askDelete(List.copyOf(selection));
         ImGui.endPopup();
+    }
+
+    public void onOpenScene(Consumer<String> opener) {
+        sceneOpener = opener;
+    }
+
+    private void openScene(AssetEntry entry) {
+        String res = AssetFiles.res(entry.path());
+        if (res != null) sceneOpener.accept(res);
     }
 
     private static boolean placeable(AssetEntry entry) {

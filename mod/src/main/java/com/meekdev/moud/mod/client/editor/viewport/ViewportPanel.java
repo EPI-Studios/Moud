@@ -90,6 +90,7 @@ public final class ViewportPanel implements Panel {
     private final float[] arrayOffset = {4, 0, 0};
     private final float[] arrayTurn = {0};
     private final SurfaceDrag surfaceDrag = new SurfaceDrag();
+    private Runnable header = () -> {};
     private final OrientationCube cube = new OrientationCube();
     private int session = -1;
     private boolean hovered;
@@ -123,9 +124,14 @@ public final class ViewportPanel implements Panel {
         return WINDOW_FLAGS;
     }
 
+    public void header(Runnable drawn) {
+        header = drawn;
+    }
+
     @Override
     public void render() {
         placeCameraOnEntry();
+        header.run();
 
         renderToolbar();
         float deltaSeconds = ImGui.getIO().getDeltaTime();

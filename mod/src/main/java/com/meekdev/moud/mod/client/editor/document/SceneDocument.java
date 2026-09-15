@@ -57,6 +57,7 @@ public final class SceneDocument {
     private final Map<Integer, InstanceRef> refs = new HashMap<>();
     private final Map<Integer, Paste> waiting = new HashMap<>();
     private Supplier<Vector3> spawnPoint = () -> Vector3.ZERO;
+    private int generation;
     private Function<String, @Nullable Vector3> meshSize = id -> null;
     private @Nullable InstanceTree seen;
 
@@ -166,8 +167,9 @@ public final class SceneDocument {
 
     public void frame(boolean gestureHeld) {
         InstanceTree tree = tree();
-        if (tree != seen) {
+        if (tree != seen || SceneLink.generation() != generation) {
             seen = tree;
+            generation = SceneLink.generation();
             selection.clear();
             history.clear();
             refs.clear();

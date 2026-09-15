@@ -92,6 +92,7 @@ public final class MoudServer {
         ServerPilot.tick(server);
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
         ServerHistory.INSTANCE.record(ServerScene.tree());
+        Editing.tick(server);
     }
 
     private static void spawn(ServerPlayer player) {

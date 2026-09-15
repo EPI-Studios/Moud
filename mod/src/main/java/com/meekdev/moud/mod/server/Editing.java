@@ -12,7 +12,9 @@ import com.meekdev.moud.mod.place.Output;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.transport.payload.EditDownPayload;
 import com.meekdev.moud.mod.transport.payload.EditUpPayload;
+import com.meekdev.moud.mod.place.SceneBackups;
 import com.meekdev.moud.mod.transport.payload.SceneEditPayload;
+import com.meekdev.moud.mod.transport.payload.SceneFilePayload;
 import com.meekdev.moud.mod.transport.payload.ScenePastePayload;
 import com.meekdev.moud.mod.transport.payload.ScenePastedPayload;
 import com.meekdev.moud.mod.transport.payload.SceneSavePayload;
@@ -21,6 +23,9 @@ import com.meekdev.moud.net.replicate.Applier;
 import com.meekdev.moud.net.replicate.Change;
 import com.meekdev.moud.net.wire.Codec;
 import com.meekdev.moud.core.scene.Scene;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -32,7 +37,12 @@ import org.jspecify.annotations.Nullable;
 
 public final class Editing {
 
+    private static final long BACKUP_MILLIS = 60_000;
+
     private static boolean dirty;
+    private static boolean changedSinceBackup;
+    private static long backedUpAt = System.currentTimeMillis();
+    private static int generation;
 
     private Editing() {}
 
@@ -45,6 +55,8 @@ public final class Editing {
                 context.server().execute(() -> paste(context.player(), payload.token(), payload.text(), payload.parent())));
         ServerPlayNetworking.registerGlobalReceiver(SceneSavePayload.TYPE, (payload, context) ->
                 context.server().execute(() -> save(context.player())));
+        ServerPlayNetworking.registerGlobalReceiver(SceneFilePayload.TYPE, (payload, context) ->
+                context.server().execute(() -> file(context.player(), payload.action(), payload.path())));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> server.execute(() -> joined(handler.getPlayer())));
     }
 
@@ -199,7 +211,57 @@ public final class Editing {
         }
     }
 
+    public static void tick(MinecraftServer server) {
+        if (!changedSinceBackup || System.currentTimeMillis() - backedUpAt < BACKUP_MILLIS) return;
+        Place place = MoudServer.place();
+        if (place == null || !place.editing()) return;
+        backedUpAt = System.currentTimeMillis();
+        changedSinceBackup = false;
+        try {
+            place.backup();
+        } catch (IOException | RuntimeException e) {
+            MoudMod.LOG.warn("could not back up the scene", e);
+        }
+    }
+
+    private static void file(ServerPlayer player, int action, String path) {
+        Place place = editable(player);
+        if (place == null) return;
+        MinecraftServer server = player.level().getServer();
+        try {
+            String message = switch (action) {
+                case SceneFilePayload.OPEN -> {
+                    place.openScene(path);
+                    dirty = false;
+                    yield "opened " + path;
+                }
+                case SceneFilePayload.SAVE_AS -> {
+                    String saved = place.saveSceneAs(path);
+                    dirty = false;
+                    yield "saved " + saved;
+                }
+                case SceneFilePayload.RESTORE -> {
+                    Path backup = place.root().resolve(path).toAbsolutePath().normalize();
+                    if (!SceneBackups.inside(place.root(), backup) || !Files.isRegularFile(backup)) throw new IllegalStateException(path + " is not a backup of this place");
+                    place.restore(Files.readString(backup));
+                    dirty = true;
+                    yield "restored " + backup.getFileName() + ", save to keep it";
+                }
+                default -> throw new IllegalStateException("unknown scene action " + action);
+            };
+            generation++;
+            changedSinceBackup = false;
+            if (action != SceneFilePayload.SAVE_AS) MoudServer.respawnAll(server);
+            MoudMod.LOG.info("{} {}", player.getGameProfile().name(), message);
+            Output.add(Output.Level.SYSTEM, "server", message);
+            for (ServerPlayer each : server.getPlayerList().getPlayers()) status(each, message);
+        } catch (IOException | RuntimeException e) {
+            reject(player, "could not " + (action == SceneFilePayload.OPEN ? "open " : action == SceneFilePayload.SAVE_AS ? "save " : "restore ") + path + ": " + e.getMessage());
+        }
+    }
+
     private static void changed(MinecraftServer server) {
+        changedSinceBackup = true;
         if (dirty) return;
         dirty = true;
         for (ServerPlayer each : server.getPlayerList().getPlayers()) status(each, "");
@@ -213,7 +275,7 @@ public final class Editing {
     private static void status(ServerPlayer player, String message) {
         Place place = MoudServer.place();
         if (place == null || !ServerPlayNetworking.canSend(player, SceneStatusPayload.TYPE)) return;
-        ServerPlayNetworking.send(player, new SceneStatusPayload(dirty, place.sceneFile(), message));
+        ServerPlayNetworking.send(player, new SceneStatusPayload(dirty, place.sceneFile(), message, generation));
     }
 
     private static void send(ServerPlayer player, boolean editing) {

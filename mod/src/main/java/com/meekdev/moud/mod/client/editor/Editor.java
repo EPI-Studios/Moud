@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.amnetic.client.ui.AmneticEditor;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.client.Launch;
 import com.meekdev.moud.mod.client.editor.document.SceneLink;
 import com.meekdev.moud.mod.client.editor.project.ProjectHub;
 import com.meekdev.moud.mod.client.editor.project.ProjectHubScreen;
@@ -17,6 +18,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
@@ -31,6 +33,8 @@ public final class Editor {
     private static @Nullable ProjectHub hub;
     private static @Nullable EditorShell shell;
     private static boolean closeRequested;
+    private static @Nullable Path reopen;
+    private static boolean reopening;
     private static boolean stopHeld;
     private static CameraType cameraBeforeStop = CameraType.FIRST_PERSON;
     private static boolean amneticReleased;
@@ -76,8 +80,26 @@ public final class Editor {
         closeRequested = true;
     }
 
+    public static void requestReopenProject(Path root) {
+        reopen = root;
+    }
+
     private static void tick(Minecraft client) {
         if (hub != null) hub.tick();
+        if (reopen != null && !reopening) {
+            reopening = true;
+            client.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);
+            client.setScreen(new TitleScreen());
+            return;
+        }
+        if (reopening && client.level == null) {
+            Path root = reopen;
+            reopen = null;
+            reopening = false;
+            MoudMod.LOG.info("reopening {}", root);
+            Launch.openProject(root);
+            return;
+        }
         if (closeRequested) {
             closeRequested = false;
             client.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);

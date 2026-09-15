@@ -32,5 +32,6 @@ public final class Payloads {
         PayloadTypeRegistry.serverboundPlay().register(SceneEditPayload.TYPE, SceneEditPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ScenePastePayload.TYPE, ScenePastePayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(SceneSavePayload.TYPE, SceneSavePayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(SceneFilePayload.TYPE, SceneFilePayload.CODEC.cast());
     }
 }

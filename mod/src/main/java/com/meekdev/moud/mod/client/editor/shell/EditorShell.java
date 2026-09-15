@@ -71,6 +71,8 @@ public final class EditorShell {
             .add(new PropertiesPanel(document, icons))
             .add(new OutputPanel())
             .add(assets);
+    private final SceneTabs scenes = new SceneTabs(document);
+    private final WorldImportDialog worldImport = new WorldImportDialog(document);
     private final Commands commands = new Commands();
 
     private boolean closePrompt;
@@ -126,10 +128,18 @@ public final class EditorShell {
         addCommands();
         document.spawnPoint(viewport::spawnPoint);
         document.meshSizes(Meshes::naturalSize);
+        viewport.header(scenes::renderTabs);
+        assets.onOpenScene(scenes::switchTo);
     }
 
     private void addCommands() {
+        commands.add(new EditorCommand("new-scene", "File", "New Scene...", Shortcut.ctrl(ImGuiKey.N, "N"), scenes::ready, scenes::askNew));
+        commands.add(new EditorCommand("open-scene", "File", "Open Scene...", Shortcut.ctrl(ImGuiKey.O, "O"), scenes::ready, scenes::askOpen));
         commands.add(new EditorCommand("save", "File", "Save Scene", Shortcut.ctrl(ImGuiKey.S, "S"), EditMode::allowed, document::save));
+        commands.add(new EditorCommand("save-as", "File", "Save Scene As...", Shortcut.ctrlShift(ImGuiKey.S, "S"), scenes::ready, scenes::askSaveAs));
+        commands.add(new EditorCommand("start-scene", "File", "Set as Start Scene", null, scenes::ready, () -> scenes.setStart(scenes.current())));
+        commands.add(new EditorCommand("backups", "File", "Scene Backups...", null, scenes::ready, scenes::askBackups));
+        commands.add(new EditorCommand("import-world", "File", "Import Minecraft World...", null, scenes::ready, worldImport::open));
         commands.add(new EditorCommand("close-project", "File", "Close Project", null, () -> true, this::closeProject));
         commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo));
         commands.add(new EditorCommand("redo", "Edit", "Redo", Shortcut.ctrl(ImGuiKey.Y, "Y"), this::canRedo, this::redo));
@@ -222,6 +232,9 @@ public final class EditorShell {
             panels.render();
             if (!viewport.flying()) commands.handleShortcuts();
             renderClosePrompt();
+            scenes.frame();
+            scenes.renderDialogs();
+            worldImport.render();
             document.frame(ImGui.isAnyItemActive() || ImGui.isMouseDown(ImGuiMouseButton.Left));
         } catch (RuntimeException e) {
             MoudMod.LOG.error("editor frame failed", e);
@@ -312,7 +325,13 @@ public final class EditorShell {
         String message = SceneLink.message();
         if (!message.isEmpty()) {
             ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
-            Texts.colored(message.startsWith("saved") ? EditorStyle.COLOR_SUCCESS : EditorStyle.COLOR_DANGER, message);
+            boolean good = message.startsWith("saved") || message.startsWith("opened") || message.startsWith("restored");
+            Texts.colored(good ? EditorStyle.COLOR_SUCCESS : EditorStyle.COLOR_DANGER, message);
+        }
+        String importing = worldImport.status();
+        if (importing != null) {
+            ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
+            Texts.colored(EditorStyle.COLOR_ACCENT, importing);
         }
         ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
         Instance world = document.world();

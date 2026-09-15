@@ -105,6 +105,7 @@ public final class Place {
     }
 
     private @Nullable String sceneOnDisk;
+    private @Nullable String openScene;
 
     public boolean editing() {
         return editing;
@@ -142,7 +143,7 @@ public final class Place {
     }
 
     private void adoptChangedScene() {
-        String path = PlaceToml.config().scene();
+        String path = sceneToLoad();
         if (path.isEmpty()) return;
         String disk;
         try {
@@ -160,17 +161,62 @@ public final class Place {
     public static final String DEFAULT_SCENE = "res://scenes/main.scene";
 
     public String sceneFile() {
+        if (openScene != null) return openScene;
         String path = PlaceToml.config().scene();
         return path.isEmpty() ? DEFAULT_SCENE : path;
     }
 
+    private String sceneToLoad() {
+        return openScene != null ? openScene : PlaceToml.config().scene();
+    }
+
     public String saveScene() {
-        List<Instance> roots = world.children().stream().filter(Place::authored).toList();
         String file = sceneFile();
-        String text = Scene.save(roots);
-        new PlaceFileRef(root).write(file, text);
+        String text = authoredScene();
+        PlaceFileRef files = new PlaceFileRef(root);
+        String before = files.read(file);
+        if (before != null && !before.equals(text) && !before.isBlank()) {
+            try {
+                SceneBackups.write(root, file, before, SceneBackups.Kind.BEFORE_SAVE);
+            } catch (IOException e) {
+                MoudMod.LOG.warn("could not keep a copy of {} before saving", file, e);
+            }
+        }
+        files.write(file, text);
         sceneOnDisk = text;
         return file;
+    }
+
+    public String saveSceneAs(String file) {
+        Res.parse(file);
+        openScene = file;
+        return saveScene();
+    }
+
+    public void openScene(String file) {
+        if (!editing || client) return;
+        Res.parse(file);
+        clearWorld();
+        openScene = file;
+        edited = null;
+        String text = new PlaceFileRef(root).read(file);
+        sceneOnDisk = text;
+        if (text != null && !text.isBlank()) Scene.load(text, world, classes);
+    }
+
+    public void restore(String text) {
+        if (!editing || client) return;
+        clearWorld();
+        edited = null;
+        Scene.load(text, world, classes);
+    }
+
+    public Path backup() throws IOException {
+        return SceneBackups.write(root, sceneFile(), authoredScene(), SceneBackups.Kind.AUTO);
+    }
+
+    private String authoredScene() {
+        return Scene.save(world.children().stream().filter(Place::authored).toList());
     }
 
     public static boolean authored(Instance instance) {
@@ -280,7 +326,7 @@ public final class Place {
     }
 
     private void scene() {
-        String path = PlaceToml.config().scene();
+        String path = sceneToLoad();
         if (path.isEmpty()) return;
         try {
             String text = new PlaceFileRef(root).read(path);
