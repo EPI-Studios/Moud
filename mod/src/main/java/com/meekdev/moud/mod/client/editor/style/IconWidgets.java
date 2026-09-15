@@ -32,6 +32,10 @@ public final class IconWidgets {
         ImGui.sameLine();
     }
 
+    public long logoTextureId() {
+        return atlas.logoTextureId();
+    }
+
     public long textureId(EditorIcon icon) {
         return atlas.textureId(icon);
     }

@@ -53,6 +53,7 @@ public final class ProjectHubView {
     private static final float SIDEBAR_PADDING = 20.0f;
     private static final float MAIN_PADDING_X = 36.0f;
     private static final float MAIN_PADDING_Y = 28.0f;
+    private static final float CONTENT_MAX_WIDTH = 1180.0f;
     private static final float LOGO_SIZE = 30.0f;
     private static final float PRIMARY_HEIGHT = 38.0f;
     private static final float NAV_ROW_HEIGHT = 32.0f;
@@ -62,7 +63,8 @@ public final class ProjectHubView {
     private static final float CARD_GAP = 18.0f;
     private static final float CARD_COVER_RATIO = 0.56f;
     private static final float CARD_TEXT_HEIGHT = 58.0f;
-    private static final float CARD_ROUNDING = 8.0f;
+    private static final float CARD_ROUNDING = 2.0f;
+    private static final float CORNER = 2.0f;
     private static final float COVER_INITIALS_SIZE = 34.0f;
     private static final float HERO_TITLE_SIZE = 24.0f;
     private static final float PAGE_TITLE_SIZE = 22.0f;
@@ -182,19 +184,9 @@ public final class ProjectHubView {
         ImGui.endGroup();
     }
 
-    private static void drawLogo(ImDrawList draw, float x, float y, float size) {
-        float half = size * 0.5f;
-        float cx = x + half;
-        float cy = y + half;
-        float r = size * 0.46f;
-        int top = EditorStyle.COLOR_HIGHLIGHT;
-        int left = EditorStyle.darken(EditorStyle.COLOR_HIGHLIGHT, 0.28f);
-        int right = EditorStyle.darken(EditorStyle.COLOR_HIGHLIGHT, 0.5f);
-        float dx = r * CUBE_HALF_WIDTH;
-        float dy = r * 0.5f;
-        draw.addQuadFilled(cx, cy - r, cx + dx, cy - dy, cx, cy, cx - dx, cy - dy, top);
-        draw.addQuadFilled(cx - dx, cy - dy, cx, cy, cx, cy + r, cx - dx, cy + dy, left);
-        draw.addQuadFilled(cx, cy, cx + dx, cy - dy, cx + dx, cy + dy, cx, cy + r, right);
+    private void drawLogo(ImDrawList draw, float x, float y, float size) {
+        float width = size * 234.0f / 238.0f;
+        draw.addImage(icons.logoTextureId(), x + (size - width) * 0.5f, y, x + (size + width) * 0.5f, y + size);
     }
 
     private static void sidebarCaption(String caption) {
@@ -208,10 +200,10 @@ public final class ProjectHubView {
         float y = ImGui.getCursorScreenPosY();
         if (ImGui.invisibleButton("##" + id, width, height)) nav = value;
         boolean active = nav == value;
-        float hover = EditorMotion.towards(id, ImGui.isItemHovered() || active);
+        float hover = (ImGui.isItemHovered() || active) ? 1.0f : 0.0f;
         ImDrawList draw = ImGui.getWindowDrawList();
         int fill = active ? EditorStyle.withAlpha(EditorStyle.COLOR_ACCENT, 0.12f) : EditorStyle.withAlpha(EditorStyle.COLOR_WIDGET_HOVER, hover * 0.5f);
-        draw.addRectFilled(x, y, x + width, y + height, fill, EditorStyle.frameRounding());
+        draw.addRectFilled(x, y, x + width, y + height, fill, EditorScale.of(CORNER));
         float iconSize = EditorStyle.iconSizeSmall();
         float iconX = x + EditorScale.of(10.0f);
         float midY = y + height * 0.5f;
@@ -241,7 +233,10 @@ public final class ProjectHubView {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, padX, padY);
         ImGui.beginChild("##hub-main", 0.0f, 0.0f, ImGuiChildFlags.AlwaysUseWindowPadding, 0);
         ImGui.popStyleVar();
-        float width = ImGui.getContentRegionAvailX();
+        float available = ImGui.getContentRegionAvailX();
+        float width = Math.min(available, EditorScale.of(CONTENT_MAX_WIDTH));
+        float indent = (available - width) * 0.5f;
+        if (indent > 0.0f) ImGui.indent(indent);
         List<Entry> visible = visible();
         renderTopBar(width, visible.size());
         ImGui.dummy(0.0f, EditorScale.of(SECTION_GAP));
@@ -267,11 +262,13 @@ public final class ProjectHubView {
             }
         }
         handleShortcuts(visible());
+        if (indent > 0.0f) ImGui.unindent(indent);
         ImGui.endChild();
     }
 
     private void renderTopBar(float width, int count) {
         float top = ImGui.getCursorPosY();
+        float left = ImGui.getCursorPosX();
         withFont(EditorFonts.title(), PAGE_TITLE_SIZE, () -> ImGui.textUnformatted(nav == NAV_PINNED ? "Pinned" : "Projects"));
         ImGui.sameLine(0.0f, EditorScale.of(10.0f));
         ImGui.setCursorPosY(top + EditorScale.of(PAGE_TITLE_SIZE) - ImGui.getTextLineHeight());
@@ -280,7 +277,8 @@ public final class ProjectHubView {
         float sortWidth = SegmentedControl.width(sorts);
         float searchWidth = Math.min(EditorScale.of(280.0f), width * 0.35f);
         float right = width - sortWidth - searchWidth - EditorStyle.itemSpacingX() * 2.0f;
-        ImGui.sameLine(Math.max(ImGui.getCursorPosX(), right));
+        ImGui.sameLine();
+        ImGui.setCursorPosX(Math.max(ImGui.getCursorPosX(), left + right));
         ImGui.setCursorPosY(top);
         if (focusSearch) {
             ImGui.setKeyboardFocusHere();
@@ -303,19 +301,19 @@ public final class ProjectHubView {
         float y = ImGui.getCursorScreenPosY();
         boolean clicked = ImGui.invisibleButton("##hub-hero", width, height);
         boolean hovered = ImGui.isItemHovered();
-        float emphasis = EditorMotion.towards("hub-hero", hovered);
+        float emphasis = (hovered) ? 1.0f : 0.0f;
         renderMenu(entry, "##hub-hero-menu");
         ImDrawList draw = ImGui.getWindowDrawList();
         float rounding = EditorScale.of(CARD_ROUNDING);
         draw.addRectFilled(x, y, x + width, y + height, EditorStyle.COLOR_ELEVATED_BACKGROUND, rounding);
         float coverWidth = Math.min(EditorScale.of(HERO_COVER_WIDTH), width * 0.4f);
         drawCover(draw, entry, x, y, x + coverWidth, y + height, rounding, ImDrawFlags.RoundCornersLeft, emphasis);
-        draw.addRect(x, y, x + width, y + height, EditorStyle.withAlpha(EditorStyle.COLOR_HIGHLIGHT, 0.25f + emphasis * 0.5f), rounding, 0, 1.0f);
+        draw.addRect(x, y, x + width, y + height, EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.06f + emphasis * 0.18f), rounding, 0, 1.0f);
         float textX = x + coverWidth + EditorScale.of(28.0f);
         float textY = y + EditorScale.of(24.0f);
         ImFont small = EditorFonts.body();
         ImFont title = EditorFonts.title();
-        if (small != null) draw.addText(small, (int) EditorFonts.SMALL, textX, textY, EditorStyle.COLOR_HIGHLIGHT, "CONTINUE WHERE YOU LEFT OFF");
+        if (small != null) draw.addText(small, (int) EditorScale.of(EditorFonts.SMALL), textX, textY, EditorStyle.COLOR_TEXT_FAINT, "CONTINUE WHERE YOU LEFT OFF");
         if (title != null) draw.addText(title, (int) EditorScale.of(HERO_TITLE_SIZE), textX, textY + EditorScale.of(20.0f), EditorStyle.COLOR_TEXT_FOCUS, entry.project().name());
         float detailY = textY + EditorScale.of(20.0f + HERO_TITLE_SIZE + 8.0f);
         String detail = "Opened " + relativeDate(entry.project().lastOpenedMillis()).toLowerCase(Locale.ROOT) + "   ·   " + entry.path();
@@ -327,8 +325,8 @@ public final class ProjectHubView {
         float buttonWidth = ImGui.calcTextSizeX(action) + padX * 2.0f;
         float buttonHeight = EditorScale.of(32.0f);
         float buttonY = y + height - EditorScale.of(24.0f) - buttonHeight;
-        int buttonFill = EditorMotion.blend(EditorStyle.COLOR_WIDGET_BACKGROUND, EditorStyle.COLOR_HIGHLIGHT, emphasis);
-        draw.addRectFilled(textX, buttonY, textX + buttonWidth, buttonY + buttonHeight, buttonFill, EditorStyle.frameRounding());
+        int buttonFill = EditorMotion.blend(EditorStyle.COLOR_WIDGET_BACKGROUND, EditorStyle.COLOR_ACCENT, emphasis);
+        draw.addRectFilled(textX, buttonY, textX + buttonWidth, buttonY + buttonHeight, buttonFill, EditorScale.of(CORNER));
         int buttonText = EditorMotion.blend(EditorStyle.COLOR_TEXT, EditorStyle.COLOR_TEXT_ON_ACCENT, emphasis);
         draw.addText(textX + padX, buttonY + (buttonHeight - ImGui.getTextLineHeight()) * 0.5f, buttonText, action);
         if (hovered) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
@@ -362,7 +360,7 @@ public final class ProjectHubView {
         boolean clicked = ImGui.invisibleButton("##card", width, height);
         boolean hovered = ImGui.isItemHovered();
         boolean isSelected = entry.path().equals(selected);
-        float emphasis = EditorMotion.towards(id, hovered || isSelected);
+        float emphasis = (hovered || isSelected) ? 1.0f : 0.0f;
         renderMenu(entry, "##card-menu");
         ImDrawList draw = ImGui.getWindowDrawList();
         float rounding = EditorScale.of(CARD_ROUNDING);
@@ -370,7 +368,7 @@ public final class ProjectHubView {
         float cy = y - lift;
         draw.addRectFilled(x, cy, x + width, cy + height, EditorStyle.COLOR_ELEVATED_BACKGROUND, rounding);
         drawCover(draw, entry, x, cy, x + width, cy + coverHeight, rounding, ImDrawFlags.RoundCornersTop, emphasis);
-        int border = isSelected ? EditorStyle.COLOR_HIGHLIGHT : EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.06f + emphasis * 0.18f);
+        int border = isSelected ? EditorStyle.COLOR_ACCENT : EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.06f + emphasis * 0.18f);
         draw.addRect(x, cy, x + width, cy + height, border, rounding, 0, isSelected ? 1.5f : 1.0f);
         if (entry.pinned()) {
             float r = EditorScale.of(4.5f);
@@ -557,13 +555,13 @@ public final class ProjectHubView {
         float x = ImGui.getCursorScreenPosX();
         float y = ImGui.getCursorScreenPosY();
         boolean clicked = ImGui.invisibleButton("##" + id, width, height);
-        float emphasis = EditorMotion.towards(id, ImGui.isItemHovered());
+        float emphasis = (ImGui.isItemHovered()) ? 1.0f : 0.0f;
         boolean held = ImGui.isItemActive();
         ImDrawList draw = ImGui.getWindowDrawList();
         int fill = primary
-                ? EditorStyle.lighten(EditorStyle.COLOR_HIGHLIGHT, emphasis * 0.08f - (held ? 0.08f : 0.0f))
+                ? EditorStyle.lighten(EditorStyle.COLOR_ACCENT, emphasis * 0.12f - (held ? 0.08f : 0.0f))
                 : EditorMotion.blend(EditorStyle.COLOR_WIDGET_BACKGROUND, EditorStyle.COLOR_WIDGET_HOVER, emphasis);
-        draw.addRectFilled(x, y, x + width, y + height, fill, EditorStyle.frameRounding());
+        draw.addRectFilled(x, y, x + width, y + height, fill, EditorScale.of(CORNER));
         String shown = (primary ? "+  " : "") + label;
         draw.addText(x + (width - ImGui.calcTextSizeX(shown)) * 0.5f, y + (height - ImGui.getTextLineHeight()) * 0.5f,
                 primary ? EditorStyle.COLOR_TEXT_ON_ACCENT : EditorStyle.COLOR_TEXT, shown);

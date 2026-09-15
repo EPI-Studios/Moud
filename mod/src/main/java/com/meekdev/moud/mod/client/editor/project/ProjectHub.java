@@ -4,6 +4,8 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.Launch;
 import com.meekdev.moud.mod.client.editor.notify.ToastCenter;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
+import com.meekdev.moud.mod.client.editor.style.EditorScale;
+import com.meekdev.moud.mod.client.editor.style.EditorScaling;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconAtlas;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
@@ -26,9 +28,10 @@ public final class ProjectHub {
             }
             return;
         }
+        float fontScale = EditorScaling.begin();
         EditorStyle.apply();
         ImFont body = EditorFonts.body();
-        if (body != null) ImGui.pushFont(body, EditorFonts.BODY);
+        if (body != null) ImGui.pushFont(body, EditorScale.of(EditorFonts.BODY));
         try {
             if (view == null) {
                 view = new ProjectHubView(new ProjectStore(ProjectStore.defaultRecentsFile()), toasts, icons, ProjectHub::open);
@@ -39,6 +42,7 @@ public final class ProjectHub {
             MoudMod.LOG.error("project hub frame failed", e);
         } finally {
             if (body != null) ImGui.popFont();
+            EditorScaling.end(fontScale);
         }
     }
 

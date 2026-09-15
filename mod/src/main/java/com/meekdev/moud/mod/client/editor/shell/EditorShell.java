@@ -18,6 +18,8 @@ import com.meekdev.moud.mod.client.editor.panel.Panels;
 import com.meekdev.moud.mod.client.editor.panel.PropertiesPanel;
 import com.meekdev.moud.mod.client.editor.project.ProjectHubScreen;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
+import com.meekdev.moud.mod.client.editor.style.EditorScale;
+import com.meekdev.moud.mod.client.editor.style.EditorScaling;
 import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconAtlas;
@@ -100,9 +102,10 @@ public final class EditorShell {
         if (!EditMode.editing() || !(Minecraft.getInstance().screen instanceof EditorScreen)) return;
         ImGui.getIO().addConfigFlags(ImGuiConfigFlags.DockingEnable);
         ImGui.getIO().setConfigWindowsMoveFromTitleBarOnly(true);
+        float fontScale = EditorScaling.begin();
         EditorStyle.apply();
         ImFont body = EditorFonts.body();
-        if (body != null) ImGui.pushFont(body, EditorFonts.BODY);
+        if (body != null) ImGui.pushFont(body, EditorScale.of(EditorFonts.BODY));
         try {
             ImGuizmo.beginFrame();
             renderMainMenuBar();
@@ -114,6 +117,7 @@ public final class EditorShell {
             MoudMod.LOG.error("editor frame failed", e);
         } finally {
             if (body != null) ImGui.popFont();
+            EditorScaling.end(fontScale);
         }
     }
 
@@ -134,14 +138,14 @@ public final class EditorShell {
     }
 
     private static void renderBrandMark() {
-        ImGui.dummy(BRAND_MARGIN, 0.0f);
+        ImGui.dummy(EditorScale.of(BRAND_MARGIN), 0.0f);
         ImGui.sameLine();
         ImFont title = EditorFonts.title();
-        if (title != null) ImGui.pushFont(title, EditorFonts.TITLE);
+        if (title != null) ImGui.pushFont(title, EditorScale.of(EditorFonts.TITLE));
         ImGui.textUnformatted("Moud");
         if (title != null) ImGui.popFont();
         ImGui.sameLine();
-        ImGui.dummy(BRAND_MARGIN, 0.0f);
+        ImGui.dummy(EditorScale.of(BRAND_MARGIN), 0.0f);
         ImGui.sameLine();
     }
 
@@ -185,26 +189,26 @@ public final class EditorShell {
         ImGui.begin("##editor-host", HOST_WINDOW_FLAGS);
         ImGui.popStyleVar(2);
         dockLayout.buildIfRequested(viewport);
-        ImGui.dockSpace(dockLayout.dockspaceId(), 0.0f, -STATUS_BAR_HEIGHT, ImGuiDockNodeFlags.PassthruCentralNode);
+        ImGui.dockSpace(dockLayout.dockspaceId(), 0.0f, -EditorScale.of(STATUS_BAR_HEIGHT), ImGuiDockNodeFlags.PassthruCentralNode);
         renderStatusBar();
         ImGui.end();
     }
 
     private void renderStatusBar() {
         ImGui.pushStyleColor(ImGuiCol.ChildBg, EditorStyle.COLOR_WINDOW_BACKGROUND);
-        ImGui.beginChild("##status-bar", 0.0f, STATUS_BAR_HEIGHT, false);
+        ImGui.beginChild("##status-bar", 0.0f, EditorScale.of(STATUS_BAR_HEIGHT), false);
         ImGui.setCursorPosX(EditorStyle.windowPadding());
         ImGui.setCursorPosY(ImGui.getCursorPosY() + EditorStyle.framePaddingY() - 1.0f);
         Texts.muted("Editing, scripts are off");
-        ImGui.sameLine(0.0f, STATUS_GAP);
+        ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
         if (document.dirty()) Texts.colored(EditorStyle.COLOR_WARNING, "Unsaved  " + SceneLink.file());
         else Texts.muted(SceneLink.file());
         String message = SceneLink.message();
         if (!message.isEmpty()) {
-            ImGui.sameLine(0.0f, STATUS_GAP);
+            ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
             Texts.colored(message.startsWith("saved") ? EditorStyle.COLOR_SUCCESS : EditorStyle.COLOR_DANGER, message);
         }
-        ImGui.sameLine(0.0f, STATUS_GAP);
+        ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
         Instance world = document.world();
         Texts.muted((world == null ? 0 : count(world) - 1) + " instances");
         String fps = String.format(Locale.ROOT, "%.0f FPS", ImGui.getIO().getFramerate());

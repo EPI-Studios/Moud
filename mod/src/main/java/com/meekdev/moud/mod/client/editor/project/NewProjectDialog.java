@@ -34,6 +34,7 @@ public final class NewProjectDialog {
     private static final float TEMPLATE_HEIGHT = 96.0f;
     private static final float BUTTON_WIDTH = 120.0f;
     private static final float BUTTON_HEIGHT = 34.0f;
+    private static final float CORNER = 2.0f;
     private static final int NAME_CAPACITY = 128;
     private static final int PATH_CAPACITY = 512;
 
@@ -77,7 +78,7 @@ public final class NewProjectDialog {
         ImGui.setNextWindowSize(EditorScale.of(WIDTH), 0.0f, ImGuiCond.Always);
         float padding = EditorScale.of(PADDING);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, padding, padding);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, EditorScale.of(10.0f));
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, EditorScale.of(CORNER));
         ImGui.pushStyleColor(ImGuiCol.PopupBg, EditorStyle.COLOR_ELEVATED_BACKGROUND);
         boolean open = ImGui.beginPopupModal(POPUP_ID, ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize
                 | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.AlwaysAutoResize);
@@ -140,12 +141,12 @@ public final class NewProjectDialog {
             String id = "new-project-template-" + index;
             if (ImGui.invisibleButton("##" + id, cardWidth, height)) template = card.template();
             boolean chosen = template == card.template();
-            float emphasis = EditorMotion.towards(id, ImGui.isItemHovered() || chosen);
+            float emphasis = (ImGui.isItemHovered() || chosen) ? 1.0f : 0.0f;
             if (ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
             ImDrawList draw = ImGui.getWindowDrawList();
-            float rounding = EditorScale.of(8.0f);
+            float rounding = EditorScale.of(CORNER);
             draw.addRectFilled(x, y, x + cardWidth, y + height, EditorMotion.blend(EditorStyle.COLOR_SUNKEN_BACKGROUND, EditorStyle.COLOR_WIDGET_BACKGROUND, emphasis * 0.6f), rounding);
-            draw.addRect(x, y, x + cardWidth, y + height, chosen ? EditorStyle.COLOR_HIGHLIGHT : EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.08f), rounding, 0, chosen ? 1.5f : 1.0f);
+            draw.addRect(x, y, x + cardWidth, y + height, chosen ? EditorStyle.COLOR_ACCENT : EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.08f), rounding, 0, chosen ? 1.5f : 1.0f);
             drawPreview(draw, card.template(), x + EditorScale.of(14.0f), y + EditorScale.of(14.0f), height - EditorScale.of(28.0f), chosen);
             float textX = x + height;
             float textY = y + EditorScale.of(22.0f);
@@ -157,12 +158,12 @@ public final class NewProjectDialog {
     }
 
     private static void drawPreview(ImDrawList draw, ProjectStore.Template template, float x, float y, float size, boolean chosen) {
-        draw.addRectFilled(x, y, x + size, y + size, EditorStyle.COLOR_WINDOW_BACKGROUND, EditorScale.of(6.0f));
+        draw.addRectFilled(x, y, x + size, y + size, EditorStyle.COLOR_WINDOW_BACKGROUND, EditorScale.of(CORNER));
         float cx = x + size * 0.5f;
         float cy = y + size * 0.58f;
         float w = size * 0.4f;
         float h = size * 0.2f;
-        int color = chosen ? EditorStyle.COLOR_HIGHLIGHT : EditorStyle.COLOR_TEXT_MUTED;
+        int color = chosen ? EditorStyle.COLOR_TEXT_FOCUS : EditorStyle.COLOR_TEXT_MUTED;
         if (template == ProjectStore.Template.BASEPLATE) {
             draw.addQuadFilled(cx, cy - h, cx + w, cy, cx, cy + h, cx - w, cy, EditorStyle.withAlpha(color, 0.55f));
             draw.addQuad(cx, cy - h, cx + w, cy, cx, cy + h, cx - w, cy, color, 1.0f);
@@ -189,12 +190,12 @@ public final class NewProjectDialog {
         float x = ImGui.getCursorScreenPosX();
         float y = ImGui.getCursorScreenPosY();
         boolean clicked = ImGui.invisibleButton("##" + id, width, height);
-        float emphasis = EditorMotion.towards(id, enabled && ImGui.isItemHovered());
+        float emphasis = (enabled && ImGui.isItemHovered()) ? 1.0f : 0.0f;
         ImDrawList draw = ImGui.getWindowDrawList();
         int fill = primary
-                ? (enabled ? EditorStyle.lighten(EditorStyle.COLOR_HIGHLIGHT, emphasis * 0.08f) : EditorStyle.withAlpha(EditorStyle.COLOR_HIGHLIGHT, 0.35f))
+                ? (enabled ? EditorStyle.lighten(EditorStyle.COLOR_ACCENT, emphasis * 0.12f) : EditorStyle.withAlpha(EditorStyle.COLOR_ACCENT, 0.35f))
                 : EditorMotion.blend(EditorStyle.COLOR_WIDGET_BACKGROUND, EditorStyle.COLOR_WIDGET_HOVER, emphasis);
-        draw.addRectFilled(x, y, x + width, y + height, fill, EditorStyle.frameRounding());
+        draw.addRectFilled(x, y, x + width, y + height, fill, EditorScale.of(CORNER));
         int text = primary ? EditorStyle.COLOR_TEXT_ON_ACCENT : EditorStyle.COLOR_TEXT;
         draw.addText(x + (width - ImGui.calcTextSizeX(label)) * 0.5f, y + (height - ImGui.getTextLineHeight()) * 0.5f, text, label);
         if (enabled && ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
