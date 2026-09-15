@@ -32,7 +32,7 @@ public final class Switches {
         ImGui.setCursorScreenPos(left, top);
         ImGui.invisibleButton(id, width, height);
         boolean hovered = ImGui.isItemHovered();
-        float amount = EditorMotion.towards(id + "@on", value ? 1.0f : 0.0f, DISCLOSE_SECONDS);
+        float amount = EditorMotion.towards(id + "@on#" + ImGui.getItemID(), value ? 1.0f : 0.0f, DISCLOSE_SECONDS);
         paint(left, top, width, height, amount, hovered);
         return ImGui.isItemClicked() != value;
     }
