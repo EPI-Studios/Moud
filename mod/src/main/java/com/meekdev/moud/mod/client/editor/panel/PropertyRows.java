@@ -62,6 +62,7 @@ final class PropertyRows {
     private @Nullable String typing;
     private List<Instance> targets = List.of();
     private boolean mixed;
+    private @Nullable String doc;
 
     PropertyRows(SceneDocument document) {
         this.document = document;
@@ -79,6 +80,7 @@ final class PropertyRows {
     void render(Instance instance, PropertyDef property, List<Instance> selected) {
         targets = selected;
         mixed = isMixed(instance, property);
+        doc = PropertyDocs.of(instance.def(), property.name());
         String key = instance.id() + ":" + property.index();
         seen.add(key);
         ImGui.pushID(property.name());
@@ -155,7 +157,12 @@ final class PropertyRows {
         ImGui.pushStyleColor(ImGuiCol.Text, mixed ? EditorStyle.COLOR_TEXT_FAINT : EditorStyle.COLOR_TEXT);
         ImGui.textUnformatted(mixed ? label + "  ·  mixed" : label);
         ImGui.popStyleColor();
-        if (ImGui.isItemHovered() && mixed) ImGui.setTooltip("The selected instances have different values, editing sets them all");
+        if (ImGui.isItemHovered() && (mixed || doc != null)) {
+            List<String> tips = new ArrayList<>();
+            if (doc != null && !doc.isEmpty()) tips.add(doc);
+            if (mixed) tips.add("The selected instances have different values, editing sets them all.");
+            ImGui.setTooltip(String.join("\n\n", tips));
+        }
         ImGui.sameLine(start + column);
         ImGui.setNextItemWidth(-1.0f);
     }

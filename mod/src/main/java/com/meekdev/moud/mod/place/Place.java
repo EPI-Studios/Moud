@@ -168,6 +168,7 @@ public final class Place {
             return true;
         }
         MoudMod.LOG.info("reloading the place");
+        if (!client) Output.add(Output.Level.SYSTEM, "server", "reloaded the scripts");
 
         Map<String, Object> carried = host == null ? Map.of() : host.persist();
         if (host != null) host.close();
@@ -284,8 +285,14 @@ public final class Place {
                 .blocks(new BlockRays(Physics::level, true))
                 .modules(new PlaceModules(root, client))
                 .files(new PlaceFileRef(root))
-                .onError(Errors::record)
-                .onPrint(line -> MoudMod.LOG.info("[{}] {}", client ? "client" : "server", line));
+                .onError(error -> {
+                    Errors.record(error);
+                    Output.add(Output.Level.ERROR, client ? "client" : "server", error.getMessage());
+                })
+                .onPrint(line -> {
+                    MoudMod.LOG.info("[{}] {}", client ? "client" : "server", line);
+                    Output.add(Output.Level.INFO, client ? "client" : "server", line);
+                });
         if (!client) {
             fresh.store(ServerScene.store()).chat(ServerChat.INSTANCE).history(ServerHistory.INSTANCE).debug(ServerDebug.INSTANCE);
         }

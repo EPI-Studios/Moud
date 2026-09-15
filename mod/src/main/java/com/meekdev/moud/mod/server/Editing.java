@@ -8,6 +8,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.addon.Addons;
+import com.meekdev.moud.mod.place.Output;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.transport.payload.EditDownPayload;
 import com.meekdev.moud.mod.transport.payload.EditUpPayload;
@@ -72,6 +73,7 @@ public final class Editing {
         if (edit) place.edit();
         else place.play();
         MoudMod.LOG.info("{} switched the place to {}", player.getGameProfile().name(), edit ? "edit" : "play");
+        Output.add(Output.Level.SYSTEM, "server", edit ? "stopped, back to editing" : "playing");
         MinecraftServer server = player.level().getServer();
         MoudServer.respawnAll(server);
         for (ServerPlayer each : server.getPlayerList().getPlayers()) {
@@ -190,6 +192,7 @@ public final class Editing {
             String file = place.saveScene();
             dirty = false;
             MoudMod.LOG.info("{} saved the scene to {}", player.getGameProfile().name(), file);
+            Output.add(Output.Level.SYSTEM, "server", "saved " + file);
             for (ServerPlayer each : player.level().getServer().getPlayerList().getPlayers()) status(each, "saved " + file);
         } catch (RuntimeException e) {
             reject(player, "could not save: " + e.getMessage());
@@ -203,6 +206,7 @@ public final class Editing {
     }
 
     private static void reject(ServerPlayer player, String why) {
+        Output.add(Output.Level.WARN, "editor", why);
         status(player, why);
     }
 

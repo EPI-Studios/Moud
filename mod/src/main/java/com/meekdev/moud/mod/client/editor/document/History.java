@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.document;
 
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.place.Output;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Objects;
@@ -24,6 +25,7 @@ public final class History {
         refused.ifPresent(why -> {
             MoudMod.LOG.warn("editor could not {}: {}", edit.label(), why);
             SceneLink.local(edit.label() + " failed: " + why);
+            Output.add(Output.Level.WARN, "editor", edit.label() + " failed: " + why);
         });
         return refused;
     }
