@@ -97,9 +97,12 @@ public final class MoudServer {
         Instance world = ServerScene.world();
         if (place == null || world == null) return;
         Abilities abilities = player.getAbilities();
-        abilities.mayfly = false;
-        abilities.flying = false;
+        boolean editing = place.editing();
+        abilities.mayfly = editing;
+        abilities.flying = editing;
+        abilities.invulnerable = editing;
         player.onUpdateAbilities();
+        player.fallDistance = 0;
 
         Character character = Instances.create(Classes.CHARACTER, world,
                 player.getGameProfile().name());
