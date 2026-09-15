@@ -17,7 +17,11 @@ import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.SpatialIndex;
 import com.meekdev.moud.core.space.Broadphase;
 import com.meekdev.moud.net.replicate.Change;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import net.minecraft.world.phys.AABB;
 import org.jspecify.annotations.Nullable;
@@ -29,6 +33,13 @@ public final class Colliders {
 
     private final Broadphase grid = new Broadphase(CELL);
     private static final PropertyDef GROUP = Classes.PART.property("collisionGroup");
+    private static final PropertyDef CFRAME = Classes.SPATIAL.property("cframe");
+    private static final int STEADY_TICKS = 5;
+    private static final int CALM_TICKS = 40;
+
+    private final Map<Integer, int[]> moves = new HashMap<>();
+    private final Set<Integer> moving = new HashSet<>();
+    private int tick;
 
     private @Nullable InstanceTree tree;
 
@@ -63,14 +74,52 @@ public final class Colliders {
                 grid.clear();
                 yield had;
             }
-            case Change.Destroyed destroyed -> removeById(destroyed.id());
+            case Change.Destroyed destroyed -> {
+                moves.remove(destroyed.id());
+                moving.remove(destroyed.id());
+                yield removeById(destroyed.id());
+            }
             case Change.Created created -> refresh(created.id());
-            case Change.Wrote wrote -> refresh(wrote.id())
-                    || source.byId(wrote.id()) instanceof Part && wrote.property() == GROUP.index();
+            case Change.Wrote wrote -> {
+                moved(source, wrote);
+                yield refresh(wrote.id())
+                        || source.byId(wrote.id()) instanceof Part && wrote.property() == GROUP.index();
+            }
             case Change.Moved moved -> refresh(moved.id());
             case Change.Tagged ignored -> false;
         };
         return statics || groupsChanged && grid.size() > 0;
+    }
+
+    public boolean moving(Part part) {
+        return moving.contains(part.id());
+    }
+
+    public boolean settle() {
+        tick++;
+        if (moving.isEmpty()) return false;
+        List<Integer> calm = new ArrayList<>();
+        for (int id : moving) {
+            int[] seen = moves.get(id);
+            if (seen == null || tick - seen[0] > CALM_TICKS) calm.add(id);
+        }
+        boolean changed = false;
+        for (int id : calm) {
+            moving.remove(id);
+            moves.remove(id);
+            changed |= refresh(id);
+        }
+        return changed;
+    }
+
+    private void moved(InstanceTree source, Change.Wrote wrote) {
+        if (wrote.property() != CFRAME.index() || !(source.byId(wrote.id()) instanceof Part part) || !part.anchored) return;
+        int[] seen = moves.computeIfAbsent(wrote.id(), id -> new int[] {Integer.MIN_VALUE / 2, Integer.MIN_VALUE / 2});
+        if (seen[0] != tick) {
+            seen[1] = seen[0];
+            seen[0] = tick;
+        }
+        if (seen[0] - seen[1] <= STEADY_TICKS) moving.add(wrote.id());
     }
 
     public boolean groupsChanged() {
@@ -102,7 +151,7 @@ public final class Colliders {
     private boolean refresh(int id) {
         Instance instance = tree == null ? null : tree.byId(id);
         if (!(instance instanceof Part part)) return false;
-        if (!part.collides || (!isAxisAligned(part) && SubLevels.available())) {
+        if (!part.collides || ((!isAxisAligned(part) || moving.contains(id)) && SubLevels.available())) {
             return grid.remove(part);
         }
         CFrame world = Transforms.world(part);

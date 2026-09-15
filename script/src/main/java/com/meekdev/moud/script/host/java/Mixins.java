@@ -11,6 +11,7 @@ import com.meekdev.moud.script.host.Results;
 import com.meekdev.moud.script.mixin.Dispatch;
 import com.meekdev.moud.script.mixin.Injections;
 import com.meekdev.moud.script.mixin.Rewrite;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -81,6 +82,11 @@ public final class Mixins {
                 .declareMethod("variable", "(local: string | number, replacement: any, options: " + options + ") -> Mixin")
                 .declareMethod("overload", "(...string | number) -> JavaMethod")
                 .declareMethod("__call", "(...any) -> any")
+                .decl());
+        host.api().declare(new Members("JavaField")
+                .declare("name", "string")
+                .declare("type", "string")
+                .declareMethod("changed", "(handler: (self: any, old: any, new: any) -> any, options: " + options + ") -> Mixin")
                 .decl());
         Members mixin = new Members("MixinService")
                 .function("state", "(name: string | { [string]: any }, defaults: { [string]: any }?) -> MixinState", a -> state(place, a))
@@ -261,6 +267,31 @@ public final class Mixins {
             String id = Injections.rewrite(method, rewrite, null, piece);
             return () -> Injections.unrewrite(id, piece);
         });
+        return hook;
+    }
+
+    static Object field(Args a) {
+        Field field = a.self(JavaField.class).field();
+        Callable handler = a.callable(1);
+        MixinHook.Options options = MixinHook.Options.parse(a, 2);
+        MixinHook hook = new MixinHook(place(a), field.getDeclaringClass().getSimpleName() + ".fields." + field.getName() + ":changed",
+                Dispatch.Kind.FIELD, options, handler.retain());
+        Body body = (self, call) -> {
+            Object[] out = self.call(new Object[] {JavaLibrary.wrap(call.self), self.script(call.args[0]), self.script(call.value)});
+            return out.length == 0 || out[0] == null ? Dispatch.PROCEED : java(out[0], field.getType());
+        };
+        MixinHook.Piece piece = hook.piece(Dispatch.Kind.FIELD, body);
+        String id;
+        try {
+            id = Injections.watch(field, piece);
+        } catch (RuntimeException e) {
+            hook.release();
+            if (e instanceof HostError) throw e;
+            throw new HostError("could not watch %s.%s: %s", field.getDeclaringClass().getSimpleName(), field.getName(), e.getMessage());
+        }
+        hook.methods = 1;
+        hook.undo = () -> Injections.unwatch(id, piece);
+        hook.place.hooks.add(hook);
         return hook;
     }
 

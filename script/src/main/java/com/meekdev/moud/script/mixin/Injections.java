@@ -3,12 +3,17 @@ package com.meekdev.moud.script.mixin;
 import java.lang.instrument.Instrumentation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.agent.ByteBuddyAgent;
@@ -17,6 +22,7 @@ import net.bytebuddy.agent.builder.ResettableClassFileTransformer;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.method.MethodDescription;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.dynamic.DynamicType;
 import net.bytebuddy.dynamic.scaffold.TypeValidation;
@@ -26,6 +32,7 @@ import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.jar.asm.Type;
+import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
 import net.bytebuddy.utility.JavaModule;
 
@@ -55,7 +62,8 @@ public final class Injections {
             Dispatch.TARGETS.put(id, target);
             try {
                 Class<?> advice = method.getReturnType() == void.class ? VoidAdvice.class : ValueAdvice.class;
-                ADVICE.put(id, install(method.getDeclaringClass(), builder -> builder.visit(Advice.to(advice).on(ElementMatchers.is(method)))));
+                ADVICE.put(id, install(ElementMatchers.is(method.getDeclaringClass()), method.getDeclaringClass().getName(),
+                        builder -> builder.visit(Advice.to(advice).on(ElementMatchers.is(method)))));
             } catch (RuntimeException e) {
                 Dispatch.TARGETS.remove(id);
                 throw e;
@@ -93,7 +101,7 @@ public final class Injections {
                     (type, described, visitor, context, pool, writerFlags, readerFlags) -> new Rewrite.Visitor(visitor, rewrite, siteId, matched));
             ResettableClassFileTransformer transformer;
             try {
-                transformer = install(method.getDeclaringClass(), builder -> builder.visit(wrapper));
+                transformer = install(ElementMatchers.is(method.getDeclaringClass()), method.getDeclaringClass().getName(), builder -> builder.visit(wrapper));
             } catch (RuntimeException e) {
                 Dispatch.SITES.remove(id);
                 throw e;
@@ -117,6 +125,102 @@ public final class Injections {
             ResettableClassFileTransformer transformer = REWRITES.remove(id);
             if (transformer != null) transformer.reset(instrumentation(), AgentBuilder.RedefinitionStrategy.RETRANSFORMATION);
         }
+    }
+
+    public static synchronized String watch(Field field, Dispatch.Hook hook) {
+        Class<?> declaring = field.getDeclaringClass();
+        if (Modifier.isFinal(field.getModifiers())) {
+            throw new IllegalArgumentException(declaring.getSimpleName() + "." + field.getName() + " is final, it only gets a value while its object is built");
+        }
+        String id = "field " + declaring.getName() + "." + field.getName();
+        if (!REWRITES.containsKey(id)) {
+            boolean statics = Modifier.isStatic(field.getModifiers());
+            VarHandle handle;
+            try {
+                handle = MethodHandles.privateLookupIn(declaring, MethodHandles.lookup()).unreflectVarHandle(field);
+            } catch (IllegalAccessException e) {
+                throw new IllegalArgumentException("can not reach " + field + ": " + e.getMessage());
+            }
+            Dispatch.WATCHES.put(id, new Dispatch.Watch(id, handle, statics, field.getType()));
+            Set<String> owners = new HashSet<>();
+            List<Class<?>> writers = writers(field, owners);
+            Rewrite rewrite = new Rewrite.Field(owners, field.getName(), Type.getDescriptor(field.getType()), statics);
+            AtomicInteger matched = new AtomicInteger();
+            AsmVisitorWrapper wrapper = new AsmVisitorWrapper.ForDeclaredMethods().invokable(
+                    ElementMatchers.not(ElementMatchers.isConstructor().or(ElementMatchers.isTypeInitializer())),
+                    (type, described, visitor, context, pool, writerFlags, readerFlags) -> new Rewrite.Visitor(visitor, rewrite, id, matched));
+            ResettableClassFileTransformer transformer = writers.isEmpty() ? null
+                    : install(ElementMatchers.anyOf(writers.toArray(new Class<?>[0])), field.getName() + " writers", builder -> builder.visit(wrapper));
+            if (matched.get() == 0) {
+                if (transformer != null) transformer.reset(instrumentation(), AgentBuilder.RedefinitionStrategy.RETRANSFORMATION);
+                Dispatch.WATCHES.remove(id);
+                throw new IllegalArgumentException("nothing loaded writes " + declaring.getSimpleName() + "." + field.getName() + " outside a constructor");
+            }
+            REWRITES.put(id, transformer);
+        }
+        Dispatch.add(Dispatch.WATCHES.get(id).hooks, hook);
+        return id;
+    }
+
+    public static synchronized void unwatch(String id, Dispatch.Hook hook) {
+        Dispatch.Watch watch = Dispatch.WATCHES.get(id);
+        if (watch == null) return;
+        watch.hooks.remove(hook);
+        if (watch.hooks.isEmpty()) {
+            ResettableClassFileTransformer transformer = REWRITES.remove(id);
+            if (transformer != null) transformer.reset(instrumentation(), AgentBuilder.RedefinitionStrategy.RETRANSFORMATION);
+        }
+    }
+
+    private static List<Class<?>> writers(Field field, Set<String> owners) {
+        Class<?> declaring = field.getDeclaringClass();
+        List<Class<?>> loaded = new ArrayList<>();
+        for (Class<?> type : instrumentation().getAllLoadedClasses()) {
+            if (!type.isArray() && !type.isPrimitive() && !type.isHidden()) loaded.add(type);
+        }
+        for (Class<?> type : loaded) {
+            if (declaring.isAssignableFrom(type)) owners.add(Type.getInternalName(type));
+        }
+        if (Modifier.isPrivate(field.getModifiers())) {
+            List<Class<?>> nest = new ArrayList<>(List.of(declaring.getNestHost().getNestMembers()));
+            nest.removeIf(type -> !instrumentation().isModifiableClass(type));
+            return nest;
+        }
+        byte[] name = field.getName().getBytes(StandardCharsets.UTF_8);
+        Map<ClassLoader, Boolean> sees = new HashMap<>();
+        List<Class<?>> out = new ArrayList<>();
+        for (Class<?> type : loaded) {
+            ClassLoader loader = type.getClassLoader();
+            if (loader == null || !instrumentation().isModifiableClass(type)) continue;
+            if (!sees.computeIfAbsent(loader, l -> visible(l, declaring))) continue;
+            byte[] bytes;
+            try {
+                bytes = ClassFileLocator.ForClassLoader.read(type);
+            } catch (RuntimeException e) {
+                continue;
+            }
+            if (contains(bytes, name)) out.add(type);
+        }
+        return out;
+    }
+
+    private static boolean visible(ClassLoader loader, Class<?> type) {
+        try {
+            return Class.forName(type.getName(), false, loader) == type;
+        } catch (ClassNotFoundException | LinkageError e) {
+            return false;
+        }
+    }
+
+    private static boolean contains(byte[] bytes, byte[] part) {
+        outer:
+        for (int i = 0; i <= bytes.length - part.length; i++) {
+            for (int j = 0; j < part.length; j++) {
+                if (bytes[i + j] != part[j]) continue outer;
+            }
+            return true;
+        }
+        return false;
     }
 
     public static synchronized int installed() {
@@ -153,6 +257,7 @@ public final class Injections {
                     + (r.ordinal() > 0 ? " number " + r.ordinal() : "");
             case Rewrite.Constant c -> "constant " + c.value() + (c.ordinal() > 0 ? " number " + c.ordinal() : "");
             case Rewrite.Variable v -> "store to local slot " + v.slot() + (v.ordinal() > 0 ? " number " + v.ordinal() : "");
+            case Rewrite.Field f -> "write to " + f.name();
         };
     }
 
@@ -184,7 +289,7 @@ public final class Injections {
         DynamicType.Builder<?> apply(DynamicType.Builder<?> builder);
     }
 
-    private static ResettableClassFileTransformer install(Class<?> type, Transform transform) {
+    private static ResettableClassFileTransformer install(ElementMatcher<? super TypeDescription> types, String what, Transform transform) {
         List<Throwable> failures = new ArrayList<>();
         ResettableClassFileTransformer transformer = new AgentBuilder.Default(new ByteBuddy().with(TypeValidation.DISABLED))
                 .disableClassFormatChanges()
@@ -198,13 +303,13 @@ public final class Injections {
                         failures.add(throwable);
                     }
                 })
-                .type(ElementMatchers.is(type))
+                .type(types)
                 .transform((builder, description, loader, module, domain) -> transform.apply(builder))
                 .installOn(instrumentation());
         if (!failures.isEmpty()) {
             transformer.reset(instrumentation(), AgentBuilder.RedefinitionStrategy.RETRANSFORMATION);
             Throwable first = failures.getFirst();
-            throw new IllegalStateException("could not rewrite " + type.getName() + ": " + first, first);
+            throw new IllegalStateException("could not rewrite " + what + ": " + first, first);
         }
         return transformer;
     }

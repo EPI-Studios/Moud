@@ -1,17 +1,19 @@
 package com.meekdev.moud.script.mixin;
 
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.VarHandle;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class Dispatch {
 
-    public enum Kind { ARGS, BEFORE, REPLACE, AFTER, REDIRECT, CONSTANT, VARIABLE }
+    public enum Kind { ARGS, BEFORE, REPLACE, AFTER, REDIRECT, CONSTANT, VARIABLE, FIELD }
 
     public static final Object PROCEED = new Object();
 
@@ -161,6 +163,30 @@ public final class Dispatch {
         }
     }
 
+    static final class Watch {
+        final String id;
+        final VarHandle handle;
+        final boolean statics;
+        final Class<?> type;
+        final List<Hook> hooks = new CopyOnWriteArrayList<>();
+
+        Watch(String id, VarHandle handle, boolean statics, Class<?> type) {
+            this.id = id;
+            this.handle = handle;
+            this.statics = statics;
+            this.type = type;
+        }
+
+        Object read(Object self) {
+            return statics ? handle.get() : handle.get(self);
+        }
+
+        void write(Object self, Object value) {
+            if (statics) handle.set(value);
+            else handle.set(self, value);
+        }
+    }
+
     private static final class Frame {
         String bypass;
         int inside;
@@ -168,10 +194,12 @@ public final class Dispatch {
 
     public static final Object PASS = new Object();
     private static final Object[] NONE = new Object[0];
+    private static final Class<?>[] NONE_TYPES = new Class<?>[0];
     private static final Comparator<Hook> ORDER = Comparator.comparingInt((Hook hook) -> -hook.priority);
 
     static final Map<String, Target> TARGETS = new ConcurrentHashMap<>();
     static final Map<String, Site> SITES = new ConcurrentHashMap<>();
+    static final Map<String, Watch> WATCHES = new ConcurrentHashMap<>();
     private static final ThreadLocal<Frame> FRAME = ThreadLocal.withInitial(Frame::new);
 
     private Dispatch() {}
@@ -276,6 +304,66 @@ public final class Dispatch {
         } finally {
             frame.inside--;
         }
+    }
+
+    public static void putObject(Object self, Object value, String id) {
+        put(self, value, id);
+    }
+
+    public static void putInt(Object self, int value, String id) {
+        put(self, value, id);
+    }
+
+    public static void putLong(Object self, long value, String id) {
+        put(self, value, id);
+    }
+
+    public static void putFloat(Object self, float value, String id) {
+        put(self, value, id);
+    }
+
+    public static void putDouble(Object self, double value, String id) {
+        put(self, value, id);
+    }
+
+    private static void put(Object self, Object value, String id) {
+        Watch watch = WATCHES.get(id);
+        Object written = narrow(value, watch.type);
+        Frame frame = FRAME.get();
+        if (frame.inside == 0 && !watch.hooks.isEmpty()) {
+            Thread thread = Thread.currentThread();
+            Object old = null;
+            boolean read = false;
+            frame.inside++;
+            try {
+                for (Hook hook : watch.hooks) {
+                    if (!hook.mine(thread)) continue;
+                    if (!read) {
+                        old = watch.read(self);
+                        read = true;
+                    }
+                    if (Objects.equals(old, written)) break;
+                    Object out = hook.fire(new Call(self, new Object[] {old}, NONE_TYPES, watch.type, written, List.of(), null, false, null));
+                    if (out != PROCEED && out != null) written = narrow(out, watch.type);
+                }
+            } finally {
+                frame.inside--;
+            }
+        }
+        watch.write(self, written);
+    }
+
+    private static Object narrow(Object value, Class<?> type) {
+        if (!type.isPrimitive() || !(value instanceof Number n)) return value;
+        if (type == int.class) return n.intValue();
+        if (type == long.class) return n.longValue();
+        if (type == float.class) return n.floatValue();
+        if (type == double.class) return n.doubleValue();
+        if (type == short.class) return n.shortValue();
+        if (type == byte.class) return n.byteValue();
+        if (type == boolean.class) return n.intValue() != 0;
+        if (type == char.class) return (char) n.intValue();
+        return value;
     }
 
     public static Object constant(Object value, String id) {

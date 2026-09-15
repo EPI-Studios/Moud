@@ -27,6 +27,13 @@ public final class ClientPhysics {
         return BOXES;
     }
 
+    public static void settle() {
+        if (BOXES.settle() && attached != null) {
+            LevelPhysics physics = Bkun.physics(attached);
+            if (physics != null) physics.invalidateProviders();
+        }
+    }
+
     public static void apply(@Nullable InstanceTree tree, Change change) {
         if (tree == null) return;
         if (BOXES.apply(tree, change) && attached != null) {

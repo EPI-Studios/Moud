@@ -78,6 +78,7 @@ public final class JavaLibrary {
         @Override
         public Object get(String key) {
             if (key.equals("new")) return caller("new");
+            if (key.equals("fields")) return new JavaField.Fields(type);
             if (!methods(type, key, true).isEmpty() || !methods(type, key, false).isEmpty()) return new JavaMethod(type, key, List.of());
             return member(type, key, true, null);
         }

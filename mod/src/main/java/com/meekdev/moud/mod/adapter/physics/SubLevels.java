@@ -154,7 +154,7 @@ public final class SubLevels {
     private static final int SQUARE_TICKS = 40;
 
     private static boolean needsSubLevel(Part part) {
-        return part.collides && (!part.anchored || !Colliders.isAxisAligned(part));
+        return part.collides && (!part.anchored || !Colliders.isAxisAligned(part) || Physics.boxes().moving(part));
     }
 
     static void mirror(InstanceTree tree, Change change) {

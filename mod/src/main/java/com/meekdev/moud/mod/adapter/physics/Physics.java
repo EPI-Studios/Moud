@@ -59,6 +59,10 @@ public final class Physics {
     }
 
     public static void settle() {
+        if (BOXES.settle() && level != null) {
+            LevelPhysics physics = Bkun.physics(level);
+            if (physics != null) physics.invalidateProviders();
+        }
         SHAPES.settle();
     }
 }

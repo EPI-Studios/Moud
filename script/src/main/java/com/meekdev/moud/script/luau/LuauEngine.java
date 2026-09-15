@@ -166,6 +166,7 @@ final class LuauEngine implements ScriptEngine {
         this.state = LuaState.newState();
         state.openLibs(LIBRARIES);
         installMetatable();
+        installErrors();
         for (Map.Entry<String, Object> global : host.globals().entrySet()) {
             push(state, global.getValue());
             state.setGlobal(global.getKey());
@@ -185,6 +186,19 @@ final class LuauEngine implements ScriptEngine {
             }
             state.pop(1);
         }
+    }
+
+    private void installErrors() {
+        state.load("errors", compile("errors", LuauResource.text("errors.luau")));
+        state.pushFunction(LuaFunc.wrap(s -> {
+            if (s.type(1) == LuaType.USERDATA && s.toUserData(1) instanceof LuaError error) {
+                s.pushString(String.valueOf(error.getMessage()));
+            } else {
+                s.pushValue(1);
+            }
+            return 1;
+        }, "errors.message"));
+        state.call(1, 0);
     }
 
     private void installMetatable() {

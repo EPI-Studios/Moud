@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.mixin;
 
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
@@ -26,6 +27,16 @@ public sealed interface Rewrite {
     record Variable(int slot, String descriptor, int ordinal) implements Rewrite {
         public String key() {
             return "variable " + slot + " " + descriptor + " #" + ordinal;
+        }
+    }
+
+    record Field(Set<String> owners, String name, String descriptor, boolean statics) implements Rewrite {
+        public String key() {
+            return "field " + name + descriptor;
+        }
+
+        public int ordinal() {
+            return 0;
         }
     }
 
@@ -70,6 +81,42 @@ public sealed interface Rewrite {
                 return;
             }
             super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+        }
+
+        @Override
+        public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
+            if (rewrite instanceof Field field && field.owners().contains(owner) && name.equals(field.name())
+                    && descriptor.equals(field.descriptor()) && opcode == (field.statics() ? Opcodes.PUTSTATIC : Opcodes.PUTFIELD) && take()) {
+                Type type = Type.getType(descriptor);
+                if (field.statics()) {
+                    if (type.getSize() == 2) {
+                        super.visitInsn(Opcodes.ACONST_NULL);
+                        super.visitInsn(Opcodes.DUP_X2);
+                        super.visitInsn(Opcodes.POP);
+                    } else {
+                        super.visitInsn(Opcodes.ACONST_NULL);
+                        super.visitInsn(Opcodes.SWAP);
+                    }
+                }
+                String entry = switch (type.getSort()) {
+                    case Type.LONG -> "putLong";
+                    case Type.FLOAT -> "putFloat";
+                    case Type.DOUBLE -> "putDouble";
+                    case Type.OBJECT, Type.ARRAY -> "putObject";
+                    default -> "putInt";
+                };
+                String slot = switch (type.getSort()) {
+                    case Type.LONG -> "J";
+                    case Type.FLOAT -> "F";
+                    case Type.DOUBLE -> "D";
+                    case Type.OBJECT, Type.ARRAY -> "Ljava/lang/Object;";
+                    default -> "I";
+                };
+                super.visitLdcInsn(site);
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, DISPATCH, entry, "(Ljava/lang/Object;" + slot + "Ljava/lang/String;)V", false);
+                return;
+            }
+            super.visitFieldInsn(opcode, owner, name, descriptor);
         }
 
         @Override
