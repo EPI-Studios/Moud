@@ -14,6 +14,7 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
@@ -25,6 +26,7 @@ public final class Editor {
     private static KeyMapping toggle;
     private static boolean available;
     private static @Nullable ProjectHub hub;
+    private static boolean closeRequested;
     private static boolean amneticReleased;
 
     private Editor() {}
@@ -59,7 +61,18 @@ public final class Editor {
         return new ProjectHubScreen();
     }
 
+    public static void requestCloseProject() {
+        closeRequested = true;
+    }
+
     private static void tick(Minecraft client) {
+        if (hub != null) hub.tick();
+        if (closeRequested) {
+            closeRequested = false;
+            client.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);
+            client.setScreen(new ProjectHubScreen());
+            return;
+        }
         releaseAmneticKey(client);
         boolean pressed = false;
         while (toggle.consumeClick()) pressed = true;

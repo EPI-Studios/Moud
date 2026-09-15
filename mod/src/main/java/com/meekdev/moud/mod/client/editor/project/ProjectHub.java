@@ -19,6 +19,15 @@ public final class ProjectHub {
     private final ToastCenter toasts = new ToastCenter();
     private final IconWidgets icons = new IconWidgets(new IconAtlas());
     private @Nullable ProjectHubView view;
+    private @Nullable Project pending;
+
+    public void tick() {
+        Project project = pending;
+        if (project == null) return;
+        pending = null;
+        MoudMod.LOG.info("opening project {} at {}", project.name(), project.rootDirectory());
+        Launch.openProject(project.rootDirectory());
+    }
 
     public void render() {
         if (!(Minecraft.getInstance().screen instanceof ProjectHubScreen)) {
@@ -34,7 +43,7 @@ public final class ProjectHub {
         if (body != null) ImGui.pushFont(body, EditorScale.of(EditorFonts.BODY));
         try {
             if (view == null) {
-                view = new ProjectHubView(new ProjectStore(ProjectStore.defaultRecentsFile()), toasts, icons, ProjectHub::open);
+                view = new ProjectHubView(new ProjectStore(ProjectStore.defaultRecentsFile()), toasts, icons, project -> pending = project);
             }
             view.render();
             toasts.render();
@@ -46,8 +55,4 @@ public final class ProjectHub {
         }
     }
 
-    private static void open(Project project) {
-        MoudMod.LOG.info("opening project {} at {}", project.name(), project.rootDirectory());
-        Launch.openProject(project.rootDirectory());
-    }
 }
