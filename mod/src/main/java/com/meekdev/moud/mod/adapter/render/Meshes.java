@@ -24,6 +24,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
@@ -98,6 +99,25 @@ public final class Meshes {
         Matrix4f[] copy = new Matrix4f[pose.length];
         for (int n = 0; n < pose.length; n++) copy[n] = new Matrix4f(pose[n]);
         model.renderPosed(WORLD, copy);
+    }
+
+    public static void fillMask(MeshPart part, Matrix4fc projectionView, Vector3 camera, float partialTick, float r, float g, float b, float a) {
+        if (part.meshId.isEmpty()) return;
+        Model model = model(part.meshId);
+        if (model == null || !model.isReady()) return;
+        CFrame world = ClientScene.motion().sample(part, partialTick);
+        Vector3 at = world.position().sub(camera);
+        Quat turn = world.rotation();
+        Vector3f min = model.boundsMin();
+        Vector3f max = model.boundsMax();
+        Matrix4f matrix = new Matrix4f()
+                .translation((float) at.x(), (float) at.y(), (float) at.z())
+                .rotate(new Quaternionf((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()))
+                .scale(stretch(part.size.x(), max.x - min.x), stretch(part.size.y(), max.y - min.y), stretch(part.size.z(), max.z - min.z))
+                .translate(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -(min.z + max.z) / 2);
+        Playing playing = ANIMATORS.get(part.id());
+        Matrix4f[] pose = playing != null && playing.animator().model() == model ? playing.animator().pose() : null;
+        model.fillMask(projectionView, matrix, pose, r, g, b, a);
     }
 
     private static float stretch(double size, float own) {

@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.amnetic.client.camera.AmneticCamera;
+import com.meekdev.moud.mod.adapter.render.EditorOverlay;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.transport.payload.EditDownPayload;
 import com.meekdev.moud.mod.transport.payload.EditUpPayload;
@@ -53,6 +54,7 @@ public final class EditMode {
             minecraft.setScreen(new EditorScreen());
         } else {
             AmneticCamera.clearPose();
+            EditorOverlay.hide();
             ClientPlace.play();
             minecraft.options.hideGui = hudWasHidden;
             if (minecraft.screen instanceof EditorScreen) minecraft.setScreen(null);

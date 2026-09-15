@@ -4,7 +4,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.core.query.Queries;
+import com.meekdev.moud.mod.adapter.render.EditorOverlay;
 import com.meekdev.moud.mod.client.editor.EditMode;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import org.joml.Matrix4f;
@@ -46,7 +47,6 @@ public final class ViewportPanel implements Panel {
     private static final float GIZMO_SIZE_CLIP_SPACE = 0.14f;
     private static final float TOOLBAR_MARGIN_X = 6.0f;
     private static final float TOOLBAR_MARGIN_Y = 4.0f;
-    private static final float RAYCAST_MAX_DISTANCE = 1024.0f;
     private static final float BILLBOARD_HALF_SIZE = 11.0f;
     private static final float BILLBOARD_CLICK_RADIUS = 14.0f;
     private static final float BILLBOARD_SHADOW_RADIUS = 14.0f;
@@ -55,8 +55,6 @@ public final class ViewportPanel implements Panel {
     private static final float OUTLINE_THICKNESS = 2.0f;
     private static final int BOX_FILL = EditorStyle.withAlpha(EditorStyle.COLOR_ACCENT, 0.08f);
     private static final int BOX_BORDER = EditorStyle.withAlpha(EditorStyle.COLOR_ACCENT, 0.7f);
-    private static final int HOVER_OUTLINE = EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.35f);
-    private static final int[][] EDGES = {{0, 1}, {2, 3}, {4, 5}, {6, 7}, {0, 2}, {1, 3}, {4, 6}, {5, 7}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
 
     private final SceneDocument document;
     private final IconWidgets icons;
@@ -114,8 +112,10 @@ public final class ViewportPanel implements Panel {
             ImDrawList drawList = ImGui.getWindowDrawList();
             drawList.pushClipRect(left, top, right, bottom, true);
             updateCamera(deltaSeconds);
-            hoveredInstance = hovered && !lookGesture ? pickAt(ImGui.getMousePosX(), ImGui.getMousePosY()) : null;
-            drawOutlines(drawList);
+            if (hovered && !lookGesture) EditorOverlay.requestPick(mouseX / view.width(), mouseY / view.height());
+            hoveredInstance = hovered && !lookGesture ? pickAt(mouseX, mouseY) : null;
+            EditorOverlay.show(document::editable, Set.copyOf(document.selection().all()),
+                    hoveredInstance instanceof Part part && !document.selection().isSelected(part.id()) ? part.id() : 0);
             drawBillboards(drawList);
             boolean gizmoBusy = renderGizmo();
             handlePicking(gizmoBusy, drawList);
@@ -357,10 +357,8 @@ public final class ViewportPanel implements Panel {
     private @Nullable Instance pickAt(float mouseX, float mouseY) {
         Instance billboard = billboardAt(mouseX, mouseY);
         if (billboard != null) return billboard;
-        Instance world = document.world();
-        if (world == null) return null;
-        Queries.Cast hit = Queries.raycast(world, cameraPosition, view.rayDirection(mouseX, mouseY), RAYCAST_MAX_DISTANCE, document::editable);
-        return hit == null ? null : hit.part();
+        Instance picked = document.find(EditorOverlay.picked());
+        return document.editable(picked) ? picked : null;
     }
 
     private @Nullable Instance billboardAt(float mouseX, float mouseY) {
@@ -392,24 +390,6 @@ public final class ViewportPanel implements Panel {
             if (selected) drawList.addCircle(screen[0], screen[1], EditorScale.of(BILLBOARD_SHADOW_RADIUS), EditorStyle.COLOR_HIGHLIGHT, 0, OUTLINE_THICKNESS);
             drawList.addImage(icons.textureId(ClassIcons.of(instance.def())), screen[0] - half, screen[1] - half, screen[0] + half, screen[1] + half);
         });
-    }
-
-    private void drawOutlines(ImDrawList drawList) {
-        if (hoveredInstance instanceof Part part && !document.selection().isSelected(part.id())) drawBox(drawList, part, HOVER_OUTLINE, 1.0f);
-        for (int id : document.selection().all()) {
-            if (document.find(id) instanceof Part part) drawBox(drawList, part, EditorStyle.COLOR_HIGHLIGHT, OUTLINE_THICKNESS);
-        }
-    }
-
-    private void drawBox(ImDrawList drawList, Part part, int color, float thickness) {
-        Vector3[] corners = Frames.corners(part);
-        float[][] screen = new float[8][];
-        for (int n = 0; n < 8; n++) screen[n] = view.toScreen(corners[n]);
-        for (int[] edge : EDGES) {
-            float[] a = screen[edge[0]];
-            float[] b = screen[edge[1]];
-            if (a != null && b != null) drawList.addLine(a[0], a[1], b[0], b[1], color, thickness);
-        }
     }
 
     private void forEachEditableSpatial(java.util.function.Consumer<Instance> action) {
