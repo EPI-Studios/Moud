@@ -38,6 +38,15 @@ public final class RenderState {
         capability(GL11.GL_CULL_FACE, on);
     }
 
+    public static void noScissor() {
+        GlStateManager._disableScissorTest();
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+    }
+
+    public static void colorMask(boolean red, boolean green, boolean blue, boolean alpha) {
+        GL11.glColorMask(red, green, blue, alpha);
+    }
+
     public static void polygonOffset() {
         GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
         GL11.glPolygonOffset(OFFSET_FACTOR, OFFSET_UNITS);

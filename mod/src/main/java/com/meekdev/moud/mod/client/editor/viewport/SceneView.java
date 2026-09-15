@@ -2,7 +2,6 @@ package com.meekdev.moud.mod.client.editor.viewport;
 
 import com.meekdev.amnetic.client.camera.AmneticCamera;
 import com.meekdev.moud.core.math.Vector3;
-import imgui.ImGui;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
@@ -19,6 +18,8 @@ final class SceneView {
     private double cameraX;
     private double cameraY;
     private double cameraZ;
+    private float originX;
+    private float originY;
     private float width;
     private float height;
 
@@ -34,9 +35,22 @@ final class SceneView {
         projectionMatrix.get(projection);
         viewProjection.set(projectionMatrix).mul(rotation);
         viewProjection.invert(inverse);
-        width = ImGui.getIO().getDisplaySizeX();
-        height = ImGui.getIO().getDisplaySizeY();
-        return width > 0 && height > 0;
+        return true;
+    }
+
+    void frame(float x, float y, float w, float h) {
+        originX = x;
+        originY = y;
+        width = w;
+        height = h;
+    }
+
+    float originX() {
+        return originX;
+    }
+
+    float originY() {
+        return originY;
     }
 
     float width() {
@@ -55,12 +69,12 @@ final class SceneView {
         Vector4f clip = new Vector4f((float) (world.x() - cameraX), (float) (world.y() - cameraY), (float) (world.z() - cameraZ), 1.0f);
         viewProjection.transform(clip);
         if (clip.w <= BEHIND) return null;
-        return new float[] {(clip.x / clip.w * 0.5f + 0.5f) * width, (1.0f - (clip.y / clip.w * 0.5f + 0.5f)) * height};
+        return new float[] {originX + (clip.x / clip.w * 0.5f + 0.5f) * width, originY + (1.0f - (clip.y / clip.w * 0.5f + 0.5f)) * height};
     }
 
     Vector3 rayDirection(float screenX, float screenY) {
-        float ndcX = screenX / width * 2.0f - 1.0f;
-        float ndcY = 1.0f - screenY / height * 2.0f;
+        float ndcX = (screenX - originX) / width * 2.0f - 1.0f;
+        float ndcY = 1.0f - (screenY - originY) / height * 2.0f;
         Vector4f near = inverse.transform(new Vector4f(ndcX, ndcY, -1.0f, 1.0f));
         Vector4f far = inverse.transform(new Vector4f(ndcX, ndcY, 1.0f, 1.0f));
         near.div(near.w);

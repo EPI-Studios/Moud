@@ -5,6 +5,10 @@ import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
+import com.meekdev.moud.mod.adapter.render.ViewportCapture;
+import com.mojang.blaze3d.pipeline.RenderTarget;
+import foundry.imgui.api.ImGuiMC;
+import foundry.imgui.impl.ImGuiMCImpl;
 import com.meekdev.moud.mod.client.editor.EditMode;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
@@ -43,7 +47,7 @@ public final class ViewportPanel implements Panel {
 
     public static final String ID = "viewport";
 
-    private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoBackground;
+    private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     private static final float GIZMO_SIZE_CLIP_SPACE = 0.14f;
     private static final float TOOLBAR_MARGIN_X = 6.0f;
     private static final float TOOLBAR_MARGIN_Y = 4.0f;
@@ -107,12 +111,14 @@ public final class ViewportPanel implements Panel {
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
         hovered = ImGui.isWindowHovered() && mouseX >= left && mouseX < right && mouseY >= top && mouseY < bottom;
-        if (view.capture()) {
+        ViewportCapture.show(argb(EditorStyle.COLOR_WINDOW_BACKGROUND));
+        RenderTarget frame = ViewportCapture.frame();
+        if (frame != null && view.capture() && placeFrame(frame, left, top, right, bottom)) {
             cameraPosition = view.cameraPosition();
             ImDrawList drawList = ImGui.getWindowDrawList();
             drawList.pushClipRect(left, top, right, bottom, true);
             updateCamera(deltaSeconds);
-            if (hovered && !lookGesture) EditorOverlay.requestPick(mouseX / view.width(), mouseY / view.height());
+            if (hovered && !lookGesture) EditorOverlay.requestPick((mouseX - view.originX()) / view.width(), (mouseY - view.originY()) / view.height());
             hoveredInstance = hovered && !lookGesture ? pickAt(mouseX, mouseY) : null;
             EditorOverlay.show(document::editable, Set.copyOf(document.selection().all()),
                     hoveredInstance instanceof Part part && !document.selection().isSelected(part.id()) ? part.id() : 0);
@@ -126,6 +132,32 @@ public final class ViewportPanel implements Panel {
             Texts.muted("Waiting for the camera");
         }
         camera.apply();
+    }
+
+    private boolean placeFrame(RenderTarget frame, float left, float top, float right, float bottom) {
+        float viewWidth = right - left;
+        float viewHeight = bottom - top;
+        if (viewWidth < 1.0f || viewHeight < 1.0f || frame.width <= 0 || frame.height <= 0) return false;
+        float viewAspect = viewWidth / viewHeight;
+        float frameAspect = (float) frame.width / frame.height;
+        float cropU = viewAspect > frameAspect ? 1.0f : viewAspect / frameAspect;
+        float cropV = viewAspect > frameAspect ? frameAspect / viewAspect : 1.0f;
+        float u0 = (1.0f - cropU) * 0.5f;
+        float v0 = (1.0f - cropV) * 0.5f;
+        float fullWidth = viewWidth / cropU;
+        float fullHeight = viewHeight / cropV;
+        view.frame(left - u0 * fullWidth, top - v0 * fullHeight, fullWidth, fullHeight);
+        long texture = ImGuiMCImpl.handler.getRenderer().getImGuiId(ImGuiMC.getColorTexture(frame), null);
+        ImGui.getWindowDrawList().addImage(texture, left, top, right, bottom, u0, 1.0f - v0, u0 + cropU, 1.0f - v0 - cropV);
+        return true;
+    }
+
+    private static int argb(int abgr) {
+        int a = (abgr >>> 24) & 0xFF;
+        int b = (abgr >>> 16) & 0xFF;
+        int g = (abgr >>> 8) & 0xFF;
+        int r = abgr & 0xFF;
+        return a << 24 | r << 16 | g << 8 | b;
     }
 
     private void placeCameraOnEntry() {
@@ -241,7 +273,7 @@ public final class ViewportPanel implements Panel {
         ImGuizmo.setOrthographic(false);
         ImGuizmo.setDrawList();
         ImGuizmo.setGizmoSizeClipSpace(GIZMO_SIZE_CLIP_SPACE);
-        ImGuizmo.setRect(0.0f, 0.0f, view.width(), view.height());
+        ImGuizmo.setRect(view.originX(), view.originY(), view.width(), view.height());
         Matrix4f current = Frames.matrix(leader, cameraPosition);
         current.get(model);
         if (snapActive()) {
