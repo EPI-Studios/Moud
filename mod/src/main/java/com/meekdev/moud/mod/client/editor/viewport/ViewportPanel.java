@@ -244,6 +244,10 @@ public final class ViewportPanel implements Panel {
         frameSelection();
     }
 
+    public boolean flying() {
+        return lookGesture || orbitGesture;
+    }
+
     public Vector3 spawnPoint() {
         Vector3d eye = camera.position();
         Vector3d ahead = camera.forward(new Vector3d());

@@ -172,6 +172,7 @@ public final class Editing {
         }
         List<Integer> all = new ArrayList<>();
         for (Instance root : roots) collect(root, all);
+        MoudMod.LOG.info("{} pasted {} instances under {}", player.getGameProfile().name(), all.size(), parent.name());
         ServerPlayNetworking.send(player, new ScenePastedPayload(token,
                 roots.stream().mapToInt(Instance::id).toArray(), all.stream().mapToInt(Integer::intValue).toArray()));
         changed(player.level().getServer());

@@ -139,7 +139,11 @@ public final class ExplorerPanel implements Panel {
         Instance world = document.world();
         if (world == null) return;
         String query = query();
-        for (Instance child : world.children()) collect(child, 0, query);
+        boolean any = world.children().stream().anyMatch(child -> child.id() >= 0);
+        rows.add(new Row(world, 0, any));
+        if (!query.isEmpty() || !collapsed.contains(world.id())) {
+            for (Instance child : world.children()) collect(child, 1, query);
+        }
     }
 
     private boolean collect(Instance instance, int depth, String query) {
@@ -160,6 +164,10 @@ public final class ExplorerPanel implements Panel {
     }
 
     private void renderRows() {
+        if (rows.size() <= 1 && !query().isEmpty()) {
+            Texts.muted("Nothing matches the filter.");
+            return;
+        }
         if (rows.isEmpty()) {
             if (query().isEmpty()) {
                 Texts.muted("The scene is empty.");
@@ -182,7 +190,7 @@ public final class ExplorerPanel implements Panel {
         drawIndentGuides(row.depth());
         ImGui.indent(row.depth() * EditorStyle.indentSpacing() + 1.0f);
         renderDisclosure(row);
-        icons.drawInline(ClassIcons.of(row.instance().def()), EditorStyle.iconSizeSmall());
+        icons.drawInline(row.instance() == document.world() ? EditorIcon.PACKED_SCENE : ClassIcons.of(row.instance().def()), EditorStyle.iconSizeSmall());
         if (renaming == row.instance().id()) renderRenameField();
         else renderSelectable(row, index);
         ImGui.unindent(row.depth() * EditorStyle.indentSpacing() + 1.0f);
@@ -243,7 +251,13 @@ public final class ExplorerPanel implements Panel {
         ImGui.pushStyleColor(ImGuiCol.HeaderActive, TRANSPARENT);
         boolean activated = ImGui.selectable("##row", selected, ImGuiSelectableFlags.AllowDoubleClick);
         ImGui.popStyleColor(SELECTION_COLOR_COUNT);
-        paintRow(left, top, instance.name(), selected, ImGui.isItemHovered(), editable);
+        boolean root = instance == document.world();
+        paintRow(left, top, instance.name(), selected && !root, ImGui.isItemHovered(), editable || root);
+        if (root) {
+            if (activated) document.selection().clear();
+            renderRootDropAndMenu(instance);
+            return;
+        }
         if (activated) handleRowClick(row, index);
         if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) onFrameRequested.run();
         if (ImGui.isItemHovered() && !editable) ImGui.setTooltip(instance.def().name() + ", made by the engine, not saved");
@@ -251,6 +265,22 @@ public final class ExplorerPanel implements Panel {
             renderRowDragSource(instance);
             renderRowDropTarget(instance);
             renderRowContextMenu(instance);
+        }
+    }
+
+    private void renderRootDropAndMenu(Instance world) {
+        if (ImGui.beginDragDropTarget()) {
+            Integer dropped = ImGui.acceptDragDropPayload(PAYLOAD_INSTANCE, Integer.class);
+            if (dropped != null) moveInto(dropped, world.id());
+            ImGui.endDragDropTarget();
+        }
+        if (ImGui.beginPopupContextItem("explorer-root-menu")) {
+            if (ImGui.beginMenu("Insert")) {
+                renderInsertItems(world.id());
+                ImGui.endMenu();
+            }
+            if (ImGui.menuItem("Paste", "Ctrl+V")) document.pasteText(ImGui.getClipboardText());
+            ImGui.endPopup();
         }
     }
 

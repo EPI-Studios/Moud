@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.PauseScreen;
 
 public final class EditMode {
 
@@ -28,6 +29,7 @@ public final class EditMode {
                 context.client().execute(() -> apply(payload.editing(), payload.allowed())));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null && EditorBody.editing(client.player) != editing) EditorBody.set(client.player, editing);
+            if (editing && client.screen instanceof PauseScreen) client.setScreen(new EditorScreen());
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> apply(false, false)));
     }

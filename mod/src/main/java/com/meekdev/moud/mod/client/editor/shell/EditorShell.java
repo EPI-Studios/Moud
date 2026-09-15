@@ -47,6 +47,7 @@ public final class EditorShell {
     private static final String CLOSE_PROMPT = "##close-project";
     private static final float CLOSE_PROMPT_WIDTH = 420.0f;
     private static final float BRAND_MARGIN = 6.0f;
+    private static final float LOGO_ASPECT = 234.0f / 238.0f;
     private static final float STATUS_GAP = 24.0f;
     private static final int PLAY_BUTTON_COUNT = 4;
     private static final int HOST_WINDOW_FLAGS = ImGuiWindowFlags.NoDocking | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse
@@ -166,7 +167,7 @@ public final class EditorShell {
             renderMainMenuBar();
             renderHostWindow();
             panels.render();
-            commands.handleShortcuts();
+            if (!viewport.flying()) commands.handleShortcuts();
             renderClosePrompt();
             document.frame(ImGui.isAnyItemActive() || ImGui.isMouseDown(ImGuiMouseButton.Left));
         } catch (RuntimeException e) {
@@ -188,14 +189,15 @@ public final class EditorShell {
         ImGui.endMainMenuBar();
     }
 
-    private static void renderBrandMark() {
+    private void renderBrandMark() {
+        float size = ImGui.getFontSize();
+        float lineY = ImGui.getCursorPosY();
         ImGui.dummy(EditorScale.of(BRAND_MARGIN), 0.0f);
         ImGui.sameLine();
-        ImFont title = EditorFonts.title();
-        if (title != null) ImGui.pushFont(title, EditorScale.of(EditorFonts.TITLE));
-        ImGui.textUnformatted("Moud");
-        if (title != null) ImGui.popFont();
+        ImGui.setCursorPosY(lineY + (ImGui.getFrameHeight() - size) * 0.5f);
+        ImGui.image(icons.logoTextureId(), size * LOGO_ASPECT, size);
         ImGui.sameLine();
+        ImGui.setCursorPosY(lineY);
         ImGui.dummy(EditorScale.of(BRAND_MARGIN), 0.0f);
         ImGui.sameLine();
     }
