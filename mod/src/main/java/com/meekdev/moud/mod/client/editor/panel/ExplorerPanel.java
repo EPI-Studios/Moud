@@ -20,6 +20,7 @@ import imgui.ImGui;
 import imgui.ImGuiListClipper;
 import imgui.callback.ImListClipperCallback;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiSelectableFlags;
@@ -265,7 +266,7 @@ public final class ExplorerPanel implements Panel {
 
     private void renderRowDragSource(Instance instance) {
         if (!ImGui.beginDragDropSource()) return;
-        ImGui.setDragDropPayload(PAYLOAD_INSTANCE, instance.id());
+        ImGui.setDragDropPayload(PAYLOAD_INSTANCE, instance.id(), ImGuiCond.Once);
         ImGui.textUnformatted(instance.name());
         ImGui.endDragDropSource();
     }
