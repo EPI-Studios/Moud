@@ -44,6 +44,7 @@ public final class Place {
     private @Nullable ScriptLanguage language;
     private @Nullable Watcher watcher;
     private boolean editing;
+    private @Nullable String edited;
 
     private Place(Instance world, ClassRegistry classes, String main, boolean client,
                   Predicate<Instance> dropped, Consumer<Host> extend) {
@@ -113,12 +114,15 @@ public final class Place {
         if (host != null) host.close();
         host = null;
         clearWorld();
-        if (!client) scene();
+        if (client) return;
+        if (edited != null) Scene.load(edited, world, classes);
+        else scene();
     }
 
     public void play() {
         if (!editing) return;
         editing = false;
+        if (!client) edited = Scene.save(world.children().stream().filter(Place::authored).toList());
         clearWorld();
         host = load(Map.of());
     }
@@ -255,7 +259,8 @@ public final class Place {
     }
 
     private @Nullable Host load(Map<String, Object> carried) {
-        if (!client) scene();
+        if (!client && edited != null) Scene.load(edited, world, classes);
+        else if (!client) scene();
         language = pick();
         ScriptLanguage running = language != null ? language : Languages.all().getFirst();
         String file = null;

@@ -68,7 +68,6 @@ public final class Editing {
         }
         if (edit) place.edit();
         else place.play();
-        dirty = false;
         MoudMod.LOG.info("{} switched the place to {}", player.getGameProfile().name(), edit ? "edit" : "play");
         MinecraftServer server = player.level().getServer();
         MoudServer.respawnAll(server);
