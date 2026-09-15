@@ -8,6 +8,7 @@ import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
+import com.meekdev.moud.mod.adapter.render.EditorView;
 import com.meekdev.moud.mod.adapter.render.ViewportCapture;
 import com.meekdev.moud.mod.client.editor.EditMode;
 import com.meekdev.moud.mod.client.editor.assets.AssetKind;
@@ -16,6 +17,7 @@ import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
+import com.meekdev.moud.mod.client.editor.kit.ToggleStyle;
 import com.meekdev.moud.mod.client.editor.kit.Toolbars;
 import com.meekdev.moud.mod.client.editor.panel.Panel;
 import com.meekdev.moud.mod.client.editor.style.ClassIcons;
@@ -84,6 +86,7 @@ public final class ViewportPanel implements Panel {
     private final Map<Integer, Matrix4f> dragStart = new LinkedHashMap<>();
     private final FaceHandles faceHandles = new FaceHandles();
     private final SurfaceDrag surfaceDrag = new SurfaceDrag();
+    private final OrientationCube cube = new OrientationCube();
     private int session = -1;
     private boolean hovered;
     private boolean lookGesture;
@@ -142,7 +145,9 @@ public final class ViewportPanel implements Panel {
             EditorOverlay.show(document::editable, Set.copyOf(document.selection().all()),
                     hoveredInstance instanceof Part part && !document.selection().isSelected(part.id()) ? part.id() : 0);
             drawBillboards(drawList);
-            boolean gizmoBusy = renderGizmo();
+            if (EditorView.ghosts()) HelperShapes.draw(drawList, view, document);
+            boolean cubeBusy = cube.render(drawList, right, top, camera);
+            boolean gizmoBusy = renderGizmo() || cubeBusy;
             handlePicking(gizmoBusy, drawList);
             drawList.popClipRect();
             handleFrameShortcut();
@@ -212,6 +217,12 @@ public final class ViewportPanel implements Panel {
         if (Toolbars.textButton(step(gizmoState.angleStep()) + "\u00b0##toolbar-angle")) ImGui.openPopup("##angle-steps");
         tooltip("Angle step for rotating");
         Toolbars.groupSeparator();
+        viewToggle("Ortho##toolbar-ortho", camera.orthographic(), camera::toggleOrthographic, "Orthographic view, no perspective (Numpad 5)");
+        ImGui.sameLine();
+        viewToggle("Wireframe##toolbar-wire", EditorView.wireframe(), () -> EditorView.wireframe(!EditorView.wireframe()), "Draw the world as lines (Z)");
+        ImGui.sameLine();
+        viewToggle("Helpers##toolbar-helpers", EditorView.ghosts(), () -> EditorView.ghosts(!EditorView.ghosts()), "Show invisible parts, zones, light and sound ranges (H)");
+        Toolbars.groupSeparator();
         if (Toolbars.textButton("Arrange##toolbar-arrange")) ImGui.openPopup("##arrange");
         tooltip("Align, distribute and group the selection");
         renderStepPopup("##grid-steps", GRID_STEPS, gizmoState.gridStep(), " m", gizmoState::gridStep);
@@ -220,6 +231,14 @@ public final class ViewportPanel implements Panel {
         Toolbars.popFlatButtons();
         ImGui.endChild();
         ImGui.popStyleVar(2);
+    }
+
+    private static void viewToggle(String label, boolean active, Runnable toggle, String tip) {
+        ToggleStyle.push(active);
+        boolean clicked = Toolbars.textButton(label);
+        ToggleStyle.pop(active);
+        if (clicked) toggle.run();
+        tooltip(tip);
     }
 
     private static String step(float value) {
@@ -280,6 +299,7 @@ public final class ViewportPanel implements Panel {
 
     private void updateCamera(float deltaSeconds) {
         camera.updateFraming(deltaSeconds);
+        camera.updateAligning(deltaSeconds);
         boolean rightHeld = heldGesture(lookGesture, ImGui.isMouseDown(ImGuiMouseButton.Right));
         lookGesture = rightHeld;
         boolean orbitHeld = heldGesture(orbitGesture, !rightHeld && ImGui.getIO().getKeyAlt() && ImGui.isMouseDown(ImGuiMouseButton.Left));
@@ -318,7 +338,7 @@ public final class ViewportPanel implements Panel {
     public void placeAtMouse(List<String> assets) {
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
-        Vector3 at = surfaceAt(view.cameraPosition(), view.rayDirection(mouseX, mouseY));
+        Vector3 at = surfaceAt(view.rayOrigin(mouseX, mouseY), view.rayDirection(mouseX, mouseY));
         Instance under = pickAt(mouseX, mouseY);
         Instance world = document.world();
         if (world == null) return;
@@ -381,6 +401,12 @@ public final class ViewportPanel implements Panel {
         if (ImGui.isKeyPressed(ImGuiKey.S, false)) gizmoState.setTool(GizmoState.Tool.SCALE);
         if (ImGui.isKeyPressed(ImGuiKey.X, false)) gizmoState.toggleSpace();
         if (ImGui.isKeyPressed(ImGuiKey.Space, false)) gizmoState.toggleAlternateTool();
+        if (ImGui.isKeyPressed(ImGuiKey.Z, false)) EditorView.wireframe(!EditorView.wireframe());
+        if (ImGui.isKeyPressed(ImGuiKey.H, false)) EditorView.ghosts(!EditorView.ghosts());
+        if (ImGui.isKeyPressed(ImGuiKey.Keypad5, false)) camera.toggleOrthographic();
+        if (ImGui.isKeyPressed(ImGuiKey.Keypad7, false)) camera.alignTo(0, -1, 0);
+        if (ImGui.isKeyPressed(ImGuiKey.Keypad1, false)) camera.alignTo(0, 0, -1);
+        if (ImGui.isKeyPressed(ImGuiKey.Keypad3, false)) camera.alignTo(-1, 0, 0);
     }
 
     private boolean renderGizmo() {
@@ -393,7 +419,7 @@ public final class ViewportPanel implements Panel {
         if (gizmoState.tool() == GizmoState.Tool.SCALE && leader instanceof Part part) {
             return faceHandles.render(ImGui.getWindowDrawList(), view, document, part, hovered, snapActive(), gizmoState.gridStep());
         }
-        ImGuizmo.setOrthographic(false);
+        ImGuizmo.setOrthographic(camera.orthographic());
         ImGuizmo.setDrawList();
         ImGuizmo.setGizmoSizeClipSpace(GIZMO_SIZE_CLIP_SPACE);
         ImGuizmo.setRect(view.originX(), view.originY(), view.width(), view.height());
@@ -507,7 +533,7 @@ public final class ViewportPanel implements Panel {
         if (!(pickAt(mouseX, mouseY) instanceof Part part)) return;
         Instance world = document.world();
         if (world == null) return;
-        Vector3 from = view.cameraPosition();
+        Vector3 from = view.rayOrigin(mouseX, mouseY);
         Queries.Cast cast = Queries.raycast(world, from, view.rayDirection(mouseX, mouseY), SPAWN_REACH, candidate -> candidate == part);
         if (!document.selection().isSelected(part.id())) document.selection().select(part.id());
         surfaceDrag.arm(document, part, cast == null ? Frames.center(part) : cast.at());

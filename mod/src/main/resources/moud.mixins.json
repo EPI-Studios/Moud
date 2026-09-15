@@ -51,7 +51,9 @@
     "client.ShaderSourceMixin",
     "client.SkyMixin",
     "client.SoundMixin",
-    "client.TextureCacheMixin"
+    "client.TextureCacheMixin",
+    "client.WireframeMixin",
+    "client.LevelPassMixin"
   ],
   "injectors": {
     "defaultRequire": 1

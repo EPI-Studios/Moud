@@ -66,7 +66,7 @@ public final class Viewports {
     private Viewports() {}
 
     public static void register() {
-        Pipeline.add(RenderStage.SETUP, 5, "moud viewports", ctx -> drawAll());
+        Pipeline.add(RenderStage.SETUP, 5, "moud viewports", ctx -> EditorView.filled(Viewports::drawAll));
     }
 
     public static void measure(ViewportFrame viewport, float width, float height) {

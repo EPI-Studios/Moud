@@ -72,6 +72,15 @@ final class SceneView {
         return new float[] {originX + (clip.x / clip.w * 0.5f + 0.5f) * width, originY + (1.0f - (clip.y / clip.w * 0.5f + 0.5f)) * height};
     }
 
+    Vector3 rayOrigin(float screenX, float screenY) {
+        float ndcX = (screenX - originX) / width * 2.0f - 1.0f;
+        float ndcY = 1.0f - (screenY - originY) / height * 2.0f;
+        Vector4f near = inverse.transform(new Vector4f(ndcX, ndcY, AmneticCamera.isOrthographic() ? -1.0f : 0.0f, 1.0f));
+        near.div(near.w);
+        if (!AmneticCamera.isOrthographic()) return cameraPosition();
+        return new Vector3(near.x + cameraX, near.y + cameraY, near.z + cameraZ);
+    }
+
     Vector3 rayDirection(float screenX, float screenY) {
         float ndcX = (screenX - originX) / width * 2.0f - 1.0f;
         float ndcY = 1.0f - (screenY - originY) / height * 2.0f;

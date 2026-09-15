@@ -65,6 +65,7 @@ public final class EditMode {
             minecraft.setScreen(new EditorScreen());
         } else {
             AmneticCamera.clearPose();
+            AmneticCamera.clearOrthographic();
             EditorOverlay.hide();
             ViewportCapture.hide();
             ClientPlace.play();

@@ -72,7 +72,7 @@ final class SurfaceDrag {
         Instance world = document.world();
         if (part == null || world == null) return;
         started = true;
-        Vector3 from = view.cameraPosition();
+        Vector3 from = view.rayOrigin(mouseX, mouseY);
         Vector3 direction = view.rayDirection(mouseX, mouseY);
         double best = REACH;
         Vector3 normal = null;

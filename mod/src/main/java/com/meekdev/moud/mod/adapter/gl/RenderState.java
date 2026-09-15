@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.adapter.gl;
 
+import com.meekdev.amnetic.client.render.GlState;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL14;
@@ -70,6 +71,18 @@ public final class RenderState {
 
     public static void noPolygonOffset() {
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
+    }
+
+    public static void polygonLines(boolean lines) {
+        GL11.glPolygonMode(GL11.GL_FRONT_AND_BACK, lines ? GL11.GL_LINE : GL11.GL_FILL);
+    }
+
+    public static void polygonMode(int face, int mode, boolean lines) {
+        GL11.glPolygonMode(face, lines ? GL11.GL_LINE : mode);
+    }
+
+    public static void geometryLines(boolean lines) {
+        GlState.geometryPolygonMode(lines ? GL11.GL_LINE : GL11.GL_FILL);
     }
 
     public static void clear(float red, float green, float blue, float alpha) {

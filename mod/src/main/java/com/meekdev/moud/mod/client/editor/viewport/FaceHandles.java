@@ -90,7 +90,7 @@ final class FaceHandles {
 
     private static double along(SceneView view, Vector3 lineOrigin, Vector3 lineDirection) {
         Vector3 direction = view.rayDirection(ImGui.getMousePosX(), ImGui.getMousePosY());
-        return Rays.alongLine(view.cameraPosition(), direction, lineOrigin, lineDirection);
+        return Rays.alongLine(view.rayOrigin(ImGui.getMousePosX(), ImGui.getMousePosY()), direction, lineOrigin, lineDirection);
     }
 
     private static Vector3 faceCenter(Part part, CFrame world, int face) {

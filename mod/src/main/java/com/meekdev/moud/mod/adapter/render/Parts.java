@@ -136,7 +136,7 @@ public final class Parts {
     }
 
     private static boolean isTransparent(Part part) {
-        return part.transparency > 0.001 && part.transparency < 1.0;
+        return part.transparency > 0.001 && part.transparency < 1.0 || EditorView.ghost(part);
     }
 
     private static void renderMoving(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
@@ -150,7 +150,8 @@ public final class Parts {
 
     private static boolean write(InstanceRenderContext ctx, InstanceBatch<Lit> batch,
             Motion motion, Part part, boolean cull, boolean glass) {
-        if (!part.visible || part.transparency >= 1.0) return false;
+        boolean ghost = EditorView.ghost(part);
+        if (!ghost && (!part.visible || part.transparency >= 1.0)) return false;
         if (isTransparent(part) != glass) return false;
         if (part instanceof MeshPart) return false;
         if (Skins.wearsSkin(part)) return false;
@@ -167,7 +168,8 @@ public final class Parts {
                 .scale((float) size.x(), (float) size.y(), (float) size.z());
 
         Color c = part.color;
-        TINT.set(c.r(), c.g(), c.b(), (float) (1.0 - part.transparency));
+        if (ghost) TINT.set(0.55f + c.r() * 0.3f, 0.75f + c.g() * 0.2f, 1.0f, EditorView.GHOST_ALPHA);
+        else TINT.set(c.r(), c.g(), c.b(), (float) (1.0 - part.transparency));
 
         float radius = (float) (size.length() * 0.5);
         Lit instance = new Lit(MATRIX, TINT, PartLight.of(part, pos));

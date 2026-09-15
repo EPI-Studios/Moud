@@ -64,7 +64,7 @@ public final class EditorOverlay {
     private EditorOverlay() {}
 
     public static void register() {
-        Pipeline.add(RenderStage.POST, 90, "moud editor selection", context -> draw());
+        Pipeline.add(RenderStage.POST, 90, "moud editor selection", context -> EditorView.filled(EditorOverlay::draw));
     }
 
     public static void show(Predicate<Instance> canPick, Set<Integer> selection, int hover) {
