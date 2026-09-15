@@ -28,6 +28,7 @@
     "world.WeatherMixin"
   ],
   "client": [
+    "client.ProgramCacheMixin",
     "client.ClickMixin",
     "client.ChatInputMixin",
     "client.ChatComponentMixin",
