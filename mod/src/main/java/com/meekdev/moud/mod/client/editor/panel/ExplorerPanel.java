@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
+import com.meekdev.moud.mod.client.editor.document.Rename;
 import com.meekdev.moud.mod.client.editor.document.Reparent;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.kit.Disclosure;
@@ -21,6 +22,7 @@ import imgui.ImGuiListClipper;
 import imgui.callback.ImListClipperCallback;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiSelectableFlags;
@@ -50,6 +52,7 @@ public final class ExplorerPanel implements Panel {
     private static final float INDENT_GUIDE_OFFSET = 6.0f;
     private static final int INDENT_GUIDE_COLOR = EditorStyle.rgba(255, 255, 255, 26);
     private static final int FILTER_CAPACITY = 128;
+    private static final int RENAME_CAPACITY = 256;
 
     private record Row(Instance instance, int depth, boolean hasChildren) {}
 
@@ -60,6 +63,9 @@ public final class ExplorerPanel implements Panel {
     private final List<Row> rows = new ArrayList<>();
     private final Set<Integer> collapsed = new HashSet<>();
     private int anchor = -1;
+    private int renaming;
+    private boolean focusRename;
+    private final ImString renameInput = new ImString(RENAME_CAPACITY);
 
     public ExplorerPanel(SceneDocument document, IconWidgets icons, Runnable onFrameRequested) {
         this.document = document;
@@ -177,9 +183,41 @@ public final class ExplorerPanel implements Panel {
         ImGui.indent(row.depth() * EditorStyle.indentSpacing() + 1.0f);
         renderDisclosure(row);
         icons.drawInline(ClassIcons.of(row.instance().def()), EditorStyle.iconSizeSmall());
-        renderSelectable(row, index);
+        if (renaming == row.instance().id()) renderRenameField();
+        else renderSelectable(row, index);
         ImGui.unindent(row.depth() * EditorStyle.indentSpacing() + 1.0f);
         ImGui.popID();
+    }
+
+    public void beginRename(int id) {
+        Instance instance = document.find(id);
+        if (!document.editable(instance)) return;
+        renaming = id;
+        focusRename = true;
+        renameInput.set(instance.name());
+    }
+
+    private void renderRenameField() {
+        if (focusRename) {
+            ImGui.setKeyboardFocusHere();
+            focusRename = false;
+        }
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        boolean submitted = ImGui.inputText("##rename", renameInput, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
+        if (ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            renaming = 0;
+            return;
+        }
+        if (submitted || (!focusRename && ImGui.isItemDeactivated())) commitRename();
+    }
+
+    private void commitRename() {
+        int id = renaming;
+        renaming = 0;
+        String name = renameInput.get().trim();
+        Instance instance = document.find(id);
+        if (instance == null || name.isEmpty() || name.equals(instance.name())) return;
+        document.history().execute(new Rename(document.ref(id), name));
     }
 
     private void renderDisclosure(Row row) {
@@ -282,7 +320,7 @@ public final class ExplorerPanel implements Panel {
         List<Integer> moving = document.selection().isSelected(dropped) ? document.selection().all() : List.of(dropped);
         List<Edit> edits = new ArrayList<>();
         for (int id : moving) {
-            if (id != parent && !isAncestor(id, parent)) edits.add(new Reparent(id, parent));
+            if (id != parent && !isAncestor(id, parent)) edits.add(new Reparent(document.ref(id), document.ref(parent)));
         }
         if (edits.isEmpty()) return;
         document.history().execute(edits.size() == 1 ? edits.getFirst() : new Batch("Move", edits));
@@ -304,6 +342,10 @@ public final class ExplorerPanel implements Panel {
             ImGui.endMenu();
         }
         ImGui.separator();
+        if (ImGui.menuItem("Rename", "F2")) beginRename(instance.id());
+        if (ImGui.menuItem("Duplicate", "Ctrl+D")) document.duplicateSelected();
+        if (ImGui.menuItem("Copy", "Ctrl+C")) copy(document);
+        if (ImGui.menuItem("Paste", "Ctrl+V")) document.pasteText(ImGui.getClipboardText());
         Instance world = document.world();
         if (world != null && instance.parent() != world && ImGui.menuItem("Move to top")) moveInto(instance.id(), world.id());
         ImGui.separator();
@@ -329,13 +371,16 @@ public final class ExplorerPanel implements Panel {
 
     private void handleShortcuts() {
         if (!ImGui.isWindowFocused() || ImGui.getIO().getWantTextInput()) return;
-        if (ImGui.isKeyPressed(ImGuiKey.Delete, false)) deleteSelected();
         if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) document.selection().clear();
         if (ImGui.isKeyPressed(ImGuiKey.F, false)) onFrameRequested.run();
     }
 
+    public static void copy(SceneDocument document) {
+        String text = document.copySelected();
+        if (text != null) ImGui.setClipboardText(text);
+    }
+
     void deleteSelected() {
-        document.destroy(document.selection().all());
-        document.selection().clear();
+        document.deleteSelected();
     }
 }

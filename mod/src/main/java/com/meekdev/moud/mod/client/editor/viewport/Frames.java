@@ -9,6 +9,7 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.mod.client.editor.document.Edit;
+import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.SetProperty;
 import java.util.List;
 import org.joml.Matrix4f;
@@ -33,7 +34,7 @@ final class Frames {
         return matrix;
     }
 
-    static List<Edit> writes(Instance instance, Matrix4f matrix, Vector3 camera, boolean resize) {
+    static List<Edit> writes(SceneDocument document, Instance instance, Matrix4f matrix, Vector3 camera, boolean resize) {
         Vector3f translation = matrix.getTranslation(new Vector3f());
         Quaternionf rotation = new Matrix4f(matrix).normalize3x3().getUnnormalizedRotation(new Quaternionf()).normalize();
         CFrame world = new CFrame(
@@ -43,12 +44,12 @@ final class Frames {
         CFrame local = Transforms.localFor(instance, world);
         if (!spatial.pivot.equals(Vector3.ZERO)) local = local.mul(CFrame.at(spatial.pivot));
         PropertyDef cframe = instance.def().property("cframe");
-        if (!resize || !(instance instanceof Part)) return List.of(new SetProperty(instance.id(), cframe.index(), local, "Transform"));
+        if (!resize || !(instance instanceof Part)) return List.of(new SetProperty(document.ref(instance.id()), cframe.index(), local, "Transform"));
         Vector3f scale = matrix.getScale(new Vector3f());
         Vector3 size = new Vector3(Math.max(SMALLEST_SIZE, scale.x), Math.max(SMALLEST_SIZE, scale.y), Math.max(SMALLEST_SIZE, scale.z));
         PropertyDef sized = instance.def().property("size");
-        return List.of(new SetProperty(instance.id(), cframe.index(), local, "Transform"),
-                new SetProperty(instance.id(), sized.index(), size, "Transform"));
+        return List.of(new SetProperty(document.ref(instance.id()), cframe.index(), local, "Transform"),
+                new SetProperty(document.ref(instance.id()), sized.index(), size, "Transform"));
     }
 
     static @Nullable Vector3 center(Instance instance) {

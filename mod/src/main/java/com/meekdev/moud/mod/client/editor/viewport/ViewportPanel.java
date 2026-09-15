@@ -4,7 +4,10 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.query.Queries;
+import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
+import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.mod.adapter.render.ViewportCapture;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import foundry.imgui.api.ImGuiMC;
@@ -49,6 +52,9 @@ public final class ViewportPanel implements Panel {
 
     private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     private static final float GIZMO_SIZE_CLIP_SPACE = 0.14f;
+    private static final double SPAWN_REACH = 256.0;
+    private static final double SPAWN_FALLBACK = 12.0;
+    private static final BlockRays BLOCKS = new BlockRays(() -> Minecraft.getInstance().level, false);
     private static final float TOOLBAR_MARGIN_X = 6.0f;
     private static final float TOOLBAR_MARGIN_Y = 4.0f;
     private static final float BILLBOARD_HALF_SIZE = 11.0f;
@@ -238,6 +244,22 @@ public final class ViewportPanel implements Panel {
         frameSelection();
     }
 
+    public Vector3 spawnPoint() {
+        Vector3d eye = camera.position();
+        Vector3d ahead = camera.forward(new Vector3d());
+        Vector3 from = new Vector3(eye.x, eye.y, eye.z);
+        Vector3 direction = new Vector3(ahead.x, ahead.y, ahead.z);
+        double best = SPAWN_REACH;
+        Instance world = document.world();
+        if (world != null) {
+            Queries.Cast part = Queries.raycast(world, from, direction, SPAWN_REACH, document::editable);
+            if (part != null) best = part.distance();
+        }
+        BlockRef.Hit block = BLOCKS.raycast(from, direction, best);
+        if (block != null) best = Math.min(best, block.distance());
+        return best < SPAWN_REACH ? from.add(direction.mul(best)) : from.add(direction.mul(SPAWN_FALLBACK));
+    }
+
     public void frameSelection() {
         List<Instance> selected = new ArrayList<>();
         for (int id : document.selection().all()) {
@@ -324,12 +346,12 @@ public final class ViewportPanel implements Panel {
         boolean resize = gizmoState.tool() == GizmoState.Tool.SCALE;
         Matrix4f leaderStart = dragStart.get(leader.id());
         Matrix4f delta = new Matrix4f(moved).mul(new Matrix4f(leaderStart).invert());
-        List<Edit> edits = new ArrayList<>(Frames.writes(leader, moved, cameraPosition, resize));
+        List<Edit> edits = new ArrayList<>(Frames.writes(document, leader, moved, cameraPosition, resize));
         for (Map.Entry<Integer, Matrix4f> entry : dragStart.entrySet()) {
             if (entry.getKey() == leader.id()) continue;
             Instance follower = document.find(entry.getKey());
             if (follower == null) continue;
-            edits.addAll(Frames.writes(follower, new Matrix4f(delta).mul(entry.getValue()), cameraPosition, false));
+            edits.addAll(Frames.writes(document, follower, new Matrix4f(delta).mul(entry.getValue()), cameraPosition, false));
         }
         String label = switch (gizmoState.tool()) {
             case ROTATE -> "Rotate";

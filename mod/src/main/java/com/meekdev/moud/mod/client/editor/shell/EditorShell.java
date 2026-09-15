@@ -54,15 +54,17 @@ public final class EditorShell {
     private final IconWidgets icons = new IconWidgets(new IconAtlas());
     private final DockLayout dockLayout = new DockLayout();
     private final ViewportPanel viewport = new ViewportPanel(document, icons);
+    private final ExplorerPanel explorer = new ExplorerPanel(document, icons, viewport::frameSelection);
     private final Panels panels = new Panels()
             .add(viewport)
-            .add(new ExplorerPanel(document, icons, viewport::frameSelection))
+            .add(explorer)
             .add(new PropertiesPanel(document, icons))
             .add(new OutputPanel());
     private final Commands commands = new Commands();
 
     public EditorShell() {
         addCommands();
+        document.spawnPoint(viewport::spawnPoint);
     }
 
     private void addCommands() {
@@ -71,6 +73,16 @@ public final class EditorShell {
         commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo));
         commands.add(new EditorCommand("redo", "Edit", "Redo", Shortcut.ctrl(ImGuiKey.Y, "Y"), this::canRedo, this::redo));
         commands.add(new EditorCommand("redo-shift", "Edit", "Redo", Shortcut.ctrlShift(ImGuiKey.Z, "Z"), this::canRedo, this::redo).hidden());
+        commands.add(new EditorCommand("copy", "Edit", "Copy", Shortcut.ctrl(ImGuiKey.C, "C"),
+                this::hasSelection, () -> ExplorerPanel.copy(document)));
+        commands.add(new EditorCommand("paste", "Edit", "Paste", Shortcut.ctrl(ImGuiKey.V, "V"),
+                EditMode::allowed, () -> document.pasteText(ImGui.getClipboardText())));
+        commands.add(new EditorCommand("duplicate", "Edit", "Duplicate", Shortcut.ctrl(ImGuiKey.D, "D"),
+                this::hasSelection, document::duplicateSelected));
+        commands.add(new EditorCommand("rename", "Edit", "Rename", Shortcut.key(ImGuiKey.F2, "F2"),
+                this::hasPrimary, () -> explorer.beginRename(document.primary().id())));
+        commands.add(new EditorCommand("delete", "Edit", "Delete", Shortcut.key(ImGuiKey.Delete, "Del"),
+                this::hasSelection, document::deleteSelected));
         commands.add(new EditorCommand("frame", "Edit", "Frame Selection", null, this::hasSelection, viewport::frameSelection));
         commands.add(new EditorCommand("play", "Place", "Play", Shortcut.key(ImGuiKey.F5, "F5"), EditMode::allowed, () -> EditMode.request(false)));
         commands.add(new EditorCommand("reset-layout", "Window", "Reset Layout", null, () -> true, dockLayout::requestDefault));
@@ -95,6 +107,10 @@ public final class EditorShell {
 
     private boolean hasSelection() {
         return document.selection().count() > 0;
+    }
+
+    private boolean hasPrimary() {
+        return document.primary() != null;
     }
 
     public void render() {

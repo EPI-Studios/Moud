@@ -2,22 +2,22 @@ package com.meekdev.moud.mod.client.editor.document;
 
 import com.meekdev.moud.core.instance.Instance;
 
-public record Reparent(InstanceRef target, InstanceRef parent) implements Edit {
+public record Rename(InstanceRef target, String name) implements Edit {
 
     @Override
     public void apply(SceneDocument document) {
-        document.reparent(target, parent);
+        document.rename(target, name);
     }
 
     @Override
     public Edit invert(SceneDocument document) {
         Instance instance = document.find(target);
-        if (instance == null || instance.parent() == null) throw new IllegalStateException("that instance is gone");
-        return new Reparent(target, document.ref(instance.parent().id()));
+        if (instance == null) throw new IllegalStateException("that instance is gone");
+        return new Rename(target, instance.name());
     }
 
     @Override
     public String label() {
-        return "Move";
+        return "Rename";
     }
 }

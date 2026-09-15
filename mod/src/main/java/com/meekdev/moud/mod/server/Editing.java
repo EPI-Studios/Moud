@@ -12,12 +12,15 @@ import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.transport.payload.EditDownPayload;
 import com.meekdev.moud.mod.transport.payload.EditUpPayload;
 import com.meekdev.moud.mod.transport.payload.SceneEditPayload;
-import com.meekdev.moud.mod.transport.payload.SceneInsertPayload;
+import com.meekdev.moud.mod.transport.payload.ScenePastePayload;
+import com.meekdev.moud.mod.transport.payload.ScenePastedPayload;
 import com.meekdev.moud.mod.transport.payload.SceneSavePayload;
 import com.meekdev.moud.mod.transport.payload.SceneStatusPayload;
 import com.meekdev.moud.net.replicate.Applier;
 import com.meekdev.moud.net.replicate.Change;
 import com.meekdev.moud.net.wire.Codec;
+import com.meekdev.moud.core.scene.Scene;
+import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -37,8 +40,8 @@ public final class Editing {
                 context.server().execute(() -> request(context.player(), payload.edit())));
         ServerPlayNetworking.registerGlobalReceiver(SceneEditPayload.TYPE, (payload, context) ->
                 context.server().execute(() -> edit(context.player(), payload.changes())));
-        ServerPlayNetworking.registerGlobalReceiver(SceneInsertPayload.TYPE, (payload, context) ->
-                context.server().execute(() -> insert(context.player(), payload.className(), payload.parent())));
+        ServerPlayNetworking.registerGlobalReceiver(ScenePastePayload.TYPE, (payload, context) ->
+                context.server().execute(() -> paste(context.player(), payload.token(), payload.text(), payload.parent())));
         ServerPlayNetworking.registerGlobalReceiver(SceneSavePayload.TYPE, (payload, context) ->
                 context.server().execute(() -> save(context.player())));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> server.execute(() -> joined(handler.getPlayer())));
@@ -47,7 +50,7 @@ public final class Editing {
     static void joined(ServerPlayer player) {
         Place place = MoudServer.place();
         send(player, place != null && place.editing());
-        status(player, "", 0);
+        status(player, "");
     }
 
     static boolean allowed(ServerPlayer player) {
@@ -73,7 +76,7 @@ public final class Editing {
         MoudServer.respawnAll(server);
         for (ServerPlayer each : server.getPlayerList().getPlayers()) {
             send(each, edit);
-            status(each, "", 0);
+            status(each, "");
         }
     }
 
@@ -134,6 +137,8 @@ public final class Editing {
             }
             case Change.Destroyed destroyed -> sceneOwned(tree.byId(destroyed.id()), world) ? null : "that instance is not part of the scene";
             case Change.Tagged tagged -> sceneOwned(tree.byId(tagged.id()), world) ? null : "that instance is not part of the scene";
+            case Change.Renamed renamed -> !sceneOwned(tree.byId(renamed.id()), world) ? "that instance is not part of the scene"
+                    : renamed.name().isBlank() ? "a name can not be empty" : null;
             default -> "the editor can not send that";
         };
     }
@@ -142,29 +147,39 @@ public final class Editing {
         return instance != null && instance != world && instance.isAlive() && Place.authored(instance);
     }
 
-    private static void insert(ServerPlayer player, String className, int parentId) {
-        if (editable(player) == null) return;
-        InstanceTree tree = ServerScene.tree();
-        Instance world = ServerScene.world();
-        ClassDef<?> def = Addons.classes().find(className);
-        if (def == null) {
-            reject(player, "there is no class " + className);
+    private static void paste(ServerPlayer player, int token, String text, int parentId) {
+        Place place = editable(player);
+        int[] none = new int[0];
+        if (place == null) {
+            ServerPlayNetworking.send(player, new ScenePastedPayload(token, none, none));
             return;
         }
+        InstanceTree tree = ServerScene.tree();
+        Instance world = ServerScene.world();
         Instance parent = parentId == world.id() ? world : tree.byId(parentId);
         if (parent != world && !sceneOwned(parent, world)) {
             reject(player, "the parent is not part of the scene");
+            ServerPlayNetworking.send(player, new ScenePastedPayload(token, none, none));
             return;
         }
-        Instance made;
+        List<Instance> roots;
         try {
-            made = Instances.create(def, parent, className);
+            roots = Scene.load(text, parent, Addons.classes());
         } catch (RuntimeException e) {
-            reject(player, e.getMessage());
+            reject(player, "could not paste: " + e.getMessage());
+            ServerPlayNetworking.send(player, new ScenePastedPayload(token, none, none));
             return;
         }
+        List<Integer> all = new ArrayList<>();
+        for (Instance root : roots) collect(root, all);
+        ServerPlayNetworking.send(player, new ScenePastedPayload(token,
+                roots.stream().mapToInt(Instance::id).toArray(), all.stream().mapToInt(Integer::intValue).toArray()));
         changed(player.level().getServer());
-        status(player, "", made.id());
+    }
+
+    private static void collect(Instance instance, List<Integer> into) {
+        into.add(instance.id());
+        for (Instance child : instance.children()) collect(child, into);
     }
 
     private static void save(ServerPlayer player) {
@@ -174,7 +189,7 @@ public final class Editing {
             String file = place.saveScene();
             dirty = false;
             MoudMod.LOG.info("{} saved the scene to {}", player.getGameProfile().name(), file);
-            for (ServerPlayer each : player.level().getServer().getPlayerList().getPlayers()) status(each, "saved " + file, 0);
+            for (ServerPlayer each : player.level().getServer().getPlayerList().getPlayers()) status(each, "saved " + file);
         } catch (RuntimeException e) {
             reject(player, "could not save: " + e.getMessage());
         }
@@ -183,17 +198,17 @@ public final class Editing {
     private static void changed(MinecraftServer server) {
         if (dirty) return;
         dirty = true;
-        for (ServerPlayer each : server.getPlayerList().getPlayers()) status(each, "", 0);
+        for (ServerPlayer each : server.getPlayerList().getPlayers()) status(each, "");
     }
 
     private static void reject(ServerPlayer player, String why) {
-        status(player, why, 0);
+        status(player, why);
     }
 
-    private static void status(ServerPlayer player, String message, int inserted) {
+    private static void status(ServerPlayer player, String message) {
         Place place = MoudServer.place();
         if (place == null || !ServerPlayNetworking.canSend(player, SceneStatusPayload.TYPE)) return;
-        ServerPlayNetworking.send(player, new SceneStatusPayload(dirty, place.sceneFile(), message, inserted));
+        ServerPlayNetworking.send(player, new SceneStatusPayload(dirty, place.sceneFile(), message));
     }
 
     private static void send(ServerPlayer player, boolean editing) {

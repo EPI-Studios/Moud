@@ -22,6 +22,7 @@ public final class Payloads {
         down.register(PilotDownPayload.TYPE, PilotDownPayload.CODEC.cast());
         down.register(EditDownPayload.TYPE, EditDownPayload.CODEC.cast());
         down.register(SceneStatusPayload.TYPE, SceneStatusPayload.CODEC.cast());
+        down.register(ScenePastedPayload.TYPE, ScenePastedPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(RemoteUpPayload.TYPE, RemoteUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ChatUpPayload.TYPE, ChatUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PromptPayload.TYPE, PromptPayload.CODEC.cast());
@@ -29,7 +30,7 @@ public final class Payloads {
         PayloadTypeRegistry.serverboundPlay().register(ResyncPayload.TYPE, ResyncPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(EditUpPayload.TYPE, EditUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(SceneEditPayload.TYPE, SceneEditPayload.CODEC.cast());
-        PayloadTypeRegistry.serverboundPlay().register(SceneInsertPayload.TYPE, SceneInsertPayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(ScenePastePayload.TYPE, ScenePastePayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(SceneSavePayload.TYPE, SceneSavePayload.CODEC.cast());
     }
 }

@@ -88,7 +88,7 @@ final class PropertyRows {
     }
 
     private void commit(Instance instance, PropertyDef property, @Nullable Object value) {
-        document.history().execute(new SetProperty(instance.id(), property.index(), value, "Set " + label(property)));
+        document.history().execute(new SetProperty(document.ref(instance.id()), property.index(), value, "Set " + label(property)));
     }
 
     static String label(PropertyDef property) {

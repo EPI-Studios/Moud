@@ -1,9 +1,12 @@
 package com.meekdev.moud.mod.client.editor.document;
 
 import com.meekdev.moud.mod.transport.payload.SceneEditPayload;
-import com.meekdev.moud.mod.transport.payload.SceneInsertPayload;
+import com.meekdev.moud.mod.transport.payload.ScenePastePayload;
+import com.meekdev.moud.mod.transport.payload.ScenePastedPayload;
 import com.meekdev.moud.mod.transport.payload.SceneSavePayload;
 import com.meekdev.moud.mod.transport.payload.SceneStatusPayload;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 public final class SceneLink {
@@ -14,23 +17,22 @@ public final class SceneLink {
     private static String file = "";
     private static String message = "";
     private static long messageAt;
-    private static int inserted;
+    private static int nextToken = 1;
+    private static final Queue<ScenePastedPayload> PASTED = new ArrayDeque<>();
 
     private SceneLink() {}
 
     public static void install() {
         ClientPlayNetworking.registerGlobalReceiver(SceneStatusPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(ScenePastedPayload.TYPE, (payload, context) ->
+                context.client().execute(() -> PASTED.add(payload)));
     }
 
     private static void receive(SceneStatusPayload status) {
         dirty = status.dirty();
         file = status.file();
-        if (!status.message().isEmpty()) {
-            message = status.message();
-            messageAt = System.nanoTime();
-        }
-        if (status.inserted() != 0) inserted = status.inserted();
+        if (!status.message().isEmpty()) local(status.message());
     }
 
     static void local(String why) {
@@ -50,18 +52,18 @@ public final class SceneLink {
         return System.nanoTime() - messageAt < MESSAGE_NANOS ? message : "";
     }
 
-    static int takeInserted() {
-        int id = inserted;
-        inserted = 0;
-        return id;
+    static ScenePastedPayload takePasted() {
+        return PASTED.poll();
     }
 
     static void send(byte[] changes) {
         if (ClientPlayNetworking.canSend(SceneEditPayload.TYPE)) ClientPlayNetworking.send(new SceneEditPayload(changes));
     }
 
-    static void insert(String className, int parent) {
-        if (ClientPlayNetworking.canSend(SceneInsertPayload.TYPE)) ClientPlayNetworking.send(new SceneInsertPayload(className, parent));
+    static int paste(String text, int parent) {
+        int token = nextToken++;
+        if (ClientPlayNetworking.canSend(ScenePastePayload.TYPE)) ClientPlayNetworking.send(new ScenePastePayload(token, text, parent));
+        return token;
     }
 
     static void save() {
