@@ -50,7 +50,8 @@
     "client.ScreensMixin",
     "client.ShaderSourceMixin",
     "client.SkyMixin",
-    "client.SoundMixin"
+    "client.SoundMixin",
+    "client.TextureCacheMixin"
   ],
   "injectors": {
     "defaultRequire": 1

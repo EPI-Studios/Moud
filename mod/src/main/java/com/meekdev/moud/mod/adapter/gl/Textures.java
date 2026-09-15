@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.adapter.gl;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import java.nio.ByteBuffer;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL30;
 
 public final class Textures {
@@ -10,6 +11,14 @@ public final class Textures {
     private static int opaqueFramebuffer;
 
     private Textures() {}
+
+    public static void bindDirectly(int texture) {
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+    }
+
+    public static void activateDirectly(int unit) {
+        GL13.glActiveTexture(unit);
+    }
 
     public static void readPixels(int x, int y, int width, int height, ByteBuffer rgba) {
         GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
