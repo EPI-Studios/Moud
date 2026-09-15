@@ -11,6 +11,7 @@ import com.meekdev.moud.mod.client.editor.command.EditorCommand;
 import com.meekdev.moud.mod.client.editor.command.Shortcut;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.SceneLink;
+import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.kit.Toolbars;
 import com.meekdev.moud.mod.client.editor.panel.ExplorerPanel;
@@ -43,6 +44,8 @@ import net.minecraft.client.Minecraft;
 public final class EditorShell {
 
     private static final float STATUS_BAR_HEIGHT = 26.0f;
+    private static final String CLOSE_PROMPT = "##close-project";
+    private static final float CLOSE_PROMPT_WIDTH = 420.0f;
     private static final float BRAND_MARGIN = 6.0f;
     private static final float STATUS_GAP = 24.0f;
     private static final int PLAY_BUTTON_COUNT = 4;
@@ -62,6 +65,43 @@ public final class EditorShell {
             .add(new OutputPanel());
     private final Commands commands = new Commands();
 
+    private boolean closePrompt;
+    private boolean closeAfterSave;
+
+    private void closeProject() {
+        if (document.dirty()) closePrompt = true;
+        else Editor.requestCloseProject();
+    }
+
+    private void renderClosePrompt() {
+        if (closeAfterSave && !document.dirty()) {
+            closeAfterSave = false;
+            Editor.requestCloseProject();
+        }
+        if (closePrompt) {
+            ImGui.openPopup(CLOSE_PROMPT);
+            closePrompt = false;
+        }
+        if (!Dialogs.begin(CLOSE_PROMPT, CLOSE_PROMPT_WIDTH)) return;
+        Dialogs.title("Save the scene before closing?");
+        Texts.muted(SceneLink.file() + " has changes that are not saved.");
+        Dialogs.gap();
+        Dialogs.alignFooter(3);
+        if (Dialogs.button("Cancel##close-cancel")) ImGui.closeCurrentPopup();
+        ImGui.sameLine();
+        if (Dialogs.button("Don't save##close-discard")) {
+            ImGui.closeCurrentPopup();
+            Editor.requestCloseProject();
+        }
+        ImGui.sameLine();
+        if (Dialogs.primaryButton("Save##close-save", true)) {
+            ImGui.closeCurrentPopup();
+            closeAfterSave = true;
+            document.save();
+        }
+        Dialogs.end();
+    }
+
     public EditorShell() {
         addCommands();
         document.spawnPoint(viewport::spawnPoint);
@@ -69,7 +109,7 @@ public final class EditorShell {
 
     private void addCommands() {
         commands.add(new EditorCommand("save", "File", "Save Scene", Shortcut.ctrl(ImGuiKey.S, "S"), EditMode::allowed, document::save));
-        commands.add(new EditorCommand("close-project", "File", "Close Project", null, () -> true, Editor::requestCloseProject));
+        commands.add(new EditorCommand("close-project", "File", "Close Project", null, () -> true, this::closeProject));
         commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo));
         commands.add(new EditorCommand("redo", "Edit", "Redo", Shortcut.ctrl(ImGuiKey.Y, "Y"), this::canRedo, this::redo));
         commands.add(new EditorCommand("redo-shift", "Edit", "Redo", Shortcut.ctrlShift(ImGuiKey.Z, "Z"), this::canRedo, this::redo).hidden());
@@ -127,6 +167,7 @@ public final class EditorShell {
             renderHostWindow();
             panels.render();
             commands.handleShortcuts();
+            renderClosePrompt();
             document.frame(ImGui.isAnyItemActive() || ImGui.isMouseDown(ImGuiMouseButton.Left));
         } catch (RuntimeException e) {
             MoudMod.LOG.error("editor frame failed", e);

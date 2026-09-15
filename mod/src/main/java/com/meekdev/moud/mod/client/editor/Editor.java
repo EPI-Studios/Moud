@@ -12,6 +12,7 @@ import foundry.imgui.api.ImGuiMCEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -27,6 +28,8 @@ public final class Editor {
     private static boolean available;
     private static @Nullable ProjectHub hub;
     private static boolean closeRequested;
+    private static boolean stopHeld;
+    private static CameraType cameraBeforeStop = CameraType.FIRST_PERSON;
     private static boolean amneticReleased;
 
     private Editor() {}
@@ -74,9 +77,20 @@ public final class Editor {
             return;
         }
         releaseAmneticKey(client);
+        handleStop(client);
         boolean pressed = false;
         while (toggle.consumeClick()) pressed = true;
         if (pressed && client.screen == null && !EditMode.editing()) EditMode.request(true);
+    }
+
+    private static void handleStop(Minecraft client) {
+        boolean down = InputConstants.isKeyDown(client.getWindow(), GLFW.GLFW_KEY_F5);
+        if (down && !stopHeld && client.screen == null && !EditMode.editing() && EditMode.allowed() && EditMode.session() > 0) {
+            client.options.setCameraType(cameraBeforeStop);
+            EditMode.request(true);
+        }
+        stopHeld = down;
+        if (!down) cameraBeforeStop = client.options.getCameraType();
     }
 
     private static void releaseAmneticKey(Minecraft client) {
