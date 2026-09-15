@@ -21,6 +21,7 @@ import imgui.ImGuiListClipper;
 import imgui.callback.ImListClipperCallback;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.type.ImString;
 import java.util.ArrayList;
@@ -53,14 +54,16 @@ public final class ExplorerPanel implements Panel {
 
     private final SceneDocument document;
     private final IconWidgets icons;
+    private final Runnable onFrameRequested;
     private final ImString filterInput = new ImString(FILTER_CAPACITY);
     private final List<Row> rows = new ArrayList<>();
     private final Set<Integer> collapsed = new HashSet<>();
     private int anchor = -1;
 
-    public ExplorerPanel(SceneDocument document, IconWidgets icons) {
+    public ExplorerPanel(SceneDocument document, IconWidgets icons, Runnable onFrameRequested) {
         this.document = document;
         this.icons = icons;
+        this.onFrameRequested = onFrameRequested;
     }
 
     @Override
@@ -203,6 +206,7 @@ public final class ExplorerPanel implements Panel {
         ImGui.popStyleColor(SELECTION_COLOR_COUNT);
         paintRow(left, top, instance.name(), selected, ImGui.isItemHovered(), editable);
         if (activated) handleRowClick(row, index);
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) onFrameRequested.run();
         if (ImGui.isItemHovered() && !editable) ImGui.setTooltip(instance.def().name() + ", made by the engine, not saved");
         if (editable) {
             renderRowDragSource(instance);
@@ -326,6 +330,7 @@ public final class ExplorerPanel implements Panel {
         if (!ImGui.isWindowFocused() || ImGui.getIO().getWantTextInput()) return;
         if (ImGui.isKeyPressed(ImGuiKey.Delete, false)) deleteSelected();
         if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) document.selection().clear();
+        if (ImGui.isKeyPressed(ImGuiKey.F, false)) onFrameRequested.run();
     }
 
     void deleteSelected() {

@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor;
 
+import com.meekdev.amnetic.client.camera.AmneticCamera;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.transport.payload.EditDownPayload;
 import com.meekdev.moud.mod.transport.payload.EditUpPayload;
@@ -12,6 +13,7 @@ public final class EditMode {
     private static boolean editing;
     private static boolean allowed;
     private static boolean hudWasHidden;
+    private static int session;
 
     private EditMode() {}
 
@@ -23,6 +25,10 @@ public final class EditMode {
 
     public static boolean editing() {
         return editing;
+    }
+
+    public static int session() {
+        return session;
     }
 
     public static boolean allowed() {
@@ -40,11 +46,13 @@ public final class EditMode {
         editing = nowEditing;
         Minecraft minecraft = Minecraft.getInstance();
         if (editing) {
+            session++;
             ClientPlace.edit();
             hudWasHidden = minecraft.options.hideGui;
             minecraft.options.hideGui = true;
             minecraft.setScreen(new EditorScreen());
         } else {
+            AmneticCamera.clearPose();
             ClientPlace.play();
             minecraft.options.hideGui = hudWasHidden;
             if (minecraft.screen instanceof EditorScreen) minecraft.setScreen(null);

@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client.editor.shell;
 import com.meekdev.moud.mod.client.editor.panel.ExplorerPanel;
 import com.meekdev.moud.mod.client.editor.panel.OutputPanel;
 import com.meekdev.moud.mod.client.editor.panel.PropertiesPanel;
+import com.meekdev.moud.mod.client.editor.viewport.ViewportPanel;
 import imgui.ImGuiViewport;
 import imgui.flag.ImGuiDir;
 import imgui.internal.ImGui;
@@ -43,6 +44,7 @@ final class DockLayout {
         ImGui.dockBuilderDockWindow("###" + ExplorerPanel.ID, left.get());
         ImGui.dockBuilderDockWindow("###" + PropertiesPanel.ID, right.get());
         ImGui.dockBuilderDockWindow("###" + OutputPanel.ID, bottom.get());
+        ImGui.dockBuilderDockWindow("###" + ViewportPanel.ID, center.get());
         ImGui.dockBuilderFinish(root);
     }
 }

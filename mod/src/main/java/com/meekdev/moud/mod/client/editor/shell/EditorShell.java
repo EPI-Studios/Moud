@@ -21,9 +21,11 @@ import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconAtlas;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
+import com.meekdev.moud.mod.client.editor.viewport.ViewportPanel;
 import imgui.ImFont;
 import imgui.ImGui;
 import imgui.ImGuiViewport;
+import imgui.extension.imguizmo.ImGuizmo;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiConfigFlags;
@@ -48,8 +50,10 @@ public final class EditorShell {
     private final SceneDocument document = new SceneDocument();
     private final IconWidgets icons = new IconWidgets(new IconAtlas());
     private final DockLayout dockLayout = new DockLayout();
+    private final ViewportPanel viewport = new ViewportPanel(document, icons);
     private final Panels panels = new Panels()
-            .add(new ExplorerPanel(document, icons))
+            .add(viewport)
+            .add(new ExplorerPanel(document, icons, viewport::frameSelection))
             .add(new PropertiesPanel(document, icons))
             .add(new OutputPanel());
     private final Commands commands = new Commands();
@@ -63,6 +67,7 @@ public final class EditorShell {
         commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo));
         commands.add(new EditorCommand("redo", "Edit", "Redo", Shortcut.ctrl(ImGuiKey.Y, "Y"), this::canRedo, this::redo));
         commands.add(new EditorCommand("redo-shift", "Edit", "Redo", Shortcut.ctrlShift(ImGuiKey.Z, "Z"), this::canRedo, this::redo).hidden());
+        commands.add(new EditorCommand("frame", "Edit", "Frame Selection", null, this::hasSelection, viewport::frameSelection));
         commands.add(new EditorCommand("play", "Place", "Play", Shortcut.key(ImGuiKey.F5, "F5"), EditMode::allowed, () -> EditMode.request(false)));
         commands.add(new EditorCommand("reset-layout", "Window", "Reset Layout", null, () -> true, dockLayout::requestDefault));
         commands.add(new EditorCommand("renderer-tools", "Window", "Renderer Tools", null, () -> true, AmneticEditor::toggle));
@@ -84,13 +89,19 @@ public final class EditorShell {
         document.history().redo();
     }
 
+    private boolean hasSelection() {
+        return document.selection().count() > 0;
+    }
+
     public void render() {
         if (!EditMode.editing() || !(Minecraft.getInstance().screen instanceof EditorScreen)) return;
         ImGui.getIO().addConfigFlags(ImGuiConfigFlags.DockingEnable);
+        ImGui.getIO().setConfigWindowsMoveFromTitleBarOnly(true);
         EditorStyle.apply();
         ImFont body = EditorFonts.body();
         if (body != null) ImGui.pushFont(body, EditorFonts.BODY);
         try {
+            ImGuizmo.beginFrame();
             renderMainMenuBar();
             renderHostWindow();
             panels.render();
