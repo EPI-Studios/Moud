@@ -11,7 +11,11 @@ import com.meekdev.moud.mod.client.editor.kit.Sections;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.style.ClassIcons;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
+import com.meekdev.moud.mod.client.editor.document.Rename;
+import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import imgui.ImGui;
+import imgui.flag.ImGuiInputTextFlags;
+import imgui.type.ImString;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +26,9 @@ public final class PropertiesPanel implements Panel {
     private final SceneDocument document;
     private final IconWidgets icons;
     private final PropertyRows rows;
+    private final ImString nameInput = new ImString(256);
+    private int naming;
+    private boolean nameActive;
 
     public PropertiesPanel(SceneDocument document, IconWidgets icons) {
         this.document = document;
@@ -53,22 +60,55 @@ public final class PropertiesPanel implements Panel {
 
     private void renderBody(Instance instance) {
         boolean editable = document.editable(instance);
-        int count = document.selection().count();
-        Texts.muted(instance.def().name() + (count > 1 ? "  ·  " + count + " selected, showing the last" : ""));
-        Category.draw(instance.name(), icons.textureId(ClassIcons.of(instance.def())));
+        List<Instance> targets = new ArrayList<>();
+        for (int id : document.selection().all()) {
+            Instance target = document.find(id);
+            if (document.editable(target)) targets.add(target);
+        }
+        if (targets.isEmpty()) targets.add(instance);
+        int count = targets.size();
+        Texts.muted(count > 1 ? count + " instances selected" : instance.def().name());
+        Category.draw(count > 1 ? instance.name() + " and " + (count - 1) + " more" : instance.name(), icons.textureId(ClassIcons.of(instance.def())));
         if (!editable) Notices.info("Made by the engine, it is not part of the scene file.");
         ImGui.separator();
         ImGui.beginDisabled(!editable);
+        if (count == 1) renderName(instance);
         List<ClassDef<?>> chain = new ArrayList<>();
         for (ClassDef<?> at = instance.def(); at != null; at = at.parent()) chain.addFirst(at);
         int from = 0;
         for (ClassDef<?> level : chain) {
             PropertyDef[] properties = level.properties();
-            if (properties.length > from && Sections.header(level.name(), true, icons.textureId(ClassIcons.of(level)))) {
-                for (int index = from; index < properties.length; index++) rows.render(instance, properties[index]);
+            List<PropertyDef> shared = new ArrayList<>();
+            for (int index = from; index < properties.length; index++) {
+                PropertyDef property = properties[index];
+                if (targets.stream().allMatch(target -> PropertyRows.same(target, property) != null)) shared.add(property);
+            }
+            if (!shared.isEmpty() && Sections.header(level.name(), true, icons.textureId(ClassIcons.of(level)))) {
+                for (PropertyDef property : shared) rows.render(instance, property, targets);
             }
             from = properties.length;
         }
         ImGui.endDisabled();
+    }
+
+    private void renderName(Instance instance) {
+        if (instance.id() != naming) {
+            naming = instance.id();
+            nameInput.set(instance.name());
+        } else if (!nameActive && !nameInput.get().equals(instance.name())) {
+            nameInput.set(instance.name());
+        }
+        float start = ImGui.getCursorPosX();
+        float column = Math.clamp(ImGui.getContentRegionAvailX() * 0.36f, EditorScale.of(84.0f), EditorScale.of(150.0f));
+        ImGui.alignTextToFramePadding();
+        ImGui.textUnformatted("Name");
+        ImGui.sameLine(start + column);
+        ImGui.setNextItemWidth(-1.0f);
+        boolean submitted = ImGui.inputText("##name", nameInput, ImGuiInputTextFlags.EnterReturnsTrue);
+        nameActive = ImGui.isItemActive();
+        if (submitted || ImGui.isItemDeactivatedAfterEdit()) {
+            String name = nameInput.get().trim();
+            if (!name.isEmpty() && !name.equals(instance.name())) document.history().execute(new Rename(document.ref(instance.id()), name));
+        }
     }
 }

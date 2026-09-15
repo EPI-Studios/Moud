@@ -8,15 +8,21 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.mod.client.editor.document.Batch;
+import com.meekdev.moud.mod.client.editor.document.Edit;
+import com.meekdev.moud.mod.client.editor.document.PendingEdits;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.SetProperty;
 import com.meekdev.moud.mod.client.editor.kit.NumberFields;
-import com.meekdev.moud.mod.client.editor.kit.Rows;
 import com.meekdev.moud.mod.client.editor.kit.Switches;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
+import com.meekdev.moud.mod.client.editor.style.EditorScale;
+import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.type.ImString;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -24,6 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
@@ -31,14 +38,17 @@ import org.jspecify.annotations.Nullable;
 final class PropertyRows {
 
     private static final float DRAG_STEP = 0.05f;
-    private static final float COLOR_DRAG_STEP = 0.01f;
+    private static final float LABEL_SHARE = 0.36f;
+    private static final float LABEL_MIN = 84.0f;
+    private static final float LABEL_MAX = 150.0f;
     private static final float DEGREE_STEP = 0.5f;
     private static final float RADIANS_TO_DEGREES = 57.295776f;
     private static final float DEGREES_TO_RADIANS = 0.017453293f;
     private static final float QUAT_EPSILON = 0.0001f;
     private static final int STRING_CAPACITY = 512;
     private static final int REF_CHOICES = 400;
-    private static final int COLOR_EDIT_FLAGS = ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar;
+    private static final int COLOR_EDIT_FLAGS = ImGuiColorEditFlags.DisplayHex | ImGuiColorEditFlags.AlphaBar
+            | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.PickerHueWheel;
 
     private static final class Euler {
         final float[] degrees = new float[3];
@@ -50,6 +60,8 @@ final class PropertyRows {
     private final Map<String, Euler> eulers = new HashMap<>();
     private final Set<String> seen = new HashSet<>();
     private @Nullable String typing;
+    private List<Instance> targets = List.of();
+    private boolean mixed;
 
     PropertyRows(SceneDocument document) {
         this.document = document;
@@ -64,7 +76,9 @@ final class PropertyRows {
         eulers.keySet().retainAll(seen);
     }
 
-    void render(Instance instance, PropertyDef property) {
+    void render(Instance instance, PropertyDef property, List<Instance> selected) {
+        targets = selected;
+        mixed = isMixed(instance, property);
         String key = instance.id() + ":" + property.index();
         seen.add(key);
         ImGui.pushID(property.name());
@@ -88,7 +102,37 @@ final class PropertyRows {
     }
 
     private void commit(Instance instance, PropertyDef property, @Nullable Object value) {
-        document.history().execute(new SetProperty(document.ref(instance.id()), property.index(), value, "Set " + label(property)));
+        commitEach(property, current -> value);
+    }
+
+    private void commitEach(PropertyDef property, UnaryOperator<Object> change) {
+        List<Edit> edits = new ArrayList<>();
+        String name = "Set " + label(property);
+        for (Instance target : targets) {
+            PropertyDef own = same(target, property);
+            if (own == null) continue;
+            Object current = SceneDocument.wire(target, own);
+            Object next = change.apply(current);
+            if (next != null && next.equals(current)) continue;
+            edits.add(new SetProperty(document.ref(target.id()), own.index(), next, name));
+        }
+        if (edits.isEmpty()) return;
+        document.history().execute(edits.size() == 1 ? edits.getFirst() : new Batch(name, edits));
+    }
+
+    static @Nullable PropertyDef same(Instance target, PropertyDef property) {
+        PropertyDef own = target.def().property(property.name());
+        return own != null && own.type() == property.type() ? own : null;
+    }
+
+    private boolean isMixed(Instance primary, PropertyDef property) {
+        if (targets.size() < 2) return false;
+        Object value = SceneDocument.wire(primary, property);
+        for (Instance target : targets) {
+            PropertyDef own = same(target, property);
+            if (own != null && !PendingEdits.same(value, SceneDocument.wire(target, own))) return true;
+        }
+        return false;
     }
 
     static String label(PropertyDef property) {
@@ -103,11 +147,16 @@ final class PropertyRows {
         return out.toString();
     }
 
-    private static void beginLabelled(String label) {
-        float split = Rows.splitColumnWidth();
+    private void beginLabelled(String label) {
+        float start = ImGui.getCursorPosX();
+        float available = ImGui.getContentRegionAvailX();
+        float column = Math.clamp(available * LABEL_SHARE, EditorScale.of(LABEL_MIN), EditorScale.of(LABEL_MAX));
         ImGui.alignTextToFramePadding();
-        ImGui.textUnformatted(label);
-        ImGui.sameLine(split);
+        ImGui.pushStyleColor(ImGuiCol.Text, mixed ? EditorStyle.COLOR_TEXT_FAINT : EditorStyle.COLOR_TEXT);
+        ImGui.textUnformatted(mixed ? label + "  ·  mixed" : label);
+        ImGui.popStyleColor();
+        if (ImGui.isItemHovered() && mixed) ImGui.setTooltip("The selected instances have different values, editing sets them all");
+        ImGui.sameLine(start + column);
         ImGui.setNextItemWidth(-1.0f);
     }
 
@@ -151,15 +200,20 @@ final class PropertyRows {
         float[] values = {(float) current.x(), (float) current.y(), (float) current.z()};
         beginLabelled(label(property));
         if (NumberFields.vector("##" + instance.id() + ":" + property.index(), values, 3, ImGui.getContentRegionAvailX(), DRAG_STEP)) {
-            commit(instance, property, merge(current, values));
+            boolean[] axes = changedAxes(current, values);
+            commitEach(property, value -> axisWise((Vector3) value, values, axes));
         }
     }
 
-    private static Vector3 merge(Vector3 current, float[] values) {
-        return new Vector3(
-                values[0] == (float) current.x() ? current.x() : values[0],
-                values[1] == (float) current.y() ? current.y() : values[1],
-                values[2] == (float) current.z() ? current.z() : values[2]);
+    private static boolean[] changedAxes(Vector3 current, float[] values) {
+        return new boolean[] {values[0] != (float) current.x(), values[1] != (float) current.y(), values[2] != (float) current.z()};
+    }
+
+    private static Vector3 axisWise(Vector3 current, float[] values, boolean[] axes) {
+        double x = axes[0] ? values[0] : current.x();
+        double y = axes[1] ? values[1] : current.y();
+        double z = axes[2] ? values[2] : current.z();
+        return new Vector3(x, y, z);
     }
 
     private void renderQuaternion(Instance instance, PropertyDef property, String key) {
@@ -175,11 +229,12 @@ final class PropertyRows {
         float[] values = {(float) position.x(), (float) position.y(), (float) position.z()};
         beginLabelled("Position");
         if (NumberFields.vector("##position" + key, values, 3, ImGui.getContentRegionAvailX(), DRAG_STEP)) {
-            commit(instance, property, current.withPosition(merge(position, values)));
+            boolean[] axes = changedAxes(position, values);
+            commitEach(property, value -> ((CFrame) value).withPosition(axisWise(((CFrame) value).position(), values, axes)));
         }
         beginLabelled("Rotation");
         Quat rotation = eulerField("##rotation" + key, current.rotation(), key);
-        if (rotation != null) commit(instance, property, current.withRotation(rotation));
+        if (rotation != null) commitEach(property, value -> ((CFrame) value).withRotation(rotation));
     }
 
     private @Nullable Quat eulerField(String id, Quat current, String key) {
@@ -212,11 +267,7 @@ final class PropertyRows {
         Color current = (Color) property.getObj(instance);
         float[] values = {current.r(), current.g(), current.b(), current.a()};
         beginLabelled(label(property));
-        boolean picked = ImGui.colorEdit4("##swatch", values, COLOR_EDIT_FLAGS);
-        ImGui.sameLine();
-        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        boolean dragged = ImGui.dragFloat4("##value", values, COLOR_DRAG_STEP, 0.0f, 1.0f);
-        if (picked || dragged) {
+        if (ImGui.colorEdit4("##value", values, COLOR_EDIT_FLAGS)) {
             Color updated = new Color(values[0], values[1], values[2], values[3]);
             if (!updated.equals(current)) commit(instance, property, updated);
         }

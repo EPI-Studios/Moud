@@ -66,6 +66,12 @@ public final class NumberFields {
         return changed;
     }
 
+    static String display(float value) {
+        String text = String.format(Locale.ROOT, FORMAT, value);
+        if (text.indexOf('.') >= 0) text = text.replaceAll("0+$", "").replaceAll("\\.$", "");
+        return text.equals("-0") ? "0" : text;
+    }
+
     private static int axisColor(int index) {
         return switch (index) {
             case 0 -> EditorStyle.COLOR_AXIS_X;
@@ -123,7 +129,7 @@ public final class NumberFields {
         }
         editingIdentity = id;
         focusPending = true;
-        EDIT_BUFFER.set(String.format(Locale.ROOT, FORMAT, value));
+        EDIT_BUFFER.set(display(value));
         return value;
     }
 
@@ -157,7 +163,7 @@ public final class NumberFields {
 
     private static void paintValue(ImDrawList drawList, float textStart, float top, float right,
                                    float height, float value) {
-        String text = String.format(Locale.ROOT, FORMAT, value);
+        String text = display(value);
         drawList.pushClipRect(textStart, top, right - EditorScale.of(MARGIN), top + height, true);
         drawList.addText(textStart, top + (height - ImGui.getTextLineHeight()) * 0.5f,
                 EditorStyle.COLOR_TEXT, text);

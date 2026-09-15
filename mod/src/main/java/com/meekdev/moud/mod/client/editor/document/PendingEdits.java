@@ -53,7 +53,7 @@ public final class PendingEdits {
         return false;
     }
 
-    static boolean same(@Nullable Object a, @Nullable Object b) {
+    public static boolean same(@Nullable Object a, @Nullable Object b) {
         return switch (a) {
             case Number x when b instanceof Number y -> Math.abs(x.doubleValue() - y.doubleValue()) <= TOLERANCE;
             case Vector3 x when b instanceof Vector3 y -> x.distance(y) <= TOLERANCE;
