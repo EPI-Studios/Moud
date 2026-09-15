@@ -38,6 +38,12 @@ public final class RenderState {
         capability(GL11.GL_CULL_FACE, on);
     }
 
+    public static void scissor(int x, int y, int width, int height) {
+        GlStateManager._enableScissorTest();
+        GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        GL11.glScissor(x, y, width, height);
+    }
+
     public static void noScissor() {
         GlStateManager._disableScissorTest();
         GL11.glDisable(GL11.GL_SCISSOR_TEST);

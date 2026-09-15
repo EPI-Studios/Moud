@@ -16,6 +16,8 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.render.post.PostEffect;
 import com.meekdev.moud.core.render.post.PostShader;
 import com.meekdev.moud.core.render.post.ScreenEffect;
+import com.meekdev.moud.core.ui.BillboardGui;
+import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.value.BoolValue;
 import com.meekdev.moud.core.value.NumberValue;
 import com.meekdev.moud.core.value.Vector3Value;
@@ -51,12 +53,20 @@ public final class PostStack {
         if (tree != null) {
             for (PostEffect effect : tree.ofClass(Classes.POST_EFFECT)) {
                 if (!effect.enabled) continue;
+                if (insideInterface(effect)) continue;
                 if (!(effect instanceof ScreenEffect screen)) settings.add(effect);
                 else if (screen.intensity > 0) FRAME.add(screen);
             }
         }
         FRAME.sort(Comparator.comparingDouble(effect -> effect.order));
         EffectSettings.applyOnly(settings);
+    }
+
+    public static boolean insideInterface(Instance effect) {
+        for (Instance at = effect.parent(); at != null; at = at.parent()) {
+            if (at instanceof SurfaceGui || at instanceof BillboardGui) return true;
+        }
+        return false;
     }
 
     private static void draw() {
@@ -110,7 +120,7 @@ public final class PostStack {
         hasPrev = true;
     }
 
-    private static void uniforms(ScreenEffect effect, ShaderProgram shader) {
+    static void uniforms(ScreenEffect effect, ShaderProgram shader) {
         for (PropertyDef property : effect.def().properties()) {
             String name = Character.toUpperCase(property.name().charAt(0)) + property.name().substring(1);
             switch (property.type()) {

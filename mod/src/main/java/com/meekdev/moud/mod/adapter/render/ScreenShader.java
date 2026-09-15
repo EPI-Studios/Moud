@@ -21,6 +21,7 @@ final class ScreenShader {
     private static final Identifier VERTEX = Identifier.fromNamespaceAndPath("amnetic", "shaders/util/fullscreen.vsh");
     private static final Identifier HEADER = Identifier.fromNamespaceAndPath("moud", "shaders/post/header.glsl");
     private static final long RECHECK_MILLIS = 1000;
+    private static final String COPY = "interface_copy";
 
     private static final Map<ClassDef<?>, String> BUILT_IN = Map.ofEntries(
             Map.entry(Classes.VIGNETTE_EFFECT, "vignette"),
@@ -65,6 +66,14 @@ final class ScreenShader {
         if (effect instanceof PostShader custom) return custom.shader.isEmpty() ? null : custom(custom.shader);
         String file = BUILT_IN.get(effect.def());
         if (file == null) return null;
+        return builtIn(file);
+    }
+
+    static ScreenShader copy() {
+        return builtIn(COPY);
+    }
+
+    private static ScreenShader builtIn(String file) {
         String key = "moud:" + file;
         ScreenShader known = LOADED.get(key);
         if (known != null) return known;

@@ -13,15 +13,18 @@ import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.render.post.ScreenEffect;
 import com.meekdev.moud.core.ui.BillboardGui;
 import com.meekdev.moud.core.ui.GuiLayout;
 import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextButton;
+import com.meekdev.moud.mod.adapter.render.InterfaceEffects;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.platform.Window;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -139,6 +142,7 @@ public final class Ui {
         float width = (float) Math.max(0.01, gui.size.xScale() + gui.size.xOffset() / gui.pixelsPerMetre);
         float height = (float) Math.max(0.01, gui.size.yScale() + gui.size.yOffset() / gui.pixelsPerMetre);
         WorldSurface surface = ensure(gui, placed, width, height, (int) Math.round(gui.pixelsPerMetre));
+        effects(gui, surface);
 
         Instance target = GuiLayout.adornee(gui);
         if (!(target instanceof Spatial) || !gui.enabled) {
@@ -168,11 +172,41 @@ public final class Ui {
         Vector3 c = plane.centre();
         Vector3 r = plane.right();
         Vector3 u = plane.up();
+        effects(gui, surface);
         surface.at(c.x(), c.y(), c.z())
                 .orient((float) r.x(), (float) r.y(), (float) r.z(), (float) u.x(), (float) u.y(), (float) u.z())
                 .alwaysOnTop(gui.alwaysOnTop)
                 .maxDistance(reach(gui.maxDistance))
                 .setVisible(true);
+    }
+
+    private static void effects(Instance gui, WorldSurface surface) {
+        List<ScreenEffect> found = new ArrayList<>();
+        collectEffects(gui, found);
+        if (found.isEmpty()) {
+            surface.filter(null);
+            return;
+        }
+        found.sort(Comparator.comparingDouble(effect -> effect.order));
+        surface.filter(canvas -> {
+            List<InterfaceEffects.Scoped> scoped = new ArrayList<>();
+            for (ScreenEffect effect : found) {
+                Node owner = effect.parent() instanceof GuiObject ? NODES.get(effect.parent()) : null;
+                if (owner == null) scoped.add(new InterfaceEffects.Scoped(effect, 0, 0, canvas.width(), canvas.height()));
+                else if (owner.isVisible()) scoped.add(new InterfaceEffects.Scoped(effect, owner.x, owner.y, owner.w, owner.h));
+            }
+            InterfaceEffects.apply(canvas, scoped);
+        });
+    }
+
+    private static void collectEffects(Instance at, List<ScreenEffect> into) {
+        for (Instance child : at.children()) {
+            if (child instanceof ScreenEffect effect) {
+                if (effect.enabled && effect.intensity > 0) into.add(effect);
+            } else if (child instanceof GuiObject) {
+                collectEffects(child, into);
+            }
+        }
     }
 
     private static WorldSurface ensure(Instance gui, Placed placed, float width, float height, int resolution) {
