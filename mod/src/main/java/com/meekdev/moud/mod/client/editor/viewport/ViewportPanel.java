@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.editor.viewport;
 
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Queries;
@@ -34,10 +35,12 @@ import foundry.imgui.impl.ImGuiMCImpl;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.extension.imguizmo.ImGuizmo;
+import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImInt;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -58,7 +61,6 @@ public final class ViewportPanel implements Panel {
     public static final String ID = "viewport";
 
     private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
-    private static final float GIZMO_SIZE_CLIP_SPACE = 0.14f;
     private static final double SPAWN_REACH = 256.0;
     private static final double SPAWN_FALLBACK = 12.0;
     private static final long HOVER_MEMORY_MILLIS = 400;
@@ -81,10 +83,11 @@ public final class ViewportPanel implements Panel {
     private final GizmoState gizmoState = new GizmoState();
     private final EditorCamera camera = new EditorCamera();
     private final SceneView view = new SceneView();
-    private final float[] model = new float[16];
-    private final float[] snap = new float[3];
-    private final Map<Integer, Matrix4f> dragStart = new LinkedHashMap<>();
-    private final FaceHandles faceHandles = new FaceHandles();
+    private final TransformGizmo gizmo;
+    private final List<float[]> lassoPoints = new ArrayList<>();
+    private final ImInt arrayCount = new ImInt(3);
+    private final float[] arrayOffset = {4, 0, 0};
+    private final float[] arrayTurn = {0};
     private final SurfaceDrag surfaceDrag = new SurfaceDrag();
     private final OrientationCube cube = new OrientationCube();
     private int session = -1;
@@ -101,6 +104,7 @@ public final class ViewportPanel implements Panel {
     public ViewportPanel(SceneDocument document, IconWidgets icons) {
         this.document = document;
         this.icons = icons;
+        this.gizmo = new TransformGizmo(document, gizmoState);
     }
 
     @Override
@@ -142,7 +146,7 @@ public final class ViewportPanel implements Panel {
             updateCamera(deltaSeconds);
             if (hovered && !lookGesture) EditorOverlay.requestPick((mouseX - view.originX()) / view.width(), (mouseY - view.originY()) / view.height());
             hoveredInstance = hovered && !lookGesture ? pickAt(mouseX, mouseY) : null;
-            EditorOverlay.show(document::editable, Set.copyOf(document.selection().all()),
+            EditorOverlay.show(document::pickable, Set.copyOf(document.selection().all()),
                     hoveredInstance instanceof Part part && !document.selection().isSelected(part.id()) ? part.id() : 0);
             drawBillboards(drawList);
             if (EditorView.ghosts()) HelperShapes.draw(drawList, view, document);
@@ -189,7 +193,7 @@ public final class ViewportPanel implements Panel {
         session = EditMode.session();
         LocalPlayer player = Minecraft.getInstance().player;
         if (player != null) camera.placeAt(player.getEyePosition(), player.getYRot(), player.getXRot());
-        dragStart.clear();
+        gizmo.reset();
     }
 
     private void renderToolbar() {
@@ -205,8 +209,25 @@ public final class ViewportPanel implements Panel {
         ImGui.sameLine();
         renderToolButton("tool-scale", EditorIcon.TOOL_SCALE, GizmoState.Tool.SCALE, "Scale (S)");
         Toolbars.groupSeparator();
-        if (Toolbars.textButton(gizmoState.worldSpace() ? "World##toolbar-gizmo-space" : "Local##toolbar-gizmo-space")) gizmoState.toggleSpace();
-        tooltip("Toggle the gizmo between world and local space (X)");
+        ImGui.sameLine();
+        if (Toolbars.textButton("Pivot##tool-pivot-text")) gizmoState.setTool(GizmoState.Tool.PIVOT);
+        tooltip("Move a part's pivot, the point it turns about (P)");
+        ImGui.sameLine();
+        renderPaintButton();
+        Toolbars.groupSeparator();
+        String space = switch (gizmoState.space()) {
+            case WORLD -> "World";
+            case LOCAL -> "Local";
+            case PARENT -> "Parent";
+        };
+        if (Toolbars.textButton(space + "##toolbar-gizmo-space")) gizmoState.toggleSpace();
+        tooltip("Which axes the gizmo uses: the world's, the part's own, or its parent's (X)");
+        ImGui.sameLine();
+        if (Toolbars.textButton((gizmoState.individualPivots() ? "Each" : "Group") + "##toolbar-pivots")) gizmoState.toggleIndividualPivots();
+        tooltip("Rotate the selection as one around the gizmo, or each part around its own centre");
+        ImGui.sameLine();
+        if (Toolbars.textButton((gizmoState.lasso() ? "Lasso" : "Box") + "##toolbar-lasso")) gizmoState.toggleLasso();
+        tooltip("Drag on empty space to select with a box or a free lasso (L)");
         Toolbars.groupSeparator();
         if (icons.toggleButton("toolbar-snap", EditorIcon.SNAP, EditorStyle.iconSizeToolbar(), gizmoState.snapEnabled())) gizmoState.toggleSnap();
         tooltip("Snap, hold Ctrl to invert");
@@ -279,8 +300,48 @@ public final class ViewportPanel implements Panel {
         ImGui.beginDisabled(document.selectedRoots().isEmpty());
         if (ImGui.menuItem("Group", "Ctrl+G")) document.group();
         if (ImGui.menuItem("Ungroup", "Ctrl+U")) document.ungroup();
+        ImGui.separator();
+        if (ImGui.menuItem("Rotate 90° around Y", "Ctrl+R")) Manipulate.rotate90(document, 1);
+        if (ImGui.menuItem("Rotate 90° around X", "Ctrl+T")) Manipulate.rotate90(document, 0);
+        if (ImGui.beginMenu("Mirror")) {
+            for (int axis = 0; axis < 3; axis++) {
+                if (ImGui.menuItem("In place across " + axes[axis])) Manipulate.mirror(document, axis, false);
+                if (ImGui.menuItem("Copy across " + axes[axis])) Manipulate.mirror(document, axis, true);
+            }
+            ImGui.endMenu();
+        }
+        if (ImGui.beginMenu("Array")) {
+            ImGui.setNextItemWidth(EditorScale.of(140));
+            ImGui.inputInt("Copies##array-count", arrayCount);
+            arrayCount.set(Math.clamp(arrayCount.get(), 1, 200));
+            ImGui.setNextItemWidth(EditorScale.of(200));
+            ImGui.dragFloat3("Offset##array-offset", arrayOffset, 0.1f);
+            ImGui.setNextItemWidth(EditorScale.of(140));
+            ImGui.dragFloat("Turn around Y##array-turn", arrayTurn, 1.0f, -360f, 360f, "%.0f°");
+            if (ImGui.button("Make copies##array-go")) {
+                Manipulate.array(document, arrayCount.get(), new Vector3(arrayOffset[0], arrayOffset[1], arrayOffset[2]), arrayTurn[0]);
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endMenu();
+        }
+        ImGui.separator();
+        if (ImGui.menuItem("Lock", "Ctrl+L")) Manipulate.lock(document, true);
+        if (ImGui.menuItem("Unlock", "Ctrl+Shift+L")) Manipulate.lock(document, false);
         ImGui.endDisabled();
         ImGui.endPopup();
+    }
+
+    private void renderPaintButton() {
+        boolean active = gizmoState.tool() == GizmoState.Tool.PAINT;
+        ToggleStyle.push(active);
+        boolean clicked = Toolbars.textButton("Paint##tool-paint");
+        ToggleStyle.pop(active);
+        if (clicked) gizmoState.setTool(GizmoState.Tool.PAINT);
+        tooltip("Click parts to paint them with the brush colour (B)");
+        if (!active) return;
+        ImGui.sameLine();
+        ImGui.colorEdit4("##brush", gizmoState.brush(), ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar);
+        tooltip("Brush colour");
     }
 
     private void renderToolButton(String id, EditorIcon icon, GizmoState.Tool tool, String tip) {
@@ -394,13 +455,16 @@ public final class ViewportPanel implements Panel {
     }
 
     private void handleToolHotkeys() {
-        if (lookGesture || ImGui.getIO().getWantTextInput() || ImGui.getIO().getKeyCtrl() || !(hovered || ImGui.isWindowFocused())) return;
+        if (lookGesture || gizmo.dragging() || ImGui.getIO().getWantTextInput() || ImGui.getIO().getKeyCtrl() || !(hovered || ImGui.isWindowFocused())) return;
         if (ImGui.isKeyPressed(ImGuiKey.Q, false)) gizmoState.setTool(GizmoState.Tool.SELECT);
         if (ImGui.isKeyPressed(ImGuiKey.W, false)) gizmoState.setTool(GizmoState.Tool.TRANSLATE);
         if (ImGui.isKeyPressed(ImGuiKey.R, false)) gizmoState.setTool(GizmoState.Tool.ROTATE);
         if (ImGui.isKeyPressed(ImGuiKey.S, false)) gizmoState.setTool(GizmoState.Tool.SCALE);
         if (ImGui.isKeyPressed(ImGuiKey.X, false)) gizmoState.toggleSpace();
         if (ImGui.isKeyPressed(ImGuiKey.Space, false)) gizmoState.toggleAlternateTool();
+        if (ImGui.isKeyPressed(ImGuiKey.P, false)) gizmoState.setTool(GizmoState.Tool.PIVOT);
+        if (ImGui.isKeyPressed(ImGuiKey.B, false)) gizmoState.setTool(GizmoState.Tool.PAINT);
+        if (ImGui.isKeyPressed(ImGuiKey.L, false)) gizmoState.toggleLasso();
         if (ImGui.isKeyPressed(ImGuiKey.Z, false)) EditorView.wireframe(!EditorView.wireframe());
         if (ImGui.isKeyPressed(ImGuiKey.H, false)) EditorView.ghosts(!EditorView.ghosts());
         if (ImGui.isKeyPressed(ImGuiKey.Keypad5, false)) camera.toggleOrthographic();
@@ -410,82 +474,11 @@ public final class ViewportPanel implements Panel {
     }
 
     private boolean renderGizmo() {
-        Integer operation = gizmoState.operation().orElse(null);
-        Instance leader = document.primary();
-        if (operation == null || !(leader instanceof Spatial) || !document.editable(leader)) {
-            dragStart.clear();
-            return false;
-        }
-        if (gizmoState.tool() == GizmoState.Tool.SCALE && leader instanceof Part part) {
-            return faceHandles.render(ImGui.getWindowDrawList(), view, document, part, hovered, snapActive(), gizmoState.gridStep());
-        }
-        ImGuizmo.setOrthographic(camera.orthographic());
-        ImGuizmo.setDrawList();
-        ImGuizmo.setGizmoSizeClipSpace(GIZMO_SIZE_CLIP_SPACE);
-        ImGuizmo.setRect(view.originX(), view.originY(), view.width(), view.height());
-        Matrix4f current = Frames.matrix(leader, cameraPosition);
-        current.get(model);
-        if (snapActive()) {
-            float step = gizmoState.snapStep();
-            snap[0] = step;
-            snap[1] = step;
-            snap[2] = step;
-            ImGuizmo.manipulate(view.view, view.projection, operation, gizmoState.mode(), model, null, snap);
-        } else {
-            ImGuizmo.manipulate(view.view, view.projection, operation, gizmoState.mode(), model);
-        }
-        boolean using = ImGuizmo.isUsing();
-        if (!using) {
-            dragStart.clear();
-            return ImGuizmo.isOver();
-        }
-        if (dragStart.isEmpty()) captureDragStart(leader);
-        Matrix4f moved = new Matrix4f().set(model);
-        if (!moved.equals(current, 1.0e-6f)) applyDrag(leader, moved);
-        return true;
+        return gizmo.render(ImGui.getWindowDrawList(), view, cameraPosition, camera.orthographic(), hovered, snapActive());
     }
 
     private boolean snapActive() {
         return gizmoState.snapEnabled() != ImGui.getIO().getKeyCtrl();
-    }
-
-    private void captureDragStart(Instance leader) {
-        dragStart.put(leader.id(), Frames.matrix(leader, cameraPosition));
-        if (gizmoState.tool() == GizmoState.Tool.SCALE) return;
-        List<Instance> selected = new ArrayList<>();
-        for (int id : document.selection().all()) {
-            Instance instance = document.find(id);
-            if (instance != leader && instance instanceof Spatial && document.editable(instance)) selected.add(instance);
-        }
-        for (Instance instance : selected) {
-            if (!hasSelectedAncestor(instance, selected, leader)) dragStart.put(instance.id(), Frames.matrix(instance, cameraPosition));
-        }
-    }
-
-    private static boolean hasSelectedAncestor(Instance instance, List<Instance> selected, Instance leader) {
-        for (Instance at = instance.parent(); at != null; at = at.parent()) {
-            if (at == leader || selected.contains(at)) return true;
-        }
-        return false;
-    }
-
-    private void applyDrag(Instance leader, Matrix4f moved) {
-        boolean resize = gizmoState.tool() == GizmoState.Tool.SCALE;
-        Matrix4f leaderStart = dragStart.get(leader.id());
-        Matrix4f delta = new Matrix4f(moved).mul(new Matrix4f(leaderStart).invert());
-        List<Edit> edits = new ArrayList<>(Frames.writes(document, leader, moved, cameraPosition, resize));
-        for (Map.Entry<Integer, Matrix4f> entry : dragStart.entrySet()) {
-            if (entry.getKey() == leader.id()) continue;
-            Instance follower = document.find(entry.getKey());
-            if (follower == null) continue;
-            edits.addAll(Frames.writes(document, follower, new Matrix4f(delta).mul(entry.getValue()), cameraPosition, false));
-        }
-        String label = switch (gizmoState.tool()) {
-            case ROTATE -> "Rotate";
-            case SCALE -> "Scale";
-            default -> "Move";
-        };
-        document.history().execute(new Batch(label, edits));
     }
 
     private void handlePicking(boolean gizmoBusy, ImDrawList drawList) {
@@ -495,9 +488,19 @@ public final class ViewportPanel implements Panel {
             boxing = true;
             pressX = mouseX;
             pressY = mouseY;
-            armSurfaceDrag(mouseX, mouseY);
+            lassoPoints.clear();
+            lassoPoints.add(new float[] {mouseX, mouseY});
+            if (gizmoState.tool() != GizmoState.Tool.PAINT) armSurfaceDrag(mouseX, mouseY);
         }
         if (!boxing) return;
+        if (gizmoState.tool() == GizmoState.Tool.PAINT) {
+            if (ImGui.isMouseDown(ImGuiMouseButton.Left) && pickAt(mouseX, mouseY) instanceof Part part) {
+                float[] c = gizmoState.brush();
+                Manipulate.paint(document, part, new Color(c[0], c[1], c[2], c[3]));
+            }
+            if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) boxing = false;
+            return;
+        }
         boolean dragged = Math.abs(mouseX - pressX) > DRAG_THRESHOLD || Math.abs(mouseY - pressY) > DRAG_THRESHOLD;
         if (surfaceDrag.armed()) {
             if (ImGui.isMouseDown(ImGuiMouseButton.Left)) {
@@ -507,6 +510,17 @@ public final class ViewportPanel implements Panel {
             boxing = false;
             if (!surfaceDrag.started()) applyPick(pickAt(mouseX, mouseY));
             surfaceDrag.cancel();
+            return;
+        }
+        if (ImGui.isMouseDown(ImGuiMouseButton.Left) && gizmoState.lasso()) {
+            float[] last = lassoPoints.getLast();
+            if (Math.abs(last[0] - mouseX) + Math.abs(last[1] - mouseY) > 3) lassoPoints.add(new float[] {mouseX, mouseY});
+            if (dragged) {
+                for (int i = 1; i < lassoPoints.size(); i++) {
+                    drawList.addLine(lassoPoints.get(i - 1)[0], lassoPoints.get(i - 1)[1], lassoPoints.get(i)[0], lassoPoints.get(i)[1], BOX_BORDER, 1.5f);
+                }
+                drawList.addLine(lassoPoints.getLast()[0], lassoPoints.getLast()[1], lassoPoints.getFirst()[0], lassoPoints.getFirst()[1], BOX_FILL, 1.0f);
+            }
             return;
         }
         if (ImGui.isMouseDown(ImGuiMouseButton.Left)) {
@@ -521,7 +535,8 @@ public final class ViewportPanel implements Panel {
             return;
         }
         boxing = false;
-        if (dragged) boxSelect(Math.min(pressX, mouseX), Math.min(pressY, mouseY), Math.max(pressX, mouseX), Math.max(pressY, mouseY));
+        if (dragged && gizmoState.lasso()) lassoSelect(lassoPoints);
+        else if (dragged) boxSelect(Math.min(pressX, mouseX), Math.min(pressY, mouseY), Math.max(pressX, mouseX), Math.max(pressY, mouseY));
         else applyPick(pickAt(mouseX, mouseY));
     }
 
@@ -549,10 +564,30 @@ public final class ViewportPanel implements Panel {
         else document.selection().select(picked.id());
     }
 
+    private void lassoSelect(List<float[]> polygon) {
+        if (polygon.size() < 3) return;
+        boolean additive = ImGui.getIO().getKeyCtrl() || ImGui.getIO().getKeyShift();
+        if (!additive) document.selection().clear();
+        forEachEditableSpatial(instance -> {
+            if (!document.pickable(instance)) return;
+            List<Vector3> points = new ArrayList<>();
+            points.add(Frames.center(instance));
+            if (instance instanceof Part part) points.addAll(List.of(Frames.corners(part)));
+            for (Vector3 point : points) {
+                float[] screen = view.toScreen(point);
+                if (screen != null && ScreenShapes.insidePolygon(polygon, screen[0], screen[1])) {
+                    document.selection().add(instance.id());
+                    return;
+                }
+            }
+        });
+    }
+
     private void boxSelect(float x0, float y0, float x1, float y1) {
         boolean additive = ImGui.getIO().getKeyCtrl() || ImGui.getIO().getKeyShift();
         if (!additive) document.selection().clear();
         forEachEditableSpatial(instance -> {
+            if (!document.pickable(instance)) return;
             if (instance instanceof Part part) {
                 List<float[]> projected = new ArrayList<>(8);
                 for (Vector3 corner : Frames.corners(part)) {
@@ -573,7 +608,7 @@ public final class ViewportPanel implements Panel {
         Instance billboard = billboardAt(mouseX, mouseY);
         if (billboard != null) return billboard;
         Instance picked = document.find(EditorOverlay.picked());
-        return document.editable(picked) ? picked : null;
+        return document.pickable(picked) ? picked : null;
     }
 
     private @Nullable Instance billboardAt(float mouseX, float mouseY) {

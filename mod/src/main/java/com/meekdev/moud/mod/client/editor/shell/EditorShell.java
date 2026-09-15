@@ -26,6 +26,7 @@ import com.meekdev.moud.mod.client.editor.style.EditorScaling;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconAtlas;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
+import com.meekdev.moud.mod.client.editor.viewport.Manipulate;
 import com.meekdev.moud.mod.client.editor.viewport.ViewportPanel;
 import imgui.ImFont;
 import imgui.ImGui;
@@ -143,6 +144,24 @@ public final class EditorShell {
                 this::hasSelection, document::deleteSelected));
         commands.add(new EditorCommand("group", "Edit", "Group", Shortcut.ctrl(ImGuiKey.G, "G"), this::hasRoots, document::group));
         commands.add(new EditorCommand("ungroup", "Edit", "Ungroup", Shortcut.ctrl(ImGuiKey.U, "U"), this::hasRoots, document::ungroup));
+        commands.add(new EditorCommand("rotate-y", "Edit", "Rotate 90° around Y", Shortcut.ctrl(ImGuiKey.R, "R"),
+                this::hasRoots, () -> Manipulate.rotate90(document, 1)));
+        commands.add(new EditorCommand("rotate-x", "Edit", "Rotate 90° around X", Shortcut.ctrl(ImGuiKey.T, "T"),
+                this::hasRoots, () -> Manipulate.rotate90(document, 0)));
+        commands.add(new EditorCommand("lock", "Edit", "Lock", Shortcut.ctrl(ImGuiKey.L, "L"),
+                this::hasSelection, () -> Manipulate.lock(document, true)));
+        commands.add(new EditorCommand("unlock", "Edit", "Unlock", Shortcut.ctrlShift(ImGuiKey.L, "L"),
+                this::hasSelection, () -> Manipulate.lock(document, false)));
+        commands.add(new EditorCommand("select-all", "Select", "Select All", Shortcut.ctrl(ImGuiKey.A, "A"), this::hasWorld, document::selectAll));
+        commands.add(new EditorCommand("select-parent", "Select", "Select Parent", Shortcut.alt(ImGuiKey.UpArrow, "Up"),
+                this::hasSelection, document::selectParent));
+        commands.add(new EditorCommand("select-children", "Select", "Select Children", Shortcut.alt(ImGuiKey.DownArrow, "Down"),
+                this::hasSelection, document::selectChildren));
+        commands.add(new EditorCommand("select-back", "Select", "Previous Selection", Shortcut.alt(ImGuiKey.LeftArrow, "Left"),
+                () -> document.selection().canGoBack(), () -> document.selection().goBack()));
+        commands.add(new EditorCommand("select-forward", "Select", "Next Selection", Shortcut.alt(ImGuiKey.RightArrow, "Right"),
+                () -> document.selection().canGoForward(), () -> document.selection().goForward()));
+        commands.add(new EditorCommand("select-class", "Select", "Select Same Class", null, this::hasPrimary, this::selectSameClass));
         commands.add(new EditorCommand("frame", "Edit", "Frame Selection", null, this::hasSelection, viewport::frameSelection));
         commands.add(new EditorCommand("play", "Place", "Play", Shortcut.key(ImGuiKey.F5, "F5"), EditMode::allowed, () -> EditMode.request(false)));
         commands.add(new EditorCommand("reset-layout", "Window", "Reset Layout", null, () -> true, dockLayout::requestDefault));
@@ -175,6 +194,15 @@ public final class EditorShell {
 
     private boolean hasRoots() {
         return !document.selectedRoots().isEmpty();
+    }
+
+    private boolean hasWorld() {
+        return document.world() != null;
+    }
+
+    private void selectSameClass() {
+        String name = document.primary().def().name();
+        document.selectWhere(instance -> instance.def().name().equals(name));
     }
 
     public void render() {

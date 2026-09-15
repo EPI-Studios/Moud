@@ -5,6 +5,7 @@ import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
+import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
 import com.meekdev.moud.mod.addon.Addons;
@@ -24,6 +25,7 @@ import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
+import com.meekdev.moud.mod.client.editor.viewport.Manipulate;
 import com.meekdev.moud.mod.place.PlaceToml;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -262,7 +264,8 @@ public final class ExplorerPanel implements Panel {
         boolean activated = ImGui.selectable("##row", selected, ImGuiSelectableFlags.AllowDoubleClick);
         ImGui.popStyleColor(SELECTION_COLOR_COUNT);
         boolean root = instance == document.world();
-        paintRow(left, top, instance.name(), selected && !root, ImGui.isItemHovered(), editable || root);
+        String shown = instance instanceof Part part && part.locked ? instance.name() + "  · locked" : instance.name();
+        paintRow(left, top, shown, selected && !root, ImGui.isItemHovered(), editable || root);
         if (root) {
             if (activated) document.selection().clear();
             renderRootDropAndMenu(instance);
@@ -428,6 +431,21 @@ public final class ExplorerPanel implements Panel {
         if (ImGui.menuItem("Paste", "Ctrl+V")) document.pasteText(ImGui.getClipboardText());
         Instance world = document.world();
         if (world != null && instance.parent() != world && ImGui.menuItem("Move to top")) moveInto(instance.id(), world.id());
+        if (ImGui.beginMenu("Select")) {
+            if (ImGui.menuItem("Children", "Alt+Down")) document.selectChildren();
+            if (ImGui.menuItem("Parent", "Alt+Up")) document.selectParent();
+            if (ImGui.menuItem("Every " + instance.def().name())) {
+                String name = instance.def().name();
+                document.selectWhere(each -> each.def().name().equals(name));
+            }
+            for (String tag : instance.tags()) {
+                if (ImGui.menuItem("Tagged " + tag)) document.selectWhere(each -> each.hasTag(tag));
+            }
+            ImGui.endMenu();
+        }
+        if (instance instanceof Part part) {
+            if (ImGui.menuItem(part.locked ? "Unlock" : "Lock", part.locked ? "Ctrl+Shift+L" : "Ctrl+L")) Manipulate.lock(document, !part.locked);
+        }
         ImGui.separator();
         if (ImGui.menuItem("Delete", "Del")) deleteSelected();
         ImGui.endPopup();

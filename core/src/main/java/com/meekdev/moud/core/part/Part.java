@@ -21,6 +21,8 @@ public class Part extends Spatial {
 
     public String collisionGroup = "default";
 
+    public boolean locked;
+
     public final Signal<Instance> touched = new Signal<>();
     public final Signal<Instance> touchEnded = new Signal<>();
 }

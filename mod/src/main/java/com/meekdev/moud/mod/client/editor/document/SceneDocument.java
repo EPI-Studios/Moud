@@ -40,7 +40,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.function.UnaryOperator;
 import org.jspecify.annotations.Nullable;
 
 public final class SceneDocument {
@@ -96,6 +98,56 @@ public final class SceneDocument {
         return id.isPresent() ? find(id.getAsInt()) : null;
     }
 
+    public boolean pickable(@Nullable Instance instance) {
+        return editable(instance) && !(instance instanceof Part part && part.locked);
+    }
+
+    public void selectParent() {
+        List<Integer> chosen = new ArrayList<>();
+        for (int id : selection.all()) {
+            Instance instance = find(id);
+            if (instance != null && editable(instance.parent()) && !chosen.contains(instance.parent().id())) chosen.add(instance.parent().id());
+        }
+        if (!chosen.isEmpty()) selection.set(chosen);
+    }
+
+    public void selectChildren() {
+        List<Integer> chosen = new ArrayList<>();
+        for (int id : selection.all()) {
+            Instance instance = find(id);
+            if (instance == null) continue;
+            for (Instance child : instance.children()) {
+                if (editable(child)) chosen.add(child.id());
+            }
+        }
+        if (!chosen.isEmpty()) selection.set(chosen);
+    }
+
+    public void selectAll() {
+        Instance world = world();
+        if (world == null) return;
+        List<Integer> chosen = new ArrayList<>();
+        for (Instance child : world.children()) {
+            if (editable(child)) chosen.add(child.id());
+        }
+        selection.set(chosen);
+    }
+
+    public void selectWhere(Predicate<Instance> test) {
+        Instance world = world();
+        if (world == null) return;
+        List<Integer> chosen = new ArrayList<>();
+        gather(world, test, chosen);
+        selection.set(chosen);
+    }
+
+    private void gather(Instance at, Predicate<Instance> test, List<Integer> into) {
+        for (Instance child : at.children()) {
+            if (editable(child) && test.test(child)) into.add(child.id());
+            gather(child, test, into);
+        }
+    }
+
     public boolean editable(@Nullable Instance instance) {
         return instance != null && instance != world() && instance.isAlive() && Place.authored(instance);
     }
@@ -115,6 +167,7 @@ public final class SceneDocument {
         }
         for (ScenePastedPayload pasted = SceneLink.takePasted(); pasted != null; pasted = SceneLink.takePasted()) landed(pasted);
         selection.keep(id -> find(id) != null);
+        selection.record();
         history.settle(gestureHeld);
     }
 
@@ -369,6 +422,32 @@ public final class SceneDocument {
         }
     }
 
+    public void pasteTransformed(List<InstanceRef> roots, UnaryOperator<CFrame> move, String label, boolean select) {
+        Map<Instance, List<Instance>> byParent = groupByParent(roots);
+        List<Edit> pastes = new ArrayList<>();
+        for (Map.Entry<Instance, List<Instance>> group : byParent.entrySet()) {
+            String text;
+            try {
+                InstanceTree scratch = new InstanceTree();
+                Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+                CFrame parentWorld = Transforms.world(group.getKey());
+                for (Instance member : group.getValue()) {
+                    Instance copy = Scene.load(snapshot(List.of(member)), holder, Addons.classes()).getFirst();
+                    if (!(copy instanceof Spatial spatial)) continue;
+                    CFrame local = parentWorld.inverse().mul(move.apply(Transforms.world(member)));
+                    spatial.cframe = spatial.pivot.equals(Vector3.ZERO) ? local : local.mul(CFrame.at(spatial.pivot));
+                }
+                text = snapshot(new ArrayList<>(holder.children()));
+            } catch (RuntimeException e) {
+                SceneLink.local("Could not copy: " + e.getMessage());
+                return;
+            }
+            pastes.add(new Paste(text, ref(group.getKey().id()), new ArrayList<>(), new ArrayList<>(), select, label));
+        }
+        if (pastes.isEmpty()) return;
+        history.execute(pastes.size() == 1 ? pastes.getFirst() : new Batch(label, pastes));
+    }
+
     public void group() {
         List<InstanceRef> roots = selectedRoots();
         List<Instance> members = new ArrayList<>();
@@ -427,7 +506,7 @@ public final class SceneDocument {
         SceneLink.save();
     }
 
-    private Map<Instance, List<Instance>> groupByParent(List<InstanceRef> roots) {
+    Map<Instance, List<Instance>> groupByParent(List<InstanceRef> roots) {
         Map<Instance, List<Instance>> byParent = new LinkedHashMap<>();
         for (InstanceRef root : roots) {
             Instance instance = find(root);

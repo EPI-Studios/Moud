@@ -66,4 +66,14 @@ final class ScreenShapes {
     private static float cross(float[] o, float[] a, float[] b) {
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
     }
+
+    static boolean insidePolygon(List<float[]> polygon, float x, float y) {
+        boolean inside = false;
+        for (int i = 0, j = polygon.size() - 1; i < polygon.size(); j = i++) {
+            float[] a = polygon.get(i);
+            float[] b = polygon.get(j);
+            if ((a[1] > y) != (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) inside = !inside;
+        }
+        return inside;
+    }
 }

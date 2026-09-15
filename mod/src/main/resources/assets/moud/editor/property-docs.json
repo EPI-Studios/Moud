@@ -3,6 +3,7 @@
     "visible": "Off: it is not drawn, and queries skip it too.",
     "pivot": "The point it turns about, as an offset from its centre. A door turns at its hinge this way.",
     "alwaysRelevant": "Every player receives it whatever the distance. Off: players only get what is near them.",
+    "locked": "On: clicking, box and lasso selection in the viewport skip this part. It can still be picked in the Explorer.",
     "owner": "The player that simulates its physics. Empty means the server.",
     "ambient": "The light every face gets inside the viewport, whatever way it points.",
     "lightColor": "The colour of the viewport's one directional light.",
