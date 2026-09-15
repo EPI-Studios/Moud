@@ -11,6 +11,7 @@ import com.meekdev.moud.net.replicate.Applier;
 import com.meekdev.moud.net.replicate.Change;
 import com.meekdev.moud.net.wire.Codec;
 import java.util.List;
+import java.util.OptionalInt;
 import org.jspecify.annotations.Nullable;
 
 public final class SceneDocument {
@@ -42,6 +43,11 @@ public final class SceneDocument {
         if (id == world.id()) return world;
         Instance found = tree.byId(id);
         return found != null && found.isAlive() ? found : null;
+    }
+
+    public @Nullable Instance primary() {
+        OptionalInt id = selection.primary();
+        return id.isPresent() ? find(id.getAsInt()) : null;
     }
 
     public boolean editable(@Nullable Instance instance) {

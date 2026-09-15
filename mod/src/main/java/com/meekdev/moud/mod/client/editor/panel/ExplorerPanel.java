@@ -101,7 +101,7 @@ public final class ExplorerPanel implements Panel {
 
     private int insertParent() {
         Instance world = document.world();
-        Instance primary = document.selection().primary().stream().mapToObj(document::find).findFirst().orElse(null);
+        Instance primary = document.primary();
         if (document.editable(primary)) return primary.id();
         return world == null ? 0 : world.id();
     }

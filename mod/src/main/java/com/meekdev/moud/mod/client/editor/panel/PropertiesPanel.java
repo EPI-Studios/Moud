@@ -42,7 +42,7 @@ public final class PropertiesPanel implements Panel {
     @Override
     public void render() {
         rows.beginFrame();
-        Instance selected = document.selection().primary().stream().mapToObj(document::find).findFirst().orElse(null);
+        Instance selected = document.primary();
         if (selected == null) {
             EmptyStates.centered("Nothing selected", List.of("Pick an instance in the Explorer", "to edit its properties."));
         } else {
