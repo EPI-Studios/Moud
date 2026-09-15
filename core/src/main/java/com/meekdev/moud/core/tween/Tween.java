@@ -74,9 +74,9 @@ public final class Tween {
         apply(eased);
         if (t < 1) return true;
 
-        int rounds = (info.repeats() < 0 ? Integer.MAX_VALUE : info.repeats() + 1) * (info.reverses() ? 2 : 1);
+        long rounds = ((long) info.repeats() + 1) * (info.reverses() ? 2 : 1);
         round++;
-        if (round < rounds) {
+        if (info.repeats() < 0 || round < rounds) {
             clock = info.delay() + (active - time);
             return true;
         }
