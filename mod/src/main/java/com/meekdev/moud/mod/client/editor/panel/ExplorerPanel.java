@@ -2,12 +2,15 @@ package com.meekdev.moud.mod.client.editor.panel;
 
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
+import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.document.Batch;
@@ -16,6 +19,7 @@ import com.meekdev.moud.mod.client.editor.document.Rename;
 import com.meekdev.moud.mod.client.editor.document.Reparent;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.ScriptTemplate;
+import com.meekdev.moud.mod.client.editor.document.SetProperty;
 import com.meekdev.moud.mod.client.editor.files.CodeEditor;
 import com.meekdev.moud.mod.client.editor.kit.Disclosure;
 import com.meekdev.moud.mod.client.editor.kit.SearchField;
@@ -45,6 +49,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 public final class ExplorerPanel implements Panel {
 
@@ -370,10 +375,28 @@ public final class ExplorerPanel implements Panel {
         List<Integer> moving = document.selection().isSelected(dropped) ? document.selection().all() : List.of(dropped);
         List<Edit> edits = new ArrayList<>();
         for (int id : moving) {
-            if (id != parent && !isAncestor(id, parent)) edits.add(new Reparent(document.ref(id), document.ref(parent)));
+            if (id == parent || isAncestor(id, parent)) continue;
+            edits.add(new Reparent(document.ref(id), document.ref(parent)));
+            Edit placed = keepPlace(id, parent);
+            if (placed != null) edits.add(placed);
         }
         if (edits.isEmpty()) return;
         document.history().execute(edits.size() == 1 ? edits.getFirst() : new Batch("Move", edits));
+    }
+
+    private @Nullable Edit keepPlace(int id, int parentId) {
+        Instance instance = document.find(id);
+        Instance parent = document.find(parentId);
+        if (!(instance instanceof Spatial spatial) || parent == null) return null;
+        PropertyDef property = instance.def().property("cframe");
+        if (property == null) return null;
+        CFrame before = Transforms.world(instance);
+        CFrame parentWorld = Transforms.world(parent);
+        ViewportFrame from = ViewportFrame.around(instance);
+        ViewportFrame to = parent instanceof ViewportFrame viewport ? viewport : ViewportFrame.around(parent);
+        CFrame target = from == to ? before : new CFrame(parentWorld.position(), before.rotation());
+        CFrame local = parentWorld.inverse().mul(target).mul(CFrame.at(spatial.pivot));
+        return new SetProperty(document.ref(id), property.index(), local, "Move");
     }
 
     private boolean isAncestor(int id, int of) {
