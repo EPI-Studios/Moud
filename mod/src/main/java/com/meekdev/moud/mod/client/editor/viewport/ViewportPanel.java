@@ -405,6 +405,15 @@ public final class ViewportPanel implements Panel {
         boolean additive = ImGui.getIO().getKeyCtrl() || ImGui.getIO().getKeyShift();
         if (!additive) document.selection().clear();
         forEachEditableSpatial(instance -> {
+            if (instance instanceof Part part) {
+                List<float[]> projected = new ArrayList<>(8);
+                for (Vector3 corner : Frames.corners(part)) {
+                    float[] screen = view.toScreen(corner);
+                    if (screen != null) projected.add(screen);
+                }
+                if (ScreenShapes.overlapsRect(ScreenShapes.hull(projected), x0, y0, x1, y1)) document.selection().add(instance.id());
+                return;
+            }
             float[] screen = view.toScreen(Frames.center(instance));
             if (screen != null && screen[0] >= x0 && screen[0] <= x1 && screen[1] >= y0 && screen[1] <= y1) {
                 document.selection().add(instance.id());

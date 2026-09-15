@@ -52,6 +52,17 @@ final class Frames {
                 new SetProperty(document.ref(instance.id()), sized.index(), size, "Transform"));
     }
 
+    static Vector3[] corners(Part part) {
+        CFrame world = Transforms.world(part);
+        Vector3 half = part.size.mul(0.5);
+        Vector3[] corners = new Vector3[8];
+        for (int n = 0; n < 8; n++) {
+            Vector3 local = new Vector3((n & 1) == 0 ? -half.x() : half.x(), (n & 2) == 0 ? -half.y() : half.y(), (n & 4) == 0 ? -half.z() : half.z());
+            corners[n] = world.pointToWorld(local);
+        }
+        return corners;
+    }
+
     static @Nullable Vector3 center(Instance instance) {
         return instance instanceof Spatial ? Transforms.world(instance).position() : null;
     }
