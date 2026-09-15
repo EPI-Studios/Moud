@@ -6,6 +6,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.editor.EditMode;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.editor.EditorScreen;
+import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.command.Commands;
 import com.meekdev.moud.mod.client.editor.command.EditorCommand;
 import com.meekdev.moud.mod.client.editor.command.Shortcut;
@@ -19,9 +20,9 @@ import com.meekdev.moud.mod.client.editor.panel.OutputPanel;
 import com.meekdev.moud.mod.client.editor.panel.Panels;
 import com.meekdev.moud.mod.client.editor.panel.PropertiesPanel;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
+import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorScaling;
-import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconAtlas;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
@@ -38,6 +39,8 @@ import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
 
@@ -59,11 +62,13 @@ public final class EditorShell {
     private final DockLayout dockLayout = new DockLayout();
     private final ViewportPanel viewport = new ViewportPanel(document, icons);
     private final ExplorerPanel explorer = new ExplorerPanel(document, icons, viewport::frameSelection);
+    private final AssetsPanel assets = new AssetsPanel(document, icons, explorer::insertParent);
     private final Panels panels = new Panels()
             .add(viewport)
             .add(explorer)
             .add(new PropertiesPanel(document, icons))
-            .add(new OutputPanel());
+            .add(new OutputPanel())
+            .add(assets);
     private final Commands commands = new Commands();
 
     private boolean closePrompt;
@@ -101,6 +106,18 @@ public final class EditorShell {
             document.save();
         }
         Dialogs.end();
+    }
+
+    public void filesDropped(List<Path> paths) {
+        if (!EditMode.editing()) return;
+        boolean overViewport = viewport.hoveredLately();
+        try {
+            assets.importExternal(paths, placed -> {
+                if (overViewport) viewport.placeAtMouse(placed);
+            });
+        } catch (RuntimeException e) {
+            MoudMod.LOG.error("dropped files could not be imported", e);
+        }
     }
 
     public EditorShell() {

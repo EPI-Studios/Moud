@@ -9,6 +9,8 @@ import com.meekdev.moud.mod.client.editor.shell.EditorShell;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.mojang.blaze3d.platform.InputConstants;
 import foundry.imgui.api.ImGuiMCEvents;
+import java.nio.file.Path;
+import java.util.List;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.loader.api.FabricLoader;
@@ -27,6 +29,7 @@ public final class Editor {
     private static KeyMapping toggle;
     private static boolean available;
     private static @Nullable ProjectHub hub;
+    private static @Nullable EditorShell shell;
     private static boolean closeRequested;
     private static boolean stopHeld;
     private static CameraType cameraBeforeStop = CameraType.FIRST_PERSON;
@@ -45,15 +48,20 @@ public final class Editor {
         EditMode.install();
         SceneLink.install();
         available = true;
-        EditorShell shell = new EditorShell();
+        shell = new EditorShell();
         hub = new ProjectHub();
         ImGuiMCEvents.INSTANCE.postRenderImGuiEvent(hub::render);
         ImGuiMCEvents.INSTANCE.onRegisterImGuiFonts((atlas, defaultFont, scale) -> EditorFonts.register(atlas));
-        ImGuiMCEvents.INSTANCE.postRenderImGuiEvent(shell::render);
+        EditorShell installed = shell;
+        ImGuiMCEvents.INSTANCE.postRenderImGuiEvent(installed::render);
         toggle = new KeyMapping("key.moud.editor", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT, KeyMapping.Category.MISC);
         KeyMappingHelper.registerKeyMapping(toggle);
         ClientTickEvents.END_CLIENT_TICK.register(Editor::tick);
         MoudMod.LOG.info("editor ready (right shift)");
+    }
+
+    static void filesDropped(List<Path> paths) {
+        if (shell != null) shell.filesDropped(paths);
     }
 
     public static boolean available() {

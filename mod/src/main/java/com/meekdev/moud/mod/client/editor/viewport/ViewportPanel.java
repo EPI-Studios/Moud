@@ -9,6 +9,8 @@ import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
 import com.meekdev.moud.mod.adapter.render.ViewportCapture;
 import com.meekdev.moud.mod.client.editor.EditMode;
+import com.meekdev.moud.mod.client.editor.assets.AssetKind;
+import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
@@ -56,6 +58,7 @@ public final class ViewportPanel implements Panel {
     private static final float GIZMO_SIZE_CLIP_SPACE = 0.14f;
     private static final double SPAWN_REACH = 256.0;
     private static final double SPAWN_FALLBACK = 12.0;
+    private static final long HOVER_MEMORY_MILLIS = 400;
     private static final BlockRays BLOCKS = new BlockRays(() -> Minecraft.getInstance().level, false);
     private static final float TOOLBAR_MARGIN_X = 6.0f;
     private static final float TOOLBAR_MARGIN_Y = 4.0f;
@@ -89,6 +92,7 @@ public final class ViewportPanel implements Panel {
     private float pressY;
     private @Nullable Instance hoveredInstance;
     private Vector3 cameraPosition = Vector3.ZERO;
+    private long hoveredAt;
 
     public ViewportPanel(SceneDocument document, IconWidgets icons) {
         this.document = document;
@@ -120,9 +124,11 @@ public final class ViewportPanel implements Panel {
         float right = left + ImGui.getContentRegionAvailX();
         float bottom = top + ImGui.getContentRegionAvailY();
         ImGui.dummy(Math.max(1.0f, right - left), Math.max(1.0f, bottom - top));
+        acceptAssetDrop();
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
         hovered = ImGui.isWindowHovered() && mouseX >= left && mouseX < right && mouseY >= top && mouseY < bottom;
+        if (hovered) hoveredAt = System.currentTimeMillis();
         ViewportCapture.show(argb(EditorStyle.COLOR_WINDOW_BACKGROUND));
         RenderTarget frame = ViewportCapture.frame();
         if (frame != null && view.capture() && placeFrame(frame, left, top, right, bottom)) {
@@ -304,15 +310,32 @@ public final class ViewportPanel implements Panel {
         frameSelection();
     }
 
-    public boolean flying() {
-        return lookGesture || orbitGesture;
+    public boolean hoveredLately() {
+        return System.currentTimeMillis() - hoveredAt < HOVER_MEMORY_MILLIS;
     }
 
-    public Vector3 spawnPoint() {
-        Vector3d eye = camera.position();
-        Vector3d ahead = camera.forward(new Vector3d());
-        Vector3 from = new Vector3(eye.x, eye.y, eye.z);
-        Vector3 direction = new Vector3(ahead.x, ahead.y, ahead.z);
+    public void placeAtMouse(List<String> assets) {
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        Vector3 at = surfaceAt(view.cameraPosition(), view.rayDirection(mouseX, mouseY));
+        Instance under = pickAt(mouseX, mouseY);
+        Instance world = document.world();
+        if (world == null) return;
+        for (String asset : assets) {
+            boolean attaches = !asset.endsWith(".scene") && AssetKind.of(asset) != AssetKind.MODEL;
+            int parent = attaches && under != null ? under.id() : world.id();
+            document.placeAsset(asset, parent, at);
+        }
+    }
+
+    private void acceptAssetDrop() {
+        if (!ImGui.beginDragDropTarget()) return;
+        String asset = ImGui.acceptDragDropPayload(AssetsPanel.PAYLOAD, String.class);
+        if (asset != null && view.width() > 0) placeAtMouse(List.of(asset));
+        ImGui.endDragDropTarget();
+    }
+
+    private Vector3 surfaceAt(Vector3 from, Vector3 direction) {
         double best = SPAWN_REACH;
         Instance world = document.world();
         if (world != null) {
@@ -322,6 +345,16 @@ public final class ViewportPanel implements Panel {
         BlockRef.Hit block = BLOCKS.raycast(from, direction, best);
         if (block != null) best = Math.min(best, block.distance());
         return best < SPAWN_REACH ? from.add(direction.mul(best)) : from.add(direction.mul(SPAWN_FALLBACK));
+    }
+
+    public boolean flying() {
+        return lookGesture || orbitGesture;
+    }
+
+    public Vector3 spawnPoint() {
+        Vector3d eye = camera.position();
+        Vector3d ahead = camera.forward(new Vector3d());
+        return surfaceAt(new Vector3(eye.x, eye.y, eye.z), new Vector3(ahead.x, ahead.y, ahead.z));
     }
 
     public void frameSelection() {

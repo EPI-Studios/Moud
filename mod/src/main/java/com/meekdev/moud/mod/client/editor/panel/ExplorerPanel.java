@@ -3,9 +3,12 @@ package com.meekdev.moud.mod.client.editor.panel;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
 import com.meekdev.moud.mod.addon.Addons;
+import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.Rename;
@@ -116,7 +119,7 @@ public final class ExplorerPanel implements Panel {
         SearchField.render("##explorer-filter", "Filter", filterInput, ImGui.getContentRegionAvailX());
     }
 
-    private int insertParent() {
+    public int insertParent() {
         Instance world = document.world();
         Instance primary = document.primary();
         if (document.editable(primary)) return primary.id();
@@ -281,6 +284,8 @@ public final class ExplorerPanel implements Panel {
         if (ImGui.beginDragDropTarget()) {
             Integer dropped = ImGui.acceptDragDropPayload(PAYLOAD_INSTANCE, Integer.class);
             if (dropped != null) moveInto(dropped, world.id());
+            String asset = ImGui.acceptDragDropPayload(AssetsPanel.PAYLOAD, String.class);
+            if (asset != null) document.placeAsset(asset, world.id(), null);
             ImGui.endDragDropTarget();
         }
         if (ImGui.beginPopupContextItem("explorer-root-menu")) {
@@ -353,6 +358,8 @@ public final class ExplorerPanel implements Panel {
         if (!ImGui.beginDragDropTarget()) return;
         Integer dropped = ImGui.acceptDragDropPayload(PAYLOAD_INSTANCE, Integer.class);
         if (dropped != null) moveInto(dropped, target.id());
+        String asset = ImGui.acceptDragDropPayload(AssetsPanel.PAYLOAD, String.class);
+        if (asset != null) document.placeAsset(asset, target.id(), target instanceof Spatial ? Transforms.world(target).position() : null);
         ImGui.endDragDropTarget();
     }
 

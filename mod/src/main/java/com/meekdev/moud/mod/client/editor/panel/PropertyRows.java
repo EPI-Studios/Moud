@@ -2,12 +2,14 @@ package com.meekdev.moud.mod.client.editor.panel;
 
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.PendingEdits;
@@ -198,6 +200,11 @@ final class PropertyRows {
         if (!key.equals(typing)) buffer.set(current);
         beginLabelled(label(property));
         if (ImGui.inputText("##value", buffer) && !buffer.get().equals(current)) commit(instance, property, buffer.get());
+        if (property.type() == PropertyType.ASSET && ImGui.beginDragDropTarget()) {
+            String asset = ImGui.acceptDragDropPayload(AssetsPanel.PAYLOAD, String.class);
+            if (asset != null) commit(instance, property, asset);
+            ImGui.endDragDropTarget();
+        }
         if (ImGui.isItemActive()) typing = key;
         else if (key.equals(typing)) typing = null;
     }

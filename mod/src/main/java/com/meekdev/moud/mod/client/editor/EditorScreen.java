@@ -1,5 +1,7 @@
 package com.meekdev.moud.mod.client.editor;
 
+import java.nio.file.Path;
+import java.util.List;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -27,6 +29,11 @@ public final class EditorScreen extends Screen {
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {}
+
+    @Override
+    public void onFilesDrop(List<Path> paths) {
+        Editor.filesDropped(paths);
+    }
 
     @Override
     public boolean keyPressed(KeyEvent event) {

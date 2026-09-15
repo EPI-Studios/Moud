@@ -1,5 +1,7 @@
 package com.meekdev.moud.mod.client.editor.document;
 
+import com.meekdev.moud.core.asset.Res;
+import com.meekdev.moud.core.audio.Sound;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
@@ -11,10 +13,14 @@ import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.scene.Scene;
+import com.meekdev.moud.core.script.LocalScript;
+import com.meekdev.moud.core.script.Script;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.client.PlaceFiles;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.transport.payload.ScenePastedPayload;
@@ -22,6 +28,7 @@ import com.meekdev.moud.net.replicate.Applier;
 import com.meekdev.moud.net.replicate.Change;
 import com.meekdev.moud.net.wire.Codec;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -29,6 +36,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -284,6 +292,81 @@ public final class SceneDocument {
             return;
         }
         history.execute(Paste.fresh(text, ref(parentId), "Add " + template.label()));
+    }
+
+    public boolean placeAsset(String res, int parentId, @Nullable Vector3 at) {
+        Instance parent = find(parentId);
+        if (parent == null) return false;
+        String file = res.substring(res.lastIndexOf('/') + 1);
+        int dot = file.indexOf('.', 1);
+        String name = dot < 0 ? file : file.substring(0, dot);
+        String lower = file.toLowerCase(Locale.ROOT);
+        String text;
+        try {
+            InstanceTree scratch = new InstanceTree();
+            Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+            if (lower.endsWith(".scene")) {
+                byte[] bytes = PlaceFiles.read(res);
+                if (bytes == null) throw new IllegalStateException(res + " is not there");
+                List<Instance> loaded = Scene.load(new String(bytes, StandardCharsets.UTF_8), holder, Addons.classes());
+                if (at != null) shiftTo(loaded, parent, at);
+                text = snapshot(loaded);
+            } else {
+                Instance made = madeFor(lower, res, name, holder);
+                if (made == null) return false;
+                if (made instanceof Spatial spatial) {
+                    Vector3 point = at != null ? at : spawnPoint.get();
+                    if (made instanceof Part part) point = point.add(new Vector3(0, part.size.y() * 0.5, 0));
+                    spatial.cframe = Transforms.world(parent).inverse().mul(CFrame.at(point));
+                }
+                text = snapshot(List.of(made));
+            }
+        } catch (RuntimeException e) {
+            SceneLink.local("Could not place " + file + ": " + e.getMessage());
+            return false;
+        }
+        history.execute(Paste.fresh(text, ref(parentId), "Place " + name));
+        return true;
+    }
+
+    private static @Nullable Instance madeFor(String lower, String res, String name, Instance holder) {
+        if (lower.endsWith(".gltf") || lower.endsWith(".glb") || lower.endsWith(".bbmodel") || lower.endsWith(".ammesh")) {
+            MeshPart mesh = Instances.create(Classes.MESH_PART, holder, name);
+            mesh.meshId = res;
+            return mesh;
+        }
+        if (lower.endsWith(".ogg") || lower.endsWith(".wav") || lower.endsWith(".mp3") || lower.endsWith(".flac")) {
+            Sound sound = Instances.create(Classes.SOUND, holder, name);
+            sound.soundId = res;
+            return sound;
+        }
+        if (lower.endsWith(".luau") || lower.endsWith(".rv") || lower.endsWith(".java")) {
+            if (res.startsWith(Res.SCHEME + "client/")) {
+                LocalScript script = Instances.create(Classes.LOCAL_SCRIPT, holder, name);
+                script.source = res;
+                return script;
+            }
+            Script script = Instances.create(Classes.SCRIPT, holder, name);
+            script.source = res;
+            return script;
+        }
+        return null;
+    }
+
+    private static void shiftTo(List<Instance> roots, Instance parent, Vector3 at) {
+        Vector3 anchor = null;
+        for (Instance root : roots) {
+            if (root instanceof Spatial spatial) {
+                anchor = spatial.cframe.position();
+                break;
+            }
+        }
+        if (anchor == null) return;
+        CFrame parentWorld = Transforms.world(parent);
+        Vector3 offset = parentWorld.inverse().pointToWorld(at).sub(anchor);
+        for (Instance root : roots) {
+            if (root instanceof Spatial spatial) spatial.cframe = spatial.cframe.withPosition(spatial.cframe.position().add(offset));
+        }
     }
 
     public void group() {
