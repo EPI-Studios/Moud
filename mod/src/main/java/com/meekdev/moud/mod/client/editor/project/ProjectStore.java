@@ -111,7 +111,13 @@ public final class ProjectStore {
         save(List.of(), Set.of());
     }
 
+    public enum Template { BASEPLATE, EMPTY }
+
     public Project createProject(String name, Path root) throws IOException {
+        return createProject(name, root, Template.BASEPLATE);
+    }
+
+    public Project createProject(String name, Path root, Template template) throws IOException {
         if (Files.exists(root) && !isEmpty(root)) throw new IOException("Target directory is not empty: " + root);
         Files.createDirectories(root.resolve("scenes"));
         Files.createDirectories(root.resolve("server"));
@@ -119,7 +125,7 @@ public final class ProjectStore {
         Files.writeString(root.resolve(Project.MARKER_FILENAME), placeToml(name));
         copyResource(TEMPLATES + "starter/server/main.luau", root.resolve("server/main.luau"));
         copyResource(TEMPLATES + "starter/client/main.luau", root.resolve("client/main.luau"));
-        Files.writeString(root.resolve("scenes/main.scene"), starterScene());
+        Files.writeString(root.resolve("scenes/main.scene"), template == Template.BASEPLATE ? starterScene() : Scene.save(List.of()));
         return new Project(name, root, System.currentTimeMillis());
     }
 

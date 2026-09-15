@@ -16,7 +16,7 @@ public final class ProjectHub {
 
     private final ToastCenter toasts = new ToastCenter();
     private final IconWidgets icons = new IconWidgets(new IconAtlas());
-    private @Nullable ProjectSelectorView view;
+    private @Nullable ProjectHubView view;
 
     public void render() {
         if (!(Minecraft.getInstance().screen instanceof ProjectHubScreen)) {
@@ -31,9 +31,9 @@ public final class ProjectHub {
         if (body != null) ImGui.pushFont(body, EditorFonts.BODY);
         try {
             if (view == null) {
-                view = new ProjectSelectorView(new ProjectStore(ProjectStore.defaultRecentsFile()), toasts, icons, ProjectHub::open);
+                view = new ProjectHubView(new ProjectStore(ProjectStore.defaultRecentsFile()), toasts, icons, ProjectHub::open);
             }
-            view.render(ImGui.getIO().getDeltaTime());
+            view.render();
             toasts.render();
         } catch (RuntimeException e) {
             MoudMod.LOG.error("project hub frame failed", e);
