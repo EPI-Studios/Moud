@@ -3,6 +3,7 @@ package com.meekdev.moud.script.luau;
 import com.meekdev.moud.core.clazz.CallbackDef;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
@@ -20,8 +21,10 @@ public final class LuauTypes {
     private static final String ROOT = "Instance";
     private static final String CALLBACK = "((...any) -> ...any)?";
     private static final String DEFAULT_SIGNAL = "InstanceSignal";
+    private static final String ANY_SIGNAL = "AnySignal";
     private static final String PLACED = LuauResource.text("types/placed.d.luau");
     private static final Properties CLASS_SIGNALS = LuauResource.properties("types/class-signals.properties");
+    private static final Properties REMOTE_SIGNALS = LuauResource.properties("types/remote-signals.properties");
 
     private LuauTypes() {}
 
@@ -97,7 +100,7 @@ public final class LuauTypes {
             line(out, INDENT, callback.name(), ": ", CALLBACK);
         }
         for (EventDef event : def.events()) {
-            line(out, INDENT, event.name(), ": ", signal(def));
+            line(out, INDENT, event.name(), ": ", signal(def, event));
         }
         PropertyDef[] properties = def.properties();
         for (int i = inherited(def); i < properties.length; i++) {
@@ -108,8 +111,11 @@ public final class LuauTypes {
         end(out);
     }
 
-    private static String signal(ClassDef<?> def) {
-        return CLASS_SIGNALS.getProperty(def.name(), DEFAULT_SIGNAL);
+    private static String signal(ClassDef<?> def, EventDef event) {
+        String shape = CLASS_SIGNALS.getProperty(def.name());
+        if (shape != null) return shape;
+        if (remote(def)) return REMOTE_SIGNALS.getProperty(event.name(), ANY_SIGNAL);
+        return DEFAULT_SIGNAL;
     }
 
     private static String builtInMembers(String type) {
@@ -123,6 +129,13 @@ public final class LuauTypes {
 
     private static void end(StringBuilder out) {
         out.append("end\n\n");
+    }
+
+    private static boolean remote(ClassDef<?> def) {
+        for (ClassDef<?> at = def; at != null; at = at.parent()) {
+            if (at == Classes.REMOTE) return true;
+        }
+        return false;
     }
 
     private static int inherited(ClassDef<?> def) {
