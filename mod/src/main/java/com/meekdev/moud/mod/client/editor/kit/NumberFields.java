@@ -48,6 +48,24 @@ public final class NumberFields {
         return field(id, value, step, width, 0, "", minimum, maximum, false);
     }
 
+    public static boolean pair(String id, float[] values, String[] labels, float[] steps, float width) {
+        float gap = EditorScale.ofAtLeastOne(1.0f) * 2.0f;
+        float cell = (width - gap) / 2;
+        float left = ImGui.getCursorScreenPosX();
+        float top = ImGui.getCursorScreenPosY();
+        boolean changed = false;
+        for (int index = 0; index < 2; index++) {
+            ImGui.setCursorScreenPos(left + (cell + gap) * index, top);
+            float updated = field(id + "#" + index, values[index], steps[index], cell,
+                    index == 0 ? EditorStyle.COLOR_ACCENT : EditorStyle.COLOR_TEXT_MUTED, labels[index], NO_RANGE, NO_RANGE, true);
+            changed |= Float.compare(updated, values[index]) != 0;
+            values[index] = updated;
+        }
+        ImGui.setCursorScreenPos(left, top);
+        ImGui.dummy(width, ImGui.getFrameHeight());
+        return changed;
+    }
+
     public static boolean vector(String id, float[] values, int count, float width, float step) {
         float gap = EditorScale.ofAtLeastOne(1.0f) * 2.0f;
         float cell = (width - gap * (count - 1)) / count;

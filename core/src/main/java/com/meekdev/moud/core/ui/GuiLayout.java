@@ -48,6 +48,10 @@ public final class GuiLayout {
         return "";
     }
 
+    public static boolean interfacePart(Instance instance) {
+        return instance instanceof GuiObject || instance instanceof ScreenGui || instance instanceof BillboardGui || instance instanceof SurfaceGui;
+    }
+
     public static Instance adornee(Instance gui) {
         Instance chosen = switch (gui) {
             case BillboardGui billboard -> billboard.adornee;

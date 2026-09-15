@@ -80,12 +80,12 @@ final class Node extends Widget {
             rich(d, label, alpha);
             return;
         }
-        float px = (float) label.textSize;
         int colour = argb(label.textColor, (1 - label.textTransparency) * alpha);
         if ((colour >>> 24) == 0) return;
         UiFonts.Face face = UiFonts.of(GuiLayout.font(label));
         Identifier previous = d.currentFont();
         if (face instanceof UiFonts.Vector vector) d.font(vector.font());
+        float px = label.textScaled ? scaled(d, face, label.text, (float) label.textSize) : (float) label.textSize;
 
         List<String> lines = label.textWrapped
                 ? wrap(one -> width(d, face, one, px), label.text, w)
@@ -118,6 +118,16 @@ final class Node extends Widget {
             }
         }
         if (previous != null) d.font(previous);
+    }
+
+    private float scaled(UiDraw d, UiFonts.Face face, String text, float base) {
+        String[] lines = text.split("\n", -1);
+        float widest = 0;
+        for (String one : lines) widest = Math.max(widest, width(d, face, one, base));
+        float line = face instanceof UiFonts.Game ? base : d.lineHeight(base);
+        float byHeight = h / (line * lines.length) * base;
+        float byWidth = widest <= 0 ? byHeight : w / widest * base;
+        return Math.max(1, Math.min(byHeight, byWidth));
     }
 
     private void rich(UiDraw d, TextLabel label, float alpha) {

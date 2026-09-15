@@ -1,7 +1,7 @@
 package com.meekdev.moud.script.host;
 
-import com.meekdev.moud.core.chat.ChatCommand;
 import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.chat.ChatCommand;
 import com.meekdev.moud.core.clazz.CallbackDef;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
@@ -22,6 +22,7 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.remote.Remote;
+import com.meekdev.moud.core.ui.GuiLayout;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -157,6 +158,7 @@ public final class InstanceAccess {
 
     public void checkWrite(Instance instance, PropertyDef property) {
         if (!property.replicated() || instance.id() < 0 || !host.client()) return;
+        if (GuiLayout.interfacePart(instance)) return;
         String me = host.me();
         if (Owners.owns(me, instance)) return;
         String owner = Owners.of(instance);

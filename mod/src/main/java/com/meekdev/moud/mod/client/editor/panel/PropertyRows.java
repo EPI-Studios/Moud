@@ -49,6 +49,8 @@ final class PropertyRows {
     private static final float QUAT_EPSILON = 0.0001f;
     private static final int STRING_CAPACITY = 512;
     private static final int REF_CHOICES = 400;
+    private static final String[] UDIM_LABELS = {"scale", "px"};
+    private static final float[] UDIM_STEPS = {0.01f, 1.0f};
     private static final int COLOR_EDIT_FLAGS = ImGuiColorEditFlags.DisplayHex | ImGuiColorEditFlags.AlphaBar
             | ImGuiColorEditFlags.AlphaPreviewHalf | ImGuiColorEditFlags.PickerHueWheel;
 
@@ -289,11 +291,28 @@ final class PropertyRows {
 
     private void renderUDim2(Instance instance, PropertyDef property) {
         UDim2 current = (UDim2) property.getObj(instance);
-        float[] values = {(float) current.xScale(), (float) current.xOffset(), (float) current.yScale(), (float) current.yOffset()};
-        beginLabelled(label(property));
-        if (NumberFields.vector("##" + instance.id() + ":" + property.index(), values, 4, ImGui.getContentRegionAvailX(), DRAG_STEP)) {
-            commit(instance, property, new UDim2(values[0], values[1], values[2], values[3]));
+        String name = label(property);
+        String id = "##" + instance.id() + ":" + property.index();
+        float[] x = {(float) current.xScale(), (float) current.xOffset()};
+        beginLabelled(name + " X");
+        udimMenu(instance, property, id + "x");
+        boolean changedX = NumberFields.pair(id + "x", x, UDIM_LABELS, UDIM_STEPS, ImGui.getContentRegionAvailX());
+        float[] y = {(float) current.yScale(), (float) current.yOffset()};
+        beginLabelled(name + " Y");
+        udimMenu(instance, property, id + "y");
+        boolean changedY = NumberFields.pair(id + "y", y, UDIM_LABELS, UDIM_STEPS, ImGui.getContentRegionAvailX());
+        if (changedX || changedY) commit(instance, property, new UDim2(x[0], x[1], y[0], y[1]));
+    }
+
+    private void udimMenu(Instance instance, PropertyDef property, String id) {
+        if (!ImGui.beginPopupContextItem(id + "-menu")) return;
+        if (ImGui.menuItem("Fill parent")) commit(instance, property, new UDim2(1, 0, 1, 0));
+        if (ImGui.menuItem("Centre in parent")) commit(instance, property, new UDim2(0.5, 0, 0.5, 0));
+        if (ImGui.menuItem("Clear pixel offsets")) {
+            UDim2 current = (UDim2) property.getObj(instance);
+            commit(instance, property, new UDim2(current.xScale(), 0, current.yScale(), 0));
         }
+        ImGui.endPopup();
     }
 
     private void renderEnum(Instance instance, PropertyDef property) {

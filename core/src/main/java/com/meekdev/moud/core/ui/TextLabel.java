@@ -12,6 +12,7 @@ public class TextLabel extends GuiObject {
     @Prop(min = 0, max = 1) public double textTransparency;
 
     public boolean textWrapped;
+    public boolean textScaled;
 
     public boolean textShadow;
     public HorizontalAlign textXAlignment = HorizontalAlign.CENTER;

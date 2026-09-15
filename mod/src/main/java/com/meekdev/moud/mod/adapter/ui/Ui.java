@@ -7,6 +7,7 @@ import com.meekdev.amnetic.client.surface.widget.Widget;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.CFrame;
@@ -17,6 +18,7 @@ import com.meekdev.moud.core.ui.GuiLayout;
 import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.SurfaceGui;
+import com.meekdev.moud.core.ui.TextButton;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.platform.Window;
 import java.util.ArrayList;
@@ -66,6 +68,19 @@ public final class Ui {
             }
         }
         hover();
+        buttons();
+    }
+
+    private static void buttons() {
+        for (Node node : new ArrayList<>(NODES.values())) {
+            if (!(node.source instanceof TextButton button) || !button.isAlive()) continue;
+            boolean pressed = node.hovered && node.pressed;
+            if (button.pressed != pressed) Instances.setBool(button, button.def().property("pressed"), pressed);
+            if (button.hovered == node.hovered) continue;
+            Instances.setBool(button, button.def().property("hovered"), node.hovered);
+            if (node.hovered) button.mouseEnter.fire(button);
+            else button.mouseLeave.fire(button);
+        }
     }
 
     private static int order(Widget widget) {
