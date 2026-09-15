@@ -24,10 +24,20 @@ public final class InterfaceEffects {
 
     private InterfaceEffects() {}
 
+    public record Eye(double x, double y, double z, Matrix4f viewProj, Matrix4f invViewProj, boolean zeroToOne) {}
+
     public static void apply(Framebuffer canvas, List<Scoped> effects) {
         if (effects.isEmpty()) return;
         ensure(canvas.width(), canvas.height());
         CameraSnapshot camera = CameraSnapshot.current();
+        Eye eye = camera == null ? new Eye(0, 0, 0, IDENTITY, IDENTITY, false)
+                : new Eye(camera.eye.x, camera.eye.y, camera.eye.z, camera.viewProj, camera.invViewProj, camera.zeroToOne);
+        apply(canvas, farDepth.colorTextureGlId(0), eye, effects);
+    }
+
+    public static void apply(Framebuffer canvas, int depthTexture, Eye eye, List<Scoped> effects) {
+        if (effects.isEmpty()) return;
+        ensure(canvas.width(), canvas.height());
         float time = (float) (((System.nanoTime() - START) / 1.0e9) % 3600.0);
         for (Scoped scoped : effects) {
             ScreenShader program = ScreenShader.of(scoped.effect());
@@ -38,21 +48,19 @@ public final class InterfaceEffects {
                 scratch.begin();
                 RenderState.clear(0, 0, 0, 0);
                 GlState.bindTexture(0, canvas.colorTextureGlId(0));
-                GlState.bindTexture(1, farDepth.colorTextureGlId(0));
+                GlState.bindTexture(1, depthTexture);
                 ShaderProgram shader = program.program;
                 shader.begin();
                 shader.setSampler("SceneColorSampler", 0);
                 shader.setSampler("SceneDepthSampler", 1);
                 shader.setVec2("ScreenSize", canvas.width(), canvas.height());
                 shader.setFloat("Time", time);
-                shader.setMatrix4("ViewProj", camera == null ? IDENTITY : camera.viewProj);
-                shader.setMatrix4("InvViewProj", camera == null ? IDENTITY : camera.invViewProj);
-                shader.setMatrix4("PrevViewProj", camera == null ? IDENTITY : camera.viewProj);
-                if (camera != null) {
-                    shader.setVec3("CameraPosition", (float) camera.eye.x, (float) camera.eye.y, (float) camera.eye.z);
-                    shader.setVec3("PrevCameraPosition", (float) camera.eye.x, (float) camera.eye.y, (float) camera.eye.z);
-                    shader.setInt("ZeroToOne", camera.zeroToOne ? 1 : 0);
-                }
+                shader.setMatrix4("ViewProj", eye.viewProj());
+                shader.setMatrix4("InvViewProj", eye.invViewProj());
+                shader.setMatrix4("PrevViewProj", eye.viewProj());
+                shader.setVec3("CameraPosition", (float) eye.x(), (float) eye.y(), (float) eye.z());
+                shader.setVec3("PrevCameraPosition", (float) eye.x(), (float) eye.y(), (float) eye.z());
+                shader.setInt("ZeroToOne", eye.zeroToOne() ? 1 : 0);
                 PostStack.uniforms(scoped.effect(), shader);
                 shader.draw();
                 scratch.end();

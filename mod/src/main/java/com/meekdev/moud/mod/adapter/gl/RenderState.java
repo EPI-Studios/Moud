@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.adapter.gl;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL14;
 
 public final class RenderState {
 
@@ -30,6 +31,15 @@ public final class RenderState {
     public static void depthLessOrEqual() {
         GlStateManager._depthFunc(GL11.GL_LEQUAL);
         GL11.glDepthFunc(GL11.GL_LEQUAL);
+    }
+
+    public static void alphaBlend() {
+        blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+    }
+
+    private static void blendFunc(int source, int destination, int sourceAlpha, int destinationAlpha) {
+        GlStateManager._blendFuncSeparate(source, destination, sourceAlpha, destinationAlpha);
+        GL14.glBlendFuncSeparate(source, destination, sourceAlpha, destinationAlpha);
     }
 
     public static void cull(boolean on) {

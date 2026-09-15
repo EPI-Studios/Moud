@@ -20,6 +20,7 @@ import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextButton;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.adapter.render.InterfaceEffects;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.platform.Window;
@@ -202,7 +203,7 @@ public final class Ui {
     private static void collectEffects(Instance at, List<ScreenEffect> into) {
         for (Instance child : at.children()) {
             if (child instanceof ScreenEffect effect) {
-                if (effect.enabled && effect.intensity > 0) into.add(effect);
+                if (effect.enabled && effect.intensity > 0 && !(at instanceof ViewportFrame)) into.add(effect);
             } else if (child instanceof GuiObject) {
                 collectEffects(child, into);
             }

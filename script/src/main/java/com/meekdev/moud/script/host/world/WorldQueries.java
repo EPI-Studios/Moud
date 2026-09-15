@@ -11,6 +11,7 @@ import com.meekdev.moud.core.part.CollisionGroups;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.query.SpatialIndex;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.script.host.Args;
 import com.meekdev.moud.script.host.Host;
@@ -39,6 +40,18 @@ public final class WorldQueries {
         host.api().alias("RayHit", "{ part: Instance, position: Vector3, distance: number, normal: Vector3 }");
         host.api().alias("QueryOptions", "{ exclude: { Instance }?, include: { Instance }?, respectCollides: boolean?, "
                 + "collisionGroup: string?, tag: string?, className: string?, limit: number?, sorted: boolean?, ignoreBlocks: boolean? }");
+
+        Members viewports = host.instances().of(Classes.VIEWPORT_FRAME);
+        viewports.method("screenRay", "(x: number, y: number) -> (Vector3, Vector3)", a -> {
+            Vector3[] ray = ((ViewportFrame) a.self()).ray(a.number(1), a.number(2));
+            return Results.of(ray[0], ray[1]);
+        });
+        viewports.method("pick", "(x: number, y: number, range: number?) -> (Instance?, Vector3?)", a -> {
+            ViewportFrame viewport = (ViewportFrame) a.self();
+            Vector3[] ray = viewport.ray(a.number(1), a.number(2));
+            Queries.Cast cast = Queries.raycast(viewport, ray[0], ray[1], a.number(3, 1000), Queries.Filter.ALL);
+            return cast == null ? null : Results.of(cast.part(), cast.at());
+        });
 
         Members shared = host.instances().shared();
         shared.method("raycast", "(from: Vector3, direction: Vector3, range: number?, options: QueryOptions?) -> (Instance?, Vector3?, number?, Vector3?, string?)",

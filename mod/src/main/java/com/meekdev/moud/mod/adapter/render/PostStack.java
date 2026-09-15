@@ -18,6 +18,7 @@ import com.meekdev.moud.core.render.post.PostShader;
 import com.meekdev.moud.core.render.post.ScreenEffect;
 import com.meekdev.moud.core.ui.BillboardGui;
 import com.meekdev.moud.core.ui.SurfaceGui;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.core.value.BoolValue;
 import com.meekdev.moud.core.value.NumberValue;
 import com.meekdev.moud.core.value.Vector3Value;
@@ -64,7 +65,7 @@ public final class PostStack {
 
     public static boolean insideInterface(Instance effect) {
         for (Instance at = effect.parent(); at != null; at = at.parent()) {
-            if (at instanceof SurfaceGui || at instanceof BillboardGui) return true;
+            if (at instanceof SurfaceGui || at instanceof BillboardGui || at instanceof ViewportFrame) return true;
         }
         return false;
     }

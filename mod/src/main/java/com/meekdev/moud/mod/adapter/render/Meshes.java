@@ -40,7 +40,6 @@ public final class Meshes {
     private static final Set<String> MISSING = new HashSet<>();
 
     private static final Matrix4f WORLD = new Matrix4f();
-    private static final Quaternionf TURN = new Quaternionf();
 
     private Meshes() {}
 
@@ -65,22 +64,30 @@ public final class Meshes {
 
     private static void draw(MeshPart part, Model model, float partialTick, float dt) {
         CFrame world = ClientScene.motion().sample(part, partialTick);
+        placement(world, part.size, model, WORLD);
+        Matrix4f[] pose = pose(part, model, dt);
+        if (pose == null) model.render(WORLD);
+        else model.renderPosed(WORLD, pose);
+    }
+
+    static Matrix4f placement(CFrame world, Vector3 size, Model model, Matrix4f into) {
         Vector3 at = world.position();
         Quat turn = world.rotation();
         Vector3f min = model.boundsMin();
         Vector3f max = model.boundsMax();
-        float sx = stretch(part.size.x(), max.x - min.x);
-        float sy = stretch(part.size.y(), max.y - min.y);
-        float sz = stretch(part.size.z(), max.z - min.z);
-        WORLD.translation((float) at.x(), (float) at.y(), (float) at.z())
-                .rotate(TURN.set((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()))
+        float sx = stretch(size.x(), max.x - min.x);
+        float sy = stretch(size.y(), max.y - min.y);
+        float sz = stretch(size.z(), max.z - min.z);
+        return into.translation((float) at.x(), (float) at.y(), (float) at.z())
+                .rotate(new Quaternionf((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()))
                 .scale(sx, sy, sz)
                 .translate(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -(min.z + max.z) / 2);
+    }
 
+    static Matrix4f @Nullable [] pose(MeshPart part, Model model, float dt) {
         if (part.animation.isEmpty() || !model.isAnimated()) {
             ANIMATORS.remove(part.id());
-            model.render(WORLD);
-            return;
+            return null;
         }
         Playing playing = ANIMATORS.get(part.id());
         if (playing == null || playing.animator().model() != model || !playing.clip().equals(part.animation)) {
@@ -88,8 +95,7 @@ public final class Meshes {
                 if (MISSING.add(part.meshId + "#" + part.animation)) {
                     MoudMod.LOG.warn("{} has no clip {}, it has {}", part.meshId, part.animation, model.clipNames());
                 }
-                model.render(WORLD);
-                return;
+                return null;
             }
             playing = new Playing(model.createAnimator().play(part.animation), part.animation);
             ANIMATORS.put(part.id(), playing);
@@ -99,7 +105,11 @@ public final class Meshes {
         Matrix4f[] pose = animator.pose();
         Matrix4f[] copy = new Matrix4f[pose.length];
         for (int n = 0; n < pose.length; n++) copy[n] = new Matrix4f(pose[n]);
-        model.renderPosed(WORLD, copy);
+        return copy;
+    }
+
+    static @Nullable Model modelFor(String meshId) {
+        return model(meshId);
     }
 
     public static void fillMask(MeshPart part, Matrix4fc projectionView, Vector3 camera, float partialTick, float r, float g, float b, float a) {

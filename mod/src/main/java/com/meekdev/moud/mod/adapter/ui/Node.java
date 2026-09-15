@@ -12,12 +12,15 @@ import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextButton;
 import com.meekdev.moud.core.ui.TextLabel;
+import com.meekdev.moud.core.ui.ViewportFrame;
+import com.meekdev.moud.mod.adapter.render.Viewports;
 import com.meekdev.moud.mod.adapter.text.TextLayout;
 import com.meekdev.moud.mod.adapter.text.TextLook;
 import com.meekdev.moud.mod.adapter.text.TextPainter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToDoubleFunction;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 
 final class Node extends Widget {
@@ -59,6 +62,14 @@ final class Node extends Widget {
             d.border(x, y, w, h, radius, (float) object.borderSize, argb(object.borderColor, alpha));
         }
 
+        if (source instanceof ViewportFrame viewport) {
+            float scale = onScreen() ? (float) Minecraft.getInstance().getWindow().getGuiScale() : 1f;
+            Viewports.measure(viewport, w * scale, h * scale);
+            int texture = Viewports.texture(viewport);
+            if (texture != 0) {
+                d.imageRegion(texture, x, y, x + w, y + h, 0, 1, 1, 0, argb(viewport.imageColor, (1 - viewport.imageTransparency) * alpha), false);
+            }
+        }
         if (source instanceof ImageLabel image && !image.image.isEmpty()) {
             int texture = UiImages.texture(image.image);
             if (texture != 0) {
@@ -181,6 +192,14 @@ final class Node extends Widget {
         int g = Math.round(Math.clamp(c.g(), 0f, 1f) * 255);
         int b = Math.round(Math.clamp(c.b(), 0f, 1f) * 255);
         return a << 24 | r << 16 | g << 8 | b;
+    }
+
+    private boolean onScreen() {
+        for (Instance at = source.parent(); at != null; at = at.parent()) {
+            if (at instanceof ScreenGui) return true;
+            if (at instanceof SurfaceGui || at instanceof BillboardGui) return false;
+        }
+        return false;
     }
 
     @Override
