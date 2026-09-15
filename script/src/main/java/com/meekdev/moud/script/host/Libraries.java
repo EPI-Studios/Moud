@@ -89,22 +89,23 @@ final class Libraries {
         host.global("require", "(path: string) -> any", new Builtin("require", a -> {
             String path;
             try {
-                path = Res.script(a.string(0));
+                String text = a.string(0);
+                path = Res.script(text.startsWith("@") ? Res.SCHEME + text.substring(1) : text);
             } catch (IllegalArgumentException e) {
                 throw new HostError(e.getMessage());
             }
-            Object cached = cache.get(path);
-            if (cached != null) return cached;
-            if (loading.contains(path)) throw new HostError("circular require of res://%s", path);
             Host.Script script = host.readScript(path);
             if (script == null) throw new HostError("there is no res://%s", path);
-            loading.add(path);
+            Object cached = cache.get(script.path());
+            if (cached != null) return cached;
+            if (loading.contains(script.path())) throw new HostError("circular require of res://%s", script.path());
+            loading.add(script.path());
             try {
                 Object module = host.engine().module(script.path(), script.code());
-                cache.put(path, module);
+                cache.put(script.path(), module);
                 return module;
             } finally {
-                loading.remove(path);
+                loading.remove(script.path());
             }
         }));
         host.onClose(() -> {

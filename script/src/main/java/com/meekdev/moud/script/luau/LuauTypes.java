@@ -60,7 +60,9 @@ public final class LuauTypes {
             line(out, "}");
         }
 
+        line(out, "declare script: Instance");
         for (Map.Entry<String, String> global : api.globals().entrySet()) {
+            if (global.getKey().equals("require") || global.getKey().equals("script")) continue;
             String type = global.getValue();
             if (type.startsWith("(")) {
                 Signature signature = Signature.parse(type);
@@ -163,8 +165,19 @@ public final class LuauTypes {
         }
 
         String params(boolean self) {
-            String params = rawParams.startsWith("...") ? "...: " + rawParams.substring(3) : rawParams.replace(", ...", ", ...: ");
-            params = params.replace("...: : ", "...: ");
+            int last = 0;
+            int depth = 0;
+            for (int i = 0; i < rawParams.length(); i++) {
+                char c = rawParams.charAt(i);
+                if (c == '(' || c == '{' || c == '[') depth++;
+                if (c == ')' || c == '}' || c == ']') depth--;
+                if (depth == 0 && c == ',') last = i + 1;
+            }
+            String tail = rawParams.substring(last).trim();
+            String params = rawParams;
+            if (tail.startsWith("...") && !tail.startsWith("...:")) {
+                params = rawParams.substring(0, last) + (last == 0 ? "" : " ") + "...: " + tail.substring(3).trim();
+            }
             if (!self) return params;
             return params.isEmpty() ? "self" : "self, " + params;
         }

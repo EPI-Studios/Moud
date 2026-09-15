@@ -7,11 +7,7 @@ import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
-import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.mod.adapter.render.ViewportCapture;
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import foundry.imgui.api.ImGuiMC;
-import foundry.imgui.impl.ImGuiMCImpl;
 import com.meekdev.moud.mod.client.editor.EditMode;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
@@ -24,8 +20,12 @@ import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
+import com.meekdev.moud.script.api.BlockRef;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
+import foundry.imgui.api.ImGuiMC;
+import foundry.imgui.impl.ImGuiMCImpl;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.extension.imguizmo.ImGuizmo;
@@ -37,8 +37,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import org.joml.Matrix4f;
@@ -214,12 +216,12 @@ public final class ViewportPanel implements Panel {
     }
 
     private static String step(float value) {
-        String text = String.format(java.util.Locale.ROOT, "%.3f", value);
+        String text = String.format(Locale.ROOT, "%.3f", value);
         text = text.replaceAll("0+$", "");
         return text.endsWith(".") ? text.substring(0, text.length() - 1) : text;
     }
 
-    private static void renderStepPopup(String id, float[] steps, float current, String unit, java.util.function.Consumer<Float> choose) {
+    private static void renderStepPopup(String id, float[] steps, float current, String unit, Consumer<Float> choose) {
         if (!ImGui.beginPopup(id)) return;
         for (float value : steps) {
             if (ImGui.menuItem(step(value) + unit, "", value == current)) choose.accept(value);
@@ -545,13 +547,13 @@ public final class ViewportPanel implements Panel {
         });
     }
 
-    private void forEachEditableSpatial(java.util.function.Consumer<Instance> action) {
+    private void forEachEditableSpatial(Consumer<Instance> action) {
         Instance world = document.world();
         if (world == null) return;
         for (Instance child : world.children()) visit(child, action);
     }
 
-    private void visit(Instance instance, java.util.function.Consumer<Instance> action) {
+    private void visit(Instance instance, Consumer<Instance> action) {
         if (instance instanceof Spatial && document.editable(instance)) action.accept(instance);
         for (Instance child : instance.children()) visit(child, action);
     }

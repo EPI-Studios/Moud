@@ -31,6 +31,8 @@ public final class LuauLanguage implements ScriptLanguage {
     public void writeTypes(Path place, Api api, ClassRegistry classes) throws IOException {
         Path directory = place.resolve(".moud");
         Files.createDirectories(directory);
-        Files.writeString(directory.resolve("types.d.luau"), LuauTypes.declare(api, classes));
+        Path types = directory.resolve("types.d.luau");
+        Files.writeString(types, LuauTypes.declare(api, classes));
+        LuauProject.write(place, types);
     }
 }

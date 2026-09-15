@@ -86,8 +86,8 @@ public final class Place {
         } else {
             host = load(Map.of());
         }
+        if (!client && (editing || FabricLoader.getInstance().isDevelopmentEnvironment())) types();
         if ((host != null || editing) && FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            types();
             try {
                 watcher = new Watcher(root, Languages.extensions());
                 MoudMod.LOG.info("watching {}", root);
@@ -222,12 +222,15 @@ public final class Place {
     }
 
     private void types() {
-        if (language == null || host == null) return;
+        if (client) return;
+        ScriptLanguage writer = language != null ? language : pick();
+        if (writer == null) writer = Languages.all().getFirst();
         try {
-            language.writeTypes(root, host.api(), classes);
+            writer.writeTypes(root, Host.describe(classes), classes);
         } catch (IOException e) {
-            MoudMod.LOG.warn("failed to write {} type definitions",
-                    language.name(), e);
+            MoudMod.LOG.warn("failed to write {} type definitions", writer.name(), e);
+        } catch (RuntimeException e) {
+            MoudMod.LOG.warn("could not describe the script api for {}", writer.name(), e);
         }
     }
 

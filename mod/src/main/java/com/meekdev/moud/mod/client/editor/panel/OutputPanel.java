@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.panel;
 
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.client.editor.files.CodeEditor;
 import com.meekdev.moud.mod.client.editor.kit.EmptyStates;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
@@ -33,7 +34,6 @@ public final class OutputPanel implements Panel {
     private static final float SEARCH_WIDTH = 180.0f;
     private static final Pattern SCRIPT_LOCATION = Pattern.compile("([\\w./\\\\-]+\\.(?:luau|lua|rv|java))(?::(\\d+))?");
     private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
-    private static final List<String> EDITORS = List.of("zed", System.getProperty("user.home") + "/.local/bin/zed", "zeditor", "code");
 
     private enum Filter { ALL, INFO, WARN, ERROR }
 
@@ -161,16 +161,7 @@ public final class OutputPanel implements Panel {
     }
 
     private static void open(Location location) {
-        String target = location.file().toAbsolutePath() + ":" + location.line();
-        for (String editor : EDITORS) {
-            try {
-                new ProcessBuilder(editor, target).start();
-                return;
-            } catch (IOException ignored) {
-            }
-        }
-        MoudMod.LOG.warn("no code editor found to open {}", target);
-        Output.add(Output.Level.WARN, "editor", "No code editor found to open " + target);
+        CodeEditor.open(location.file(), location.line());
     }
 
     private boolean matchesFilter(Output.Level level) {

@@ -16,13 +16,18 @@ import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.place.Place;
+import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.transport.payload.ScenePastedPayload;
 import com.meekdev.moud.net.replicate.Applier;
 import com.meekdev.moud.net.replicate.Change;
 import com.meekdev.moud.net.wire.Codec;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
@@ -255,6 +260,32 @@ public final class SceneDocument {
         history.execute(Paste.fresh(text, ref(parentId), "Insert " + className));
     }
 
+    public void insertScript(ScriptTemplate template, boolean local, int parentId) {
+        Instance parent = find(parentId);
+        if (parent == null) return;
+        String side = local ? "client" : "server";
+        String text;
+        try {
+            Path folder = PlaceToml.root().resolve(side).resolve("scripts");
+            Files.createDirectories(folder);
+            String name = template.name();
+            for (int n = 2; Files.exists(folder.resolve(name + ".luau")); n++) name = template.name() + n;
+            Files.writeString(folder.resolve(name + ".luau"), template.code());
+            InstanceTree scratch = new InstanceTree();
+            Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+            if (local) {
+                Instances.create(Classes.LOCAL_SCRIPT, holder, name).source = "res://" + side + "/scripts/" + name + ".luau";
+            } else {
+                Instances.create(Classes.SCRIPT, holder, name).source = "res://" + side + "/scripts/" + name + ".luau";
+            }
+            text = snapshot(new ArrayList<>(holder.children()));
+        } catch (IOException | RuntimeException e) {
+            SceneLink.local("Could not add a script: " + e.getMessage());
+            return;
+        }
+        history.execute(Paste.fresh(text, ref(parentId), "Add " + template.label()));
+    }
+
     public void group() {
         List<InstanceRef> roots = selectedRoots();
         List<Instance> members = new ArrayList<>();
@@ -314,7 +345,7 @@ public final class SceneDocument {
     }
 
     private Map<Instance, List<Instance>> groupByParent(List<InstanceRef> roots) {
-        Map<Instance, List<Instance>> byParent = new java.util.LinkedHashMap<>();
+        Map<Instance, List<Instance>> byParent = new LinkedHashMap<>();
         for (InstanceRef root : roots) {
             Instance instance = find(root);
             if (instance == null || instance.parent() == null) continue;

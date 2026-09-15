@@ -1,5 +1,8 @@
 package com.meekdev.moud.script.host;
 
+import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.ClassRegistry;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.CFrame;
@@ -86,6 +89,50 @@ public final class Host {
         this.classes = classes;
         this.client = client;
         this.instances = new InstanceAccess(this);
+    }
+
+    public static Api describe(ClassRegistry classes) {
+        Api api = new Api();
+        for (boolean client : new boolean[] {false, true}) {
+            Instance world = Instances.createRoot(new InstanceTree(), Classes.SPATIAL, "World");
+            Host host = new Host(world, classes, client)
+                    .post(inert(PostRef.class))
+                    .blocks(inert(BlockRef.class))
+                    .modules(inert(ModuleSource.class))
+                    .files(inert(FileRef.class))
+                    .store(inert(StoreRef.class))
+                    .chat(inert(ChatRef.class))
+                    .history(inert(HistoryRef.class))
+                    .debug(inert(DebugRef.class))
+                    .audio(inert(AudioRef.class))
+                    .shaders(inert(ShaderRef.class));
+            if (client) {
+                Instance camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
+                host.clientSide(camera, inert(CameraRef.class), inert(InputRef.class), () -> null);
+            }
+            try {
+                Libraries.install(host);
+                api.merge(host.api());
+            } finally {
+                host.close();
+            }
+        }
+        return api;
+    }
+
+    private static <T> T inert(Class<T> type) {
+        return type.cast(java.lang.reflect.Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] {type}, (proxy, method, args) -> {
+            Class<?> result = method.getReturnType();
+            if (result == boolean.class) return false;
+            if (result == int.class) return 0;
+            if (result == long.class) return 0L;
+            if (result == double.class) return 0.0;
+            if (result == float.class) return 0.0f;
+            if (result == short.class) return (short) 0;
+            if (result == byte.class) return (byte) 0;
+            if (result == char.class) return '\0';
+            return null;
+        }));
     }
 
     public ScriptEngine start(ScriptLanguage language) {

@@ -79,7 +79,7 @@ public final class Mixins {
                 .declareMethod("args", "(handler: (...any) -> ...any, options: " + options + ") -> Mixin")
                 .declareMethod("redirect", "(call: JavaMethod, handler: (original: (...any) -> any, target: any, ...any) -> any, options: " + options + ") -> Mixin")
                 .declareMethod("constant", "(value: number | string, replacement: any, options: " + options + ") -> Mixin")
-                .declareMethod("variable", "(local: string | number, replacement: any, options: " + options + ") -> Mixin")
+                .declareMethod("variable", "(slot: string | number, replacement: any, options: " + options + ") -> Mixin")
                 .declareMethod("overload", "(...string | number) -> JavaMethod")
                 .declareMethod("__call", "(...any) -> any")
                 .decl());

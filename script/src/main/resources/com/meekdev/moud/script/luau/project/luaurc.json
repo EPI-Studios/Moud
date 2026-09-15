@@ -1,0 +1,8 @@
+{
+    "languageMode": "nonstrict",
+    "aliases": {
+        "server": "./server",
+        "client": "./client",
+        "shared": "./shared"
+    }
+}

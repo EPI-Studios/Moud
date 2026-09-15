@@ -33,6 +33,13 @@ public final class Api {
         classes.put(decl.name(), new Decl(decl.name(), decl.parent() != null ? decl.parent() : existing.parent(), merged));
     }
 
+    public void merge(Api other) {
+        for (Decl decl : other.classes()) declare(decl);
+        other.globals.forEach(globals::putIfAbsent);
+        other.aliases.forEach(aliases::putIfAbsent);
+        other.extensions.forEach(extensions::putIfAbsent);
+    }
+
     public void global(String name, String type) {
         globals.put(name, type);
     }

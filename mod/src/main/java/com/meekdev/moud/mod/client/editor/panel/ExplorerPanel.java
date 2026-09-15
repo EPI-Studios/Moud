@@ -1,13 +1,18 @@
 package com.meekdev.moud.mod.client.editor.panel;
 
+import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.script.LocalScript;
+import com.meekdev.moud.core.script.Script;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.Rename;
 import com.meekdev.moud.mod.client.editor.document.Reparent;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
+import com.meekdev.moud.mod.client.editor.document.ScriptTemplate;
+import com.meekdev.moud.mod.client.editor.files.CodeEditor;
 import com.meekdev.moud.mod.client.editor.kit.Disclosure;
 import com.meekdev.moud.mod.client.editor.kit.SearchField;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
@@ -16,6 +21,7 @@ import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
+import com.meekdev.moud.mod.place.PlaceToml;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImGuiListClipper;
@@ -27,6 +33,7 @@ import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.type.ImString;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -259,7 +266,9 @@ public final class ExplorerPanel implements Panel {
             return;
         }
         if (activated) handleRowClick(row, index);
-        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) onFrameRequested.run();
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
+            if (!openScript(instance)) onFrameRequested.run();
+        }
         if (ImGui.isItemHovered() && !editable) ImGui.setTooltip(instance.def().name() + ", made by the engine, not saved");
         if (editable) {
             renderRowDragSource(instance);
@@ -279,6 +288,7 @@ public final class ExplorerPanel implements Panel {
                 renderInsertItems(world.id());
                 ImGui.endMenu();
             }
+            renderScriptItems(world.id());
             if (ImGui.menuItem("Paste", "Ctrl+V")) document.pasteText(ImGui.getClipboardText());
             ImGui.endPopup();
         }
@@ -364,6 +374,37 @@ public final class ExplorerPanel implements Panel {
         return false;
     }
 
+    private static boolean openScript(Instance instance) {
+        String source = switch (instance) {
+            case Script script -> script.source;
+            case LocalScript script -> script.source;
+            default -> null;
+        };
+        if (source == null || !source.startsWith(Res.SCHEME)) return false;
+        Path file = PlaceToml.root().resolve(source.substring(Res.SCHEME.length()));
+        CodeEditor.open(file, 1);
+        return true;
+    }
+
+    private static boolean openable(Instance instance) {
+        return instance instanceof Script || instance instanceof LocalScript;
+    }
+
+    private void renderScriptItems(int parent) {
+        if (ImGui.beginMenu("Add script")) {
+            for (ScriptTemplate template : ScriptTemplate.SERVER) {
+                if (ImGui.menuItem(template.label())) document.insertScript(template, false, parent);
+            }
+            ImGui.endMenu();
+        }
+        if (ImGui.beginMenu("Add local script")) {
+            for (ScriptTemplate template : ScriptTemplate.CLIENT) {
+                if (ImGui.menuItem(template.label())) document.insertScript(template, true, parent);
+            }
+            ImGui.endMenu();
+        }
+    }
+
     private void renderRowContextMenu(Instance instance) {
         if (!ImGui.beginPopupContextItem("explorer-row-menu")) return;
         if (!document.selection().isSelected(instance.id())) document.selection().select(instance.id());
@@ -371,6 +412,8 @@ public final class ExplorerPanel implements Panel {
             renderInsertItems(instance.id());
             ImGui.endMenu();
         }
+        renderScriptItems(instance.id());
+        if (openable(instance) && ImGui.menuItem("Open script")) openScript(instance);
         ImGui.separator();
         if (ImGui.menuItem("Rename", "F2")) beginRename(instance.id());
         if (ImGui.menuItem("Duplicate", "Ctrl+D")) document.duplicateSelected();

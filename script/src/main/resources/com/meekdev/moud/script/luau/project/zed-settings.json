@@ -1,0 +1,18 @@
+// moud keeps this file in sync, delete this line to take it over
+{
+    "lsp": {
+        "luau-lsp": {
+            "settings": {
+                "ext": {
+                    "roblox": { "enabled": false },
+                    "definitions": [%s]
+                },
+                "luau-lsp": {
+                    "platform": { "type": "standard" },
+                    "sourcemap": { "enabled": false },
+                    "completion": { "imports": { "enabled": true } }
+                }
+            }
+        }
+    }
+}
