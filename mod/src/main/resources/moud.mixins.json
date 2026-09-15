@@ -4,6 +4,9 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "player.ChatMixin",
+    "player.EditorEntityMixin",
+    "player.EditorLivingMixin",
+    "player.EditorPlayerMixin",
     "player.DamageMixin",
     "player.VolumeMixin",
     "player.HungerMixin",

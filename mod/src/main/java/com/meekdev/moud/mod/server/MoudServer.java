@@ -15,6 +15,7 @@ import com.meekdev.moud.core.zone.Zones;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.adapter.physics.Physics;
+import com.meekdev.moud.mod.adapter.player.EditorBody;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.server.pilot.ServerPilot;
@@ -97,12 +98,14 @@ public final class MoudServer {
         Instance world = ServerScene.world();
         if (place == null || world == null) return;
         Abilities abilities = player.getAbilities();
-        boolean editing = place.editing();
-        abilities.mayfly = editing;
-        abilities.flying = editing;
-        abilities.invulnerable = editing;
+        abilities.mayfly = false;
+        abilities.flying = false;
         player.onUpdateAbilities();
-        player.fallDistance = 0;
+        EditorBody.set(player, place.editing());
+        if (place.editing()) {
+            player.teleportTo(0.5, 70.0, 0.5);
+            return;
+        }
 
         Character character = Instances.create(Classes.CHARACTER, world,
                 player.getGameProfile().name());

@@ -1,11 +1,13 @@
 package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.amnetic.client.camera.AmneticCamera;
+import com.meekdev.moud.mod.adapter.player.EditorBody;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
 import com.meekdev.moud.mod.adapter.render.ViewportCapture;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.transport.payload.EditDownPayload;
 import com.meekdev.moud.mod.transport.payload.EditUpPayload;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
@@ -22,6 +24,9 @@ public final class EditMode {
     public static void install() {
         ClientPlayNetworking.registerGlobalReceiver(EditDownPayload.TYPE, (payload, context) ->
                 context.client().execute(() -> apply(payload.editing(), payload.allowed())));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (client.player != null && EditorBody.editing(client.player) != editing) EditorBody.set(client.player, editing);
+        });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> apply(false, false)));
     }
 

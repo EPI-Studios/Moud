@@ -1,6 +1,9 @@
 package com.meekdev.moud.mod.client.editor.viewport;
 
 import com.meekdev.amnetic.client.camera.AmneticCamera;
+import com.meekdev.moud.mod.adapter.player.EditorBody;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
 
@@ -39,6 +42,12 @@ public final class EditorCamera {
 
     public void apply() {
         AmneticCamera.setPose(new Vec3(position.x, position.y, position.z), yaw, pitch);
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null && EditorBody.editing(player)) {
+            player.setPos(position.x, position.y - player.getEyeHeight(), position.z);
+            player.setYRot(yaw);
+            player.setXRot(pitch);
+        }
     }
 
     public Vector3d position() {
