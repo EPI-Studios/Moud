@@ -12,6 +12,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.MeshPart;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.PlaceFiles;
@@ -23,8 +24,8 @@ import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
-import org.joml.Quaternionf;
 import org.joml.Matrix4fc;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
@@ -54,7 +55,7 @@ public final class Meshes {
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         float dt = client.getDeltaTracker().getRealtimeDeltaTicks() / 20f;
         for (MeshPart part : tree.ofClass(Classes.MESH_PART)) {
-            if (!part.visible || part.transparency >= 1 || part.meshId.isEmpty()) continue;
+            if (!part.visible || part.transparency >= 1 || part.meshId.isEmpty() || ViewportFrame.inside(part)) continue;
             Model model = model(part.meshId);
             if (model == null || !model.isReady()) continue;
             draw(part, model, partialTick, dt);

@@ -8,6 +8,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.resona.api.PlaySettings;
 import com.meekdev.resona.api.Resona;
@@ -92,6 +93,7 @@ public final class Sounds {
 
     private static @Nullable Instance anchor(Sound sound) {
         for (Instance at = sound.parent(); at != null; at = at.parent()) {
+            if (at instanceof ViewportFrame) return null;
             if (at instanceof Spatial && at.parent() != null) return at;
         }
         return null;

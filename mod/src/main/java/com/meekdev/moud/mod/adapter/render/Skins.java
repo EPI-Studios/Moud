@@ -27,6 +27,7 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.render.Camera;
 import com.meekdev.moud.core.render.CameraMode;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
@@ -87,7 +88,7 @@ public final class Skins {
         Character mine = ClientScene.own();
 
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
-            if (!(instance instanceof Character character)) continue;
+            if (!(instance instanceof Character character) || ViewportFrame.inside(character)) continue;
             Appearance look = Rig.appearance(character);
             if (look == null || look.display != CharacterDisplay.MODEL) continue;
             if (character == mine && inside() && look.firstPerson != FirstPerson.BODY) continue;

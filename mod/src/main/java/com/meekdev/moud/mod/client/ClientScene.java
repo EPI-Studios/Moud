@@ -13,10 +13,11 @@ import com.meekdev.moud.core.instance.Stages;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Touches;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.core.zone.Zones;
 import com.meekdev.moud.mod.adapter.physics.Characters;
-import com.meekdev.moud.mod.adapter.physics.PlayerMirror;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
+import com.meekdev.moud.mod.adapter.physics.PlayerMirror;
 import com.meekdev.moud.mod.adapter.render.PartLight;
 import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.addon.Addons;
@@ -78,7 +79,7 @@ public final class ClientScene {
         ZoneSounds.tick(tree);
         MOTION.drain(tree);
         for (Part part : tree.ofClass(Classes.PART)) {
-            if (part instanceof Limb) continue;
+            if (part instanceof Limb || ViewportFrame.inside(part)) continue;
             PartLight.refresh(part, MOTION.sample(part).position());
         }
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {

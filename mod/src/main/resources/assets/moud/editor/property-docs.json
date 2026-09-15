@@ -4,6 +4,11 @@
     "pivot": "The point it turns about, as an offset from its centre. A door turns at its hinge this way.",
     "alwaysRelevant": "Every player receives it whatever the distance. Off: players only get what is near them.",
     "owner": "The player that simulates its physics. Empty means the server.",
+    "ambient": "The light every face gets inside the viewport, whatever way it points.",
+    "lightColor": "The colour of the viewport's one directional light.",
+    "lightDirection": "Which way the viewport's light shines, as a direction.",
+    "updateRate": "Times per second the viewport draws its 3D again. 0 draws every frame.",
+    "resolutionScale": "Below 1 the viewport draws fewer pixels and looks blocky, above 1 it is sharper and costs more.",
     "accepts": "What a message may carry, in order: \"string\", \"number, vec3?\"... Empty means no arguments; anything else sent is refused.",
     "Part.size": "Its dimensions in blocks.",
     "Part.color": "The colour it is drawn with.",
@@ -55,5 +60,8 @@
     "fov": "Field of view in degrees. 0 keeps the player's own.",
     "distance": "How far behind the subject a third person camera sits.",
     "offset": "Shifts the camera from its subject.",
-    "subject": "What the camera follows."
+    "subject": "What the camera follows.",
+    "ViewportFrame.camera": "The Camera the viewport looks through. Empty uses the first Camera inside it.",
+    "ViewportFrame.imageColor": "Tints the drawn 3D, white leaves it as it is.",
+    "ViewportFrame.imageTransparency": "0 shows the drawn 3D fully, 1 hides it."
 }

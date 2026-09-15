@@ -11,6 +11,7 @@ import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -23,7 +24,7 @@ public final class Zones {
 
     public static void step(InstanceTree tree, ClassRegistry classes, double now) {
         for (Zone zone : tree.ofClass(Classes.ZONE)) {
-            if (!zone.isAlive()) continue;
+            if (!zone.isAlive() || ViewportFrame.inside(zone)) continue;
             Set<Instance> current = new LinkedHashSet<>();
             if (zone.enabled) {
                 for (Instance candidate : candidates(tree, classes, zone)) {
@@ -77,6 +78,7 @@ public final class Zones {
                 }
             }
         }
+        out.removeIf(ViewportFrame::inside);
         return out;
     }
 

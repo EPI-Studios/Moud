@@ -10,6 +10,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.CollisionGroups;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -332,7 +333,7 @@ public final class Queries {
 
     static List<Part> parts(Instance root, Predicate<Part> filter) {
         List<Part> found = new ArrayList<>();
-        collect(root, filter, found);
+        collect(root, root, filter, found);
         return found;
     }
 
@@ -354,17 +355,22 @@ public final class Queries {
         List<Part> found = new ArrayList<>(candidates.size());
         boolean everything = root.parent() == null;
         for (Part part : candidates) {
-            if (!part.visible || !part.canQuery || isShell(part) || !filter.test(part)) continue;
+            if (!part.visible || !part.canQuery || isShell(part) || !filter.test(part) || elsewhere(part, root)) continue;
             if (everything || part == root || isUnder(part, root)) found.add(part);
         }
         return found;
     }
 
-    private static void collect(Instance instance, Predicate<Part> filter, List<Part> found) {
-        if (instance instanceof Part part && part.visible && part.canQuery && !isShell(part) && filter.test(part)) {
+    private static void collect(Instance root, Instance instance, Predicate<Part> filter, List<Part> found) {
+        if (instance instanceof Part part && part.visible && part.canQuery && !isShell(part) && filter.test(part) && !elsewhere(part, root)) {
             found.add(part);
         }
-        for (Instance child : instance.children()) collect(child, filter, found);
+        for (Instance child : instance.children()) collect(root, child, filter, found);
+    }
+
+    static boolean elsewhere(Part part, Instance root) {
+        ViewportFrame viewport = ViewportFrame.around(part);
+        return viewport != null && viewport != root && ViewportFrame.around(root) != viewport;
     }
 
     static boolean isUnder(Instance instance, Instance ancestor) {

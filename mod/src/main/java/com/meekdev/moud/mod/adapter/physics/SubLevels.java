@@ -13,6 +13,7 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.ArrayList;
@@ -155,7 +156,7 @@ public final class SubLevels {
     private static final int SQUARE_TICKS = 40;
 
     private static boolean needsSubLevel(Part part) {
-        return part.collides && (!part.anchored || !Colliders.isAxisAligned(part) || Physics.boxes().moving(part));
+        return part.collides && !ViewportFrame.inside(part) && (!part.anchored || !Colliders.isAxisAligned(part) || Physics.boxes().moving(part));
     }
 
     static void mirror(InstanceTree tree, Change change) {

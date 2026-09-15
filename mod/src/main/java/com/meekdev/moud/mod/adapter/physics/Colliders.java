@@ -16,6 +16,7 @@ import com.meekdev.moud.core.part.CollisionGroups;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.SpatialIndex;
 import com.meekdev.moud.core.space.Broadphase;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -86,7 +87,7 @@ public final class Colliders {
                 yield refresh(wrote.id())
                         || source.byId(wrote.id()) instanceof Part && wrote.property() == GROUP.index();
             }
-            case Change.Moved moved -> refresh(moved.id());
+            case Change.Moved moved -> refreshBranch(source.byId(moved.id()));
             case Change.Tagged ignored -> false;
             case Change.Renamed ignored -> false;
         };
@@ -150,10 +151,17 @@ public final class Colliders {
         });
     }
 
+    private boolean refreshBranch(Instance instance) {
+        if (instance == null) return false;
+        boolean changed = refresh(instance.id());
+        for (Instance child : instance.children()) changed |= refreshBranch(child);
+        return changed;
+    }
+
     private boolean refresh(int id) {
         Instance instance = tree == null ? null : tree.byId(id);
         if (!(instance instanceof Part part)) return false;
-        if (!part.collides || ((!isAxisAligned(part) || moving.contains(id)) && SubLevels.available())) {
+        if (!part.collides || ViewportFrame.inside(part) || ((!isAxisAligned(part) || moving.contains(id)) && SubLevels.available())) {
             return grid.remove(part);
         }
         CFrame world = Transforms.world(part);

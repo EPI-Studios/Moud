@@ -19,6 +19,7 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.gl.RenderState;
 import com.meekdev.moud.mod.adapter.gl.Textures;
@@ -114,7 +115,7 @@ public final class EditorOverlay {
     private static List<Instance> drawable(InstanceTree tree) {
         List<Instance> out = new ArrayList<>();
         for (Part part : tree.ofClass(Classes.PART)) {
-            if (pickable.test(part)) out.add(part);
+            if (pickable.test(part) && !ViewportFrame.inside(part)) out.add(part);
         }
         return out;
     }

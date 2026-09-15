@@ -71,6 +71,7 @@ import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextButton;
 import com.meekdev.moud.core.ui.TextLabel;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.core.value.BoolValue;
 import com.meekdev.moud.core.value.NumberValue;
 import com.meekdev.moud.core.value.ObjectValue;
@@ -199,6 +200,9 @@ public final class Classes {
     public static final ClassDef<ImageLabel> IMAGE_LABEL =
             ClassDef.of("ImageLabel", GUI_OBJECT, ImageLabel.class, ImageLabel::new);
 
+    public static final ClassDef<ViewportFrame> VIEWPORT_FRAME =
+            ClassDef.of("ViewportFrame", GUI_OBJECT, ViewportFrame.class, ViewportFrame::new);
+
     public static final ClassDef<Sound> SOUND = ClassDef.of("Sound", null, Sound.class, Sound::new);
     public static final ClassDef<SoundBus> SOUND_BUS =
             ClassDef.of("SoundBus", null, SoundBus.class, SoundBus::new);
@@ -303,6 +307,7 @@ public final class Classes {
         r.register(TEXT_LABEL);
         r.register(TEXT_BUTTON);
         r.register(IMAGE_LABEL);
+        r.register(VIEWPORT_FRAME);
         r.register(SOUND);
         r.register(SOUND_BUS);
         r.register(SCRIPT);

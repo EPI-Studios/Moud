@@ -15,6 +15,7 @@ import com.meekdev.moud.core.render.AreaShape;
 import com.meekdev.moud.core.render.LightSource;
 import com.meekdev.moud.core.render.SpotLight;
 import com.meekdev.moud.core.render.TubeLight;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.PlaceFiles;
@@ -48,6 +49,7 @@ public final class SceneLights {
         Set<Integer> seen = new HashSet<>();
         if (tree != null) {
             for (LightSource light : tree.ofClass(Classes.LIGHT)) {
+                if (ViewportFrame.inside(light)) continue;
                 seen.add(light.id());
                 Held held = LIGHTS.get(light.id());
                 if (held == null || held.instance() != light) {

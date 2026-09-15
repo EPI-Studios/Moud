@@ -17,6 +17,7 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
@@ -124,7 +125,7 @@ public final class Parts {
         var eye = ctx.cameraPos();
         SEE_THROUGH.clear();
         for (Part part : tree.ofClass(Classes.PART)) {
-            if (isTransparent(part)) SEE_THROUGH.add(part);
+            if (isTransparent(part) && !ViewportFrame.inside(part)) SEE_THROUGH.add(part);
         }
         SEE_THROUGH.sort(Comparator.comparingDouble((Part part) -> {
             Vector3 at = motion.sample(part, ctx.deltaTick()).position();
@@ -153,6 +154,7 @@ public final class Parts {
         if (isTransparent(part) != glass) return false;
         if (part instanceof MeshPart) return false;
         if (Skins.wearsSkin(part)) return false;
+        if (ViewportFrame.inside(part)) return false;
 
         CFrame world = motion.sample(part, ctx.deltaTick());
         Vector3 pos = world.position();

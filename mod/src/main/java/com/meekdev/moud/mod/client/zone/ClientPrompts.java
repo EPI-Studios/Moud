@@ -13,6 +13,7 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.text.RichText;
 import com.meekdev.moud.core.ui.HorizontalAlign;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.core.zone.ProximityPrompt;
 import com.meekdev.moud.mod.adapter.text.Argb;
 import com.meekdev.moud.mod.adapter.text.TextLook;
@@ -145,7 +146,7 @@ public final class ClientPrompts {
         double bestDistance = Double.MAX_VALUE;
         List<ProximityPrompt> prompts = tree.ofClass(Classes.PROXIMITY_PROMPT);
         for (ProximityPrompt prompt : prompts) {
-            if (!prompt.enabled || prompt.parent() == null) continue;
+            if (!prompt.enabled || prompt.parent() == null || ViewportFrame.inside(prompt)) continue;
             Vector3 at = ServerPrompts.position(prompt);
             double distance = at.distance(eye);
             if (distance > prompt.maxActivationDistance || distance >= bestDistance) continue;

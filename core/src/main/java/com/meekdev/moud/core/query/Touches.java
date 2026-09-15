@@ -5,6 +5,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,6 +66,6 @@ public final class Touches {
     }
 
     private static boolean takesPart(Part part) {
-        return part.canTouch && part.visible && !(Rig.OVERLAY.equals(part.name()) && part.parent() instanceof Part);
+        return part.canTouch && part.visible && !ViewportFrame.inside(part) && !(Rig.OVERLAY.equals(part.name()) && part.parent() instanceof Part);
     }
 }

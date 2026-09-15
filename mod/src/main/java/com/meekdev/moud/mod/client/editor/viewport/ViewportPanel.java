@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Queries;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
 import com.meekdev.moud.mod.adapter.render.ViewportCapture;
@@ -587,6 +588,7 @@ public final class ViewportPanel implements Panel {
     }
 
     private void visit(Instance instance, Consumer<Instance> action) {
+        if (instance instanceof ViewportFrame) return;
         if (instance instanceof Spatial && document.editable(instance)) action.accept(instance);
         for (Instance child : instance.children()) visit(child, action);
     }

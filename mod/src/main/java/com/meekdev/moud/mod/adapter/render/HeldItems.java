@@ -12,6 +12,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.adapter.physics.PlayerMirror;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -51,7 +52,7 @@ public final class HeldItems {
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         Character mine = ClientScene.own();
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
-            if (!(instance instanceof Character character)) continue;
+            if (!(instance instanceof Character character) || ViewportFrame.inside(character)) continue;
             Appearance look = Rig.appearance(character);
             if (look == null || look.display != CharacterDisplay.MODEL) continue;
             if (character == mine && Skins.inside() && look.firstPerson != FirstPerson.BODY) continue;
