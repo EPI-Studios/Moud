@@ -203,7 +203,7 @@ final class ProjectSettingsDialog {
         Boolean set = overrides.get(feature);
         boolean value = set == null ? fallback : set;
         ImGui.alignTextToFramePadding();
-        if (Switches.draw("##switch", value)) overrides.put(feature, !value);
+        if (Switches.draw("##switch", value) != value) overrides.put(feature, !value);
         if (ImGui.beginPopupContextItem("##feature-menu")) {
             if (ImGui.menuItem("Reset to default (" + (fallback ? "on" : "off") + ")")) overrides.remove(feature);
             ImGui.endPopup();
