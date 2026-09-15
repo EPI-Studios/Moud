@@ -1,0 +1,6 @@
+name = "{name}"
+id = "{id}"
+version = "0.1.0"
+
+[entry]
+scene = "res://scenes/main.scene"

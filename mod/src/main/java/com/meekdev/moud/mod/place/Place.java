@@ -79,8 +79,13 @@ public final class Place {
     }
 
     public void start() {
-        host = load(Map.of());
-        if (host != null && FabricLoader.getInstance().isDevelopmentEnvironment()) {
+        if (PlaceToml.editOnStart()) {
+            editing = true;
+            if (!client) scene();
+        } else {
+            host = load(Map.of());
+        }
+        if ((host != null || editing) && FabricLoader.getInstance().isDevelopmentEnvironment()) {
             types();
             try {
                 watcher = new Watcher(root, Languages.extensions());

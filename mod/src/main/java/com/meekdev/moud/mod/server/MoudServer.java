@@ -60,6 +60,7 @@ public final class MoudServer {
     }
 
     private static void stopped() {
+        if (place != null) place.close();
         ServerChat.INSTANCE.stop();
         ServerHistory.INSTANCE.clear();
         Broadcast.stop();

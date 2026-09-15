@@ -1,0 +1,49 @@
+package com.meekdev.moud.mod.client.editor.project;
+
+import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.client.Launch;
+import com.meekdev.moud.mod.client.editor.notify.ToastCenter;
+import com.meekdev.moud.mod.client.editor.style.EditorFonts;
+import com.meekdev.moud.mod.client.editor.style.EditorStyle;
+import com.meekdev.moud.mod.client.editor.style.IconAtlas;
+import com.meekdev.moud.mod.client.editor.style.IconWidgets;
+import imgui.ImFont;
+import imgui.ImGui;
+import net.minecraft.client.Minecraft;
+import org.jspecify.annotations.Nullable;
+
+public final class ProjectHub {
+
+    private final ToastCenter toasts = new ToastCenter();
+    private final IconWidgets icons = new IconWidgets(new IconAtlas());
+    private @Nullable ProjectSelectorView view;
+
+    public void render() {
+        if (!(Minecraft.getInstance().screen instanceof ProjectHubScreen)) {
+            if (view != null) {
+                view.dispose();
+                view = null;
+            }
+            return;
+        }
+        EditorStyle.apply();
+        ImFont body = EditorFonts.body();
+        if (body != null) ImGui.pushFont(body, EditorFonts.BODY);
+        try {
+            if (view == null) {
+                view = new ProjectSelectorView(new ProjectStore(ProjectStore.defaultRecentsFile()), toasts, icons, ProjectHub::open);
+            }
+            view.render(ImGui.getIO().getDeltaTime());
+            toasts.render();
+        } catch (RuntimeException e) {
+            MoudMod.LOG.error("project hub frame failed", e);
+        } finally {
+            if (body != null) ImGui.popFont();
+        }
+    }
+
+    private static void open(Project project) {
+        MoudMod.LOG.info("opening project {} at {}", project.name(), project.rootDirectory());
+        Launch.openProject(project.rootDirectory());
+    }
+}

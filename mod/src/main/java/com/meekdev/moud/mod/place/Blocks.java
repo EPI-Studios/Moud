@@ -4,19 +4,18 @@ import com.meekdev.moud.mod.MoudMod;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import net.fabricmc.loader.api.FabricLoader;
 import net.hollowcube.polar.PolarReader;
 import net.hollowcube.polar.PolarWorld;
 import org.jspecify.annotations.Nullable;
 
 public final class Blocks {
 
-    private static final String WORLD = "place/world.polar";
+    private static final String WORLD = "world.polar";
 
     private Blocks() {}
 
     public static @Nullable PolarWorld load() {
-        Path path = FabricLoader.getInstance().getGameDir().resolve(WORLD);
+        Path path = PlaceToml.root().resolve(WORLD);
         if (!Files.isRegularFile(path)) {
             MoudMod.LOG.info("no {}, the level stays empty", path);
             return null;

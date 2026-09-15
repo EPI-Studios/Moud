@@ -16,6 +16,7 @@ import com.meekdev.moud.mod.client.editor.panel.ExplorerPanel;
 import com.meekdev.moud.mod.client.editor.panel.OutputPanel;
 import com.meekdev.moud.mod.client.editor.panel.Panels;
 import com.meekdev.moud.mod.client.editor.panel.PropertiesPanel;
+import com.meekdev.moud.mod.client.editor.project.ProjectHubScreen;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
@@ -36,6 +37,7 @@ import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import java.util.Locale;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 
 public final class EditorShell {
 
@@ -64,6 +66,7 @@ public final class EditorShell {
 
     private void addCommands() {
         commands.add(new EditorCommand("save", "File", "Save Scene", Shortcut.ctrl(ImGuiKey.S, "S"), EditMode::allowed, document::save));
+        commands.add(new EditorCommand("close-project", "File", "Close Project", null, () -> true, EditorShell::closeProject));
         commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo));
         commands.add(new EditorCommand("redo", "Edit", "Redo", Shortcut.ctrl(ImGuiKey.Y, "Y"), this::canRedo, this::redo));
         commands.add(new EditorCommand("redo-shift", "Edit", "Redo", Shortcut.ctrlShift(ImGuiKey.Z, "Z"), this::canRedo, this::redo).hidden());
@@ -112,6 +115,12 @@ public final class EditorShell {
         } finally {
             if (body != null) ImGui.popFont();
         }
+    }
+
+    private static void closeProject() {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);
+        minecraft.setScreen(new ProjectHubScreen());
     }
 
     private void renderMainMenuBar() {

@@ -3,6 +3,8 @@ package com.meekdev.moud.mod.client.editor;
 import com.meekdev.amnetic.client.ui.AmneticEditor;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.editor.document.SceneLink;
+import com.meekdev.moud.mod.client.editor.project.ProjectHub;
+import com.meekdev.moud.mod.client.editor.project.ProjectHubScreen;
 import com.meekdev.moud.mod.client.editor.shell.EditorShell;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -12,6 +14,7 @@ import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 public final class Editor {
@@ -20,6 +23,8 @@ public final class Editor {
     private static final String AMNETIC_TOGGLE = "key.amnetic.editor";
 
     private static KeyMapping toggle;
+    private static boolean available;
+    private static @Nullable ProjectHub hub;
     private static boolean amneticReleased;
 
     private Editor() {}
@@ -34,13 +39,24 @@ public final class Editor {
         AmneticEditor.register(new MixinInspector());
         EditMode.install();
         SceneLink.install();
+        available = true;
         EditorShell shell = new EditorShell();
+        hub = new ProjectHub();
+        ImGuiMCEvents.INSTANCE.postRenderImGuiEvent(hub::render);
         ImGuiMCEvents.INSTANCE.onRegisterImGuiFonts((atlas, defaultFont, scale) -> EditorFonts.register(atlas));
         ImGuiMCEvents.INSTANCE.postRenderImGuiEvent(shell::render);
         toggle = new KeyMapping("key.moud.editor", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT, KeyMapping.Category.MISC);
         KeyMappingHelper.registerKeyMapping(toggle);
         ClientTickEvents.END_CLIENT_TICK.register(Editor::tick);
         MoudMod.LOG.info("editor ready (right shift)");
+    }
+
+    public static boolean available() {
+        return available;
+    }
+
+    public static ProjectHubScreen projectHub() {
+        return new ProjectHubScreen();
     }
 
     private static void tick(Minecraft client) {
