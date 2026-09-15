@@ -91,6 +91,9 @@ public final class Audience {
                 case Change.Tagged tagged -> {
                     if (has.get(tagged.id())) out.accept(tagged);
                 }
+                case Change.Renamed renamed -> {
+                    if (has.get(renamed.id())) out.accept(renamed);
+                }
             }
         }
     }

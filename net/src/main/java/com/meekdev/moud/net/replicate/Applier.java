@@ -46,6 +46,10 @@ public final class Applier {
                 Instance instance = tree == null ? null : tree.byId(destroyed.id());
                 if (instance != null) Instances.destroy(instance);
             }
+            case Change.Renamed renamed -> {
+                Instance instance = tree == null ? null : tree.byId(renamed.id());
+                if (instance != null) Instances.rename(instance, renamed.name());
+            }
             case Change.Tagged tagged -> {
                 Instance instance = tree == null ? null : tree.byId(tagged.id());
                 if (instance == null) return;

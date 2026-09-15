@@ -58,6 +58,7 @@ public final class InstanceTree {
     private final IdList dirty = new IdList();
     private final IdList removed = new IdList();
     private final IdList moved = new IdList();
+    private final IdList renamed = new IdList();
     private Instance[] scratch = new Instance[32];
     private SpatialIndex spatial;
 
@@ -154,6 +155,10 @@ public final class InstanceTree {
         moved.drain(visitor);
     }
 
+    public void drainRenamed(IntConsumer visitor) {
+        renamed.drain(visitor);
+    }
+
     public void drainTags(Consumer<TagChange> visitor) {
         for (TagChange change : tagChanges) visitor.accept(change);
         tagChanges.clear();
@@ -165,6 +170,10 @@ public final class InstanceTree {
 
     void markMoved(Instance i) {
         moved.add(i.id);
+    }
+
+    void markRenamed(Instance i) {
+        renamed.add(i.id);
     }
 
     void index(Instance i) {

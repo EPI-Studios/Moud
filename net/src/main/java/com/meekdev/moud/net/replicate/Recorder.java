@@ -45,6 +45,11 @@ public final class Recorder {
             }
         });
 
+        tree.drainRenamed(id -> {
+            Instance instance = tree.byId(id);
+            if (id <= before && instance != null && instance.parent() != null) out.accept(new Change.Renamed(id, instance.name()));
+        });
+
         tree.drainTags(tag -> {
             if (tag.id() <= before) out.accept(new Change.Tagged(tag.id(), tag.tag(), tag.added()));
         });

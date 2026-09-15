@@ -27,6 +27,7 @@ public final class Codec {
     private static final int MOVED = 2;
     private static final int DESTROYED = 3;
     private static final int TAGGED = 4;
+    private static final int RENAMED = 5;
 
     private Codec() {}
 
@@ -74,6 +75,11 @@ public final class Codec {
                     out.zigzag(tagged.id());
                     out.text(tagged.tag());
                     out.u8(tagged.added() ? 1 : 0);
+                }
+                case Change.Renamed renamed -> {
+                    out.u8(RENAMED);
+                    out.zigzag(renamed.id());
+                    out.text(renamed.name());
                 }
                 case Change.Wrote unreachable -> throw new IllegalStateException("partitioned");
             }
@@ -169,6 +175,7 @@ public final class Codec {
                         new Change.Moved((int) in.readZigzag(), (int) in.readZigzag()));
                 case DESTROYED -> changes.add(new Change.Destroyed((int) in.readZigzag()));
                 case TAGGED -> changes.add(new Change.Tagged((int) in.readZigzag(), in.readText(), in.readU8() == 1));
+                case RENAMED -> changes.add(new Change.Renamed((int) in.readZigzag(), in.readText()));
                 default -> throw new IllegalStateException("corrupt change kind " + kind);
             }
         }

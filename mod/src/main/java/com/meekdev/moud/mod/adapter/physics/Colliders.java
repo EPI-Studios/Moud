@@ -66,6 +66,7 @@ public final class Colliders {
             case Change.Wrote wrote -> source.byId(wrote.id()) instanceof CollisionGroup;
             case Change.Moved moved -> source.byId(moved.id()) instanceof CollisionGroup;
             case Change.Tagged ignored -> false;
+            case Change.Renamed ignored -> false;
         };
         if (groupsChanged) groups = null;
         boolean statics = switch (change) {
@@ -87,6 +88,7 @@ public final class Colliders {
             }
             case Change.Moved moved -> refresh(moved.id());
             case Change.Tagged ignored -> false;
+            case Change.Renamed ignored -> false;
         };
         return statics || groupsChanged && grid.size() > 0;
     }

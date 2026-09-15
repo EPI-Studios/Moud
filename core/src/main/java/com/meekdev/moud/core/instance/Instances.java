@@ -125,7 +125,12 @@ public final class Instances {
 
     public static void rename(Instance i, String name) {
         if (name == null || name.isEmpty()) throw new IllegalArgumentException("name cannot be empty");
+        if (name.equals(i.name)) return;
         i.name = name;
+        if (i.tree != null) {
+            i.tree.markRenamed(i);
+            i.tree.mutations++;
+        }
     }
 
     public static void setNum(Instance i, PropertyDef p, double value) {

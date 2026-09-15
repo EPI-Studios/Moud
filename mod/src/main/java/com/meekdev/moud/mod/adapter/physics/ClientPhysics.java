@@ -54,6 +54,7 @@ public final class ClientPhysics {
             case Change.Reset ignored -> -1;
             case Change.Destroyed ignored -> -1;
             case Change.Tagged ignored -> -1;
+            case Change.Renamed ignored -> -1;
         };
         if (id < 0 || !(tree.byId(id) instanceof Part part) || !SubLevels.wantsSubLevel(part)) return;
 
