@@ -82,7 +82,8 @@ public final class Schema {
     public static void check(Remote remote, List<Object> args) {
         List<Takes> takes = parse(remote.accepts);
         if (args.size() > takes.size()) {
-            throw new IllegalArgumentException(remote.name() + " expects (" + shape(takes) + "), got " + args.size() + " arguments");
+            String hint = takes.isEmpty() ? ", list what it takes in its accepts, like \"string\" or \"string, number?\"" : "";
+            throw new IllegalArgumentException(remote.name() + " expects (" + shape(takes) + "), got " + args.size() + " arguments" + hint);
         }
         for (int n = 0; n < takes.size(); n++) {
             Takes want = takes.get(n);

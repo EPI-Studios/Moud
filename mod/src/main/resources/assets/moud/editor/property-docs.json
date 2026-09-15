@@ -4,6 +4,7 @@
     "pivot": "The point it turns about, as an offset from its centre. A door turns at its hinge this way.",
     "alwaysRelevant": "Every player receives it whatever the distance. Off: players only get what is near them.",
     "owner": "The player that simulates its physics. Empty means the server.",
+    "accepts": "What a message may carry, in order: \"string\", \"number, vec3?\"... Empty means no arguments; anything else sent is refused.",
     "Part.size": "Its dimensions in blocks.",
     "Part.color": "The colour it is drawn with.",
     "transparency": "0 is solid, 1 is invisible.",
