@@ -65,9 +65,9 @@ public final class ProjectHubView {
     private static final float CARD_TEXT_HEIGHT = 58.0f;
     private static final float CARD_ROUNDING = 2.0f;
     private static final float CORNER = 2.0f;
-    private static final float COVER_INITIALS_SIZE = 34.0f;
-    private static final float HERO_TITLE_SIZE = 24.0f;
-    private static final float PAGE_TITLE_SIZE = 22.0f;
+    private static final float COVER_INITIALS_SIZE = EditorFonts.DISPLAY;
+    private static final float HERO_TITLE_SIZE = EditorFonts.HEADING;
+    private static final float PAGE_TITLE_SIZE = EditorFonts.HEADING;
     private static final float SECTION_GAP = 28.0f;
     private static final int SEARCH_CAPACITY = 128;
     private static final int NAV_ALL = 0;
@@ -180,7 +180,7 @@ public final class ProjectHubView {
         ImGui.sameLine(0.0f, EditorScale.of(12.0f));
         ImGui.beginGroup();
         withFont(EditorFonts.title(), EditorFonts.TITLE, () -> ImGui.textUnformatted("Moud"));
-        withFont(EditorFonts.body(), EditorFonts.SMALL, () -> text(EditorStyle.COLOR_TEXT_MUTED, "Studio"));
+        withFont(EditorFonts.small(), EditorFonts.SMALL, () -> text(EditorStyle.COLOR_TEXT_MUTED, "Studio"));
         ImGui.endGroup();
     }
 
@@ -190,7 +190,7 @@ public final class ProjectHubView {
     }
 
     private static void sidebarCaption(String caption) {
-        withFont(EditorFonts.body(), EditorFonts.SMALL, () -> text(EditorStyle.COLOR_TEXT_FAINT, caption));
+        withFont(EditorFonts.small(), EditorFonts.SMALL, () -> text(EditorStyle.COLOR_TEXT_FAINT, caption));
         ImGui.dummy(0.0f, EditorScale.of(4.0f));
     }
 
@@ -221,7 +221,7 @@ public final class ProjectHubView {
         if (remaining > 0.0f) ImGui.dummy(0.0f, remaining);
         sidebarCaption("PROJECTS FOLDER");
         String folder = ProjectStore.defaultProjectsFolder().toString();
-        withFont(EditorFonts.body(), EditorFonts.SMALL, () -> {
+        withFont(EditorFonts.small(), EditorFonts.SMALL, () -> {
             text(EditorStyle.COLOR_TEXT_MUTED, ellipsize(folder, width));
             if (ImGui.isItemHovered()) ImGui.setTooltip(folder);
         });
@@ -269,7 +269,7 @@ public final class ProjectHubView {
     private void renderTopBar(float width, int count) {
         float top = ImGui.getCursorPosY();
         float left = ImGui.getCursorPosX();
-        withFont(EditorFonts.title(), PAGE_TITLE_SIZE, () -> ImGui.textUnformatted(nav == NAV_PINNED ? "Pinned" : "Projects"));
+        withFont(EditorFonts.heading(), EditorFonts.HEADING, () -> ImGui.textUnformatted(nav == NAV_PINNED ? "Pinned" : "Projects"));
         ImGui.sameLine(0.0f, EditorScale.of(10.0f));
         ImGui.setCursorPosY(top + EditorScale.of(PAGE_TITLE_SIZE) - ImGui.getTextLineHeight());
         text(EditorStyle.COLOR_TEXT_FAINT, count + (count == 1 ? " project" : " projects"));
@@ -291,7 +291,7 @@ public final class ProjectHubView {
     }
 
     private static void sectionTitle(String title) {
-        withFont(EditorFonts.body(), EditorFonts.SMALL, () -> text(EditorStyle.COLOR_TEXT_FAINT, title.toUpperCase(Locale.ROOT)));
+        withFont(EditorFonts.small(), EditorFonts.SMALL, () -> text(EditorStyle.COLOR_TEXT_FAINT, title.toUpperCase(Locale.ROOT)));
         ImGui.dummy(0.0f, EditorScale.of(8.0f));
     }
 
@@ -311,8 +311,8 @@ public final class ProjectHubView {
         draw.addRect(x, y, x + width, y + height, EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.06f + emphasis * 0.18f), rounding, 0, 1.0f);
         float textX = x + coverWidth + EditorScale.of(28.0f);
         float textY = y + EditorScale.of(24.0f);
-        ImFont small = EditorFonts.body();
-        ImFont title = EditorFonts.title();
+        ImFont small = EditorFonts.small();
+        ImFont title = EditorFonts.heading();
         if (small != null) draw.addText(small, (int) EditorScale.of(EditorFonts.SMALL), textX, textY, EditorStyle.COLOR_TEXT_FAINT, "CONTINUE WHERE YOU LEFT OFF");
         if (title != null) draw.addText(title, (int) EditorScale.of(HERO_TITLE_SIZE), textX, textY + EditorScale.of(20.0f), EditorStyle.COLOR_TEXT_FOCUS, entry.project().name());
         float detailY = textY + EditorScale.of(20.0f + HERO_TITLE_SIZE + 8.0f);
@@ -414,7 +414,7 @@ public final class ProjectHubView {
         float cube = Math.min(w, h) * 0.34f;
         drawGhostCube(draw, x0 + w * 0.78f, y0 + h * 0.62f, cube, emphasis);
         draw.popClipRect();
-        ImFont title = EditorFonts.title();
+        ImFont title = EditorFonts.display();
         String initials = initials(entry.project().name());
         float size = EditorScale.of(COVER_INITIALS_SIZE);
         if (title != null) {
@@ -444,7 +444,7 @@ public final class ProjectHubView {
         draw.addRect(x, y, x + width, y + height, EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.06f), rounding);
         float cube = EditorScale.of(46.0f);
         drawLogo(draw, x + width * 0.5f - cube * 0.5f, y + EditorScale.of(48.0f), cube);
-        ImFont title = EditorFonts.title();
+        ImFont title = EditorFonts.heading();
         String heading = "Build your first place";
         float headingSize = EditorScale.of(HERO_TITLE_SIZE);
         if (title != null) {

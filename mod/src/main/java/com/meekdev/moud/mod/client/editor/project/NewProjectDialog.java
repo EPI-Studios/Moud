@@ -92,7 +92,7 @@ public final class NewProjectDialog {
 
     private void renderContents() {
         float width = ImGui.getContentRegionAvailX();
-        font(EditorFonts.title(), TITLE_SIZE, () -> ImGui.textUnformatted("New project"));
+        font(EditorFonts.heading(), EditorFonts.HEADING, () -> ImGui.textUnformatted("New project"));
         muted("Pick a name and a starting point. You can change everything later.");
         ImGui.dummy(0.0f, EditorScale.of(16.0f));
         caption("NAME");
@@ -203,7 +203,7 @@ public final class NewProjectDialog {
     }
 
     private static void caption(String text) {
-        font(EditorFonts.body(), EditorFonts.SMALL, () -> {
+        font(EditorFonts.small(), EditorFonts.SMALL, () -> {
             ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_FAINT);
             ImGui.textUnformatted(text);
             ImGui.popStyleColor();
