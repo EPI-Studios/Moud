@@ -20,10 +20,16 @@ public final class Payloads {
         down.register(ChatDownPayload.TYPE, ChatDownPayload.CODEC.cast());
         down.register(DebugPayload.TYPE, DebugPayload.CODEC.cast());
         down.register(PilotDownPayload.TYPE, PilotDownPayload.CODEC.cast());
+        down.register(EditDownPayload.TYPE, EditDownPayload.CODEC.cast());
+        down.register(SceneStatusPayload.TYPE, SceneStatusPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(RemoteUpPayload.TYPE, RemoteUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ChatUpPayload.TYPE, ChatUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PromptPayload.TYPE, PromptPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PilotUpPayload.TYPE, PilotUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ResyncPayload.TYPE, ResyncPayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(EditUpPayload.TYPE, EditUpPayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(SceneEditPayload.TYPE, SceneEditPayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(SceneInsertPayload.TYPE, SceneInsertPayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(SceneSavePayload.TYPE, SceneSavePayload.CODEC.cast());
     }
 }

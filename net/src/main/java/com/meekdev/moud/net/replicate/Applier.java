@@ -19,6 +19,12 @@ public final class Applier {
         this.classes = classes;
     }
 
+    public Applier(ClassRegistry classes, InstanceTree tree, Instance world) {
+        this.classes = classes;
+        this.tree = tree;
+        this.world = world;
+    }
+
     public InstanceTree tree() {
         return tree;
     }

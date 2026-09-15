@@ -15,6 +15,7 @@ import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
+import com.meekdev.moud.mod.client.editor.EditMode;
 import com.meekdev.moud.mod.client.input.Actions;
 import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.place.Place;
@@ -48,6 +49,17 @@ public final class ClientPlace {
         return camera;
     }
 
+    public static void edit() {
+        if (place == null) return;
+        place.edit();
+        camera = null;
+        Cameras.release();
+    }
+
+    public static void play() {
+        if (place != null) place.play();
+    }
+
     public static void tick() {
         Instance world = ClientScene.world();
         if (world == null) {
@@ -63,7 +75,7 @@ public final class ClientPlace {
     }
 
     public static void frame(float partialTick) {
-        if (place == null || camera == null) return;
+        if (place == null || camera == null || !camera.isAlive()) return;
         INPUT.poll();
         Actions.frame();
         Host host = place.host();
@@ -86,6 +98,7 @@ public final class ClientPlace {
         });
         place.start();
         placeWorld = world;
+        if (EditMode.editing()) edit();
         MoudMod.LOG.info("the client place is running");
     }
 

@@ -44,6 +44,7 @@ public final class MoudServer {
 
     public static void install() {
         Walkers.pilot(ServerPilot.INSTANCE);
+        Editing.install();
         ServerLifecycleEvents.SERVER_STARTED.register(MoudServer::started);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> stopped());
         ServerTickEvents.START_SERVER_TICK.register(MoudServer::tick);
@@ -108,7 +109,7 @@ public final class MoudServer {
         if (host != null) host.joined(new JoinedPlayer(player));
     }
 
-    private static void respawnAll(MinecraftServer server) {
+    static void respawnAll(MinecraftServer server) {
         for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
             Physics.bodies().release(player);
             spawn(player);

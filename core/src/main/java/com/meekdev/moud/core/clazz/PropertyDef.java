@@ -36,6 +36,8 @@ public final class PropertyDef {
     public boolean driven() { return driven; }
     public boolean asset() { return asset; }
     public Object defaultValue() { return defaultValue; }
+    public double min() { return min; }
+    public double max() { return max; }
 
     public int index() { return index; }
 

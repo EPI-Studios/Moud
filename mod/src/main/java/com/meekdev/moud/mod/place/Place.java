@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.place;
 
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.scene.Scene;
@@ -42,6 +43,7 @@ public final class Place {
     private @Nullable Host host;
     private @Nullable ScriptLanguage language;
     private @Nullable Watcher watcher;
+    private boolean editing;
 
     private Place(Instance world, ClassRegistry classes, String main, boolean client,
                   Predicate<Instance> dropped, Consumer<Host> extend) {
@@ -96,10 +98,58 @@ public final class Place {
         watcher = null;
     }
 
+    public boolean editing() {
+        return editing;
+    }
+
+    public void edit() {
+        if (editing) return;
+        editing = true;
+        if (host != null) host.close();
+        host = null;
+        clearWorld();
+        if (!client) scene();
+    }
+
+    public void play() {
+        if (!editing) return;
+        editing = false;
+        clearWorld();
+        host = load(Map.of());
+    }
+
+    public static final String DEFAULT_SCENE = "res://scenes/main.scene";
+
+    public String sceneFile() {
+        String path = PlaceToml.config().scene();
+        return path.isEmpty() ? DEFAULT_SCENE : path;
+    }
+
+    public String saveScene() {
+        List<Instance> roots = world.children().stream().filter(Place::authored).toList();
+        String file = sceneFile();
+        new PlaceFileRef(root).write(file, Scene.save(roots));
+        return file;
+    }
+
+    public static boolean authored(Instance instance) {
+        for (Instance at = instance; at != null; at = at.parent()) {
+            if (at.isA(Classes.CHARACTER)) return false;
+        }
+        return instance.id() >= 0;
+    }
+
+    private void clearWorld() {
+        for (Instance child : List.copyOf(world.children())) {
+            if (dropped.test(child)) Instances.destroy(child);
+        }
+    }
+
     public boolean pollReload() {
         if (watcher == null) return false;
         Set<Path> changes = watcher.changes();
         if (changes.isEmpty()) return false;
+        if (editing) return false;
         Path mixins = mixins().toAbsolutePath().normalize();
         List<Path> ours = changes.stream().map(path -> path.toAbsolutePath().normalize()).filter(path -> path.startsWith(mixins)).toList();
         boolean rest = changes.stream().map(path -> path.toAbsolutePath().normalize()).anyMatch(path -> !path.startsWith(mixins) && !isMixin(path));
@@ -113,9 +163,7 @@ public final class Place {
         Map<String, Object> carried = host == null ? Map.of() : host.persist();
         if (host != null) host.close();
         host = null;
-        for (Instance child : List.copyOf(world.children())) {
-            if (dropped.test(child)) Instances.destroy(child);
-        }
+        clearWorld();
 
         host = load(carried);
         if (host != null) host.reloaded();
