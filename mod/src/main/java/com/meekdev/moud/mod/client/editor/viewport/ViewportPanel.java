@@ -16,6 +16,7 @@ import com.meekdev.moud.mod.client.editor.assets.AssetKind;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
+import com.meekdev.moud.mod.client.editor.document.ReferencePick;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.kit.ToggleStyle;
@@ -125,6 +126,7 @@ public final class ViewportPanel implements Panel {
     @Override
     public void render() {
         placeCameraOnEntry();
+
         renderToolbar();
         float deltaSeconds = ImGui.getIO().getDeltaTime();
         float left = ImGui.getCursorScreenPosX();
@@ -484,6 +486,16 @@ public final class ViewportPanel implements Panel {
     private void handlePicking(boolean gizmoBusy, ImDrawList drawList) {
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
+        if (ReferencePick.active()) {
+            drawList.addText(mouseX + EditorScale.of(14), mouseY + EditorScale.of(10), EditorStyle.COLOR_HIGHLIGHT, "Pick a target");
+            if (ImGui.isKeyPressed(ImGuiKey.Escape)) ReferencePick.cancel();
+            if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+                Instance picked = pickAt(mouseX, mouseY);
+                if (picked != null) ReferencePick.deliver(picked);
+                else ReferencePick.cancel();
+                return;
+            }
+        }
         if (hovered && !gizmoBusy && !lookGesture && !ImGui.getIO().getKeyAlt() && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
             boxing = true;
             pressX = mouseX;

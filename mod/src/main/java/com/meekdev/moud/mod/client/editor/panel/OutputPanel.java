@@ -7,6 +7,7 @@ import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.place.Output;
 import com.meekdev.moud.mod.place.PlaceToml;
+import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.type.ImString;
@@ -17,6 +18,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
@@ -105,16 +107,77 @@ public final class OutputPanel implements Panel {
         }
         String query = searchInput.get().trim().toLowerCase(Locale.ROOT);
         int index = 0;
+        int repeats = 0;
+        List<Output.Line> visible = new ArrayList<>();
         for (Output.Line line : lines) {
-            index++;
-            if (matchesFilter(line.level()) && (query.isEmpty() || line.message().toLowerCase(Locale.ROOT).contains(query))) {
-                ImGui.pushID(index);
-                renderLine(line);
-                ImGui.popID();
+            if (matchesFilter(line.level()) && (query.isEmpty() || line.message().toLowerCase(Locale.ROOT).contains(query))) visible.add(line);
+        }
+        for (int n = 0; n < visible.size(); n++) {
+            Output.Line line = visible.get(n);
+            boolean sameAsNext = n + 1 < visible.size() && visible.get(n + 1).message().equals(line.message()) && visible.get(n + 1).level() == line.level();
+            if (sameAsNext) {
+                repeats++;
+                continue;
             }
+            ImGui.pushID(++index);
+            if (line.level() == Output.Level.ERROR || line.level() == Output.Level.WARN) renderCard(line, repeats + 1);
+            else renderLine(line, repeats + 1);
+            ImGui.popID();
+            repeats = 0;
         }
         applyStickToBottom();
         ImGui.endChild();
+    }
+
+    private void renderCard(Output.Line line, int count) {
+        ErrorHelp.Explained help = ErrorHelp.explain(line.message());
+        ImDrawList draw = ImGui.getWindowDrawList();
+        float left = ImGui.getCursorScreenPosX();
+        float top = ImGui.getCursorScreenPosY();
+        float width = ImGui.getContentRegionAvailX();
+        float pad = EditorScale.of(8);
+        int accent = colorFor(line.level());
+        draw.channelsSplit(2);
+        draw.channelsSetCurrent(1);
+        ImGui.setCursorScreenPos(left + pad * 1.5f, top + pad);
+        ImGui.beginGroup();
+        ImGui.pushTextWrapPos(left + width - pad);
+        ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_FOCUS);
+        ImGui.textWrapped(help.title());
+        ImGui.popStyleColor();
+        ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_FAINT);
+        ImGui.textUnformatted(CLOCK.format(Instant.ofEpochMilli(line.time())) + "  " + line.side() + (count > 1 ? "   ×" + count : ""));
+        ImGui.popStyleColor();
+        Optional<Location> link = locationIn(line.message());
+        if (link.isPresent()) {
+            ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_ACCENT);
+            String where = PlaceToml.root().relativize(link.get().file()) + ":" + link.get().line();
+            if (ImGui.selectable("Open " + where + "##open")) open(link.get());
+            ImGui.popStyleColor();
+        }
+        if (!help.why().isEmpty()) {
+            ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT);
+            ImGui.textWrapped(help.why());
+            ImGui.popStyleColor();
+        }
+        if (!help.fix().isEmpty()) {
+            ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_SUCCESS);
+            ImGui.textWrapped("Try: " + help.fix());
+            ImGui.popStyleColor();
+        }
+        ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_MUTED);
+        ImGui.textWrapped(line.message());
+        ImGui.popStyleColor();
+        if (ImGui.smallButton("Copy##copy")) ImGui.setClipboardText(line.message());
+        ImGui.popTextWrapPos();
+        ImGui.endGroup();
+        float bottom = ImGui.getItemRectMaxY() + pad;
+        draw.channelsSetCurrent(0);
+        draw.addRectFilled(left, top, left + width, bottom, EditorStyle.withAlpha(accent, 0.08f), EditorScale.of(4));
+        draw.addRectFilled(left, top, left + EditorScale.of(3), bottom, accent, EditorScale.of(2));
+        draw.channelsMerge();
+        ImGui.setCursorScreenPos(left, bottom + EditorScale.of(4));
+        ImGui.dummy(width, 0);
     }
 
     private void applyStickToBottom() {
@@ -124,10 +187,10 @@ public final class OutputPanel implements Panel {
         }
     }
 
-    private void renderLine(Output.Line line) {
+    private void renderLine(Output.Line line, int count) {
         drawLevelMarker(line.level());
         ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_FAINT);
-        ImGui.textUnformatted(CLOCK.format(Instant.ofEpochMilli(line.time())) + "  " + line.side());
+        ImGui.textUnformatted(CLOCK.format(Instant.ofEpochMilli(line.time())) + "  " + line.side() + (count > 1 ? "  ×" + count : ""));
         ImGui.popStyleColor();
         ImGui.sameLine();
         Optional<Location> link = locationIn(line.message());

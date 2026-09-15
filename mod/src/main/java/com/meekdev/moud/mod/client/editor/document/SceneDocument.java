@@ -198,6 +198,28 @@ public final class SceneDocument {
         apply(new Change.Moved(target.id, parent.id));
     }
 
+    void tag(InstanceRef target, String tag, boolean added) {
+        editableOrThrow(target);
+        if (tag.isBlank()) throw new IllegalStateException("a tag can not be empty");
+        apply(new Change.Tagged(target.id, tag, added));
+    }
+
+    public void addValue(int parentId, String className, String name) {
+        ClassDef<?> def = Addons.classes().find(className);
+        if (def == null || find(parentId) == null) return;
+        String text;
+        try {
+            InstanceTree scratch = new InstanceTree();
+            Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+            Instance made = Instances.create(def, holder, name.isBlank() ? className : name.strip());
+            text = snapshot(List.of(made));
+        } catch (RuntimeException e) {
+            SceneLink.local("Could not add " + className + ": " + e.getMessage());
+            return;
+        }
+        history.execute(new Paste(text, ref(parentId), new ArrayList<>(), new ArrayList<>(), false, "Add " + name));
+    }
+
     void rename(InstanceRef target, String name) {
         editableOrThrow(target);
         if (name.isBlank()) throw new IllegalStateException("a name can not be empty");

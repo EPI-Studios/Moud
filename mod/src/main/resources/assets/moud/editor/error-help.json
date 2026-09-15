@@ -1,0 +1,116 @@
+[
+  {
+    "pattern": "attempt to index nil with '([^']+)'",
+    "title": "Used .{1} on something that is nil",
+    "why": "The value before .{1} does not exist: it was never found, the name is misspelled, or it was destroyed.",
+    "fix": "Check the name you looked up with find(), or guard it: if thing then ... end"
+  },
+  {
+    "pattern": "attempt to call a nil value \\(method '([^']+)'\\)",
+    "title": "{1} is not a method of this value",
+    "why": "Nothing called {1} exists on the value you called it on.",
+    "fix": "Check the spelling and the class in the reference. Methods are called with a colon: thing:{1}()"
+  },
+  {
+    "pattern": "attempt to call a nil value \\(field '([^']+)'\\)",
+    "title": "{1} is not a function",
+    "why": "The field {1} is nil, so it can not be called.",
+    "fix": "Check the spelling. A method needs a colon, thing:{1}(), not a dot."
+  },
+  {
+    "pattern": "attempt to call a nil value \\(global '([^']+)'\\)",
+    "title": "{1} does not exist",
+    "why": "There is no global called {1} on this side of the game.",
+    "fix": "Check the spelling. camera and input only exist in client scripts, game.players.joined only on the server."
+  },
+  {
+    "pattern": "attempt to perform arithmetic \\(\\w+\\) on (\\w+)",
+    "title": "Maths on a {1}",
+    "why": "One side of + - * / is a {1}, not a number.",
+    "fix": "Make sure both values are numbers, tonumber() turns text into a number."
+  },
+  {
+    "pattern": "attempt to concatenate (\\w+)",
+    "title": "Joined text with a {1}",
+    "why": "One side of .. is a {1}.",
+    "fix": "Wrap it in tostring(value) before joining."
+  },
+  {
+    "pattern": "attempt to compare (\\w+) (?:<|<=|>|>=) (\\w+)",
+    "title": "Compared a {1} with a {2}",
+    "why": "Only numbers with numbers, or text with text, can be ordered.",
+    "fix": "Convert one side with tonumber() or tostring()."
+  },
+  {
+    "pattern": "cannot write (\\w+)\\.(\\w+) from the client(.*)",
+    "title": "A client script changed {1}.{2}",
+    "why": "The server owns the world{3}. A client may only change interface instances, what it made itself, and what its player owns.",
+    "fix": "Send a Remote to the server and change it there, or setOwner the part to the player on the server."
+  },
+  {
+    "pattern": "(\\S+) expects \\((.*)\\), got (\\d+) arguments",
+    "title": "The remote {1} refused a message",
+    "why": "It accepts ({2}) but was sent {3} argument(s).",
+    "fix": "Set its accepts property to the kinds it carries, like \"string\" or \"string, number?\"."
+  },
+  {
+    "pattern": "(\\S+): argument (\\d+) must be (\\w+), got (\\w+)",
+    "title": "The remote {1} got the wrong kind of value",
+    "why": "Argument {2} should be a {3} but a {4} was sent.",
+    "fix": "Change what fireServer sends, or the accepts list on the remote."
+  },
+  {
+    "pattern": "argument (\\d+) expects (\\S+), got (\\S+)",
+    "title": "Argument {1} has the wrong type",
+    "why": "It wants {2} but got {3}.",
+    "fix": "Look at the call on that line and the signature in the reference."
+  },
+  {
+    "pattern": "(\\w+) has no property '([^']+)'",
+    "title": "{1} has no {2}",
+    "why": "That property is not on {1}.",
+    "fix": "Check the spelling and the reference for {1}. Properties are camelCase, like walkSpeed."
+  },
+  {
+    "pattern": "(\\w+) wants one of ([\\w, ]+)",
+    "title": "Not an allowed value for {1}",
+    "why": "It only takes: {2}.",
+    "fix": "Use one of those, written exactly."
+  },
+  {
+    "pattern": "there is no res://(\\S+)",
+    "title": "Missing file {1}",
+    "why": "Nothing exists at that path in the place.",
+    "fix": "Check the path and extension. The Assets panel can copy a file's path."
+  },
+  {
+    "pattern": "cannot require res://(\\S+) from the (\\w+)",
+    "title": "The {2} can not load {1}",
+    "why": "A client only loads client/ and shared/, the server only server/ and shared/.",
+    "fix": "Move what both sides need into shared/."
+  },
+  {
+    "pattern": "circular require of (\\S+)",
+    "title": "Two modules require each other",
+    "why": "Loading {1} came back to itself.",
+    "fix": "Move what they share into a third module that both require."
+  },
+  {
+    "pattern": "(?i)(expected .* got|incomplete statement|unfinished|malformed)",
+    "title": "The script does not parse",
+    "why": "Luau could not read the code near that line.",
+    "fix": "Look for a missing end, closing bracket or quote just before the line it names."
+  },
+  {
+    "pattern": "that instance is not part of the scene",
+    "title": "That is not part of the scene",
+    "why": "It was made by the engine or a script, so the editor can not save it.",
+    "fix": "Edit instances that come from the scene file, or turn the script's work into scene instances."
+  },
+  {
+    "pattern": "is driven by the engine",
+    "title": "The engine controls that property",
+    "why": "It is rewritten every tick, so an edit would be lost.",
+    "fix": "Change what drives it instead, like the joint rather than the limb."
+  }
+]
