@@ -118,7 +118,15 @@ public final class SceneDocument {
         Instance world = world();
         if (tree == null || world == null) throw new IllegalStateException("there is no scene");
         byte[] bytes = Codec.encode(List.of(change), tree, Addons.classes());
-        new Applier(Addons.classes(), tree, world).apply(change);
+        Applier applier = new Applier(Addons.classes(), tree, world);
+        for (Change normalized : Codec.decode(bytes, tree, Addons.classes())) {
+            applier.apply(normalized);
+            if (normalized instanceof Change.Wrote wrote) {
+                Instance instance = find(wrote.id());
+                PropertyDef property = instance == null ? null : instance.def().property(wrote.property());
+                if (property != null) PendingEdits.sent(wrote.id(), wrote.property(), wire(instance, property));
+            }
+        }
         SceneLink.send(bytes);
     }
 

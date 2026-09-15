@@ -10,6 +10,7 @@ import com.meekdev.moud.mod.transport.payload.EditUpPayload;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 
 public final class EditMode {
@@ -18,6 +19,7 @@ public final class EditMode {
     private static boolean allowed;
     private static boolean hudWasHidden;
     private static int session;
+    private static CameraType cameraBefore = CameraType.FIRST_PERSON;
 
     private EditMode() {}
 
@@ -56,6 +58,7 @@ public final class EditMode {
             session++;
             ClientPlace.edit();
             hudWasHidden = minecraft.options.hideGui;
+            cameraBefore = minecraft.options.getCameraType();
             minecraft.options.hideGui = true;
             minecraft.setScreen(new EditorScreen());
         } else {
@@ -64,6 +67,7 @@ public final class EditMode {
             ViewportCapture.hide();
             ClientPlace.play();
             minecraft.options.hideGui = hudWasHidden;
+            minecraft.options.setCameraType(cameraBefore);
             if (minecraft.screen instanceof EditorScreen) minecraft.setScreen(null);
         }
     }

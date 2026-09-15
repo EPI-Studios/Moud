@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.addon.Addons;
+import com.meekdev.moud.mod.client.editor.document.PendingEdits;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.transport.payload.ResyncPayload;
 import com.meekdev.moud.net.replicate.Applier;
@@ -50,6 +51,7 @@ public final class Mirror {
                 resyncing = false;
             }
             for (int i = 0; i < batch.size(); i++) {
+                if (!PendingEdits.accept(batch.get(i))) continue;
                 APPLIER.apply(batch.get(i));
                 also.accept(batch.get(i));
             }
