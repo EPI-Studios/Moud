@@ -48,6 +48,7 @@ public final class InstanceTree {
 
     private Instance root;
     private Instance[] byId = new Instance[64];
+    private Instance[] byLocalId = new Instance[16];
     private final Map<ClassDef<?>, List<Instance>> byClass = new HashMap<>();
     @SuppressWarnings("unchecked")
     private final List<Instance>[] byStage = new List[Stage.ORDER.length];
@@ -100,9 +101,10 @@ public final class InstanceTree {
     }
 
     public Instance byId(int id) {
+        Instance[] slots = id < 0 ? byLocalId : byId;
         int slot = Math.abs(id);
-        if (slot >= byId.length) return null;
-        Instance i = byId[slot];
+        if (slot >= slots.length) return null;
+        Instance i = slots[slot];
         return i != null && i.id == id ? i : null;
     }
 
@@ -178,8 +180,13 @@ public final class InstanceTree {
 
     void index(Instance i) {
         int slot = Math.abs(i.id);
-        if (slot >= byId.length) byId = Arrays.copyOf(byId, Math.max(slot + 1, byId.length * 2));
-        byId[slot] = i;
+        if (i.id < 0) {
+            if (slot >= byLocalId.length) byLocalId = Arrays.copyOf(byLocalId, Math.max(slot + 1, byLocalId.length * 2));
+            byLocalId[slot] = i;
+        } else {
+            if (slot >= byId.length) byId = Arrays.copyOf(byId, Math.max(slot + 1, byId.length * 2));
+            byId[slot] = i;
+        }
         for (ClassDef<?> c = i.def(); c != null; c = c.parent()) {
             byClass.computeIfAbsent(c, k -> new ArrayList<>()).add(i);
         }
@@ -192,8 +199,9 @@ public final class InstanceTree {
     }
 
     void unindex(Instance i) {
+        Instance[] slots = i.id < 0 ? byLocalId : byId;
         int slot = Math.abs(i.id);
-        if (slot < byId.length && byId[slot] == i) byId[slot] = null;
+        if (slot < slots.length && slots[slot] == i) slots[slot] = null;
         for (ClassDef<?> c = i.def(); c != null; c = c.parent()) {
             List<Instance> list = byClass.get(c);
             if (list != null) list.remove(i);
