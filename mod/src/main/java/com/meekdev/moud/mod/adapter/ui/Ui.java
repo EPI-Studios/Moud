@@ -110,7 +110,7 @@ public final class Ui {
         while (placed.hasNext()) {
             Map.Entry<Instance, Placed> entry = placed.next();
             if (!entry.getKey().isAlive() || entry.getKey().tree() != tree) {
-                entry.getValue().surface().remove();
+                if (entry.getValue().surface() != null) entry.getValue().surface().remove();
                 placed.remove();
             }
         }
