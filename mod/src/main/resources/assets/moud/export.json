@@ -1,0 +1,10 @@
+{
+  "companionMods": ["amnetic", "bkun", "resona"],
+  "libraries": ["luau", "luau-natives-.+", "recast", "detour", "byte-buddy", "byte-buddy-agent", "sqlite-jdbc", "polar", "box3d-java"],
+  "markers": [
+    "com.meekdev.moud.core.instance.Instance",
+    "com.meekdev.moud.script.host.Host",
+    "com.meekdev.moud.net.wire.Codec",
+    "com.meekdev.box3d.B3Body"
+  ]
+}

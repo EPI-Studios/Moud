@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.editor;
 
 import com.meekdev.amnetic.client.ui.AmneticEditor;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.Launch;
 import com.meekdev.moud.mod.client.editor.document.SceneLink;
 import com.meekdev.moud.mod.client.editor.project.ProjectHub;
@@ -49,7 +50,7 @@ public final class Editor {
         AmneticEditor.register(new TreeInspector());
         AmneticEditor.register(new PlaceInspector());
         AmneticEditor.register(new MixinInspector());
-        EditMode.install();
+        EditMode.install(EditorScreen::new);
         SceneLink.install();
         available = true;
         shell = new EditorShell();
@@ -72,8 +73,8 @@ public final class Editor {
         return available;
     }
 
-    public static ProjectHubScreen projectHub() {
-        return new ProjectHubScreen();
+    public static void openHub(Minecraft client) {
+        client.setScreen(new ProjectHubScreen());
     }
 
     public static void requestCloseProject() {

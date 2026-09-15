@@ -25,6 +25,7 @@ import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.input.Autopilot;
 import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.client.zone.ClientPrompts;
+import com.meekdev.moud.mod.place.Game;
 import com.meekdev.moud.mod.transport.Post;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -47,7 +48,7 @@ public final class MoudClient implements ClientModInitializer {
                 ? me.getUUID().toString() : "");
         Pipeline.install();
         ResonaAudio.INSTANCE.install();
-        Editor.install();
+        if (!Game.standalone()) Editor.install();
         GameTypes.install(ClientScene::tree, id -> Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getPlayerByUUID(id));
         Parts.register();
         Meshes.register();

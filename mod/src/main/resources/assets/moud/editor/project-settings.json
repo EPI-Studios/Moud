@@ -1,0 +1,66 @@
+[
+  {
+    "title": "World",
+    "features": {
+      "SKY": "The vanilla sky colour and sun",
+      "CLOUDS": "Vanilla clouds",
+      "FOG": "Distance fog at the edge of the view",
+      "STARS": "Stars at night",
+      "WEATHER": "Rain, snow and thunder",
+      "DAY_NIGHT_CYCLE": "Time moves on its own",
+      "AMBIENT_LIGHT": "Blocks and parts get sky and block light",
+      "TERRAIN": "The blocks of world.polar load",
+      "BLOCK_BREAKING": "Players can break blocks",
+      "BLOCK_PLACING": "Players can place blocks",
+      "BLOCK_ENTITIES": "Chests, signs and other block entities work",
+      "FLUIDS": "Water and lava flow",
+      "MOBS": "Vanilla mobs spawn",
+      "ITEM_DROPS": "Broken blocks and deaths drop items"
+    }
+  },
+  {
+    "title": "Player",
+    "features": {
+      "HUNGER": "The food bar drains",
+      "HEALTH_REGEN": "Health comes back over time",
+      "FALL_DAMAGE": "Falling hurts",
+      "DROWNING": "Staying under water hurts",
+      "FIRE_DAMAGE": "Fire and lava hurt",
+      "VANILLA_MOVEMENT": "Minecraft moves the player, turn off to drive the Humanoid from scripts",
+      "INVENTORY": "The E inventory screen opens",
+      "CRAFTING": "Crafting tables and recipes",
+      "XP": "Experience orbs and levels",
+      "DEATH_SCREEN": "The vanilla death screen with its respawn button"
+    }
+  },
+  {
+    "title": "Screen",
+    "features": {
+      "HOTBAR": "The hotbar at the bottom of the screen",
+      "HEALTH_BAR": "Hearts",
+      "HUNGER_BAR": "Food",
+      "XP_BAR": "The experience bar",
+      "CROSSHAIR": "The crosshair in the middle",
+      "EFFECT_ICONS": "Potion effect icons",
+      "BOSS_BAR": "Boss bars at the top",
+      "CHAT": "The vanilla chat",
+      "TAB_LIST": "The player list on Tab",
+      "SCOREBOARD": "The sidebar scoreboard",
+      "HAND": "The first person hand",
+      "PAUSE_MENU": "Escape opens the pause menu",
+      "DEBUG_SCREEN": "F3 shows the debug screen",
+      "TITLE_SCREEN": "Launching shows the title screen instead of joining the place"
+    }
+  },
+  {
+    "title": "Rendering and sound",
+    "features": {
+      "ENTITY_RENDERING": "Vanilla entities are drawn",
+      "BLOB_SHADOWS": "Round shadows under entities",
+      "PLAYER_MODEL": "Players are drawn with the vanilla model",
+      "NAME_TAGS": "Names float above players",
+      "VANILLA_SOUNDS": "Footsteps, blocks and other game sounds",
+      "VANILLA_MUSIC": "Minecraft's background music"
+    }
+  }
+]

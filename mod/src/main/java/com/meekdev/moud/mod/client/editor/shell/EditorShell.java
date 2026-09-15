@@ -4,7 +4,7 @@ import com.meekdev.amnetic.client.ui.AmneticEditor;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.mod.adapter.render.Meshes;
 import com.meekdev.moud.mod.MoudMod;
-import com.meekdev.moud.mod.client.editor.EditMode;
+import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.editor.EditorScreen;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
@@ -72,7 +72,9 @@ public final class EditorShell {
             .add(new OutputPanel())
             .add(assets);
     private final SceneTabs scenes = new SceneTabs(document);
-    private final WorldImportDialog worldImport = new WorldImportDialog(document);
+    private final WorldImportDialog worldImport = new WorldImportDialog();
+    private final ProjectSettingsDialog settings = new ProjectSettingsDialog(document);
+    private final ExportDialog export = new ExportDialog(document);
     private final Commands commands = new Commands();
 
     private boolean closePrompt;
@@ -140,6 +142,8 @@ public final class EditorShell {
         commands.add(new EditorCommand("start-scene", "File", "Set as Start Scene", null, scenes::ready, () -> scenes.setStart(scenes.current())));
         commands.add(new EditorCommand("backups", "File", "Scene Backups...", null, scenes::ready, scenes::askBackups));
         commands.add(new EditorCommand("import-world", "File", "Import Minecraft World...", null, scenes::ready, worldImport::open));
+        commands.add(new EditorCommand("project-settings", "File", "Project Settings...", null, scenes::ready, settings::open));
+        commands.add(new EditorCommand("export", "File", "Export...", Shortcut.ctrl(ImGuiKey.E, "E"), scenes::ready, export::open));
         commands.add(new EditorCommand("close-project", "File", "Close Project", null, () -> true, this::closeProject));
         commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo));
         commands.add(new EditorCommand("redo", "Edit", "Redo", Shortcut.ctrl(ImGuiKey.Y, "Y"), this::canRedo, this::redo));
@@ -235,6 +239,8 @@ public final class EditorShell {
             scenes.frame();
             scenes.renderDialogs();
             worldImport.render();
+            settings.render();
+            export.render();
             document.frame(ImGui.isAnyItemActive() || ImGui.isMouseDown(ImGuiMouseButton.Left));
         } catch (RuntimeException e) {
             MoudMod.LOG.error("editor frame failed", e);
@@ -325,7 +331,8 @@ public final class EditorShell {
         String message = SceneLink.message();
         if (!message.isEmpty()) {
             ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
-            boolean good = message.startsWith("saved") || message.startsWith("opened") || message.startsWith("restored");
+            boolean good = message.startsWith("saved") || message.startsWith("opened")
+                    || message.startsWith("restored") || message.startsWith("loaded");
             Texts.colored(good ? EditorStyle.COLOR_SUCCESS : EditorStyle.COLOR_DANGER, message);
         }
         String importing = worldImport.status();

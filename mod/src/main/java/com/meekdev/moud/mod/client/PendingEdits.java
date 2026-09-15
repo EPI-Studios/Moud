@@ -1,4 +1,4 @@
-package com.meekdev.moud.mod.client.editor.document;
+package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
@@ -24,7 +24,7 @@ public final class PendingEdits {
 
     private PendingEdits() {}
 
-    static void sent(int id, int property, @Nullable Object value) {
+    public static void sent(int id, int property, @Nullable Object value) {
         PENDING.put(new Key(id, property), new Sent(value, System.nanoTime()));
     }
 

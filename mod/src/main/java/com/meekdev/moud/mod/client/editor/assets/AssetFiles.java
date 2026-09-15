@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.assets;
 
 import com.meekdev.moud.core.asset.Res;
+import com.meekdev.moud.mod.place.Blocks;
 import com.meekdev.moud.mod.place.ImportSettings;
 import com.meekdev.moud.mod.place.PlaceToml;
 import java.io.IOException;
@@ -79,6 +80,8 @@ public final class AssetFiles {
         if (!Files.isDirectory(path)) {
             Path sidecar = ImportSettings.sidecar(path);
             if (Files.isRegularFile(sidecar)) Files.copy(sidecar, ImportSettings.sidecar(target));
+            Path terrain = terrain(path);
+            if (terrain != null && Files.isRegularFile(terrain)) Files.copy(terrain, terrain(target));
             return Files.copy(path, target);
         }
         Files.walkFileTree(path, new SimpleFileVisitor<>() {
@@ -109,6 +112,8 @@ public final class AssetFiles {
         if (!Files.isDirectory(path)) {
             Files.deleteIfExists(path);
             Files.deleteIfExists(ImportSettings.sidecar(path));
+            Path terrain = terrain(path);
+            if (terrain != null) Files.deleteIfExists(terrain);
             return;
         }
         Files.walkFileTree(path, new SimpleFileVisitor<>() {
@@ -128,8 +133,16 @@ public final class AssetFiles {
     }
 
     private static Path carrySidecar(Path from, Path to) throws IOException {
+        if (Files.isDirectory(to)) return to;
         Path sidecar = ImportSettings.sidecar(from);
-        if (!Files.isDirectory(to) && Files.isRegularFile(sidecar)) Files.move(sidecar, ImportSettings.sidecar(to));
+        if (Files.isRegularFile(sidecar)) Files.move(sidecar, ImportSettings.sidecar(to));
+        Path terrain = terrain(from);
+        if (terrain != null && Files.isRegularFile(terrain)) Files.move(terrain, terrain(to));
         return to;
+    }
+
+    private static @Nullable Path terrain(Path scene) {
+        String name = scene.getFileName().toString();
+        return name.endsWith(".scene") ? scene.resolveSibling(name.substring(0, name.length() - ".scene".length()) + Blocks.EXTENSION) : null;
     }
 }

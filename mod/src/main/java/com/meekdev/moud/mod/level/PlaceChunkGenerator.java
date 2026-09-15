@@ -34,7 +34,7 @@ public final class PlaceChunkGenerator extends ChunkGenerator {
     private static final BlockState[] EMPTY_COLUMN = new BlockState[0];
 
     private final Holder<Biome> biome;
-    private final @Nullable PolarWorld place;
+    private volatile @Nullable PolarWorld place;
 
     public PlaceChunkGenerator(Holder<Biome> biome) {
         this(biome, null);
@@ -48,6 +48,14 @@ public final class PlaceChunkGenerator extends ChunkGenerator {
                 place == null ? 0 : place.chunks().size(), this.place == null ? "off" : "on");
     }
 
+    public void terrain(@Nullable PolarWorld terrain) {
+        place = MoudMod.features().isOn(Feature.TERRAIN) ? terrain : null;
+    }
+
+    public @Nullable PolarWorld terrain() {
+        return place;
+    }
+
     @Override
     protected MapCodec<? extends ChunkGenerator> codec() {
         return CODEC;
@@ -56,7 +64,8 @@ public final class PlaceChunkGenerator extends ChunkGenerator {
     @Override
     public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender, RandomState random,
             StructureManager structures, ChunkAccess chunk) {
-        if (place != null) PolarChunks.fill(place, chunk);
+        PolarWorld terrain = place;
+        if (terrain != null) PolarChunks.fill(terrain, chunk);
         return CompletableFuture.completedFuture(chunk);
     }
 

@@ -15,7 +15,6 @@ import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
-import com.meekdev.moud.mod.client.editor.EditMode;
 import com.meekdev.moud.mod.client.input.Actions;
 import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.place.Place;

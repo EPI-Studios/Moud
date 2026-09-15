@@ -11,7 +11,7 @@ import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
 import com.meekdev.moud.mod.adapter.render.EditorView;
 import com.meekdev.moud.mod.adapter.render.ViewportCapture;
-import com.meekdev.moud.mod.client.editor.EditMode;
+import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.editor.assets.AssetKind;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.document.Batch;

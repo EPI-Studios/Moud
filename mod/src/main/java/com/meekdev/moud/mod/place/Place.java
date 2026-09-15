@@ -189,6 +189,16 @@ public final class Place {
 
     public String saveSceneAs(String file) {
         Res.parse(file);
+        Path terrain = Blocks.terrainOf(root, sceneFile());
+        Path copy = Blocks.terrainFile(root, file);
+        if (terrain != null && !Files.exists(copy)) {
+            try {
+                Files.createDirectories(copy.getParent());
+                Files.copy(terrain, copy);
+            } catch (IOException e) {
+                MoudMod.LOG.warn("could not copy the terrain of {} to {}", sceneFile(), file, e);
+            }
+        }
         openScene = file;
         return saveScene();
     }

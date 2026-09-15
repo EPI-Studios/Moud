@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor;
 
+import com.meekdev.moud.mod.client.EditMode;
 import java.nio.file.Path;
 import java.util.List;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

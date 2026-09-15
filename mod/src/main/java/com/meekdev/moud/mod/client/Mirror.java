@@ -2,7 +2,6 @@ package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.addon.Addons;
-import com.meekdev.moud.mod.client.editor.document.PendingEdits;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.mod.transport.payload.ResyncPayload;
 import com.meekdev.moud.net.replicate.Applier;

@@ -8,6 +8,8 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.addon.Addons;
+import com.meekdev.moud.mod.level.TerrainSwap;
+import com.meekdev.moud.mod.place.Blocks;
 import com.meekdev.moud.mod.place.Output;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.transport.payload.EditDownPayload;
@@ -232,8 +234,13 @@ public final class Editing {
             String message = switch (action) {
                 case SceneFilePayload.OPEN -> {
                     place.openScene(path);
+                    TerrainSwap.apply(player.level(), Blocks.load(path));
                     dirty = false;
                     yield "opened " + path;
+                }
+                case SceneFilePayload.TERRAIN -> {
+                    int chunks = TerrainSwap.apply(player.level(), Blocks.load(place.sceneFile()));
+                    yield "loaded the terrain of " + place.sceneFile() + " into " + chunks + " chunks";
                 }
                 case SceneFilePayload.SAVE_AS -> {
                     String saved = place.saveSceneAs(path);
@@ -249,14 +256,20 @@ public final class Editing {
                 }
                 default -> throw new IllegalStateException("unknown scene action " + action);
             };
-            generation++;
+            if (action != SceneFilePayload.TERRAIN) generation++;
             changedSinceBackup = false;
-            if (action != SceneFilePayload.SAVE_AS) MoudServer.respawnAll(server);
+            if (action == SceneFilePayload.OPEN || action == SceneFilePayload.RESTORE) MoudServer.respawnAll(server);
             MoudMod.LOG.info("{} {}", player.getGameProfile().name(), message);
             Output.add(Output.Level.SYSTEM, "server", message);
             for (ServerPlayer each : server.getPlayerList().getPlayers()) status(each, message);
         } catch (IOException | RuntimeException e) {
-            reject(player, "could not " + (action == SceneFilePayload.OPEN ? "open " : action == SceneFilePayload.SAVE_AS ? "save " : "restore ") + path + ": " + e.getMessage());
+            String verb = switch (action) {
+                case SceneFilePayload.OPEN -> "open ";
+                case SceneFilePayload.SAVE_AS -> "save ";
+                case SceneFilePayload.TERRAIN -> "load the terrain of ";
+                default -> "restore ";
+            };
+            reject(player, "could not " + verb + path + ": " + e.getMessage());
         }
     }
 

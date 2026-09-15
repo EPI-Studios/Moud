@@ -22,6 +22,10 @@ public final class PlaceToml {
 
     public static Path root() {
         if (opened != null) return opened;
+        if (Game.standalone()) {
+            opened = Game.unpack(FabricLoader.getInstance().getGameDir());
+            return opened;
+        }
         String chosen = System.getProperty("moud.place");
         Path game = FabricLoader.getInstance().getGameDir();
         return chosen == null || chosen.isBlank() ? game.resolve("place") : game.resolve(chosen);
@@ -44,6 +48,7 @@ public final class PlaceToml {
     }
 
     public static boolean chosenAtLaunch() {
+        if (Game.standalone()) return true;
         String chosen = System.getProperty("moud.place");
         return chosen != null && !chosen.isBlank();
     }
@@ -57,6 +62,19 @@ public final class PlaceToml {
         REPLACED.clear();
         opened = root.toAbsolutePath().normalize();
         editOnStart = edit;
+        config = null;
+        apply(features);
+    }
+
+    public static Features defaultFeatures() {
+        Features features = new Features();
+        Switches.install(features);
+        return features;
+    }
+
+    public static void reload(Features features) {
+        for (Map.Entry<String, Boolean> one : REPLACED.entrySet()) features.set(one.getKey(), one.getValue());
+        REPLACED.clear();
         config = null;
         apply(features);
     }

@@ -16,7 +16,7 @@ import com.meekdev.moud.mod.client.editor.assets.AssetScanner;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
-import com.meekdev.moud.mod.client.editor.document.PendingEdits;
+import com.meekdev.moud.mod.client.PendingEdits;
 import com.meekdev.moud.mod.client.editor.document.ReferencePick;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.SetProperty;

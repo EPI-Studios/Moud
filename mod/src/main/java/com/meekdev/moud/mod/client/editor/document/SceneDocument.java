@@ -21,6 +21,7 @@ import com.meekdev.moud.core.script.Script;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.client.PendingEdits;
 import com.meekdev.moud.mod.client.PlaceFiles;
 import com.meekdev.moud.mod.place.ImportSettings;
 import com.meekdev.moud.mod.place.Place;

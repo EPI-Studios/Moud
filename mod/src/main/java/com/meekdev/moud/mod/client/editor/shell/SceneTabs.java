@@ -7,7 +7,7 @@ import com.meekdev.moud.core.scene.Json;
 import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
-import com.meekdev.moud.mod.client.editor.EditMode;
+import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.SceneLink;

@@ -2,13 +2,13 @@ package com.meekdev.moud.mod.client.editor.shell;
 
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
-import com.meekdev.moud.mod.client.editor.Editor;
-import com.meekdev.moud.mod.client.editor.document.SceneDocument;
+import com.meekdev.moud.mod.client.editor.document.SceneLink;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.level.AnvilWorlds;
+import com.meekdev.moud.mod.place.Blocks;
 import com.meekdev.moud.mod.place.Output;
 import com.meekdev.moud.mod.place.SceneBackups;
 import com.meekdev.moud.mod.server.VoidLevel;
@@ -45,7 +45,6 @@ final class WorldImportDialog {
 
     private enum Stage { PICK, RUNNING, DONE, FAILED }
 
-    private final SceneDocument document;
     private final ImString folder = new ImString(1024);
     private final ImInt dimension = new ImInt();
     private final ImInt radius = new ImInt(DEFAULT_RADIUS);
@@ -60,11 +59,10 @@ final class WorldImportDialog {
     private List<Path> saves = List.of();
     private int estimate = -1;
     private boolean everything;
-    private boolean reopenAfterSave;
+    private volatile boolean loadWhenDone;
+    private String scene = "";
 
-    WorldImportDialog(SceneDocument document) {
-        this.document = document;
-    }
+    WorldImportDialog() {}
 
     void open() {
         if (stage == Stage.RUNNING) {
@@ -77,9 +75,9 @@ final class WorldImportDialog {
     }
 
     void render() {
-        if (reopenAfterSave && !document.dirty()) {
-            reopenAfterSave = false;
-            reopen();
+        if (loadWhenDone) {
+            loadWhenDone = false;
+            if (scene.equals(SceneLink.file())) SceneLink.reloadTerrain();
         }
         if (open) {
             ImGui.openPopup(DIALOG);
@@ -97,7 +95,8 @@ final class WorldImportDialog {
 
     private void renderPick() {
         Dialogs.title("Import a Minecraft world");
-        Texts.wrapped("The blocks of a Java Edition world become this place's terrain, saved as world.polar. A place has one terrain, so importing replaces the one it has. Scripts, scenes and instances stay as they are.");
+        String open = SceneLink.file();
+        Texts.wrapped("The blocks of a Java Edition world become the terrain of " + name(open) + ", saved next to it as " + name(open) + ".polar. A scene has one terrain, so importing replaces the one it has, and other scenes keep theirs. Instances and scripts stay as they are.");
         Dialogs.gap();
         if (!saves.isEmpty()) {
             Texts.muted("Worlds on this computer");
@@ -146,8 +145,8 @@ final class WorldImportDialog {
             Texts.muted(estimate + " chunks, " + span(plan));
             if (estimate > LARGE) Texts.colored(EditorStyle.COLOR_WARNING, "That is a lot of terrain. The whole place loads it into memory, a smaller area starts faster.");
             Path root = ClientPlace.root();
-            if (root != null && Files.isRegularFile(root.resolve("world.polar"))) {
-                Texts.colored(EditorStyle.COLOR_WARNING, "This place already has terrain. It is copied into .moud/backups before being replaced.");
+            if (root != null && !open.isEmpty() && Blocks.terrainOf(root, open) != null) {
+                Texts.colored(EditorStyle.COLOR_WARNING, name(open) + " already has terrain. It is moved into .moud/backups before being replaced.");
             }
         }
         Dialogs.gap();
@@ -163,7 +162,7 @@ final class WorldImportDialog {
         float fraction = now == null || now.regions() == 0 ? 0 : (float) now.regionsDone() / now.regions();
         ImGui.progressBar(fraction, -1, 0, now == null ? "reading regions" : now.regionsDone() + " / " + now.regions() + " regions");
         Texts.muted(now == null ? "Starting" : now.chunks() + " chunks converted" + (now.skipped() > 0 ? ", " + now.skipped() + " unfinished or unreadable left out" : ""));
-        if (now != null && now.regionsDone() == now.regions()) Texts.muted("Compressing and writing world.polar");
+        if (now != null && now.regionsDone() == now.regions()) Texts.muted("Compressing and writing " + name(scene) + ".polar");
         Dialogs.gap();
         Dialogs.alignFooter(2);
         if (Dialogs.button("Hide##world-hide")) ImGui.closeCurrentPopup();
@@ -174,30 +173,19 @@ final class WorldImportDialog {
     private void renderDone() {
         Dialogs.title("The world is imported");
         Texts.wrapped(outcome.get());
-        Texts.wrapped("The terrain loads when the place starts, so reopen it to walk on it.");
+        Texts.wrapped(scene.equals(SceneLink.file()) ? "It is loaded around you now." : "It loads when " + name(scene) + " is opened.");
         Dialogs.gap();
-        Dialogs.alignFooter(2);
-        if (Dialogs.button("Later##world-later") || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+        Dialogs.alignFooter(1);
+        if (Dialogs.primaryButton("Done##world-done", true) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
             stage = Stage.PICK;
             ImGui.closeCurrentPopup();
-        }
-        ImGui.sameLine();
-        if (Dialogs.primaryButton((document.dirty() ? "Save, reopen" : "Reopen") + "##world-reopen", true)) {
-            stage = Stage.PICK;
-            ImGui.closeCurrentPopup();
-            if (document.dirty()) {
-                reopenAfterSave = true;
-                document.save();
-            } else {
-                reopen();
-            }
         }
     }
 
     private void renderFailed() {
         Dialogs.title("The import stopped");
         Texts.colored(EditorStyle.COLOR_DANGER, outcome.get());
-        Texts.muted("Nothing was replaced, the place keeps the terrain it had.");
+        Texts.muted("Nothing was replaced, the scene keeps the terrain it had.");
         Dialogs.gap();
         Dialogs.alignFooter(1);
         if (Dialogs.button("Back##world-back")) stage = Stage.PICK;
@@ -205,52 +193,58 @@ final class WorldImportDialog {
 
     private void start(AnvilWorlds.Plan plan) {
         Path root = ClientPlace.root();
-        if (root == null) return;
+        if (root == null || SceneLink.file().isEmpty()) return;
+        scene = SceneLink.file();
         cancel.set(false);
         progress.set(null);
         stage = Stage.RUNNING;
         Path source = Path.of(folder.get().strip());
-        Thread worker = new Thread(() -> run(root, source, plan), "moud world import");
+        String into = scene;
+        Thread worker = new Thread(() -> run(root, into, source, plan), "moud world import");
         worker.setDaemon(true);
         worker.start();
     }
 
-    private void run(Path root, Path source, AnvilWorlds.Plan plan) {
+    private void run(Path root, String into, Path source, AnvilWorlds.Plan plan) {
         long began = System.currentTimeMillis();
         try {
             PolarWorld polar = AnvilWorlds.convert(plan, progress::set, cancel);
             if (polar.chunks().isEmpty()) throw new IOException("no finished chunks in that area, move the centre or import everything");
             byte[] bytes = PolarWriter.write(polar);
             if (cancel.get()) throw new AnvilWorlds.Cancelled();
-            Path target = root.resolve("world.polar");
-            Path temporary = root.resolve("world.polar.importing");
+            Path target = Blocks.terrainFile(root, into);
+            Path temporary = target.resolveSibling(target.getFileName() + ".importing");
+            Files.createDirectories(target.getParent());
             Files.write(temporary, bytes);
-            if (Files.isRegularFile(target)) {
+            Path existing = Blocks.terrainOf(root, into);
+            if (existing != null) {
                 Path backups = SceneBackups.folder(root);
                 Files.createDirectories(backups);
-                Files.move(target, backups.resolve("world-" + LocalDateTime.now().format(STAMP) + ".polar"), StandardCopyOption.REPLACE_EXISTING);
+                Files.move(existing, backups.resolve(name(into) + "-" + LocalDateTime.now().format(STAMP) + ".polar"), StandardCopyOption.REPLACE_EXISTING);
             }
             Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
             String summary = String.format(Locale.ROOT, "%d chunks of %s from %s, %.1f MB, in %.1f s.",
                     polar.chunks().size(), plan.dimension().label(), source.getFileName(), bytes.length / 1_048_576.0,
                     (System.currentTimeMillis() - began) / 1000.0);
             outcome.set(summary);
-            Output.add(Output.Level.INFO, "editor", "Imported " + summary);
+            Output.add(Output.Level.INFO, "editor", "Imported " + summary + " as the terrain of " + into);
             stage = Stage.DONE;
+            loadWhenDone = true;
         } catch (IOException | RuntimeException | OutOfMemoryError e) {
             MoudMod.LOG.warn("world import failed", e);
             outcome.set(e instanceof OutOfMemoryError ? "Ran out of memory, import a smaller area." : String.valueOf(e.getMessage()));
             try {
-                Files.deleteIfExists(root.resolve("world.polar.importing"));
-            } catch (IOException ignored) {
+                Path target = Blocks.terrainFile(root, into);
+                Files.deleteIfExists(target.resolveSibling(target.getFileName() + ".importing"));
+            } catch (IOException | RuntimeException ignored) {
             }
             stage = Stage.FAILED;
         }
     }
 
-    private void reopen() {
-        Path root = ClientPlace.root();
-        if (root != null) Editor.requestReopenProject(root);
+    private static String name(String scene) {
+        String file = scene.substring(scene.lastIndexOf('/') + 1);
+        return file.endsWith(".scene") ? file.substring(0, file.length() - ".scene".length()) : file;
     }
 
     private void inspect() {

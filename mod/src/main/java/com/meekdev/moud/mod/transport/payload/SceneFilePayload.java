@@ -9,6 +9,7 @@ public record SceneFilePayload(int action, String path) implements CustomPacketP
     public static final int OPEN = 0;
     public static final int SAVE_AS = 1;
     public static final int RESTORE = 2;
+    public static final int TERRAIN = 3;
 
     public static final Type<SceneFilePayload> TYPE = Payloads.type("scene_file");
 
