@@ -65,6 +65,8 @@ public final class ViewportPanel implements Panel {
     private static final float OUTLINE_THICKNESS = 2.0f;
     private static final int BOX_FILL = EditorStyle.withAlpha(EditorStyle.COLOR_ACCENT, 0.08f);
     private static final int BOX_BORDER = EditorStyle.withAlpha(EditorStyle.COLOR_ACCENT, 0.7f);
+    private static final float[] GRID_STEPS = {0.125f, 0.25f, 0.5f, 1.0f, 2.0f, 4.0f};
+    private static final float[] ANGLE_STEPS = {5.0f, 15.0f, 45.0f, 90.0f};
 
     private final SceneDocument document;
     private final IconWidgets icons;
@@ -74,6 +76,8 @@ public final class ViewportPanel implements Panel {
     private final float[] model = new float[16];
     private final float[] snap = new float[3];
     private final Map<Integer, Matrix4f> dragStart = new LinkedHashMap<>();
+    private final FaceHandles faceHandles = new FaceHandles();
+    private final SurfaceDrag surfaceDrag = new SurfaceDrag();
     private int session = -1;
     private boolean hovered;
     private boolean lookGesture;
@@ -192,9 +196,63 @@ public final class ViewportPanel implements Panel {
         Toolbars.groupSeparator();
         if (icons.toggleButton("toolbar-snap", EditorIcon.SNAP, EditorStyle.iconSizeToolbar(), gizmoState.snapEnabled())) gizmoState.toggleSnap();
         tooltip("Snap, hold Ctrl to invert");
+        ImGui.sameLine();
+        if (Toolbars.textButton(step(gizmoState.gridStep()) + " m##toolbar-grid")) ImGui.openPopup("##grid-steps");
+        tooltip("Grid step for moving, surface dragging and resizing");
+        ImGui.sameLine();
+        if (Toolbars.textButton(step(gizmoState.angleStep()) + "\u00b0##toolbar-angle")) ImGui.openPopup("##angle-steps");
+        tooltip("Angle step for rotating");
+        Toolbars.groupSeparator();
+        if (Toolbars.textButton("Arrange##toolbar-arrange")) ImGui.openPopup("##arrange");
+        tooltip("Align, distribute and group the selection");
+        renderStepPopup("##grid-steps", GRID_STEPS, gizmoState.gridStep(), " m", gizmoState::gridStep);
+        renderStepPopup("##angle-steps", ANGLE_STEPS, gizmoState.angleStep(), "\u00b0", gizmoState::angleStep);
+        renderArrangePopup();
         Toolbars.popFlatButtons();
         ImGui.endChild();
         ImGui.popStyleVar(2);
+    }
+
+    private static String step(float value) {
+        String text = String.format(java.util.Locale.ROOT, "%.3f", value);
+        text = text.replaceAll("0+$", "");
+        return text.endsWith(".") ? text.substring(0, text.length() - 1) : text;
+    }
+
+    private static void renderStepPopup(String id, float[] steps, float current, String unit, java.util.function.Consumer<Float> choose) {
+        if (!ImGui.beginPopup(id)) return;
+        for (float value : steps) {
+            if (ImGui.menuItem(step(value) + unit, "", value == current)) choose.accept(value);
+        }
+        ImGui.endPopup();
+    }
+
+    private void renderArrangePopup() {
+        if (!ImGui.beginPopup("##arrange")) return;
+        boolean several = document.selectedRoots().size() > 1;
+        String[] axes = {"X", "Y", "Z"};
+        ImGui.beginDisabled(!several);
+        for (int axis = 0; axis < 3; axis++) {
+            ImGui.alignTextToFramePadding();
+            ImGui.text(axes[axis]);
+            ImGui.sameLine();
+            if (ImGui.button("Min##align-min-" + axis)) Arrange.align(document, axis, Arrange.Edge.MIN);
+            ImGui.sameLine();
+            if (ImGui.button("Centre##align-mid-" + axis)) Arrange.align(document, axis, Arrange.Edge.CENTRE);
+            ImGui.sameLine();
+            if (ImGui.button("Max##align-max-" + axis)) Arrange.align(document, axis, Arrange.Edge.MAX);
+            ImGui.sameLine();
+            ImGui.beginDisabled(document.selectedRoots().size() < 3);
+            if (ImGui.button("Distribute##distribute-" + axis)) Arrange.distribute(document, axis);
+            ImGui.endDisabled();
+        }
+        ImGui.endDisabled();
+        ImGui.separator();
+        ImGui.beginDisabled(document.selectedRoots().isEmpty());
+        if (ImGui.menuItem("Group", "Ctrl+G")) document.group();
+        if (ImGui.menuItem("Ungroup", "Ctrl+U")) document.ungroup();
+        ImGui.endDisabled();
+        ImGui.endPopup();
     }
 
     private void renderToolButton(String id, EditorIcon icon, GizmoState.Tool tool, String tip) {
@@ -296,6 +354,9 @@ public final class ViewportPanel implements Panel {
             dragStart.clear();
             return false;
         }
+        if (gizmoState.tool() == GizmoState.Tool.SCALE && leader instanceof Part part) {
+            return faceHandles.render(ImGui.getWindowDrawList(), view, document, part, hovered, snapActive(), gizmoState.gridStep());
+        }
         ImGuizmo.setOrthographic(false);
         ImGuizmo.setDrawList();
         ImGuizmo.setGizmoSizeClipSpace(GIZMO_SIZE_CLIP_SPACE);
@@ -372,9 +433,20 @@ public final class ViewportPanel implements Panel {
             boxing = true;
             pressX = mouseX;
             pressY = mouseY;
+            armSurfaceDrag(mouseX, mouseY);
         }
         if (!boxing) return;
         boolean dragged = Math.abs(mouseX - pressX) > DRAG_THRESHOLD || Math.abs(mouseY - pressY) > DRAG_THRESHOLD;
+        if (surfaceDrag.armed()) {
+            if (ImGui.isMouseDown(ImGuiMouseButton.Left)) {
+                if (dragged || surfaceDrag.started()) surfaceDrag.update(document, view, mouseX, mouseY, snapActive(), gizmoState.gridStep());
+                return;
+            }
+            boxing = false;
+            if (!surfaceDrag.started()) applyPick(pickAt(mouseX, mouseY));
+            surfaceDrag.cancel();
+            return;
+        }
         if (ImGui.isMouseDown(ImGuiMouseButton.Left)) {
             if (dragged) {
                 float x0 = Math.min(pressX, mouseX);
@@ -389,6 +461,20 @@ public final class ViewportPanel implements Panel {
         boxing = false;
         if (dragged) boxSelect(Math.min(pressX, mouseX), Math.min(pressY, mouseY), Math.max(pressX, mouseX), Math.max(pressY, mouseY));
         else applyPick(pickAt(mouseX, mouseY));
+    }
+
+    private void armSurfaceDrag(float mouseX, float mouseY) {
+        surfaceDrag.cancel();
+        GizmoState.Tool tool = gizmoState.tool();
+        if (tool != GizmoState.Tool.SELECT && tool != GizmoState.Tool.TRANSLATE) return;
+        if (ImGui.getIO().getKeyCtrl() || ImGui.getIO().getKeyShift()) return;
+        if (!(pickAt(mouseX, mouseY) instanceof Part part)) return;
+        Instance world = document.world();
+        if (world == null) return;
+        Vector3 from = view.cameraPosition();
+        Queries.Cast cast = Queries.raycast(world, from, view.rayDirection(mouseX, mouseY), SPAWN_REACH, candidate -> candidate == part);
+        if (!document.selection().isSelected(part.id())) document.selection().select(part.id());
+        surfaceDrag.arm(document, part, cast == null ? Frames.center(part) : cast.at());
     }
 
     private void applyPick(@Nullable Instance picked) {

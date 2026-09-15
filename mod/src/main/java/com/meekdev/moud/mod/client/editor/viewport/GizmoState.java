@@ -14,7 +14,9 @@ public final class GizmoState {
 
     private Tool tool = Tool.TRANSLATE;
     private boolean worldSpace = true;
-    private boolean snapEnabled;
+    private boolean snapEnabled = true;
+    private float gridStep = 1.0f;
+    private float angleStep = ROTATE_SNAP_STEP_DEGREES;
 
     public Tool tool() {
         return tool;
@@ -63,10 +65,22 @@ public final class GizmoState {
     }
 
     public float snapStep() {
-        return switch (tool) {
-            case ROTATE -> ROTATE_SNAP_STEP_DEGREES;
-            case SCALE -> SCALE_SNAP_STEP;
-            default -> TRANSLATE_SNAP_STEP;
-        };
+        return tool == Tool.ROTATE ? angleStep : gridStep;
+    }
+
+    public float gridStep() {
+        return gridStep;
+    }
+
+    public void gridStep(float step) {
+        gridStep = step;
+    }
+
+    public float angleStep() {
+        return angleStep;
+    }
+
+    public void angleStep(float step) {
+        angleStep = step;
     }
 }

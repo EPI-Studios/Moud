@@ -52,6 +52,25 @@ final class Frames {
                 new SetProperty(document.ref(instance.id()), sized.index(), size, "Transform"));
     }
 
+    static List<Edit> worldWrites(SceneDocument document, Instance instance, CFrame world, @Nullable Vector3 size) {
+        Spatial spatial = (Spatial) instance;
+        CFrame local = Transforms.localFor(instance, world);
+        if (!spatial.pivot.equals(Vector3.ZERO)) local = local.mul(CFrame.at(spatial.pivot));
+        PropertyDef cframe = instance.def().property("cframe");
+        SetProperty frame = new SetProperty(document.ref(instance.id()), cframe.index(), local, "Transform");
+        if (size == null || !(instance instanceof Part)) return List.of(frame);
+        PropertyDef sized = instance.def().property("size");
+        Vector3 clamped = new Vector3(Math.max(SMALLEST_SIZE, size.x()), Math.max(SMALLEST_SIZE, size.y()), Math.max(SMALLEST_SIZE, size.z()));
+        return List.of(frame, new SetProperty(document.ref(instance.id()), sized.index(), clamped, "Transform"));
+    }
+
+    static double extentAlong(Part part, Vector3 direction) {
+        CFrame world = Transforms.world(part);
+        return Math.abs(direction.dot(world.rightVector())) * part.size.x() * 0.5
+                + Math.abs(direction.dot(world.upVector())) * part.size.y() * 0.5
+                + Math.abs(direction.dot(world.lookVector())) * part.size.z() * 0.5;
+    }
+
     static Vector3[] corners(Part part) {
         CFrame world = Transforms.world(part);
         Vector3 half = part.size.mul(0.5);

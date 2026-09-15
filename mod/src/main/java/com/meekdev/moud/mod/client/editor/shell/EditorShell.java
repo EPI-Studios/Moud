@@ -124,6 +124,8 @@ public final class EditorShell {
                 this::hasPrimary, () -> explorer.beginRename(document.primary().id())));
         commands.add(new EditorCommand("delete", "Edit", "Delete", Shortcut.key(ImGuiKey.Delete, "Del"),
                 this::hasSelection, document::deleteSelected));
+        commands.add(new EditorCommand("group", "Edit", "Group", Shortcut.ctrl(ImGuiKey.G, "G"), this::hasRoots, document::group));
+        commands.add(new EditorCommand("ungroup", "Edit", "Ungroup", Shortcut.ctrl(ImGuiKey.U, "U"), this::hasRoots, document::ungroup));
         commands.add(new EditorCommand("frame", "Edit", "Frame Selection", null, this::hasSelection, viewport::frameSelection));
         commands.add(new EditorCommand("play", "Place", "Play", Shortcut.key(ImGuiKey.F5, "F5"), EditMode::allowed, () -> EditMode.request(false)));
         commands.add(new EditorCommand("reset-layout", "Window", "Reset Layout", null, () -> true, dockLayout::requestDefault));
@@ -152,6 +154,10 @@ public final class EditorShell {
 
     private boolean hasPrimary() {
         return document.primary() != null;
+    }
+
+    private boolean hasRoots() {
+        return !document.selectedRoots().isEmpty();
     }
 
     public void render() {

@@ -255,6 +255,60 @@ public final class SceneDocument {
         history.execute(Paste.fresh(text, ref(parentId), "Insert " + className));
     }
 
+    public void group() {
+        List<InstanceRef> roots = selectedRoots();
+        List<Instance> members = new ArrayList<>();
+        for (InstanceRef root : roots) members.add(find(root));
+        if (members.isEmpty() || members.getFirst().parent() == null) return;
+        Instance parent = members.getFirst().parent();
+        String text;
+        try {
+            InstanceTree scratch = new InstanceTree();
+            Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+            Instance folder = Instances.create(Classes.FOLDER, holder, "Group");
+            relocate(members, parent, folder);
+            text = snapshot(List.of(folder));
+        } catch (RuntimeException e) {
+            SceneLink.local("Could not group: " + e.getMessage());
+            return;
+        }
+        selection.clear();
+        history.execute(new Batch(roots.size() == 1 ? "Group" : "Group " + roots.size(), List.of(Paste.fresh(text, ref(parent.id()), "Group"), new Destroy(roots, "Group"))));
+    }
+
+    public void ungroup() {
+        List<Edit> edits = new ArrayList<>();
+        for (InstanceRef root : selectedRoots()) {
+            Instance group = find(root);
+            if (group == null || group.parent() == null || group.children().isEmpty()) continue;
+            String text;
+            try {
+                InstanceTree scratch = new InstanceTree();
+                Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+                relocate(new ArrayList<>(group.children()), group.parent(), holder);
+                text = snapshot(new ArrayList<>(holder.children()));
+            } catch (RuntimeException e) {
+                SceneLink.local("Could not ungroup " + group.name() + ": " + e.getMessage());
+                continue;
+            }
+            edits.add(Paste.fresh(text, ref(group.parent().id()), "Ungroup"));
+            edits.add(new Destroy(List.of(root), "Ungroup"));
+        }
+        if (edits.isEmpty()) return;
+        selection.clear();
+        history.execute(new Batch("Ungroup", edits));
+    }
+
+    private void relocate(List<Instance> members, Instance parent, Instance into) {
+        CFrame parentWorld = Transforms.world(parent);
+        for (Instance member : members) {
+            Instance copy = Scene.load(snapshot(List.of(member)), into, Addons.classes()).getFirst();
+            if (!(copy instanceof Spatial spatial)) continue;
+            CFrame local = parentWorld.inverse().mul(Transforms.world(member));
+            spatial.cframe = spatial.pivot.equals(Vector3.ZERO) ? local : local.mul(CFrame.at(spatial.pivot));
+        }
+    }
+
     public void save() {
         SceneLink.save();
     }
