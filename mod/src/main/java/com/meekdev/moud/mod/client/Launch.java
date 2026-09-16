@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.world.level.levelgen.WorldOptions;
 
 public final class Launch {
@@ -57,6 +58,7 @@ public final class Launch {
 
     private static void open(Minecraft client) {
         opened = true;
+        client.getTutorial().setStep(TutorialSteps.NONE);
         client.createWorldOpenFlows().createFreshLevel(
                 VoidLevel.NAME,
                 VoidLevel.settings(),
