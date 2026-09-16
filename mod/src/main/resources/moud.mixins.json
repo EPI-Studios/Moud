@@ -60,7 +60,8 @@
     "client.PauseMixin",
     "client.TitleMixin",
     "client.WindowMixin",
-    "client.FrameEndMixin"
+    "client.FrameEndMixin",
+    "client.PointerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

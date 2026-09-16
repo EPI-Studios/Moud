@@ -118,6 +118,7 @@ public final class ClientPlace {
                     .settings(PlayerSettings.INSTANCE)
                     .window(WindowApi.INSTANCE);
             GameState.INSTANCE.reset();
+            Input.resetPointer();
             WindowApi.INSTANCE.reset();
         });
         place.start();

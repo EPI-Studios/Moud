@@ -46,11 +46,24 @@ public final class Input implements InputRef {
     }
 
     private static boolean pointerReleased;
+    private static boolean scriptFree;
+
+    public static boolean scriptWantsPointer() {
+        return scriptFree;
+    }
+
+    public static void resetPointer() {
+        scriptFree = false;
+    }
 
     public static void pointerFrame() {
         Minecraft client = Minecraft.getInstance();
         if (pointer == null || client.player == null || client.screen != null) {
             pointerReleased = false;
+            return;
+        }
+        if (scriptFree) {
+            if (client.mouseHandler.isMouseGrabbed()) client.mouseHandler.releaseMouse();
             return;
         }
         boolean held = pointer.isDown();
@@ -114,7 +127,9 @@ public final class Input implements InputRef {
 
     @Override
     public void lockMouse(boolean locked) {
+        scriptFree = !locked;
         Minecraft client = Minecraft.getInstance();
+        if (locked && client.screen != null) return;
         if (locked == client.mouseHandler.isMouseGrabbed()) return;
         if (locked) client.mouseHandler.grabMouse(); else client.mouseHandler.releaseMouse();
     }
