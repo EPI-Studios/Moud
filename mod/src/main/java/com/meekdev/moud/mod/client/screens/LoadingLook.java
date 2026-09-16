@@ -51,7 +51,8 @@ public final class LoadingLook {
             g.pose().popMatrix();
         }
         int dots = (int) (System.currentTimeMillis() / DOT_MILLIS % 4);
-        g.centeredText(font, loading.text() + ".".repeat(dots), width / 2, (int) (height * 0.68), WHITE);
+        int textLeft = width / 2 - font.width(loading.text()) / 2;
+        g.text(font, loading.text() + ".".repeat(dots), textLeft, (int) (height * 0.68), WHITE);
         if (!loading.tips().isEmpty()) {
             String tip = loading.tips().get((int) (System.currentTimeMillis() / TIP_MILLIS % loading.tips().size()));
             g.centeredText(font, tip, width / 2, height - 28, MUTED);

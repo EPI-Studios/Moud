@@ -87,7 +87,9 @@ final class ScreenPreviews {
             text(draw, config.name(), left + width / 2, middle, unit * 2.5f, WHITE);
         }
         int dots = (int) (System.currentTimeMillis() / DOT_MILLIS % 4);
-        text(draw, loading.text() + ".".repeat(dots), left + width / 2, top + height * 0.68f, unit, WHITE);
+        int size = Math.max(8, Math.round(9f * unit));
+        float textLeft = left + width / 2 - ImGui.calcTextSizeX(loading.text()) * size / ImGui.getFontSize() / 2;
+        draw.addText(ImGui.getFont(), size, textLeft, top + height * 0.68f - size / 2f, WHITE, loading.text() + ".".repeat(dots));
         if (!loading.tips().isEmpty()) {
             String tip = loading.tips().get((int) (System.currentTimeMillis() / TIP_MILLIS % loading.tips().size()));
             text(draw, tip, left + width / 2, top + height - 24 * unit, unit, MUTED);
