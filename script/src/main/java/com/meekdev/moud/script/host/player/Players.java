@@ -105,6 +105,7 @@ public final class Players {
         Members players = new Members("Players")
                 .value("joined", "PlayerSignal", host.joinedSignal())
                 .value("leaving", "PlayerSignal", host.leavingSignal())
+                .value("spawned", "PlayerSignal", host.spawnedSignal())
                 .method("all", "() -> { Instance }", a -> bodies(bodies(tree, null, Double.POSITIVE_INFINITY, null)))
                 .method("near", "(position: Vector3, radius: number, except: Instance?) -> { Instance }",
                         a -> bodies(bodies(tree, a.vector(1), a.number(2), a.instance(3, null))))

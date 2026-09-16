@@ -110,11 +110,12 @@ public final class MoudServer {
             return;
         }
 
-        if (Spawning.autoSpawn()) Spawning.spawn(player, null);
-        else Spawning.hold(player);
+        boolean fresh = Spawning.autoSpawn() && Spawning.place(player, null);
+        if (!Spawning.autoSpawn()) Spawning.hold(player);
 
         Host host = place.host();
         if (host != null) host.joined(new JoinedPlayer(player));
+        if (fresh) Spawning.announce(player);
     }
 
     static void respawnAll(MinecraftServer server) {

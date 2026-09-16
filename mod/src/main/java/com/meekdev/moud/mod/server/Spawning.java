@@ -14,9 +14,11 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.SpawnLocation;
 import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.adapter.physics.Physics;
+import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.transport.payload.ControlsPayload;
 import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.SpawnRef;
+import com.meekdev.moud.script.host.Host;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -79,9 +81,14 @@ public final class Spawning {
     }
 
     static void spawn(ServerPlayer player, @Nullable Vector3 at) {
+        if (place(player, at)) announce(player);
+    }
+
+    static boolean place(ServerPlayer player, @Nullable Vector3 at) {
         Instance world = ServerScene.world();
         InstanceTree tree = ServerScene.tree();
-        if (world == null || tree == null) return;
+        if (world == null || tree == null) return false;
+        boolean fresh = false;
         Point point = at != null ? new Point(at, player.getYRot()) : point(tree);
         Character character = Physics.bodies().of(player, tree);
         if (character != null && Rig.humanoid(character) instanceof Humanoid humanoid && humanoid.state == HumanoidState.DEAD) {
@@ -92,11 +99,19 @@ public final class Spawning {
         if (character == null) {
             character = Instances.create(Classes.CHARACTER, world, player.getGameProfile().name());
             Physics.bodies().bind(player, character);
+            fresh = true;
         }
         player.teleportTo(player.level(), point.position().x(), point.position().y(), point.position().z(), Set.of(), (float) point.yawDegrees(), player.getXRot(), true);
         Characters.place(character, point.position(), point.yawDegrees());
         dead.remove(player.getUUID());
         if (waiting.remove(player.getUUID())) send(player);
+        return fresh;
+    }
+
+    static void announce(ServerPlayer player) {
+        Place place = MoudServer.place();
+        Host host = place == null ? null : place.host();
+        if (host != null) host.spawned(new JoinedPlayer(player));
     }
 
     static void hold(ServerPlayer player) {

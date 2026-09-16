@@ -65,6 +65,7 @@ public final class Host {
     private final HostSignal reloaded = new HostSignal(this, "AnySignal", "reloaded");
     private final HostSignal joined = new HostSignal(this, "PlayerSignal", "joined");
     private final HostSignal leaving = new HostSignal(this, "PlayerSignal", "leaving");
+    private final HostSignal spawned = new HostSignal(this, "PlayerSignal", "spawned");
     private final HostSignal pauseRequested = new HostSignal(this, "PauseSignal", "pauseRequested");
 
     private Consumer<ScriptError> onError = e -> { throw e; };
@@ -177,6 +178,7 @@ public final class Host {
     public HostSignal reloadedSignal() { return reloaded; }
     public HostSignal joinedSignal() { return joined; }
     public HostSignal leavingSignal() { return leaving; }
+    public HostSignal spawnedSignal() { return spawned; }
     public HostSignal pauseSignal() { return pauseRequested; }
 
     public PostRef post() { return post; }
@@ -463,6 +465,10 @@ public final class Host {
 
     public void joined(PlayerRef player) {
         joined.fire(Players.wrap(this, player));
+    }
+
+    public void spawned(PlayerRef player) {
+        spawned.fire(Players.wrap(this, player));
     }
 
     public void leaving(PlayerRef player) {
