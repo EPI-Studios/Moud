@@ -11,6 +11,7 @@ import com.meekdev.moud.mod.client.editor.kit.Chips;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.Notices;
 import com.meekdev.moud.mod.client.editor.kit.Sections;
+import com.meekdev.moud.mod.client.editor.kit.SegmentedControl;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
@@ -29,6 +30,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.SharedConstants;
@@ -40,7 +42,7 @@ final class ExportDialog {
 
     private static final String DIALOG = "##export";
     private static final float WIDTH = 620.0f;
-    private static final float HEIGHT = 560.0f;
+    private static final float HEIGHT = 640.0f;
     private static final float CARD_HEIGHT = 74.0f;
     private static final float CHECKS_HEIGHT = 168.0f;
     private static final float ROW_PADDING = 6.0f;
@@ -58,9 +60,10 @@ final class ExportDialog {
     private volatile Path written;
     private volatile long writtenBytes;
     private List<PlaceExport.Issue> issues = List.of();
-    private GameExport.Plan plan = new GameExport.Plan(List.of(), 0, 0);
+    private GameExport.Plan plan = new GameExport.Plan(List.of(), 0, 0, Set.of());
     private PlaceConfig config = PlaceConfig.DEFAULT;
     private boolean open;
+    private boolean pack;
 
     ExportDialog(SceneDocument document) {
         this.document = document;
@@ -108,19 +111,28 @@ final class ExportDialog {
         parts.add(plan.files() + " place files, " + megabytes(plan.bytes()));
         chips(parts);
         Dialogs.gap();
+        Sections.caption("FORMAT");
+        int chosen = SegmentedControl.render("##export-format", List.of("Jar for a mods folder", "Modrinth pack for a launcher"), pack ? 1 : 0);
+        if ((chosen == 1) != pack) {
+            String before = fileName();
+            pack = chosen == 1;
+            destination.set(destination.get().replace(before, fileName()));
+        }
+        Texts.muted(pack ? "Prism Launcher and the Modrinth App import it with Fabric Loader and Fabric API already set up."
+                : "Players need Minecraft " + SharedConstants.getCurrentVersion().name() + ", Fabric Loader and Fabric API installed.");
+        Dialogs.gap();
         Sections.caption("SAVE AS");
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - Dialogs.buttonWidth() - ImGui.getStyle().getItemSpacingX());
         ImGui.inputText("##export-destination", destination);
         ImGui.sameLine();
         if (ImGui.button("Browse...", Dialogs.buttonWidth(), 0)) browse();
         String target = destination.get().strip();
-        boolean valid = target.toLowerCase(Locale.ROOT).endsWith(".jar") && root != null && !Path.of(target).toAbsolutePath().normalize().startsWith(root.toAbsolutePath().normalize());
-        if (!target.isEmpty() && !valid) Texts.colored(EditorStyle.COLOR_WARNING, "Pick a .jar file outside the place folder");
+        boolean valid = target.toLowerCase(Locale.ROOT).endsWith(extension()) && root != null && !Path.of(target).toAbsolutePath().normalize().startsWith(root.toAbsolutePath().normalize());
+        if (!target.isEmpty() && !valid) Texts.colored(EditorStyle.COLOR_WARNING, "Pick a " + extension() + " file outside the place folder");
         else if (valid && Files.exists(Path.of(target))) Texts.muted("That file is replaced");
         else Texts.muted(" ");
         long errors = issues.stream().filter(i -> i.severity() == PlaceExport.Severity.ERROR).count();
         footer();
-        Texts.muted("Players need Minecraft " + SharedConstants.getCurrentVersion().name() + ", Fabric Loader and Fabric API.");
         Dialogs.alignFooter(2);
         if (Dialogs.button("Cancel##export-cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
         ImGui.sameLine();
@@ -160,6 +172,12 @@ final class ExportDialog {
         else Chips.drawInline("Ready", EditorStyle.COLOR_SUCCESS);
         ImGui.sameLine(ImGui.getContentRegionMaxX() - ImGui.calcTextSizeX("Check again") - EditorStyle.framePaddingX() * 2);
         if (ImGui.smallButton("Check again") && root != null) review(root);
+        if (!plan.systems().containsAll(List.of("linux-x64", "windows-x64", "macos-arm64"))) {
+            Notices.warning(plan.systems().isEmpty()
+                    ? "No native Luau or physics libraries were found, the game may not start anywhere."
+                    : "Native Luau and physics libraries are only included for " + String.join(", ", plan.systems())
+                            + ". Players on other systems can not start this game until those libraries are built.");
+        }
         if (issues.stream().noneMatch(i -> i.severity() != PlaceExport.Severity.INFO)) {
             Notices.success("The entry scripts and the start scene exist, and every res:// path points at a file.");
         }
@@ -213,7 +231,9 @@ final class ExportDialog {
 
     private void renderDone() {
         Dialogs.title(config.name() + " " + config.version() + " is ready");
-        Notices.success("Built " + megabytes(writtenBytes) + ". Put it in the mods folder next to Fabric API and launch Minecraft.");
+        Notices.success("Built " + megabytes(writtenBytes) + (pack
+                ? ". Import it in Prism Launcher or the Modrinth App and press Play."
+                : ". Put it in the mods folder next to Fabric API and launch Minecraft."));
         Dialogs.gap();
         Sections.caption("FILE");
         Texts.plain(written == null ? "" : written.toString());
@@ -276,7 +296,11 @@ final class ExportDialog {
     }
 
     private String fileName() {
-        return config.id() + "-" + config.version() + ".jar";
+        return config.id() + "-" + config.version() + extension();
+    }
+
+    private String extension() {
+        return pack ? ".mrpack" : ".jar";
     }
 
     private void bump(Path root) {
@@ -300,7 +324,9 @@ final class ExportDialog {
             try {
                 Path parent = target.toAbsolutePath().getParent();
                 if (parent != null) Files.createDirectories(parent);
-                GameExport.Result result = GameExport.build(root, config, target.toAbsolutePath(), progress::set, cancel);
+                GameExport.Result result = pack
+                        ? GameExport.buildPack(root, config, target.toAbsolutePath(), SharedConstants.getCurrentVersion().name(), progress::set, cancel)
+                        : GameExport.build(root, config, target.toAbsolutePath(), progress::set, cancel);
                 written = result.jar();
                 writtenBytes = result.bytes();
                 included.set(result.included());
@@ -319,10 +345,10 @@ final class ExportDialog {
     private void browse() {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             PointerBuffer filters = stack.mallocPointer(1);
-            filters.put(stack.UTF8("*.jar"));
+            filters.put(stack.UTF8("*" + extension()));
             filters.flip();
-            String picked = TinyFileDialogs.tinyfd_saveFileDialog("Export the game", destination.get(), filters, "Game jar");
-            if (picked != null) destination.set(picked.toLowerCase(Locale.ROOT).endsWith(".jar") ? picked : picked + ".jar");
+            String picked = TinyFileDialogs.tinyfd_saveFileDialog("Export the game", destination.get(), filters, pack ? "Modrinth pack" : "Game jar");
+            if (picked != null) destination.set(picked.toLowerCase(Locale.ROOT).endsWith(extension()) ? picked : picked + extension());
         }
     }
 

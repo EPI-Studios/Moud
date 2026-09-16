@@ -35,11 +35,13 @@ import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import org.jspecify.annotations.Nullable;
@@ -62,7 +64,59 @@ public final class GameExport {
 
     private GameExport() {}
 
-    public record Plan(List<String> mods, int files, long bytes) {}
+    public record Plan(List<String> mods, int files, long bytes, Set<String> systems) {}
+
+    private static final List<String> SYSTEMS = strings("systems");
+    private static final Pattern LUAU_NATIVE = Pattern.compile("net/hollowcube/luau/([a-z]+)/([a-z0-9]+)/[^/]+");
+    private static final Pattern BOX3D_NATIVE = Pattern.compile("natives/([a-z]+-[a-z0-9]+)/[^/]+");
+
+    public static Set<String> systems() {
+        Set<String> luau = new LinkedHashSet<>();
+        Set<String> physics = new LinkedHashSet<>();
+        List<Path> sources = new ArrayList<>(engine(FabricLoader.getInstance().getModContainer("moud").orElseThrow()));
+        sources.addAll(libraries(sources));
+        for (Path source : sources) scanNatives(source, luau, physics);
+        Set<String> both = new LinkedHashSet<>();
+        for (String system : SYSTEMS) {
+            if (luau.contains(system) && physics.contains(system)) both.add(system);
+        }
+        return both;
+    }
+
+    private static void scanNatives(Path source, Set<String> luau, Set<String> physics) {
+        try {
+            if (Files.isDirectory(source)) {
+                try (Stream<Path> walk = Files.walk(source, DEPTH)) {
+                    for (Path file : walk.filter(Files::isRegularFile).toList()) {
+                        nativeName(source.relativize(file).toString().replace(File.separatorChar, '/'), luau, physics);
+                    }
+                }
+            } else if (Files.isRegularFile(source)) {
+                try (ZipFile zip = new ZipFile(source.toFile())) {
+                    for (ZipEntry entry : zip.stream().toList()) {
+                        if (entry.isDirectory()) continue;
+                        if (entry.getName().startsWith("META-INF/jars/") && entry.getName().endsWith(".jar")) {
+                            try (ZipInputStream nested = new ZipInputStream(zip.getInputStream(entry))) {
+                                for (ZipEntry inner = nested.getNextEntry(); inner != null; inner = nested.getNextEntry()) {
+                                    if (!inner.isDirectory()) nativeName(inner.getName(), luau, physics);
+                                }
+                            }
+                        } else {
+                            nativeName(entry.getName(), luau, physics);
+                        }
+                    }
+                }
+            }
+        } catch (IOException ignored) {
+        }
+    }
+
+    private static void nativeName(String name, Set<String> luau, Set<String> physics) {
+        Matcher match = LUAU_NATIVE.matcher(name);
+        if (match.matches()) luau.add(match.group(1) + "-" + match.group(2));
+        match = BOX3D_NATIVE.matcher(name);
+        if (match.matches()) physics.add(match.group(1));
+    }
 
     public static Plan plan(Path root) {
         List<String> mods = new ArrayList<>();
@@ -77,7 +131,7 @@ public final class GameExport {
             }
         } catch (IOException ignored) {
         }
-        return new Plan(mods, files, bytes);
+        return new Plan(mods, files, bytes, systems());
     }
 
     public static Result build(Path root, PlaceConfig config, Path target, Consumer<Progress> progress, AtomicBoolean cancel) throws IOException {
@@ -138,6 +192,63 @@ public final class GameExport {
         }
         Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
         return new Result(target, Files.size(target), included);
+    }
+
+    public static Result buildPack(Path root, PlaceConfig config, Path target, String minecraftVersion, Consumer<Progress> progress, AtomicBoolean cancel) throws IOException {
+        Path game = Files.createTempFile("moud-game-", ".jar");
+        Path temporary = target.resolveSibling(target.getFileName() + ".part");
+        try {
+            Result jar = build(root, config, game, progress, cancel);
+            List<String> included = new ArrayList<>(jar.included());
+            try (OutputStream file = Files.newOutputStream(temporary); ZipOutputStream zip = new ZipOutputStream(file)) {
+                Map<String, Object> index = new LinkedHashMap<>();
+                index.put("formatVersion", 1);
+                index.put("game", "minecraft");
+                index.put("versionId", config.version());
+                index.put("name", config.name());
+                index.put("summary", config.name() + ", made with Moud");
+                index.put("files", List.of());
+                Map<String, Object> dependencies = new LinkedHashMap<>();
+                dependencies.put("minecraft", minecraftVersion);
+                dependencies.put("fabric-loader", FabricLoader.getInstance().getModContainer("fabricloader")
+                        .map(loader -> loader.getMetadata().getVersion().getFriendlyString()).orElse("*"));
+                index.put("dependencies", dependencies);
+                zipEntry(zip, "modrinth.index.json", Json.write(index).getBytes(StandardCharsets.UTF_8));
+                zipEntry(zip, "overrides/mods/" + config.id() + "-" + config.version() + ".jar", Files.readAllBytes(game));
+                int fabric = 0;
+                for (Path api : fabricApi()) {
+                    if (cancel.get()) throw cancelled();
+                    zipEntry(zip, "overrides/mods/" + api.getFileName(), Files.readAllBytes(api));
+                    fabric++;
+                }
+                if (fabric > 0) included.add("Fabric API");
+            }
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+            return new Result(target, Files.size(target), included);
+        } catch (IOException | RuntimeException e) {
+            Files.deleteIfExists(temporary);
+            throw e;
+        } finally {
+            Files.deleteIfExists(game);
+        }
+    }
+
+    private static void zipEntry(ZipOutputStream zip, String name, byte[] bytes) throws IOException {
+        zip.putNextEntry(new ZipEntry(name));
+        zip.write(bytes);
+        zip.closeEntry();
+    }
+
+    private static List<Path> fabricApi() {
+        Set<Path> jars = new LinkedHashSet<>();
+        for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
+            String id = mod.getMetadata().getId();
+            if (mod.getContainingMod().isPresent() || id.equals("fabricloader") || id.contains("gametest")) continue;
+            if (!id.equals("fabric-api") && !id.startsWith("fabric-")) continue;
+            List<Path> paths = mod.getOrigin().getPaths();
+            if (paths.size() == 1 && Files.isRegularFile(paths.getFirst()) && paths.getFirst().toString().endsWith(".jar")) jars.add(paths.getFirst());
+        }
+        return List.copyOf(jars);
     }
 
     private static final class Writer {
