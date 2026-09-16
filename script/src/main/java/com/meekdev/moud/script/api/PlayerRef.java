@@ -11,6 +11,8 @@ public interface PlayerRef {
 
     void spawn(Vector3 position);
 
+    ControlsRef controls();
+
     double ping();
 
     double viewTime();

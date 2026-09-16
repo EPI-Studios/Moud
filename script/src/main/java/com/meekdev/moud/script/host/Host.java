@@ -14,6 +14,7 @@ import com.meekdev.moud.script.api.AudioRef;
 import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.ChatRef;
+import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.DebugRef;
 import com.meekdev.moud.script.api.FileRef;
 import com.meekdev.moud.script.api.HistoryRef;
@@ -22,6 +23,7 @@ import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.api.ShaderRef;
+import com.meekdev.moud.script.api.SpawnRef;
 import com.meekdev.moud.script.api.StoreRef;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.engine.ScriptLanguage;
@@ -81,6 +83,8 @@ public final class Host {
     private CameraRef lens;
     private InputRef input;
     private ShaderRef shaders;
+    private SpawnRef spawns;
+    private ControlsRef controls;
     private Instance camera;
     private Supplier<Instance> own = () -> null;
 
@@ -108,7 +112,10 @@ public final class Host {
                     .shaders(inert(ShaderRef.class));
             if (client) {
                 Instance camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
-                host.clientSide(camera, inert(CameraRef.class), inert(InputRef.class), () -> null);
+                host.clientSide(camera, inert(CameraRef.class), inert(InputRef.class), () -> null)
+                        .controls(inert(ControlsRef.class));
+            } else {
+                host.spawns(inert(SpawnRef.class));
             }
             try {
                 Libraries.install(host);
@@ -172,6 +179,8 @@ public final class Host {
     public CameraRef lens() { return lens; }
     public InputRef input() { return input; }
     public ShaderRef shaders() { return shaders; }
+    public SpawnRef spawns() { return spawns; }
+    public ControlsRef controls() { return controls; }
     public Instance camera() { return camera; }
     public Supplier<Instance> own() { return own; }
 
@@ -185,6 +194,8 @@ public final class Host {
     public Host debug(DebugRef debug) { this.debug = debug; return this; }
     public Host audio(AudioRef audio) { this.audio = audio; return this; }
     public Host shaders(ShaderRef shaders) { this.shaders = shaders; return this; }
+    public Host spawns(SpawnRef spawns) { this.spawns = spawns; return this; }
+    public Host controls(ControlsRef controls) { this.controls = controls; return this; }
 
     public Host clientSide(Instance camera, CameraRef lens, InputRef input, Supplier<Instance> own) {
         this.camera = camera;

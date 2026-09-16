@@ -94,6 +94,7 @@ public final class MoudServer {
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
         ServerHistory.INSTANCE.record(ServerScene.tree());
         Editing.tick(server);
+        if (!place.editing()) Spawning.tick(server, dt);
     }
 
     private static void spawn(ServerPlayer player) {
@@ -105,14 +106,12 @@ public final class MoudServer {
         player.onUpdateAbilities();
         EditorBody.set(player, place.editing());
         if (place.editing()) {
-            player.teleportTo(0.5, 70.0, 0.5);
+            player.teleportTo(Spawning.FALLBACK.x(), Spawning.FALLBACK.y(), Spawning.FALLBACK.z());
             return;
         }
 
-        Character character = Instances.create(Classes.CHARACTER, world,
-                player.getGameProfile().name());
-        Physics.bodies().bind(player, character);
-        player.teleportTo(0.5, 70.0, 0.5);
+        if (Spawning.autoSpawn()) Spawning.spawn(player, null);
+        else Spawning.hold(player);
 
         Host host = place.host();
         if (host != null) host.joined(new JoinedPlayer(player));
@@ -132,6 +131,7 @@ public final class MoudServer {
         Character character = Physics.bodies().of(player, ServerScene.tree());
         Physics.bodies().release(player);
         if (character != null) Instances.destroy(character);
+        Spawning.left(player);
         Broadcast.forget(player.getUUID());
     }
 }

@@ -29,6 +29,7 @@ import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.part.CollisionGroup;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.SpawnLocation;
 import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.remote.UnreliableRemote;
 import com.meekdev.moud.core.render.AreaLight;
@@ -102,6 +103,7 @@ public final class Classes {
             ClassDef.of("Attachment", SPATIAL, Attachment.class, Attachment::new);
     public static final ClassDef<Limb> LIMB = ClassDef.of("Limb", PART, Limb.class, Limb::new);
     public static final ClassDef<MeshPart> MESH_PART = ClassDef.of("MeshPart", PART, MeshPart.class, MeshPart::new);
+    public static final ClassDef<SpawnLocation> SPAWN_LOCATION = ClassDef.of("SpawnLocation", PART, SpawnLocation.class, SpawnLocation::new);
 
     public static final ClassDef<PostEffect> POST_EFFECT = ClassDef.of("PostEffect", null, PostEffect.class, PostEffect::new);
     public static final ClassDef<ScreenEffect> SCREEN_EFFECT = ClassDef.of("ScreenEffect", POST_EFFECT, ScreenEffect.class, ScreenEffect::new);
@@ -257,6 +259,7 @@ public final class Classes {
         r.register(ATTACHMENT);
         r.register(LIMB);
         r.register(MESH_PART);
+        r.register(SPAWN_LOCATION);
         r.register(POST_EFFECT);
         r.register(SCREEN_EFFECT);
         r.register(BLOOM_EFFECT);

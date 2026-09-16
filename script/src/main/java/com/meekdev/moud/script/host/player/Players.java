@@ -13,8 +13,10 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.script.api.CameraRef;
+import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.api.SpawnRef;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
 import com.meekdev.moud.script.host.HostObject;
@@ -35,8 +37,9 @@ public final class Players {
         private static final Members METHODS = new Members("Player")
                 .declare("name", "string")
                 .declare("character", "Instance?")
-                .method("spawn", "(position: Vector3) -> ()", a -> {
-                    a.self(Player.class).ref().spawn(a.vector(1));
+                .declare("controls", "PlayerControls")
+                .method("spawn", "(position: Vector3?) -> ()", a -> {
+                    a.self(Player.class).ref().spawn(a.has(1) ? a.vector(1) : null);
                     return null;
                 })
                 .method("ping", "() -> number", a -> a.self(Player.class).ref().ping())
@@ -52,6 +55,7 @@ public final class Players {
             return switch (key) {
                 case "name" -> ref.name();
                 case "character" -> ref.character();
+                case "controls" -> controls(ref.controls());
                 default -> METHODS.get(key);
             };
         }
@@ -63,8 +67,36 @@ public final class Players {
         return new Player(player);
     }
 
+    static Members controls(ControlsRef ref) {
+        Members controls = new Members("PlayerControls");
+        for (String name : ControlsRef.NAMES) {
+            controls.field(name, "boolean", () -> ref.enabled(name), value -> {
+                if (!(value instanceof Boolean on)) throw new HostError("controls.%s expects true or false", name);
+                ref.enabled(name, on);
+            });
+        }
+        return controls
+                .method("enable", "() -> ()", a -> {
+                    for (String name : ControlsRef.NAMES) ref.enabled(name, true);
+                    return null;
+                })
+                .method("disable", "() -> ()", a -> {
+                    for (String name : ControlsRef.NAMES) ref.enabled(name, false);
+                    return null;
+                });
+    }
+
     public static void install(Host host, Members game) {
         host.api().declare(Player.METHODS.decl());
+        host.api().declare(controls(new ControlsRef() {
+            @Override
+            public boolean enabled(String control) {
+                return true;
+            }
+
+            @Override
+            public void enabled(String control, boolean on) {}
+        }).decl());
         InstanceTree tree = host.world().tree();
         Members players = new Members("Players")
                 .value("joined", "PlayerSignal", host.joinedSignal())
@@ -141,6 +173,18 @@ public final class Players {
                     for (Character body : tree.ofClass(Classes.CHARACTER)) if (body.hasPlayer()) n++;
                     return (double) n;
                 });
+        SpawnRef spawns = host.spawns();
+        if (spawns != null) {
+            players.field("autoSpawn", "boolean", spawns::autoSpawn, value -> {
+                if (!(value instanceof Boolean on)) throw new HostError("players.autoSpawn expects true or false");
+                spawns.autoSpawn(on);
+            });
+            players.field("respawnTime", "number", spawns::respawnTime, value -> {
+                if (!(value instanceof Number seconds) || seconds.doubleValue() < 0) throw new HostError("players.respawnTime expects seconds, 0 or more");
+                spawns.respawnTime(seconds.doubleValue());
+            });
+        }
+        if (host.controls() != null) players.value("controls", "PlayerControls", controls(host.controls()));
         if (host.camera() != null) {
             players.method("me", "() -> Instance?", a -> {
                 Instance character = host.own().get();

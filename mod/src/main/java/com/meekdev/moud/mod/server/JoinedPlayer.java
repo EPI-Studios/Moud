@@ -1,10 +1,9 @@
 package com.meekdev.moud.mod.server;
 
-import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Vector3;
-import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.adapter.physics.Physics;
+import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.PlayerRef;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -28,9 +27,12 @@ final class JoinedPlayer implements PlayerRef {
 
     @Override
     public void spawn(Vector3 position) {
-        player.teleportTo(position.x(), position.y(), position.z());
-        Character character = Physics.bodies().of(player, ServerScene.tree());
-        if (character != null) Characters.place(character, position, player.getYRot());
+        Spawning.spawn(player, position);
+    }
+
+    @Override
+    public ControlsRef controls() {
+        return Spawning.controls(player);
     }
 
     @Override

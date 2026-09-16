@@ -16,6 +16,7 @@ import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
 import com.meekdev.moud.mod.client.input.Actions;
+import com.meekdev.moud.mod.client.input.Controls;
 import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.transport.Post;
@@ -101,7 +102,8 @@ public final class ClientPlace {
                     .audio(ResonaAudio.INSTANCE)
                     .chat(ClientChat.INSTANCE)
                     .debug(ClientDebug.INSTANCE)
-                    .shaders(ShaderPatches.INSTANCE);
+                    .shaders(ShaderPatches.INSTANCE)
+                    .controls(Controls.local());
         });
         place.start();
         placeWorld = world;

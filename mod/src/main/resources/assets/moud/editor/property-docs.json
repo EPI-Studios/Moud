@@ -62,6 +62,7 @@
     "distance": "How far behind the subject a third person camera sits.",
     "offset": "Shifts the camera from its subject.",
     "subject": "What the camera follows.",
+    "SpawnLocation.enabled": "Players can arrive here. With several enabled, each player picks one at random.",
     "ViewportFrame.camera": "The Camera the viewport looks through. Empty uses the first Camera inside it.",
     "ViewportFrame.imageColor": "Tints the drawn 3D, white leaves it as it is.",
     "ViewportFrame.imageTransparency": "0 shows the drawn 3D fully, 1 hides it."

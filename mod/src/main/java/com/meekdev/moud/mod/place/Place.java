@@ -12,6 +12,7 @@ import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.ServerHistory;
 import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.server.Spawning;
 import com.meekdev.moud.mod.server.debug.ServerDebug;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.script.engine.PlaceModules;
@@ -409,7 +410,8 @@ public final class Place {
                     Output.add(Output.Level.INFO, client ? "client" : "server", line);
                 });
         if (!client) {
-            fresh.store(ServerScene.store()).chat(ServerChat.INSTANCE).history(ServerHistory.INSTANCE).debug(ServerDebug.INSTANCE);
+            fresh.store(ServerScene.store()).chat(ServerChat.INSTANCE).history(ServerHistory.INSTANCE).debug(ServerDebug.INSTANCE)
+                    .spawns(Spawning.fresh());
         }
         fresh.persist(carried);
         extend.accept(fresh);
