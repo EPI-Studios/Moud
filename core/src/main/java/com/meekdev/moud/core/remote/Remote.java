@@ -10,6 +10,8 @@ public class Remote extends Instance {
 
     public final Signal<Sent> onServer = new Signal<>();
 
+    public final Signal<Sent> onServerPlayer = new Signal<>();
+
     public final Signal<Sent> onClient = new Signal<>();
 
     public record Sent(String from, List<Object> args) {}

@@ -22,6 +22,11 @@ final class JoinedPlayer implements PlayerRef {
     }
 
     @Override
+    public String id() {
+        return player.getUUID().toString();
+    }
+
+    @Override
     public Instance character() {
         return Physics.bodies().of(player, ServerScene.tree());
     }

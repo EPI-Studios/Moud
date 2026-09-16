@@ -7,6 +7,8 @@ public interface PlayerRef {
 
     String name();
 
+    String id();
+
     Instance character();
 
     void spawn(Vector3 position);

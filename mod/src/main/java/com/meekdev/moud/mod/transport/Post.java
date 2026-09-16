@@ -71,6 +71,7 @@ public final class Post {
         try {
             if (toServer) {
                 remote.onServer.fire(sent);
+                remote.onServerPlayer.fire(sent);
             } else {
                 remote.onClient.fire(sent);
             }

@@ -23,6 +23,8 @@ import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.ui.GuiLayout;
+import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.host.player.Players;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -312,6 +314,14 @@ public final class InstanceAccess {
             named.put(event.name(), signal);
             links.add(event.on(instance).connect(what -> {
                 switch (what) {
+                    case Remote.Sent sent when event.name().equals("onServerPlayer") -> {
+                        PlayerRef player = host.roster() == null || sent.from().isEmpty() ? null : host.roster().find(sent.from());
+                        if (player == null) return;
+                        Object[] args = new Object[sent.args().size() + 1];
+                        args[0] = Players.wrap(host, player);
+                        for (int n = 0; n < sent.args().size(); n++) args[n + 1] = sent.args().get(n);
+                        signal.fire(args);
+                    }
                     case Remote.Sent sent -> signal.fire(sent(sent, instance.tree()));
                     case ChatCommand.Invoked typed -> signal.fire(typed.body(), typed.text(), new ArrayList<>(typed.args()));
                     default -> signal.fire(what);

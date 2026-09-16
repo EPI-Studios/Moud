@@ -16,6 +16,7 @@ import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.api.RosterRef;
 import com.meekdev.moud.script.api.SpawnRef;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
@@ -36,6 +37,7 @@ public final class Players {
 
         private static final Members METHODS = new Members("Player")
                 .declare("name", "string")
+                .declare("id", "string")
                 .declare("character", "Instance?")
                 .declare("controls", "PlayerControls")
                 .method("spawn", "(position: Vector3?) -> ()", a -> {
@@ -58,6 +60,7 @@ public final class Players {
         public Object get(String key) {
             return switch (key) {
                 case "name" -> ref.name();
+                case "id" -> ref.id();
                 case "character" -> ref.character();
                 case "controls" -> controls(ref.controls());
                 default -> METHODS.get(key);
@@ -178,6 +181,23 @@ public final class Players {
                     for (Character body : tree.ofClass(Classes.CHARACTER)) if (body.hasPlayer()) n++;
                     return (double) n;
                 });
+        RosterRef roster = host.roster();
+        if (roster != null) {
+            players.method("list", "() -> { Player }", a -> {
+                List<Object> out = new ArrayList<>();
+                for (PlayerRef player : roster.all()) out.add(wrap(host, player));
+                return out;
+            });
+            players.method("byId", "(id: string) -> Player?", a -> {
+                PlayerRef player = roster.find(a.string(1));
+                return player == null ? null : wrap(host, player);
+            });
+            players.method("playerOf", "(body: Instance) -> Player?", a -> {
+                if (!(a.get(1) instanceof Character body) || !body.hasPlayer()) return null;
+                PlayerRef player = roster.find(body.owner);
+                return player == null ? null : wrap(host, player);
+            });
+        }
         SpawnRef spawns = host.spawns();
         if (spawns != null) {
             players.field("autoSpawn", "boolean", spawns::autoSpawn, value -> {

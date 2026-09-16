@@ -23,6 +23,7 @@ import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PostRef;
+import com.meekdev.moud.script.api.RosterRef;
 import com.meekdev.moud.script.api.SettingsRef;
 import com.meekdev.moud.script.api.ShaderRef;
 import com.meekdev.moud.script.api.SpawnRef;
@@ -93,6 +94,7 @@ public final class Host {
     private GameRef game;
     private SettingsRef settings;
     private WindowRef window;
+    private RosterRef roster;
     private HostSignal windowClosing;
     private Instance camera;
     private Supplier<Instance> own = () -> null;
@@ -127,7 +129,8 @@ public final class Host {
                         .settings(inert(SettingsRef.class))
                         .window(inert(WindowRef.class));
             } else {
-                host.spawns(inert(SpawnRef.class));
+                host.spawns(inert(SpawnRef.class))
+                        .roster(inert(RosterRef.class));
             }
             try {
                 Libraries.install(host);
@@ -198,6 +201,7 @@ public final class Host {
     public GameRef game() { return game; }
     public SettingsRef settings() { return settings; }
     public WindowRef window() { return window; }
+    public RosterRef roster() { return roster; }
     public HostSignal windowClosingSignal() { return windowClosing; }
     void windowClosing(HostSignal signal) { windowClosing = signal; }
     public Instance camera() { return camera; }
@@ -218,6 +222,7 @@ public final class Host {
     public Host game(GameRef game) { this.game = game; return this; }
     public Host settings(SettingsRef settings) { this.settings = settings; return this; }
     public Host window(WindowRef window) { this.window = window; return this; }
+    public Host roster(RosterRef roster) { this.roster = roster; return this; }
 
     public Host clientSide(Instance camera, CameraRef lens, InputRef input, Supplier<Instance> own) {
         this.camera = camera;
