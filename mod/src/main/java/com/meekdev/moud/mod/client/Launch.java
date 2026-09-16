@@ -46,7 +46,14 @@ public final class Launch {
         open(Minecraft.getInstance());
     }
 
+    private static boolean opened;
+
+    public static boolean opened() {
+        return opened;
+    }
+
     private static void open(Minecraft client) {
+        opened = true;
         client.createWorldOpenFlows().createFreshLevel(
                 VoidLevel.NAME,
                 VoidLevel.settings(),

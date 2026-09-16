@@ -54,7 +54,10 @@
     "client.TextureCacheMixin",
     "client.WireframeMixin",
     "client.LevelPassMixin",
-    "client.LookMixin"
+    "client.LookMixin",
+    "client.DisconnectedDetails",
+    "client.LoadingScreenMixin",
+    "client.PauseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

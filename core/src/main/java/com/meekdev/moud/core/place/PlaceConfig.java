@@ -1,6 +1,7 @@
 package com.meekdev.moud.core.place;
 
 import com.meekdev.moud.core.asset.Res;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,13 +16,19 @@ public record PlaceConfig(
         String server,
         String client,
         String scene,
-        Map<String, Boolean> features) {
+        Map<String, Boolean> features,
+        Loading loading) {
 
-    private static final List<String> TOP = List.of("name", "id", "version", "engine", "maxPlayers", "entry", "features");
+    public record Loading(String background, String color, String logo, String text, List<String> tips) {
+        public static final Loading DEFAULT = new Loading("", "#12151c", "", "Loading", List.of());
+    }
+
+    private static final List<String> TOP = List.of("name", "id", "version", "engine", "maxPlayers", "entry", "features", "loading", "window");
+    private static final Set<String> LOADING = Set.of("background", "color", "logo", "text", "tips");
     private static final Set<String> ENTRY = Set.of("server", "client", "scene");
 
     public static final PlaceConfig DEFAULT = new PlaceConfig("place", "place", "0.0.0", "", 16,
-            "res://server/main", "res://client/main", "", Map.of());
+            "res://server/main", "res://client/main", "", Map.of(), Loading.DEFAULT);
 
     public static PlaceConfig parse(String text) {
         Map<String, Object> root = Toml.parse(text);
@@ -50,7 +57,30 @@ public record PlaceConfig(
                 path(entry, "server", DEFAULT.server),
                 path(entry, "client", DEFAULT.client),
                 path(entry, "scene", ""),
-                Map.copyOf(features));
+                Map.copyOf(features),
+                loading(table(root, "loading")));
+    }
+
+    private static Loading loading(Map<String, Object> table) {
+        for (String key : table.keySet()) {
+            if (!LOADING.contains(key)) throw new IllegalArgumentException("unknown [loading] setting '" + key + "', expected background, color, logo, text or tips");
+        }
+        String background = text(table, "background", "");
+        String logo = text(table, "logo", "");
+        if (!background.isEmpty()) Res.parse(background);
+        if (!logo.isEmpty()) Res.parse(logo);
+        String color = text(table, "color", Loading.DEFAULT.color());
+        if (!color.matches("#[0-9a-fA-F]{6}")) throw new IllegalArgumentException("[loading] color is a hex colour like #12151c");
+        List<String> tips = new ArrayList<>();
+        Object raw = table.get("tips");
+        if (raw != null) {
+            if (!(raw instanceof List<?> list)) throw new IllegalArgumentException("[loading] tips is a list of strings");
+            for (Object tip : list) {
+                if (!(tip instanceof String s)) throw new IllegalArgumentException("[loading] tips is a list of strings");
+                tips.add(s);
+            }
+        }
+        return new Loading(background, color, logo, text(table, "text", Loading.DEFAULT.text()), List.copyOf(tips));
     }
 
     @SuppressWarnings("unchecked")

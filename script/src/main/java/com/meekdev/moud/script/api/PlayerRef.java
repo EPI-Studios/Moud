@@ -13,6 +13,8 @@ public interface PlayerRef {
 
     ControlsRef controls();
 
+    void kick(String message);
+
     double ping();
 
     double viewTime();

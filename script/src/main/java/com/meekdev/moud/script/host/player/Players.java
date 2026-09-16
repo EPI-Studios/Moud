@@ -42,6 +42,10 @@ public final class Players {
                     a.self(Player.class).ref().spawn(a.has(1) ? a.vector(1) : null);
                     return null;
                 })
+                .method("kick", "(message: string?) -> ()", a -> {
+                    a.self(Player.class).ref().kick(a.has(1) ? a.string(1) : "");
+                    return null;
+                })
                 .method("ping", "() -> number", a -> a.self(Player.class).ref().ping())
                 .method("viewTime", "() -> number", a -> a.self(Player.class).ref().viewTime());
 

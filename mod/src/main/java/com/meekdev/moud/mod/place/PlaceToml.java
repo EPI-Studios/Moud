@@ -47,6 +47,10 @@ public final class PlaceToml {
         }
     }
 
+    public static boolean opened() {
+        return opened != null || chosenAtLaunch();
+    }
+
     public static boolean chosenAtLaunch() {
         if (Game.standalone()) return true;
         String chosen = System.getProperty("moud.place");

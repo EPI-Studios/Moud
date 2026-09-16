@@ -106,6 +106,22 @@ public final class Actions {
         return DOWN.get(action);
     }
 
+    public static int code(String name) {
+        String key = name.trim().toLowerCase(Locale.ROOT);
+        Integer code = key.length() == 1 ? keyForChar(key.charAt(0)) : null;
+        if (code == null) code = KEYS.get(key);
+        if (code == null) throw new IllegalArgumentException("'" + name + "' is not a key, expected a letter, a digit or one of " + String.join(", ", KEYS.keySet()));
+        return code;
+    }
+
+    public static boolean mouse(int code) {
+        return (code & MOUSE) != 0;
+    }
+
+    public static int button(int code) {
+        return code & ~MOUSE;
+    }
+
     public static boolean pressed(String keys) {
         return pressed(Minecraft.getInstance().getWindow().handle(), keys);
     }

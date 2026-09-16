@@ -63,6 +63,7 @@ final class Libraries {
         ShaderLibrary.install(host);
         DebugLibrary.install(host, game);
         StoreLibrary.install(host);
+        GameLibrary.install(host, game);
         if (host.chat() != null) host.chatLibrary(ChatLibrary.install(host, game));
 
         host.global("game", "Game", game);

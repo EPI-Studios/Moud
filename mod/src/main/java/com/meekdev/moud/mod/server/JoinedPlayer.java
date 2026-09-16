@@ -5,6 +5,7 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.PlayerRef;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 final class JoinedPlayer implements PlayerRef {
@@ -33,6 +34,11 @@ final class JoinedPlayer implements PlayerRef {
     @Override
     public ControlsRef controls() {
         return Spawning.controls(player);
+    }
+
+    @Override
+    public void kick(String message) {
+        player.connection.disconnect(Component.literal(message.isBlank() ? "You were removed from the game" : message));
     }
 
     @Override

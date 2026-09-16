@@ -4,8 +4,10 @@ import com.meekdev.moud.mod.client.debug.CollisionView;
 import com.meekdev.moud.script.api.InputRef;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
@@ -19,7 +21,23 @@ public final class Input implements InputRef {
     private static final KeyMapping.Category MOUD =
             KeyMapping.Category.register(Identifier.fromNamespaceAndPath("moud", "moud"));
 
+    public static final Map<String, Function<Options, KeyMapping>> GAME_ACTIONS = gameActions();
+
     private static KeyMapping pointer;
+
+    private static Map<String, Function<Options, KeyMapping>> gameActions() {
+        Map<String, Function<Options, KeyMapping>> actions = new LinkedHashMap<>();
+        actions.put("forward", options -> options.keyUp);
+        actions.put("back", options -> options.keyDown);
+        actions.put("left", options -> options.keyLeft);
+        actions.put("right", options -> options.keyRight);
+        actions.put("jump", options -> options.keyJump);
+        actions.put("sneak", options -> options.keyShift);
+        actions.put("sprint", options -> options.keySprint);
+        actions.put("attack", options -> options.keyAttack);
+        actions.put("use", options -> options.keyUse);
+        return Collections.unmodifiableMap(actions);
+    }
 
     public static void register() {
         pointer = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.moud.pointer",
@@ -56,15 +74,7 @@ public final class Input implements InputRef {
 
     public Input() {
         Options options = Minecraft.getInstance().options;
-        actions.put("forward", () -> options.keyUp);
-        actions.put("back", () -> options.keyDown);
-        actions.put("left", () -> options.keyLeft);
-        actions.put("right", () -> options.keyRight);
-        actions.put("jump", () -> options.keyJump);
-        actions.put("sneak", () -> options.keyShift);
-        actions.put("sprint", () -> options.keySprint);
-        actions.put("attack", () -> options.keyAttack);
-        actions.put("use", () -> options.keyUse);
+        GAME_ACTIONS.forEach((name, key) -> actions.put(name, () -> key.apply(options)));
         actions.put("pointer", () -> pointer);
     }
 
