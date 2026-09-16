@@ -23,6 +23,7 @@ import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PostRef;
+import com.meekdev.moud.script.api.PushRef;
 import com.meekdev.moud.script.api.RosterRef;
 import com.meekdev.moud.script.api.SettingsRef;
 import com.meekdev.moud.script.api.ShaderRef;
@@ -91,6 +92,7 @@ public final class Host {
     private ShaderRef shaders;
     private SpawnRef spawns;
     private ControlsRef controls;
+    private PushRef push;
     private GameRef game;
     private SettingsRef settings;
     private WindowRef window;
@@ -120,7 +122,8 @@ public final class Host {
                     .history(inert(HistoryRef.class))
                     .debug(inert(DebugRef.class))
                     .audio(inert(AudioRef.class))
-                    .shaders(inert(ShaderRef.class));
+                    .shaders(inert(ShaderRef.class))
+                    .push(inert(PushRef.class));
             if (client) {
                 Instance camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
                 host.clientSide(camera, inert(CameraRef.class), inert(InputRef.class), () -> null)
@@ -198,6 +201,7 @@ public final class Host {
     public ShaderRef shaders() { return shaders; }
     public SpawnRef spawns() { return spawns; }
     public ControlsRef controls() { return controls; }
+    public PushRef push() { return push; }
     public GameRef game() { return game; }
     public SettingsRef settings() { return settings; }
     public WindowRef window() { return window; }
@@ -219,6 +223,7 @@ public final class Host {
     public Host shaders(ShaderRef shaders) { this.shaders = shaders; return this; }
     public Host spawns(SpawnRef spawns) { this.spawns = spawns; return this; }
     public Host controls(ControlsRef controls) { this.controls = controls; return this; }
+    public Host push(PushRef push) { this.push = push; return this; }
     public Host game(GameRef game) { this.game = game; return this; }
     public Host settings(SettingsRef settings) { this.settings = settings; return this; }
     public Host window(WindowRef window) { this.window = window; return this; }

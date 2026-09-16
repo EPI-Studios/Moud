@@ -17,6 +17,7 @@ import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
 import com.meekdev.moud.mod.client.input.Actions;
 import com.meekdev.moud.mod.client.input.Controls;
+import com.meekdev.moud.mod.client.input.Push;
 import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.transport.Post;
@@ -114,6 +115,7 @@ public final class ClientPlace {
                     .debug(ClientDebug.INSTANCE)
                     .shaders(ShaderPatches.INSTANCE)
                     .controls(Controls.local())
+                    .push(Push.INSTANCE)
                     .game(GameState.INSTANCE)
                     .settings(PlayerSettings.INSTANCE)
                     .window(WindowApi.INSTANCE);

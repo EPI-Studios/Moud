@@ -24,6 +24,7 @@ import com.meekdev.moud.mod.client.debug.CollisionView;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.input.Autopilot;
 import com.meekdev.moud.mod.client.input.Controls;
+import com.meekdev.moud.mod.client.input.Push;
 import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.client.zone.ClientPrompts;
 import com.meekdev.moud.mod.place.Game;
@@ -43,6 +44,7 @@ public final class MoudClient implements ClientModInitializer {
         ClientChat.listen();
         Autopilot.listen();
         Controls.listen();
+        Push.listen();
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> Autopilot.clear());
         ChatView.install();
         ClientDebug.install();

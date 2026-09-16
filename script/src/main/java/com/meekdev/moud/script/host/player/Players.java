@@ -221,6 +221,14 @@ public final class Players {
 
         Members bodies = host.instances().of(Classes.CHARACTER);
         bodies.declare("humanoid", "Humanoid");
+        bodies.method("applyImpulse", "(change: Vector3) -> ()", a -> {
+            push(host, a.self(Character.class), a.vector(1), false);
+            return null;
+        });
+        bodies.method("setVelocity", "(velocity: Vector3) -> ()", a -> {
+            push(host, a.self(Character.class), a.vector(1), true);
+            return null;
+        });
         bodies.method("distanceTo", "(other: Instance) -> number", a -> position(a.self()).distance(position(a.instance(1))));
         bodies.method("distanceSqTo", "(other: Instance) -> number", a -> position(a.self()).sub(position(a.instance(1))).lengthSq());
         bodies.method("canSee", "(other: Instance, range: number?) -> boolean", a -> {
@@ -365,5 +373,13 @@ public final class Players {
     public static Vector3 eye(Instance instance) {
         Vector3 at = position(instance);
         return instance instanceof Character body ? at.add(new Vector3(0, body.height * body.scale * 0.9, 0)) : at;
+    }
+
+    private static void push(Host host, Character body, Vector3 perSecond, boolean replace) {
+        if (host.push() == null) throw new HostError("bodies can not be pushed here");
+        if (!Double.isFinite(perSecond.x()) || !Double.isFinite(perSecond.y()) || !Double.isFinite(perSecond.z())) {
+            throw new HostError("a push needs finite numbers, got %s", perSecond);
+        }
+        host.push().push(body, perSecond, replace);
     }
 }
