@@ -185,7 +185,7 @@ public final class Windows {
 
     private static void callbacks(Open open) {
         GLFW.glfwSetCursorPosCallback(open.handle, (handle, x, y) -> {
-            float scale = scale();
+            float scale = scale(open.handle);
             open.mouseX = (float) (x / scale);
             open.mouseY = (float) (y / scale);
             open.input.mouseMoved(open.mouseX, open.mouseY);
@@ -291,7 +291,7 @@ public final class Windows {
         double[] cx = new double[1];
         double[] cy = new double[1];
         GLFW.glfwGetCursorPos(open.handle, cx, cy);
-        float scale = scale();
+        float scale = scale(open.handle);
         float mx = (float) (cx[0] / scale);
         float my = (float) (cy[0] / scale);
         return node.isVisible() && mx >= node.x && my >= node.y && mx < node.x + node.w && my < node.y + node.h;
@@ -348,7 +348,7 @@ public final class Windows {
     }
 
     private static void gui(Open open, Framebuffer canvas, boolean clear) {
-        float scale = scale();
+        float scale = scale(open.handle);
         float width = canvas.width() / scale;
         float height = canvas.height() / scale;
         UiBatcher batcher = UiBatcher.INSTANCE;
@@ -381,8 +381,11 @@ public final class Windows {
         return parts;
     }
 
-    private static float scale() {
-        return (float) Math.max(1, Minecraft.getInstance().getWindow().getGuiScale());
+    private static float scale(long handle) {
+        float[] x = new float[1];
+        float[] y = new float[1];
+        GLFW.glfwGetWindowContentScale(handle, x, y);
+        return Math.max(1, x[0]);
     }
 
     private static void close(@Nullable Open open) {

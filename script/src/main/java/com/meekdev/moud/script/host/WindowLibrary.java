@@ -94,8 +94,8 @@ final class WindowLibrary {
                     return null;
                 });
         members.field("visible", "boolean", window::visible, value -> window.visible(bool("window.visible", value)))
-                .method("open", "(properties: { [string]: any }?) -> Window", a -> open(host, a.map(1, Map.of()), Map.of()))
-                .method("overlay", "(properties: { [string]: any }?) -> Window", a -> {
+                .function("open", "(properties: { [string]: any }?) -> Window", a -> open(host, a.map(0, Map.of()), Map.of()))
+                .function("overlay", "(properties: { [string]: any }?) -> Window", a -> {
                     Map<String, Object> preset = new LinkedHashMap<>();
                     preset.put("title", "Overlay");
                     preset.put("decorated", false);
@@ -110,7 +110,7 @@ final class WindowLibrary {
                         preset.put("width", monitor.get("width"));
                         preset.put("height", monitor.get("height"));
                     }
-                    return open(host, a.map(1, Map.of()), preset);
+                    return open(host, a.map(0, Map.of()), preset);
                 });
         Members windows = host.instances().of(Classes.WINDOW);
         windows.method("close", "() -> ()", a -> {
