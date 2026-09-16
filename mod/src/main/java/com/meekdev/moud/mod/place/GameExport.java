@@ -62,6 +62,24 @@ public final class GameExport {
 
     private GameExport() {}
 
+    public record Plan(List<String> mods, int files, long bytes) {}
+
+    public static Plan plan(Path root) {
+        List<String> mods = new ArrayList<>();
+        mods.add("Moud engine");
+        for (ModContainer mod : companions()) mods.add(mod.getMetadata().getName());
+        int files = 0;
+        long bytes = 0;
+        try {
+            for (Path file : PlaceExport.files(root)) {
+                files++;
+                bytes += Files.size(file);
+            }
+        } catch (IOException ignored) {
+        }
+        return new Plan(mods, files, bytes);
+    }
+
     public static Result build(Path root, PlaceConfig config, Path target, Consumer<Progress> progress, AtomicBoolean cancel) throws IOException {
         Path temporary = target.resolveSibling(target.getFileName() + ".part");
         List<String> included = new ArrayList<>();
