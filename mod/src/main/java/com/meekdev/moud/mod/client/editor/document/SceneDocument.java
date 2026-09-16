@@ -19,6 +19,7 @@ import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
+import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
@@ -357,7 +358,7 @@ public final class SceneDocument {
             InstanceTree scratch = new InstanceTree();
             Instance root = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
             Instance made = Instances.create(def, root, className);
-            if (made instanceof Spatial spatial) {
+            if (made instanceof Spatial spatial && !inViewport(parent)) {
                 Vector3 at = spawnPoint.get();
                 if (made instanceof Part part) at = at.add(new Vector3(0, part.size.y() * 0.5, 0));
                 CFrame world = CFrame.at(at);
@@ -420,7 +421,7 @@ public final class SceneDocument {
                 Instance made = vanilla ? vanillaSound(res, name, holder) : madeFor(lower, res, name, holder);
                 if (made == null) return false;
                 settle(made, res);
-                if (made instanceof Spatial spatial) {
+                if (made instanceof Spatial spatial && !inViewport(parent)) {
                     Vector3 point = at != null ? at : spawnPoint.get();
                     if (made instanceof Part part) point = point.add(new Vector3(0, part.size.y() * 0.5, 0));
                     spatial.cframe = Transforms.world(parent).inverse().mul(CFrame.at(point));
@@ -433,6 +434,10 @@ public final class SceneDocument {
         }
         history.execute(Paste.fresh(text, ref(parentId), "Place " + name));
         return true;
+    }
+
+    private static boolean inViewport(Instance parent) {
+        return parent instanceof ViewportFrame || ViewportFrame.inside(parent);
     }
 
     private void settle(Instance made, String res) {
