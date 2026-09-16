@@ -57,6 +57,11 @@ public final class ClientPlace {
         Cameras.release();
     }
 
+    public static boolean windowClosing() {
+        Host host = place == null ? null : place.host();
+        return host != null && host.windowClosing();
+    }
+
     public static boolean pauseRequested(String reason) {
         Host host = place == null ? null : place.host();
         return host != null && host.pauseRequested(reason);
@@ -110,8 +115,10 @@ public final class ClientPlace {
                     .shaders(ShaderPatches.INSTANCE)
                     .controls(Controls.local())
                     .game(GameState.INSTANCE)
-                    .settings(PlayerSettings.INSTANCE);
+                    .settings(PlayerSettings.INSTANCE)
+                    .window(WindowApi.INSTANCE);
             GameState.INSTANCE.reset();
+            WindowApi.INSTANCE.reset();
         });
         place.start();
         placeWorld = world;

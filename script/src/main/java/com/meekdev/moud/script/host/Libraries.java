@@ -64,6 +64,7 @@ final class Libraries {
         DebugLibrary.install(host, game);
         StoreLibrary.install(host);
         GameLibrary.install(host, game);
+        WindowLibrary.install(host);
         if (host.chat() != null) host.chatLibrary(ChatLibrary.install(host, game));
 
         host.global("game", "Game", game);

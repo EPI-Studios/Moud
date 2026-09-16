@@ -17,7 +17,12 @@ public record PlaceConfig(
         String client,
         String scene,
         Map<String, Boolean> features,
-        Loading loading) {
+        Loading loading,
+        Window window) {
+
+    public record Window(boolean transparent) {
+        public static final Window DEFAULT = new Window(false);
+    }
 
     public record Loading(String background, String color, String logo, String text, List<String> tips) {
         public static final Loading DEFAULT = new Loading("", "#12151c", "", "Loading", List.of());
@@ -25,10 +30,11 @@ public record PlaceConfig(
 
     private static final List<String> TOP = List.of("name", "id", "version", "engine", "maxPlayers", "entry", "features", "loading", "window");
     private static final Set<String> LOADING = Set.of("background", "color", "logo", "text", "tips");
+    private static final Set<String> WINDOW = Set.of("transparent");
     private static final Set<String> ENTRY = Set.of("server", "client", "scene");
 
     public static final PlaceConfig DEFAULT = new PlaceConfig("place", "place", "0.0.0", "", 16,
-            "res://server/main", "res://client/main", "", Map.of(), Loading.DEFAULT);
+            "res://server/main", "res://client/main", "", Map.of(), Loading.DEFAULT, Window.DEFAULT);
 
     public static PlaceConfig parse(String text) {
         Map<String, Object> root = Toml.parse(text);
@@ -58,7 +64,16 @@ public record PlaceConfig(
                 path(entry, "client", DEFAULT.client),
                 path(entry, "scene", ""),
                 Map.copyOf(features),
-                loading(table(root, "loading")));
+                loading(table(root, "loading")),
+                window(table(root, "window")));
+    }
+
+    private static Window window(Map<String, Object> table) {
+        for (Map.Entry<String, Object> one : table.entrySet()) {
+            if (!WINDOW.contains(one.getKey())) throw new IllegalArgumentException("unknown [window] setting '" + one.getKey() + "', expected transparent");
+            if (!(one.getValue() instanceof Boolean)) throw new IllegalArgumentException("[window] " + one.getKey() + " must be true or false");
+        }
+        return new Window(Boolean.TRUE.equals(table.get("transparent")));
     }
 
     private static Loading loading(Map<String, Object> table) {

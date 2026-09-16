@@ -3,8 +3,10 @@ package com.meekdev.moud.mod.client;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.features.Feature;
 import com.meekdev.moud.mod.features.Features;
+import com.meekdev.moud.mod.place.Game;
 import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.server.VoidLevel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -38,6 +40,7 @@ public final class Launch {
         }
         if (started || features.isOn(Feature.TITLE_SCREEN)) return;
         started = true;
+        if (Game.standalone() && Files.isRegularFile(PlaceToml.root().resolve("icon.png"))) WindowApi.INSTANCE.icon("res://icon.png");
         open(client);
     }
 

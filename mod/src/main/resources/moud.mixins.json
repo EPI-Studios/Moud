@@ -57,7 +57,9 @@
     "client.LookMixin",
     "client.DisconnectedDetails",
     "client.LoadingScreenMixin",
-    "client.PauseMixin"
+    "client.PauseMixin",
+    "client.TitleMixin",
+    "client.WindowMixin"
   ],
   "injectors": {
     "defaultRequire": 1

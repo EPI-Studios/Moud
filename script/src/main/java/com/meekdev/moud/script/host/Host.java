@@ -27,6 +27,7 @@ import com.meekdev.moud.script.api.SettingsRef;
 import com.meekdev.moud.script.api.ShaderRef;
 import com.meekdev.moud.script.api.SpawnRef;
 import com.meekdev.moud.script.api.StoreRef;
+import com.meekdev.moud.script.api.WindowRef;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.engine.ScriptLanguage;
 import com.meekdev.moud.script.err.ScriptError;
@@ -90,6 +91,8 @@ public final class Host {
     private ControlsRef controls;
     private GameRef game;
     private SettingsRef settings;
+    private WindowRef window;
+    private HostSignal windowClosing;
     private Instance camera;
     private Supplier<Instance> own = () -> null;
 
@@ -120,7 +123,8 @@ public final class Host {
                 host.clientSide(camera, inert(CameraRef.class), inert(InputRef.class), () -> null)
                         .controls(inert(ControlsRef.class))
                         .game(inert(GameRef.class))
-                        .settings(inert(SettingsRef.class));
+                        .settings(inert(SettingsRef.class))
+                        .window(inert(WindowRef.class));
             } else {
                 host.spawns(inert(SpawnRef.class));
             }
@@ -191,6 +195,9 @@ public final class Host {
     public ControlsRef controls() { return controls; }
     public GameRef game() { return game; }
     public SettingsRef settings() { return settings; }
+    public WindowRef window() { return window; }
+    public HostSignal windowClosingSignal() { return windowClosing; }
+    void windowClosing(HostSignal signal) { windowClosing = signal; }
     public Instance camera() { return camera; }
     public Supplier<Instance> own() { return own; }
 
@@ -208,6 +215,7 @@ public final class Host {
     public Host controls(ControlsRef controls) { this.controls = controls; return this; }
     public Host game(GameRef game) { this.game = game; return this; }
     public Host settings(SettingsRef settings) { this.settings = settings; return this; }
+    public Host window(WindowRef window) { this.window = window; return this; }
 
     public Host clientSide(Instance camera, CameraRef lens, InputRef input, Supplier<Instance> own) {
         this.camera = camera;
@@ -435,6 +443,12 @@ public final class Host {
             }
         }
         renderStepped.fire(dt);
+    }
+
+    public boolean windowClosing() {
+        if (windowClosing == null || windowClosing.count() == 0) return false;
+        windowClosing.fire();
+        return true;
     }
 
     public boolean pauseRequested(String reason) {
