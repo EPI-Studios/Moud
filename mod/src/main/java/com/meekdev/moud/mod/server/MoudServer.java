@@ -51,6 +51,14 @@ public final class MoudServer {
         ServerTickEvents.START_SERVER_TICK.register(MoudServer::tick);
         ServerPlayerEvents.JOIN.register(MoudServer::spawn);
         ServerPlayerEvents.LEAVE.register(MoudServer::leave);
+        ServerPlayerEvents.AFTER_RESPAWN.register(MoudServer::respawned);
+    }
+
+    private static void respawned(ServerPlayer before, ServerPlayer after, boolean alive) {
+        if (place == null || place.editing()) return;
+        Character character = Physics.bodies().of(after, ServerScene.tree());
+        if (character != null) Physics.bodies().bind(after, character);
+        if (!alive) Spawning.respawned(after);
     }
 
     private static void started(MinecraftServer server) {

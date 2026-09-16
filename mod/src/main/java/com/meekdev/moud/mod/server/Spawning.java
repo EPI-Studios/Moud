@@ -114,6 +114,14 @@ public final class Spawning {
         if (host != null) host.spawned(new JoinedPlayer(player));
     }
 
+    static void respawned(ServerPlayer player) {
+        InstanceTree tree = ServerScene.tree();
+        if (tree == null) return;
+        if (Physics.bodies().of(player, tree) != null || rules.autoSpawn) spawn(player, null);
+        else hold(player);
+        send(player);
+    }
+
     static void hold(ServerPlayer player) {
         InstanceTree tree = ServerScene.tree();
         if (tree == null) return;
