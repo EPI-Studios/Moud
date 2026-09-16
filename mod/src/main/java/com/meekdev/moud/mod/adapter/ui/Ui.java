@@ -23,6 +23,7 @@ import com.meekdev.moud.core.ui.TextButton;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.adapter.render.InterfaceEffects;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.client.EditMode;
 import com.mojang.blaze3d.platform.Window;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,6 +34,7 @@ import java.util.Map;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import org.joml.Vector3fc;
+import org.jspecify.annotations.Nullable;
 
 public final class Ui {
 
@@ -40,6 +42,7 @@ public final class Ui {
 
     private static final Map<Instance, Node> NODES = new HashMap<>();
     private static final Map<Instance, Placed> PLACED = new HashMap<>();
+    private static final Map<Instance, Boolean> PREVIEWED = new HashMap<>();
 
     private static HudSurface hud;
     private static InstanceTree built;
@@ -58,8 +61,13 @@ public final class Ui {
         if (tree != built || tree.structureEpoch() != epoch) reconcile(tree);
 
         hud.root().children().sort((a, b) -> Integer.compare(order(a), order(b)));
+        boolean editing = EditMode.editing();
+        if (!editing) PREVIEWED.clear();
         for (Widget child : hud.root().children()) {
-            if (child instanceof Node node && node.source instanceof ScreenGui screen) node.visible(screen.enabled);
+            if (child instanceof Node node && node.source instanceof ScreenGui screen) {
+                Boolean previewed = editing ? PREVIEWED.get(screen) : null;
+                node.visible(previewed != null ? previewed : screen.enabled);
+            }
         }
 
         Motion motion = ClientScene.motion();
@@ -123,6 +131,19 @@ public final class Ui {
             attach(node);
             if (!PLACED.containsKey(gui)) PLACED.put(gui, new Placed(null, -1, -1, -1));
         }
+    }
+
+    public static @Nullable Boolean previewed(ScreenGui screen) {
+        return PREVIEWED.get(screen);
+    }
+
+    public static void preview(ScreenGui screen, @Nullable Boolean shown) {
+        if (shown == null) PREVIEWED.remove(screen);
+        else PREVIEWED.put(screen, shown);
+    }
+
+    public static void clearPreviews() {
+        PREVIEWED.clear();
     }
 
     static void invalidate() {

@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor.viewport;
 
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.interp.PathCurve;
@@ -9,11 +10,13 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.core.render.CameraPath;
+import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
 import com.meekdev.moud.mod.adapter.render.EditorView;
 import com.meekdev.moud.mod.adapter.render.ViewportCapture;
+import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.editor.assets.AssetKind;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
@@ -99,6 +102,7 @@ public final class ViewportPanel implements Panel, ViewTools {
     private @Nullable PathCurve previewCurve;
     private double previewElapsed;
     private final OrientationCube cube = new OrientationCube();
+    private final ScreenPreviews previews = new ScreenPreviews();
     private int session = -1;
     private boolean hovered;
     private boolean lookGesture;
@@ -163,6 +167,7 @@ public final class ViewportPanel implements Panel, ViewTools {
             hoveredInstance = hovered && !lookGesture ? pickAt(mouseX, mouseY) : null;
             EditorOverlay.show(document::pickable, Set.copyOf(document.selection().all()),
                     hoveredInstance instanceof Part part && !document.selection().isSelected(part.id()) ? part.id() : 0);
+            previews.draw(drawList, left, top, right, bottom);
             drawBillboards(drawList);
             if (EditorView.ghosts()) HelperShapes.draw(drawList, view, document);
             boolean cubeBusy = cube.render(drawList, right, top, camera);
@@ -258,6 +263,10 @@ public final class ViewportPanel implements Panel, ViewTools {
         viewToggle("Wireframe##toolbar-wire", EditorView.wireframe(), () -> EditorView.wireframe(!EditorView.wireframe()), "Draw the world as lines (Z)");
         ImGui.sameLine();
         viewToggle("Helpers##toolbar-helpers", EditorView.ghosts(), () -> EditorView.ghosts(!EditorView.ghosts()), "Show invisible parts, zones, light and sound ranges (H)");
+        ImGui.sameLine();
+        if (Toolbars.textButton("Screens##toolbar-screens")) ImGui.openPopup("##screens");
+        tooltip("Show or hide each ScreenGui while editing, and preview the loading, pause and disconnected screens");
+        renderScreensPopup();
         Toolbars.groupSeparator();
         if (Toolbars.textButton("Arrange##toolbar-arrange")) ImGui.openPopup("##arrange");
         tooltip("Align, distribute and group the selection");
@@ -267,6 +276,47 @@ public final class ViewportPanel implements Panel, ViewTools {
         Toolbars.popFlatButtons();
         ImGui.endChild();
         ImGui.popStyleVar(2);
+    }
+
+    private void renderScreensPopup() {
+        if (!ImGui.beginPopup("##screens")) return;
+        Instance world = document.world();
+        List<ScreenGui> screens = new ArrayList<>();
+        if (world != null && world.tree() != null) {
+            for (ScreenGui screen : world.tree().ofClass(Classes.SCREEN_GUI)) {
+                if (document.editable(screen)) screens.add(screen);
+            }
+        }
+        Texts.muted("ScreenGuis, shown here only while editing");
+        if (screens.isEmpty()) Texts.muted("  none in this scene");
+        for (ScreenGui screen : screens) {
+            ImGui.pushID(screen.id());
+            Boolean previewed = Ui.previewed(screen);
+            boolean shown = previewed != null ? previewed : screen.enabled;
+            if (ImGui.checkbox(screen.name(), shown)) Ui.preview(screen, !shown);
+            if (previewed != null) {
+                ImGui.sameLine();
+                Texts.muted("(saved " + (screen.enabled ? "on" : "off") + ")");
+            }
+            ImGui.sameLine();
+            if (ImGui.smallButton("Only")) {
+                for (ScreenGui other : screens) Ui.preview(other, other == screen);
+            }
+            ImGui.popID();
+        }
+        if (!screens.isEmpty() && ImGui.smallButton("As saved")) Ui.clearPreviews();
+        ImGui.separator();
+        Texts.muted("Engine screens");
+        for (ScreenPreviews.Shown option : ScreenPreviews.Shown.values()) {
+            String label = switch (option) {
+                case NONE -> "None";
+                case LOADING -> "Loading screen ([loading] in place.toml)";
+                case PAUSE -> "Pause menu of an exported game";
+                case DISCONNECTED -> "Disconnected screen";
+            };
+            if (ImGui.radioButton(label, previews.shown() == option)) previews.show(option);
+        }
+        ImGui.endPopup();
     }
 
     private static void viewToggle(String label, boolean active, Runnable toggle, String tip) {
