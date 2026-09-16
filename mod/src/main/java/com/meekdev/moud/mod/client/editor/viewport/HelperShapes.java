@@ -8,6 +8,7 @@ import com.meekdev.moud.core.interp.PathCurve;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.SpawnLocation;
 import com.meekdev.moud.core.render.Camera;
 import com.meekdev.moud.core.render.CameraPath;
 import com.meekdev.moud.core.render.LightSource;
@@ -29,6 +30,8 @@ final class HelperShapes {
     private static final int SOUND = EditorStyle.rgba(120, 180, 255, 170);
     private static final int CAMERA = EditorStyle.rgba(250, 200, 90, 150);
     private static final int CAMERA_SELECTED = EditorStyle.rgba(255, 225, 130, 240);
+    private static final int SPAWN = EditorStyle.rgba(120, 220, 255, 170);
+    private static final int SPAWN_SELECTED = EditorStyle.rgba(170, 240, 255, 240);
     private static final double CONE_DEPTH = 1.6;
     private static final double ASPECT = 16.0 / 9.0;
     private static final int PATH_SAMPLES = 80;
@@ -50,6 +53,7 @@ final class HelperShapes {
                 case Sound sound when selected -> sound(draw, view, sound);
                 case Camera shot -> camera(draw, view, shot, selected ? CAMERA_SELECTED : CAMERA);
                 case CameraPath path -> path(draw, view, path, selected ? CAMERA_SELECTED : CAMERA);
+                case SpawnLocation spawn -> spawn(draw, view, spawn, selected ? SPAWN_SELECTED : SPAWN);
                 default -> { }
             }
         }
@@ -121,11 +125,27 @@ final class HelperShapes {
         line(draw, view, frame.pointToWorld(new Vector3(0, tall * 1.5, -CONE_DEPTH)), frame.pointToWorld(new Vector3(wide * 0.4, tall * 1.15, -CONE_DEPTH)), colour);
     }
 
+    private static void spawn(ImDrawList draw, SceneView view, SpawnLocation spawn, int colour) {
+        CFrame top = Transforms.world(spawn).mul(CFrame.at(0, spawn.size.y() * 0.5 + 0.05, 0));
+        double length = Math.max(1, Math.min(spawn.size.x(), spawn.size.z()) * 0.4);
+        Vector3 tail = top.pointToWorld(new Vector3(0, 0, length * 0.5));
+        Vector3 tip = top.pointToWorld(new Vector3(0, 0, -length * 0.5));
+        line(draw, view, tail, tip, colour);
+        line(draw, view, tip, top.pointToWorld(new Vector3(-length * 0.25, 0, -length * 0.25)), colour);
+        line(draw, view, tip, top.pointToWorld(new Vector3(length * 0.25, 0, -length * 0.25)), colour);
+        if (!spawn.enabled) {
+            float[] at = view.toScreen(top.position());
+            if (at != null) draw.addText(at[0] + 6, at[1] - 6, colour, "off");
+        }
+    }
+
     private static void path(ImDrawList draw, SceneView view, CameraPath path, int colour) {
         List<CFrame> points = path.points();
-        for (CFrame point : points) {
-            float[] at = view.toScreen(point.position());
-            if (at != null) draw.addCircleFilled(at[0], at[1], 4f, colour);
+        for (int n = 0; n < points.size(); n++) {
+            float[] at = view.toScreen(points.get(n).position());
+            if (at == null) continue;
+            draw.addCircleFilled(at[0], at[1], 4f, colour);
+            draw.addText(at[0] + 6, at[1] - 14, colour, String.valueOf(n + 1));
         }
         if (points.size() < 2) return;
         PathCurve curve = new PathCurve(points, path.closed);
