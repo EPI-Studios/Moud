@@ -200,6 +200,7 @@ public final class Players {
         game.value("players", "Players", players);
 
         Members bodies = host.instances().of(Classes.CHARACTER);
+        bodies.declare("humanoid", "Humanoid");
         bodies.method("distanceTo", "(other: Instance) -> number", a -> position(a.self()).distance(position(a.instance(1))));
         bodies.method("distanceSqTo", "(other: Instance) -> number", a -> position(a.self()).sub(position(a.instance(1))).lengthSq());
         bodies.method("canSee", "(other: Instance, range: number?) -> boolean", a -> {
