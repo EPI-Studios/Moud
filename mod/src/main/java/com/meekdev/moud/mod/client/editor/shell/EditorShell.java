@@ -179,7 +179,7 @@ public final class EditorShell {
                 () -> document.selection().canGoForward(), () -> document.selection().goForward()));
         commands.add(new EditorCommand("select-class", "Select", "Select Same Class", null, this::hasPrimary, this::selectSameClass));
         commands.add(new EditorCommand("frame", "Edit", "Frame Selection", null, this::hasSelection, viewport::frameSelection));
-        commands.add(new EditorCommand("play", "Place", "Play", Shortcut.key(ImGuiKey.F5, "F5"), EditMode::allowed, () -> EditMode.request(false)));
+        commands.add(new EditorCommand("play", "Place", "Play", null, EditMode::allowed, () -> EditMode.request(false)));
         commands.add(new EditorCommand("reset-layout", "Window", "Reset Layout", null, () -> true, dockLayout::requestDefault));
         commands.add(new EditorCommand("renderer-tools", "Window", "Renderer Tools", null, () -> true, AmneticEditor::toggle));
     }
@@ -282,7 +282,7 @@ public final class EditorShell {
         ImGui.beginDisabled(!EditMode.allowed());
         if (icons.iconButton("toolbar-play", EditorIcon.PLAY, EditorStyle.iconSizeToolbar())) EditMode.request(false);
         ImGui.endDisabled();
-        tooltip("Play (F5)");
+        tooltip("Play (" + Editor.playtestKey() + ", stops it too)");
         ImGui.sameLine();
         ImGui.beginDisabled(true);
         icons.iconButton("toolbar-pause", EditorIcon.PAUSE, EditorStyle.iconSizeToolbar());

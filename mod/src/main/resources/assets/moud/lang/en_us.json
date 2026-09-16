@@ -1,5 +1,6 @@
 {
   "key.category.moud.moud": "Moud",
   "key.moud.pointer": "Free the pointer",
-  "key.moud.collisions": "Show collisions"
+  "key.moud.collisions": "Show collisions",
+  "key.moud.playtest": "Play and stop a playtest"
 }

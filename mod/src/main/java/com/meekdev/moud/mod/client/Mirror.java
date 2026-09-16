@@ -19,8 +19,13 @@ public final class Mirror {
     private static final Applier APPLIER = new Applier(Addons.classes());
 
     private static boolean resyncing;
+    private static long applied;
 
     private Mirror() {}
+
+    public static long applied() {
+        return applied;
+    }
 
     public static Applier applier() {
         return APPLIER;
@@ -32,6 +37,7 @@ public final class Mirror {
         for (int n = 0; n < ticks; n++) {
             byte[] packet = queue.poll();
             if (packet == null) return;
+            applied++;
             List<Change> batch;
             try {
                 batch = Codec.decode(packet, APPLIER.tree(), Addons.classes());
@@ -43,6 +49,7 @@ public final class Mirror {
                     if (ClientPlayNetworking.canSend(ResyncPayload.TYPE)) ClientPlayNetworking.send(new ResyncPayload());
                 }
                 queue.clear();
+                applied = Post.wired().received();
                 return;
             }
             if (resyncing) {

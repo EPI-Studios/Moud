@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.transport;
 
 import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.mod.transport.payload.DeltaPayload;
+import com.meekdev.moud.mod.transport.payload.PlaceReloadedPayload;
 import com.meekdev.moud.mod.transport.payload.RemoteDownPayload;
 import com.meekdev.moud.mod.transport.payload.RemoteUpPayload;
 import com.meekdev.moud.net.transport.InProcess;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicLong;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
@@ -30,6 +32,8 @@ public final class Wired implements Transport {
     private final Queue<Sent> up = new ConcurrentLinkedQueue<>();
     private final Queue<RemoteDownPayload> down = new ConcurrentLinkedQueue<>();
     private final Queue<byte[]> deltas = new ConcurrentLinkedQueue<>();
+    private final Queue<Long> reloads = new ConcurrentLinkedQueue<>();
+    private final AtomicLong received = new AtomicLong();
 
     private final Map<UUID, Map<Integer, Integer>> arrived = new HashMap<>();
 
@@ -43,8 +47,11 @@ public final class Wired implements Transport {
     public void listenAsClient() {
         ClientPlayNetworking.registerGlobalReceiver(RemoteDownPayload.TYPE,
                 (payload, context) -> down.add(payload));
-        ClientPlayNetworking.registerGlobalReceiver(DeltaPayload.TYPE,
-                (payload, context) -> deltas.add(payload.bytes()));
+        ClientPlayNetworking.registerGlobalReceiver(DeltaPayload.TYPE, (payload, context) -> {
+            received.incrementAndGet();
+            deltas.add(payload.bytes());
+        });
+        ClientPlayNetworking.registerGlobalReceiver(PlaceReloadedPayload.TYPE, (payload, context) -> reloads.add(received.get()));
     }
 
     public void sendDelta(ServerPlayer player, byte[] bytes) {
@@ -54,6 +61,20 @@ public final class Wired implements Transport {
 
     public Queue<byte[]> deltas() {
         return deltas;
+    }
+
+    public long received() {
+        return received.get();
+    }
+
+    public Queue<Long> reloads() {
+        return reloads;
+    }
+
+    public void sendReloaded(MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (ServerPlayNetworking.canSend(player, PlaceReloadedPayload.TYPE)) ServerPlayNetworking.send(player, new PlaceReloadedPayload());
+        }
     }
 
     @Override

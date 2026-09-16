@@ -33,6 +33,7 @@ public final class ClientPlace {
     private static @Nullable Camera camera;
     private static final Input INPUT = new Input();
     private static final CameraApi LENS = new CameraApi();
+    private static final double TICK = 0.05;
 
     private ClientPlace() {}
 
@@ -70,7 +71,14 @@ public final class ClientPlace {
             stop();
         }
         if (place == null) start(world);
-        if (place != null) place.pollReload();
+        Long reload = Post.wired().reloads().peek();
+        if (reload != null && Mirror.applied() >= reload) {
+            Post.wired().reloads().poll();
+            if (place != null) place.reload();
+        }
+        if (place != null) place.pollMixins();
+        Host host = place == null ? null : place.host();
+        if (host != null) host.step(TICK);
     }
 
     public static void frame(float partialTick) {

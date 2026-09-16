@@ -11,12 +11,12 @@ import com.meekdev.moud.mod.client.editor.shell.EditorShell;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.mojang.blaze3d.platform.InputConstants;
 import foundry.imgui.api.ImGuiMCEvents;
+import imgui.ImGui;
 import java.nio.file.Path;
 import java.util.List;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.CameraType;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -37,7 +37,7 @@ public final class Editor {
     private static @Nullable Path reopen;
     private static boolean reopening;
     private static boolean stopHeld;
-    private static CameraType cameraBeforeStop = CameraType.FIRST_PERSON;
+    private static KeyMapping playtest;
     private static boolean amneticReleased;
 
     private Editor() {}
@@ -61,6 +61,8 @@ public final class Editor {
         ImGuiMCEvents.INSTANCE.postRenderImGuiEvent(installed::render);
         toggle = new KeyMapping("key.moud.editor", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT, KeyMapping.Category.MISC);
         KeyMappingHelper.registerKeyMapping(toggle);
+        playtest = new KeyMapping("key.moud.playtest", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F6, KeyMapping.Category.MISC);
+        KeyMappingHelper.registerKeyMapping(playtest);
         ClientTickEvents.END_CLIENT_TICK.register(Editor::tick);
         MoudMod.LOG.info("editor ready (right shift)");
     }
@@ -115,13 +117,17 @@ public final class Editor {
     }
 
     private static void handleStop(Minecraft client) {
-        boolean down = InputConstants.isKeyDown(client.getWindow(), GLFW.GLFW_KEY_F5);
-        if (down && !stopHeld && client.screen == null && !EditMode.editing() && EditMode.allowed() && EditMode.session() > 0) {
-            client.options.setCameraType(cameraBeforeStop);
-            EditMode.request(true);
+        InputConstants.Key key = KeyMappingHelper.getBoundKeyOf(playtest);
+        boolean down = key.getType() == InputConstants.Type.KEYSYM && key.getValue() >= 0 && InputConstants.isKeyDown(client.getWindow(), key.getValue());
+        if (down && !stopHeld && EditMode.allowed()) {
+            if (!EditMode.editing() && client.screen == null && EditMode.session() > 0) EditMode.request(true);
+            else if (EditMode.editing() && !ImGui.getIO().getWantTextInput()) EditMode.request(false);
         }
         stopHeld = down;
-        if (!down) cameraBeforeStop = client.options.getCameraType();
+    }
+
+    public static String playtestKey() {
+        return playtest == null ? "F6" : playtest.getTranslatedKeyMessage().getString();
     }
 
     private static void releaseAmneticKey(Minecraft client) {

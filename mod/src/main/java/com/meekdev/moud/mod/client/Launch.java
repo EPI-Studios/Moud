@@ -3,7 +3,6 @@ package com.meekdev.moud.mod.client;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.features.Feature;
 import com.meekdev.moud.mod.features.Features;
-import com.meekdev.moud.mod.place.Game;
 import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.server.VoidLevel;
 import java.nio.file.Path;
@@ -27,7 +26,7 @@ public final class Launch {
     }
 
     private void tick(Minecraft client) {
-        if (Game.standalone() && client.screen instanceof AccessibilityOnboardingScreen) {
+        if (PlaceToml.chosenAtLaunch() && client.screen instanceof AccessibilityOnboardingScreen) {
             client.options.onboardingAccessibilityFinished();
             client.setScreen(new TitleScreen());
             return;

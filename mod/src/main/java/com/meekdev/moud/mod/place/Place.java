@@ -44,6 +44,7 @@ public final class Place {
     private @Nullable ScriptLanguage language;
     private @Nullable Watcher watcher;
     private boolean editing;
+    private boolean reloadedFully;
     private @Nullable String edited;
 
     private Place(Instance world, ClassRegistry classes, String main, boolean client,
@@ -242,7 +243,23 @@ public final class Place {
         }
     }
 
+    public void pollMixins() {
+        if (watcher == null) return;
+        Set<Path> changes = watcher.changes();
+        if (changes.isEmpty() || editing || host == null) return;
+        Path mixins = mixins().toAbsolutePath().normalize();
+        for (Path path : changes) {
+            Path file = path.toAbsolutePath().normalize();
+            if (file.startsWith(mixins)) mixin(host, file);
+        }
+    }
+
+    public boolean reloadedFully() {
+        return reloadedFully;
+    }
+
     public boolean pollReload() {
+        reloadedFully = false;
         if (watcher == null) return false;
         Set<Path> changes = watcher.changes();
         if (changes.isEmpty()) return false;
@@ -255,6 +272,13 @@ public final class Place {
             for (Path file : ours) mixin(host, file);
             return true;
         }
+        reload();
+        reloadedFully = true;
+        return true;
+    }
+
+    public void reload() {
+        if (editing) return;
         MoudMod.LOG.info("reloading the place");
         if (!client) Output.add(Output.Level.SYSTEM, "server", "reloaded the scripts");
 
@@ -265,7 +289,6 @@ public final class Place {
 
         host = load(carried);
         if (host != null) host.reloaded();
-        return true;
     }
 
     private Path mixins() {

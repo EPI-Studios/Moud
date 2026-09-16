@@ -388,7 +388,7 @@ public final class Host {
 
     public void step(double dt) {
         instances.scripts().poll(world.tree());
-        scheduler.advance(dt);
+        if (!client) scheduler.advance(dt);
         for (Consumer<Double> step : steps) {
             try {
                 step.accept(dt);
@@ -400,7 +400,10 @@ public final class Host {
     }
 
     public void renderStep(double dt) {
-        if (client) instances.scripts().poll(world.tree());
+        if (client) {
+            instances.scripts().poll(world.tree());
+            scheduler.advance(dt);
+        }
         for (Consumer<Double> step : renderSteps) {
             try {
                 step.accept(dt);
