@@ -82,6 +82,7 @@ public final class TweenLibrary {
             host.ownership().onRelease(host.ownership().current(), tween::cancel);
             return new Handle(tween, completed);
         });
+        if (host.lens() != null) CameraPaths.install(host);
     }
 
     private static Tween.Goal goal(Host host, Instance instance, String key, Object value) {
@@ -112,7 +113,7 @@ public final class TweenLibrary {
                 Boolean.TRUE.equals(table.get("reverses")), number(table, "delay", d.delay()));
     }
 
-    private static double number(Map<String, Object> table, String key, double fallback) {
+    static double number(Map<String, Object> table, String key, double fallback) {
         Object value = table.get(key);
         if (value == null) return fallback;
         if (value instanceof Number n) return n.doubleValue();
@@ -120,7 +121,7 @@ public final class TweenLibrary {
     }
 
     @SuppressWarnings("unchecked")
-    private static <E extends Enum<E>> E option(Map<String, Object> table, String key, Class<E> type, E fallback) {
+    static <E extends Enum<E>> E option(Map<String, Object> table, String key, Class<E> type, E fallback) {
         Object value = table.get(key);
         if (value == null) return fallback;
         if (!(value instanceof String name)) throw new HostError("%s expects a string", key);

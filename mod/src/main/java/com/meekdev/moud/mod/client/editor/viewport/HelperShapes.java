@@ -4,9 +4,12 @@ import com.meekdev.moud.core.audio.Sound;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
+import com.meekdev.moud.core.interp.PathCurve;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.render.Camera;
+import com.meekdev.moud.core.render.CameraPath;
 import com.meekdev.moud.core.render.LightSource;
 import com.meekdev.moud.core.render.SpotLight;
 import com.meekdev.moud.core.ui.ViewportFrame;
@@ -24,6 +27,11 @@ final class HelperShapes {
     private static final int ZONE = EditorStyle.rgba(110, 230, 140, 150);
     private static final int ZONE_SELECTED = EditorStyle.rgba(140, 255, 170, 230);
     private static final int SOUND = EditorStyle.rgba(120, 180, 255, 170);
+    private static final int CAMERA = EditorStyle.rgba(250, 200, 90, 150);
+    private static final int CAMERA_SELECTED = EditorStyle.rgba(255, 225, 130, 240);
+    private static final double CONE_DEPTH = 1.6;
+    private static final double ASPECT = 16.0 / 9.0;
+    private static final int PATH_SAMPLES = 80;
 
     private HelperShapes() {}
 
@@ -40,6 +48,8 @@ final class HelperShapes {
                 case SpotLight spot -> spot(draw, view, spot, colour(spot, selected));
                 case LightSource light -> sphere(draw, view, Transforms.world(light), light.range, colour(light, selected));
                 case Sound sound when selected -> sound(draw, view, sound);
+                case Camera shot -> camera(draw, view, shot, selected ? CAMERA_SELECTED : CAMERA);
+                case CameraPath path -> path(draw, view, path, selected ? CAMERA_SELECTED : CAMERA);
                 default -> { }
             }
         }
@@ -91,6 +101,39 @@ final class HelperShapes {
         for (int i = 0; i < 4; i++) {
             double a = i * Math.PI * 0.5;
             line(draw, view, frame.position(), end.pointToWorld(new Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0)), colour);
+        }
+    }
+
+    private static void camera(ImDrawList draw, SceneView view, Camera shot, int colour) {
+        CFrame frame = Transforms.world(shot);
+        double fov = shot.fov > 0 ? shot.fov : 70;
+        double tall = Math.tan(Math.toRadians(fov) * 0.5) * CONE_DEPTH;
+        double wide = tall * ASPECT;
+        Vector3 eye = frame.position();
+        Vector3[] corners = {
+                frame.pointToWorld(new Vector3(-wide, tall, -CONE_DEPTH)), frame.pointToWorld(new Vector3(wide, tall, -CONE_DEPTH)),
+                frame.pointToWorld(new Vector3(wide, -tall, -CONE_DEPTH)), frame.pointToWorld(new Vector3(-wide, -tall, -CONE_DEPTH))};
+        for (int n = 0; n < 4; n++) {
+            line(draw, view, eye, corners[n], colour);
+            line(draw, view, corners[n], corners[(n + 1) % 4], colour);
+        }
+        line(draw, view, frame.pointToWorld(new Vector3(-wide * 0.4, tall * 1.15, -CONE_DEPTH)), frame.pointToWorld(new Vector3(0, tall * 1.5, -CONE_DEPTH)), colour);
+        line(draw, view, frame.pointToWorld(new Vector3(0, tall * 1.5, -CONE_DEPTH)), frame.pointToWorld(new Vector3(wide * 0.4, tall * 1.15, -CONE_DEPTH)), colour);
+    }
+
+    private static void path(ImDrawList draw, SceneView view, CameraPath path, int colour) {
+        List<CFrame> points = path.points();
+        for (CFrame point : points) {
+            float[] at = view.toScreen(point.position());
+            if (at != null) draw.addCircleFilled(at[0], at[1], 4f, colour);
+        }
+        if (points.size() < 2) return;
+        PathCurve curve = new PathCurve(points, path.closed);
+        Vector3 previous = curve.sample(0).position();
+        for (int n = 1; n <= PATH_SAMPLES; n++) {
+            Vector3 next = curve.sample(n / (double) PATH_SAMPLES).position();
+            line(draw, view, previous, next, colour);
+            previous = next;
         }
     }
 

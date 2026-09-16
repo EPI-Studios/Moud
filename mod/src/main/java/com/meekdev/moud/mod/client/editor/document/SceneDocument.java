@@ -6,6 +6,7 @@ import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
+import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
@@ -226,6 +227,22 @@ public final class SceneDocument {
             text = snapshot(List.of(made));
         } catch (RuntimeException e) {
             SceneLink.local("Could not add " + className + ": " + e.getMessage());
+            return;
+        }
+        history.execute(new Paste(text, ref(parentId), new ArrayList<>(), new ArrayList<>(), false, "Add " + name));
+    }
+
+    public void addAttachment(int parentId, CFrame local, String name) {
+        if (find(parentId) == null) return;
+        String text;
+        try {
+            InstanceTree scratch = new InstanceTree();
+            Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+            Attachment made = Instances.create(Classes.ATTACHMENT, holder, name);
+            made.cframe = local;
+            text = snapshot(List.of(made));
+        } catch (RuntimeException e) {
+            SceneLink.local("Could not add a point: " + e.getMessage());
             return;
         }
         history.execute(new Paste(text, ref(parentId), new ArrayList<>(), new ArrayList<>(), false, "Add " + name));

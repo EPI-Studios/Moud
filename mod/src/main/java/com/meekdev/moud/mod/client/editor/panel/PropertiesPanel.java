@@ -4,6 +4,11 @@ import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.instance.Transforms;
+import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.render.Camera;
+import com.meekdev.moud.core.render.CameraPath;
 import com.meekdev.moud.core.value.Value;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
@@ -21,6 +26,7 @@ import com.meekdev.moud.mod.client.editor.style.ClassIcons;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
+import com.meekdev.moud.mod.client.editor.viewport.ViewTools;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImString;
@@ -46,12 +52,17 @@ public final class PropertiesPanel implements Panel {
     private final ImString tagInput = new ImString(64);
     private final ImString valueName = new ImString(64);
     private static @Nullable Map<String, Object> copiedAll;
+    private @Nullable ViewTools view;
     private static final String[] VALUE_CLASSES = {"NumberValue", "StringValue", "BoolValue", "Vector3Value", "ObjectValue"};
 
     public PropertiesPanel(SceneDocument document, IconWidgets icons) {
         this.document = document;
         this.icons = icons;
         this.rows = new PropertyRows(document);
+    }
+
+    public void viewTools(ViewTools tools) {
+        view = tools;
     }
 
     @Override
@@ -89,6 +100,7 @@ public final class PropertiesPanel implements Panel {
         Category.draw(count > 1 ? instance.name() + " and " + (count - 1) + " more" : instance.name(), icons.textureId(ClassIcons.of(instance.def())));
         if (!editable) Notices.info("Made by the engine, it is not part of the scene file.");
         renderToolbar(instance, targets);
+        if (count == 1 && editable) renderCameraActions(instance);
         ImGui.separator();
         ImGui.beginDisabled(!editable);
         if (count == 1) renderName(instance);
@@ -137,6 +149,36 @@ public final class PropertiesPanel implements Panel {
         }
         if (ImGui.menuItem("Paste all properties", "", false, copiedAll != null && document.editable(instance))) pasteAll(targets);
         ImGui.endPopup();
+    }
+
+    private void renderCameraActions(Instance instance) {
+        ViewTools tools = view;
+        if (tools == null) return;
+        if (instance instanceof Camera) {
+            if (ImGui.button("View from here")) tools.lookFrom(Transforms.world(instance));
+            if (ImGui.isItemHovered()) ImGui.setTooltip("Move the editor camera to this camera");
+            ImGui.sameLine();
+            if (ImGui.button("Set to the view")) {
+                PropertyDef frame = instance.def().property("cframe");
+                CFrame local = Transforms.localFor(instance, tools.view()).mul(CFrame.at(((Spatial) instance).pivot));
+                document.history().execute(new SetProperty(document.ref(instance.id()), frame.index(), local, "Set camera to the view"));
+            }
+            if (ImGui.isItemHovered()) ImGui.setTooltip("Place this camera where the editor camera is, looking the same way");
+        }
+        if (instance instanceof CameraPath path) {
+            if (tools.previewing()) {
+                if (ImGui.button("Stop preview")) tools.stopPreview();
+            } else if (ImGui.button("Preview")) {
+                tools.preview(path);
+            }
+            if (ImGui.isItemHovered()) ImGui.setTooltip(path.points().isEmpty() ? "Add points first" : "Fly the editor camera along the path. Right click or Escape stops it.");
+            ImGui.sameLine();
+            if (ImGui.button("Add point at the view")) {
+                CFrame local = Transforms.world(path).inverse().mul(tools.view());
+                document.addAttachment(path.id(), local, "Point" + (path.points().size() + 1));
+            }
+            if (ImGui.isItemHovered()) ImGui.setTooltip("Adds an Attachment inside the path where the editor camera is. Points are passed through in Explorer order.");
+        }
     }
 
     private void pasteAll(List<Instance> targets) {

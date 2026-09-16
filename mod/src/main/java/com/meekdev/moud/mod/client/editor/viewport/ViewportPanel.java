@@ -2,10 +2,13 @@ package com.meekdev.moud.mod.client.editor.viewport;
 
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.interp.PathCurve;
+import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Queries;
+import com.meekdev.moud.core.render.CameraPath;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
@@ -52,12 +55,13 @@ import java.util.Set;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
-public final class ViewportPanel implements Panel {
+public final class ViewportPanel implements Panel, ViewTools {
 
     public static final String ID = "viewport";
 
@@ -91,6 +95,9 @@ public final class ViewportPanel implements Panel {
     private final float[] arrayTurn = {0};
     private final SurfaceDrag surfaceDrag = new SurfaceDrag();
     private Runnable header = () -> {};
+    private @Nullable CameraPath previewPath;
+    private @Nullable PathCurve previewCurve;
+    private double previewElapsed;
     private final OrientationCube cube = new OrientationCube();
     private int session = -1;
     private boolean hovered;
@@ -366,7 +373,62 @@ public final class ViewportPanel implements Panel {
         return alreadyRunning || hovered;
     }
 
+    @Override
+    public CFrame view() {
+        Vector3d eye = camera.position();
+        Vector3d forward = camera.forward(new Vector3d());
+        Vector3 at = new Vector3(eye.x, eye.y, eye.z);
+        return CFrame.lookAt(at, at.add(new Vector3(forward.x, forward.y, forward.z)));
+    }
+
+    @Override
+    public void lookFrom(CFrame frame) {
+        Vector3 forward = frame.vectorToWorld(Vector3.FORWARD);
+        float yaw = (float) Math.toDegrees(Math.atan2(-forward.x(), forward.z()));
+        float pitch = (float) Math.toDegrees(-Math.asin(Math.clamp(forward.y(), -1, 1)));
+        Vector3 eye = frame.position();
+        camera.placeAt(new Vec3(eye.x(), eye.y(), eye.z()), yaw, pitch);
+    }
+
+    @Override
+    public void preview(CameraPath path) {
+        List<CFrame> points = path.points();
+        if (points.isEmpty()) return;
+        previewPath = path;
+        previewCurve = new PathCurve(points, path.closed);
+        previewElapsed = 0;
+    }
+
+    @Override
+    public boolean previewing() {
+        return previewPath != null;
+    }
+
+    @Override
+    public void stopPreview() {
+        previewPath = null;
+        previewCurve = null;
+    }
+
+    private boolean updatePreview(float deltaSeconds) {
+        CameraPath path = previewPath;
+        PathCurve curve = previewCurve;
+        if (path == null || curve == null) return false;
+        if (!path.isAlive() || ImGui.isMouseDown(ImGuiMouseButton.Right) || ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+            stopPreview();
+            return false;
+        }
+        previewElapsed += deltaSeconds;
+        double duration = Math.max(0.01, path.duration);
+        boolean done = !path.looped && previewElapsed >= duration;
+        double progress = path.looped ? (previewElapsed % duration) / duration : Math.min(1, previewElapsed / duration);
+        lookFrom(path.frameAt(curve, progress));
+        if (done) stopPreview();
+        return true;
+    }
+
     private void updateCamera(float deltaSeconds) {
+        if (updatePreview(deltaSeconds)) return;
         camera.updateFraming(deltaSeconds);
         camera.updateAligning(deltaSeconds);
         boolean rightHeld = heldGesture(lookGesture, ImGui.isMouseDown(ImGuiMouseButton.Right));

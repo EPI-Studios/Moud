@@ -34,6 +34,7 @@ import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.remote.UnreliableRemote;
 import com.meekdev.moud.core.render.AreaLight;
 import com.meekdev.moud.core.render.Camera;
+import com.meekdev.moud.core.render.CameraPath;
 import com.meekdev.moud.core.render.LightSource;
 import com.meekdev.moud.core.render.PointLight;
 import com.meekdev.moud.core.render.SpotLight;
@@ -91,6 +92,7 @@ public final class Classes {
     public static final ClassDef<Character> CHARACTER =
             ClassDef.of("Character", SPATIAL, Character.class, Character::new);
     public static final ClassDef<Camera> CAMERA = ClassDef.of("Camera", SPATIAL, Camera.class, Camera::new);
+    public static final ClassDef<CameraPath> CAMERA_PATH = ClassDef.of("CameraPath", SPATIAL, CameraPath.class, CameraPath::new);
     public static final ClassDef<Animator> ANIMATOR =
             ClassDef.of("Animator", null, Animator.class, Animator::new);
     public static final ClassDef<AnimationTrack> TRACK =
@@ -252,6 +254,7 @@ public final class Classes {
         r.register(PART);
         r.register(CHARACTER);
         r.register(CAMERA);
+        r.register(CAMERA_PATH);
         r.register(ANIMATOR);
         r.register(TRACK);
         r.register(APPEARANCE);

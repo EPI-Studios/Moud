@@ -65,10 +65,11 @@ public final class EditorShell {
     private final ViewportPanel viewport = new ViewportPanel(document, icons);
     private final ExplorerPanel explorer = new ExplorerPanel(document, icons, viewport::frameSelection);
     private final AssetsPanel assets = new AssetsPanel(document, icons, explorer::insertParent);
+    private final PropertiesPanel properties = new PropertiesPanel(document, icons);
     private final Panels panels = new Panels()
             .add(viewport)
             .add(explorer)
-            .add(new PropertiesPanel(document, icons))
+            .add(properties)
             .add(new OutputPanel())
             .add(assets);
     private final SceneTabs scenes = new SceneTabs(document);
@@ -131,6 +132,7 @@ public final class EditorShell {
         document.spawnPoint(viewport::spawnPoint);
         document.meshSizes(Meshes::naturalSize);
         viewport.header(scenes::renderTabs);
+        properties.viewTools(viewport);
         assets.onOpenScene(scenes::switchTo);
     }
 

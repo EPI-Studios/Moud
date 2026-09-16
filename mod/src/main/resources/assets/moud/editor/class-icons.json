@@ -6,6 +6,7 @@
     "Character": "CHARACTER_BODY_3D",
     "Humanoid": "CHARACTER_BODY_3D",
     "Camera": "CAMERA_3D",
+    "CameraPath": "LINE",
     "Animator": "ANIMATION_PLAYER",
     "AnimationTrack": "ANIMATION",
     "Attachment": "REMOTE_TRANSFORM_3D",
