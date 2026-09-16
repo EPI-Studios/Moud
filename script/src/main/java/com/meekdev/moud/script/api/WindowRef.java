@@ -72,4 +72,8 @@ public interface WindowRef {
     void clipboard(String text);
 
     void preventClose();
+
+    boolean visible();
+
+    void visible(boolean on);
 }

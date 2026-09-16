@@ -59,7 +59,8 @@
     "client.LoadingScreenMixin",
     "client.PauseMixin",
     "client.TitleMixin",
-    "client.WindowMixin"
+    "client.WindowMixin",
+    "client.FrameEndMixin"
   ],
   "injectors": {
     "defaultRequire": 1

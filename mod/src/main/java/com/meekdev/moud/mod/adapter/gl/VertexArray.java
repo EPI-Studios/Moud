@@ -31,7 +31,7 @@ public final class VertexArray {
             GlStateManager._glBindBuffer(GL15.GL_ELEMENT_ARRAY_BUFFER, ibo);
             GL15.glBufferData(GL15.GL_ELEMENT_ARRAY_BUFFER, mesh.indicesAsBuffer(), GL15.GL_STATIC_DRAW);
         }
-        GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+        unbindBuffer();
         unbind();
         return new VertexArray(vao, indexed ? mesh.indexCount() : mesh.vertexCount(), indexed);
     }
@@ -42,6 +42,10 @@ public final class VertexArray {
 
     public static void unbind() {
         GlStateManager._glBindVertexArray(0);
+    }
+
+    public static void unbindBuffer() {
+        GlStateManager._glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
     }
 
     public void draw() {

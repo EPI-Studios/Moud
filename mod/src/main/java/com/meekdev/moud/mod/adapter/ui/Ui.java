@@ -73,6 +73,7 @@ public final class Ui {
         }
         hover();
         buttons();
+        Windows.layoutGuis();
     }
 
     private static void buttons() {
@@ -102,8 +103,8 @@ public final class Ui {
         for (Widget child : new ArrayList<>(hud.root().children())) hud.root().removeChild(child);
         for (ScreenGui screen : tree.ofClass(Classes.SCREEN_GUI)) {
             Node node = node(screen);
-            hud.root().add(node);
             attach(node);
+            if (!Windows.claims(screen)) hud.root().add(node);
         }
 
         Iterator<Map.Entry<Instance, Placed>> placed = PLACED.entrySet().iterator();
@@ -124,11 +125,19 @@ public final class Ui {
         }
     }
 
-    private static Node node(Instance instance) {
+    static void invalidate() {
+        epoch = -1;
+    }
+
+    static void release(Node node) {
+        if (hud != null) hud.root().removeChild(node);
+    }
+
+    static Node node(Instance instance) {
         return NODES.computeIfAbsent(instance, Node::new);
     }
 
-    private static void attach(Node parent) {
+    static void attach(Node parent) {
         for (Widget child : new ArrayList<>(parent.children())) parent.removeChild(child);
         for (Instance child : parent.source.children()) {
             if (!(child instanceof GuiObject)) continue;

@@ -124,13 +124,45 @@ public final class Viewports {
         Matrix4f projection = new Matrix4f().perspective((float) Math.toRadians(viewport.fov()), (float) state.width / state.height,
                 NEAR, FAR, RenderSystem.getDevice().isZZeroToOne());
         Matrix4f turn = rotation(view.rotation());
+        scene(state.target, viewport, view, projection, viewport.parts());
+
+        List<InterfaceEffects.Scoped> effects = new ArrayList<>();
+        for (Instance child : viewport.children()) {
+            if (child instanceof ScreenEffect effect && effect.enabled && effect.intensity > 0) {
+                effects.add(new InterfaceEffects.Scoped(effect, 0, 0, state.width, state.height));
+            }
+        }
+        if (effects.isEmpty()) return;
+        effects.sort(Comparator.comparingDouble(scoped -> scoped.effect().order));
+        Vector3 eye = view.position();
+        Matrix4f relative = new Matrix4f(projection).mul(new Matrix4f(turn).invert());
+        InterfaceEffects.apply(state.target, state.target.depthTextureGlId(),
+                new InterfaceEffects.Eye(eye.x(), eye.y(), eye.z(), relative, new Matrix4f(relative).invert(), RenderSystem.getDevice().isZZeroToOne()),
+                effects);
+    }
+
+    public static void view(Framebuffer target, CFrame view, double fov, List<Part> parts) {
+        if (failed) return;
+        Matrix4f projection = new Matrix4f().perspective((float) Math.toRadians(fov), (float) target.width() / target.height(),
+                NEAR, FAR, RenderSystem.getDevice().isZZeroToOne());
+        try {
+            scene(target, LIGHTING, view, projection, parts);
+        } finally {
+            GlState.endFullscreen();
+        }
+    }
+
+    private static final ViewportFrame LIGHTING = new ViewportFrame();
+
+    private static void scene(Framebuffer target, ViewportFrame viewport, CFrame view, Matrix4f projection, List<Part> parts) {
+        Matrix4f turn = rotation(view.rotation());
         Matrix4f camera = new Matrix4f().translation((float) view.position().x(), (float) view.position().y(), (float) view.position().z()).mul(turn);
         Matrix4f projView = new Matrix4f(projection).mul(new Matrix4f(camera).invert());
 
         List<Part> solid = new ArrayList<>();
         List<Part> glass = new ArrayList<>();
         List<MeshPart> meshes = new ArrayList<>();
-        for (Part part : viewport.parts()) {
+        for (Part part : parts) {
             if (!part.visible || part.transparency >= 1 || part instanceof Limb) continue;
             if (part instanceof MeshPart mesh) {
                 if (!mesh.meshId.isEmpty()) meshes.add(mesh);
@@ -143,8 +175,8 @@ public final class Viewports {
         Vector3 eye = view.position();
         glass.sort(Comparator.comparingDouble((Part part) -> Transforms.world(part).position().distance(eye)).reversed());
 
-        state.target.begin();
-        state.target.clear(0, 0, 0, 0);
+        target.begin();
+        target.clear(0, 0, 0, 0);
         RenderState.depthTest(true);
         RenderState.depthLessOrEqual();
         RenderState.depthMask(true);
@@ -160,20 +192,7 @@ public final class Viewports {
             RenderState.depthMask(true);
             RenderState.blend(false);
         }
-        state.target.end();
-
-        List<InterfaceEffects.Scoped> effects = new ArrayList<>();
-        for (Instance child : viewport.children()) {
-            if (child instanceof ScreenEffect effect && effect.enabled && effect.intensity > 0) {
-                effects.add(new InterfaceEffects.Scoped(effect, 0, 0, state.width, state.height));
-            }
-        }
-        if (effects.isEmpty()) return;
-        effects.sort(Comparator.comparingDouble(scoped -> scoped.effect().order));
-        Matrix4f relative = new Matrix4f(projection).mul(new Matrix4f(turn).invert());
-        InterfaceEffects.apply(state.target, state.target.depthTextureGlId(),
-                new InterfaceEffects.Eye(eye.x(), eye.y(), eye.z(), relative, new Matrix4f(relative).invert(), RenderSystem.getDevice().isZZeroToOne()),
-                effects);
+        target.end();
     }
 
     private static void cubes(ViewportFrame viewport, Matrix4f projView, Vector3 eye, List<Part> parts) {

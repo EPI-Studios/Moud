@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.adapter.ui.Windows;
 import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.script.api.WindowRef;
 import com.mojang.blaze3d.platform.Window;
@@ -408,5 +409,19 @@ public final class WindowApi implements WindowRef {
     @Override
     public void preventClose() {
         prevented = true;
+    }
+
+    @Override
+    public boolean visible() {
+        return GLFW.glfwGetWindowAttrib(handle(), GLFW.GLFW_VISIBLE) == GLFW.GLFW_TRUE;
+    }
+
+    @Override
+    public void visible(boolean on) {
+        render(() -> {
+            if (on) GLFW.glfwShowWindow(handle());
+            else if (Windows.allowed()) GLFW.glfwHideWindow(handle());
+            else MoudMod.LOG.warn("the game window can only be hidden in single player and exported games");
+        });
     }
 }

@@ -65,6 +65,7 @@ import com.meekdev.moud.core.render.post.VignetteEffect;
 import com.meekdev.moud.core.render.post.VolumetricEffect;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
+import com.meekdev.moud.core.ui.AppWindow;
 import com.meekdev.moud.core.ui.BillboardGui;
 import com.meekdev.moud.core.ui.Frame;
 import com.meekdev.moud.core.ui.GuiObject;
@@ -206,6 +207,7 @@ public final class Classes {
 
     public static final ClassDef<ViewportFrame> VIEWPORT_FRAME =
             ClassDef.of("ViewportFrame", GUI_OBJECT, ViewportFrame.class, ViewportFrame::new);
+    public static final ClassDef<AppWindow> WINDOW = ClassDef.of("Window", null, AppWindow.class, AppWindow::new);
 
     public static final ClassDef<Sound> SOUND = ClassDef.of("Sound", null, Sound.class, Sound::new);
     public static final ClassDef<SoundBus> SOUND_BUS =
@@ -314,6 +316,7 @@ public final class Classes {
         r.register(TEXT_BUTTON);
         r.register(IMAGE_LABEL);
         r.register(VIEWPORT_FRAME);
+        r.register(WINDOW);
         r.register(SOUND);
         r.register(SOUND_BUS);
         r.register(SCRIPT);

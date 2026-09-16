@@ -1,6 +1,9 @@
 package com.meekdev.moud.mod.adapter.gl;
 
+import com.meekdev.amnetic.client.render.ShaderProgram;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL20;
 import org.lwjgl.opengl.GL41C;
 import org.lwjgl.opengl.GLCapabilities;
@@ -61,5 +64,34 @@ public final class Programs {
                 else GL20.glUniform4f(location, v[0], v[1], v[2], v[3]);
             }
         }
+    }
+
+    public static int link(String name, Identifier vertex, Identifier fragment) {
+        int vertexShader = compile(name, GL20.GL_VERTEX_SHADER, ShaderProgram.readSource(vertex));
+        int fragmentShader = compile(name, GL20.GL_FRAGMENT_SHADER, ShaderProgram.readSource(fragment));
+        int program = GL20.glCreateProgram();
+        GL20.glAttachShader(program, vertexShader);
+        GL20.glAttachShader(program, fragmentShader);
+        GL20.glLinkProgram(program);
+        GL20.glDeleteShader(vertexShader);
+        GL20.glDeleteShader(fragmentShader);
+        if (GL20.glGetProgrami(program, GL20.GL_LINK_STATUS) == GL11.GL_FALSE) {
+            String log = GL20.glGetProgramInfoLog(program);
+            GL20.glDeleteProgram(program);
+            throw new IllegalStateException(name + " did not link: " + log);
+        }
+        return program;
+    }
+
+    private static int compile(String name, int type, String source) {
+        int shader = GL20.glCreateShader(type);
+        GL20.glShaderSource(shader, source);
+        GL20.glCompileShader(shader);
+        if (GL20.glGetShaderi(shader, GL20.GL_COMPILE_STATUS) == GL11.GL_FALSE) {
+            String log = GL20.glGetShaderInfoLog(shader);
+            GL20.glDeleteShader(shader);
+            throw new IllegalStateException(name + " did not compile: " + log);
+        }
+        return shader;
     }
 }

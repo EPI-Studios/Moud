@@ -1,7 +1,13 @@
 package com.meekdev.moud.script.host;
 
+import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.ui.AppWindow;
 import com.meekdev.moud.script.api.WindowRef;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 final class WindowLibrary {
 
@@ -38,7 +44,7 @@ final class WindowLibrary {
                 focusChanged.fire(focused == 1);
             }
         });
-        Members members = new Members("Window")
+        Members members = new Members("MainWindow")
                 .field("title", "string", window::title, value -> window.title(text("window.title", value)))
                 .field("icon", "string", window::icon, value -> window.icon(text("window.icon", value)))
                 .field("fullscreen", "boolean", window::fullscreen, value -> window.fullscreen(bool("window.fullscreen", value)))
@@ -87,8 +93,86 @@ final class WindowLibrary {
                     window.preventClose();
                     return null;
                 });
-        host.global("window", "Window", members);
+        members.field("visible", "boolean", window::visible, value -> window.visible(bool("window.visible", value)))
+                .method("open", "(properties: { [string]: any }?) -> Window", a -> open(host, a.map(1, Map.of()), Map.of()))
+                .method("overlay", "(properties: { [string]: any }?) -> Window", a -> {
+                    Map<String, Object> preset = new LinkedHashMap<>();
+                    preset.put("title", "Overlay");
+                    preset.put("decorated", false);
+                    preset.put("transparent", true);
+                    preset.put("alwaysOnTop", true);
+                    preset.put("clickThrough", true);
+                    preset.put("resizable", false);
+                    Map<String, Object> monitor = primary(window);
+                    if (monitor != null) {
+                        preset.put("x", monitor.get("x"));
+                        preset.put("y", monitor.get("y"));
+                        preset.put("width", monitor.get("width"));
+                        preset.put("height", monitor.get("height"));
+                    }
+                    return open(host, a.map(1, Map.of()), preset);
+                });
+        Members windows = host.instances().of(Classes.WINDOW);
+        windows.method("close", "() -> ()", a -> {
+            Instances.destroy(a.self());
+            return null;
+        });
+        windows.method("preventClose", "() -> ()", a -> {
+            a.self(AppWindow.class).keepOpen();
+            return null;
+        });
+        windows.method("focus", "() -> ()", a -> {
+            a.self(AppWindow.class).focus();
+            return null;
+        });
+        windows.method("moveTo", "(x: number, y: number) -> ()", a -> {
+            AppWindow self = a.self(AppWindow.class);
+            host.instances().set(self, "x", a.number(1));
+            host.instances().set(self, "y", a.number(2));
+            return null;
+        });
+        windows.method("resize", "(width: number, height: number) -> ()", a -> {
+            AppWindow self = a.self(AppWindow.class);
+            host.instances().set(self, "width", a.number(1));
+            host.instances().set(self, "height", a.number(2));
+            return null;
+        });
+        windows.method("center", "() -> ()", a -> {
+            AppWindow self = a.self(AppWindow.class);
+            Map<String, Object> monitor = primary(window);
+            if (monitor == null) return null;
+            double x = ((Number) monitor.get("workX")).doubleValue() + (((Number) monitor.get("workWidth")).doubleValue() - self.width) / 2;
+            double y = ((Number) monitor.get("workY")).doubleValue() + (((Number) monitor.get("workHeight")).doubleValue() - self.height) / 2;
+            host.instances().set(self, "x", Math.round(x));
+            host.instances().set(self, "y", Math.round(y));
+            return null;
+        });
+        host.global("window", "MainWindow", members);
         host.declare(members);
+    }
+
+    private static Object open(Host host, Map<String, Object> properties, Map<String, Object> preset) {
+        AppWindow made = Instances.createLocal(Classes.WINDOW, host.world(), "Window");
+        try {
+            for (Map.Entry<String, Object> entry : preset.entrySet()) host.instances().set(made, entry.getKey(), entry.getValue());
+            for (Map.Entry<String, Object> entry : properties.entrySet()) host.instances().set(made, entry.getKey(), entry.getValue());
+        } catch (RuntimeException e) {
+            Instances.destroy(made);
+            throw e;
+        }
+        host.ownership().onRelease(host.ownership().current(), () -> {
+            if (made.isAlive()) Instances.destroy(made);
+        });
+        return made;
+    }
+
+    private static Map<String, Object> primary(WindowRef window) {
+        List<Map<String, Object>> monitors = window.monitors();
+        if (monitors == null || monitors.isEmpty()) return null;
+        for (Map<String, Object> monitor : monitors) {
+            if (Boolean.TRUE.equals(monitor.get("primary"))) return monitor;
+        }
+        return monitors.getFirst();
     }
 
     private static String text(String where, Object value) {
