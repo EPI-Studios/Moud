@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.project;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
@@ -8,9 +9,13 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.SpawnLocation;
 import com.meekdev.moud.core.place.PlaceConfig;
+import com.meekdev.moud.core.remote.Remote;
+import com.meekdev.moud.core.render.CameraPath;
 import com.meekdev.moud.core.scene.Json;
 import com.meekdev.moud.core.scene.Scene;
+import com.meekdev.moud.core.tween.Easing;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -35,6 +40,12 @@ public final class ProjectStore {
     private static final Vector3 BASEPLATE_SIZE = new Vector3(128, 1, 128);
     private static final CFrame BASEPLATE_CFRAME = CFrame.at(0, 63.5, 0);
     private static final Color BASEPLATE_COLOR = new Color(0.39f, 0.40f, 0.42f);
+    private static final CFrame MENU_SPAWN = CFrame.at(0, 64, 0);
+    private static final double MENU_ORBIT_SECONDS = 30;
+    private static final int MENU_ORBIT_POINTS = 4;
+    private static final double MENU_ORBIT_RADIUS = 30;
+    private static final double MENU_ORBIT_HEIGHT = 74;
+    private static final double MENU_ORBIT_BOB = 6;
 
     private final Path recentsFile;
 
@@ -111,7 +122,7 @@ public final class ProjectStore {
         save(List.of(), Set.of());
     }
 
-    public enum Template { BASEPLATE, EMPTY }
+    public enum Template { BASEPLATE, MENU, EMPTY }
 
     public Project createProject(String name, Path root) throws IOException {
         return createProject(name, root, Template.BASEPLATE);
@@ -122,6 +133,12 @@ public final class ProjectStore {
         Files.createDirectories(root.resolve("scenes"));
         Files.createDirectories(root.resolve("server"));
         Files.createDirectories(root.resolve("client"));
+        if (template == Template.MENU) {
+            Files.writeString(root.resolve(Project.MARKER_FILENAME), placeToml(name) + "\n" + readResource(TEMPLATES + "menu/settings.toml"));
+            copyTemplate("menu", root);
+            Files.writeString(root.resolve("scenes/main.scene"), menuScene());
+            return new Project(name, root, System.currentTimeMillis());
+        }
         Files.writeString(root.resolve(Project.MARKER_FILENAME), placeToml(name));
         copyResource(TEMPLATES + "starter/server/main.luau", root.resolve("server/main.luau"));
         copyResource(TEMPLATES + "starter/client/main.luau", root.resolve("client/main.luau"));
@@ -150,6 +167,36 @@ public final class ProjectStore {
             Files.createDirectories(target.getParent());
             Files.copy(in, target);
         }
+    }
+
+    private static void copyTemplate(String template, Path root) throws IOException {
+        String base = TEMPLATES + template + "/";
+        List<String> files = readResource(base + "files.txt").lines().map(String::strip).filter(line -> !line.isEmpty()).toList();
+        for (String file : files) copyResource(base + file, root.resolve(file));
+        copyResource(base + "luaurc.json", root.resolve(".luaurc"));
+    }
+
+    private static String menuScene() {
+        InstanceTree tree = new InstanceTree();
+        var world = Instances.createRoot(tree, Classes.FOLDER, "World");
+        Part baseplate = baseplate(world);
+        SpawnLocation start = Instances.create(Classes.SPAWN_LOCATION, world, "Start");
+        start.cframe = MENU_SPAWN;
+        CameraPath orbit = Instances.create(Classes.CAMERA_PATH, world, "MenuOrbit");
+        orbit.duration = MENU_ORBIT_SECONDS;
+        orbit.easing = Easing.LINEAR;
+        orbit.looped = true;
+        orbit.closed = true;
+        orbit.lookAt = start;
+        for (int n = 1; n <= MENU_ORBIT_POINTS; n++) {
+            double angle = (double) n / MENU_ORBIT_POINTS * Math.PI * 2;
+            double height = MENU_ORBIT_HEIGHT + (n % 2) * MENU_ORBIT_BOB;
+            Attachment point = Instances.create(Classes.ATTACHMENT, orbit, "Point" + n);
+            point.cframe = CFrame.at(Math.cos(angle) * MENU_ORBIT_RADIUS, height, Math.sin(angle) * MENU_ORBIT_RADIUS);
+        }
+        Remote menu = Instances.create(Classes.REMOTE, world, "Menu");
+        menu.accepts = "string";
+        return Scene.save(List.of(baseplate, start, orbit, menu));
     }
 
     private static String starterScene() {

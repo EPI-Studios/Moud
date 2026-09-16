@@ -42,6 +42,7 @@ public final class NewProjectDialog {
 
     private static final TemplateCard[] TEMPLATES = {
             new TemplateCard(ProjectStore.Template.BASEPLATE, "Baseplate", "A 128 m floor to stand on, ready to build"),
+            new TemplateCard(ProjectStore.Template.MENU, "Main menu", "A menu over a flying camera, Play spawns you, Escape pauses"),
             new TemplateCard(ProjectStore.Template.EMPTY, "Empty", "Nothing in the scene, just the scripts")};
 
     private final FileBrowser browser;
@@ -135,7 +136,7 @@ public final class NewProjectDialog {
         float height = EditorScale.of(TEMPLATE_HEIGHT);
         for (int index = 0; index < TEMPLATES.length; index++) {
             TemplateCard card = TEMPLATES[index];
-            if (index > 0) ImGui.sameLine(0.0f, gap);
+            if (index % 2 != 0) ImGui.sameLine(0.0f, gap);
             float x = ImGui.getCursorScreenPosX();
             float y = ImGui.getCursorScreenPosY();
             String id = "new-project-template-" + index;
@@ -167,6 +168,15 @@ public final class NewProjectDialog {
         if (template == ProjectStore.Template.BASEPLATE) {
             draw.addQuadFilled(cx, cy - h, cx + w, cy, cx, cy + h, cx - w, cy, EditorStyle.withAlpha(color, 0.55f));
             draw.addQuad(cx, cy - h, cx + w, cy, cx, cy + h, cx - w, cy, color, 1.0f);
+        } else if (template == ProjectStore.Template.MENU) {
+            draw.addQuadFilled(cx, cy - h, cx + w, cy, cx, cy + h, cx - w, cy, EditorStyle.withAlpha(color, 0.25f));
+            float panelLeft = x + size * 0.14f;
+            float panelTop = y + size * 0.18f;
+            draw.addRectFilled(panelLeft, panelTop, panelLeft + size * 0.34f, panelTop + size * 0.5f, EditorStyle.withAlpha(color, 0.35f), EditorScale.of(3.0f));
+            for (int n = 0; n < 3; n++) {
+                float top = panelTop + size * (0.1f + n * 0.12f);
+                draw.addRectFilled(panelLeft + size * 0.05f, top, panelLeft + size * 0.29f, top + size * 0.07f, EditorStyle.withAlpha(color, 0.8f), EditorScale.of(2.0f));
+            }
         } else {
             float dash = EditorScale.of(4.0f);
             float[][] corners = {{cx, cy - h}, {cx + w, cy}, {cx, cy + h}, {cx - w, cy}};

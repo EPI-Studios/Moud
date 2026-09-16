@@ -1,0 +1,2 @@
+server/main.luau
+client/main.luau

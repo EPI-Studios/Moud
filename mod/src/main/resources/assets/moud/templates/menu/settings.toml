@@ -1,0 +1,10 @@
+[features]
+hunger = false
+fallDamage = false
+mobs = false
+weather = false
+dayNightCycle = false
+
+[loading]
+text = "Loading"
+tips = ["Escape opens the pause menu", "Edit client/main.luau to change the menus"]
