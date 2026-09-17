@@ -34,10 +34,10 @@ public final class ScrollingFrame extends GuiObject {
         changed().connect(this::settle);
     }
 
-    public void measured(double canvas, double canvasDown, double window, double windowDown) {
-        canvasW = canvas;
+    public void measured(double canvasAcross, double canvasDown, double windowAcross, double windowDown) {
+        canvasW = canvasAcross;
         canvasH = canvasDown;
-        windowW = window;
+        windowW = windowAcross;
         windowH = windowDown;
         Vector3 held = clamp(canvasPosition);
         if (!held.equals(canvasPosition) && isAlive()) {

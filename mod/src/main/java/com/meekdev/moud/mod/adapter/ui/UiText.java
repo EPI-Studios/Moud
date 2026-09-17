@@ -28,10 +28,9 @@ final class UiText {
             return new GuiLayout.Size(layout.width(), layout.height());
         }
         UiFonts.Face face = UiFonts.of(font);
-        double wrap = GuiLayout.wraps(label) ? wrapWidth : Double.POSITIVE_INFINITY;
         List<Line> lines = label instanceof TextBox box && !box.multiLine
                 ? List.of(new Line(0, label.text.length()))
-                : lines(face, label.text, px, wrap);
+                : lines(face, label.text, px, GuiLayout.wraps(label) ? wrapWidth : Double.POSITIVE_INFINITY);
         float widest = 0;
         for (Line line : lines) widest = Math.max(widest, width(face, label.text.substring(line.start(), line.end()), px));
         return new GuiLayout.Size(widest, lineHeight(face, px) * lines.size());
