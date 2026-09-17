@@ -28,7 +28,6 @@
     "world.MobSpawnMixin",
     "world.MoveSweepMixin",
     "world.RandomTickMixin",
-    "world.TimeMixin",
     "world.WeatherMixin"
   ],
   "client": [
