@@ -9,6 +9,7 @@ import com.meekdev.moud.core.character.Appearance;
 import com.meekdev.moud.core.character.Armour;
 import com.meekdev.moud.core.character.Cape;
 import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.character.ForceField;
 import com.meekdev.moud.core.character.Humanoid;
 import com.meekdev.moud.core.character.Limb;
 import com.meekdev.moud.core.character.Wings;
@@ -251,6 +252,7 @@ public final class Classes {
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
     public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
     public static final ClassDef<Model> MODEL = ClassDef.of("Model", SPATIAL, Model.class, Model::new);
+    public static final ClassDef<ForceField> FORCE_FIELD = ClassDef.of("ForceField", null, ForceField.class, ForceField::new);
     public static final ClassDef<WeldConstraint> WELD_CONSTRAINT =
             ClassDef.of("WeldConstraint", null, WeldConstraint.class, WeldConstraint::new);
     public static final ClassDef<Constraint> CONSTRAINT = ClassDef.of("Constraint", null, Constraint.class, Constraint::new);
@@ -356,6 +358,7 @@ public final class Classes {
         r.register(JOINT);
         r.register(MOTOR);
         r.register(MODEL);
+        r.register(FORCE_FIELD);
         r.register(WELD_CONSTRAINT);
         r.register(CONSTRAINT);
         r.register(HINGE_CONSTRAINT);

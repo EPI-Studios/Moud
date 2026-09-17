@@ -3,6 +3,7 @@ package com.meekdev.moud.core.nav;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Humanoid;
 import com.meekdev.moud.core.character.HumanoidState;
+import com.meekdev.moud.core.character.Humanoids;
 import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
@@ -41,6 +42,8 @@ public final class Walkers {
         void jump(Character body);
 
         void stop(Character body);
+
+        void move(Character body, Vector3 direction, boolean relativeToCamera);
     }
 
     private static Pilot pilot;
@@ -65,6 +68,15 @@ public final class Walkers {
         }
         Humanoid living = Rig.humanoid(body);
         if (living != null) Instances.setBool(living, JUMP, true);
+    }
+
+    public static void move(Character body, Vector3 direction, boolean relativeToCamera) {
+        if (body.hasPlayer()) {
+            if (pilot != null) pilot.move(body, direction, relativeToCamera);
+            return;
+        }
+        PLANS.remove(body);
+        Humanoids.move(body, direction);
     }
 
     public static void cancelled(Character body) {

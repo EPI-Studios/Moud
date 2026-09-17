@@ -9,6 +9,7 @@ public record PilotDownPayload(int kind, double[] waypoints) implements CustomPa
     public static final int WALK = 0;
     public static final int JUMP = 1;
     public static final int STOP = 2;
+    public static final int MOVE = 3;
 
     public static final Type<PilotDownPayload> TYPE = Payloads.type("pilot_down");
 

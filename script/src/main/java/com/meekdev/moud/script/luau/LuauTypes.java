@@ -10,6 +10,8 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.script.host.Api;
 import com.meekdev.moud.script.host.Literals;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
@@ -115,7 +117,7 @@ public final class LuauTypes {
         String shape = CLASS_SIGNALS.getProperty(def.name());
         if (shape != null) return shape;
         if (remote(def)) return REMOTE_SIGNALS.getProperty(event.name(), ANY_SIGNAL);
-        return DEFAULT_SIGNAL;
+        return payload(event);
     }
 
     private static String builtInMembers(String type) {
@@ -194,5 +196,14 @@ public final class LuauTypes {
             if (!self) return params;
             return params.isEmpty() ? "self" : "self, " + params;
         }
+    }
+
+    private static String payload(EventDef event) {
+        if (event.field().getGenericType() instanceof ParameterizedType generic && generic.getActualTypeArguments().length == 1) {
+            Type argument = generic.getActualTypeArguments()[0];
+            if (argument == Double.class) return "NumberSignal";
+            if (argument == Boolean.class) return "BoolSignal";
+        }
+        return DEFAULT_SIGNAL;
     }
 }

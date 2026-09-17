@@ -16,5 +16,9 @@ public enum HumanoidState {
 
     SEATED,
 
+    CLIMBING,
+
+    PLATFORM_STANDING,
+
     DEAD
 }

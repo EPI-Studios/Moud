@@ -20,6 +20,8 @@ public final class Autopilot {
     private static final List<Vector3> WAYPOINTS = new ArrayList<>();
     private static int next;
     private static boolean jump;
+    private static Vector3 steer = Vector3.ZERO;
+    private static boolean steerRelative;
 
     private Autopilot() {}
 
@@ -38,6 +40,12 @@ public final class Autopilot {
                 }
                 case PilotDownPayload.JUMP -> jump = true;
                 case PilotDownPayload.STOP -> WAYPOINTS.clear();
+                case PilotDownPayload.MOVE -> {
+                    double[] n = down.waypoints();
+                    steer = n.length >= 4 ? new Vector3(n[0], 0, n[2]) : Vector3.ZERO;
+                    steerRelative = n.length >= 4 && n[3] != 0;
+                    if (steer.lengthSq() > 1.0e-6) WAYPOINTS.clear();
+                }
                 default -> {}
             }
         }
@@ -51,6 +59,25 @@ public final class Autopilot {
         }
         boolean jumpNow = jump;
         jump = false;
+        if (WAYPOINTS.isEmpty() && !manual && steer.lengthSq() > 1.0e-6) {
+            double yaw = Math.toRadians(player.getYRot());
+            double forwardX = -Math.sin(yaw);
+            double forwardZ = Math.cos(yaw);
+            double wx = steer.x();
+            double wz = steer.z();
+            if (steerRelative) {
+                double ahead = -steer.z();
+                double side = steer.x();
+                wx = forwardX * ahead - forwardZ * side;
+                wz = forwardZ * ahead + forwardX * side;
+            }
+            double length = Math.sqrt(wx * wx + wz * wz);
+            float forward = (float) ((wx * forwardX + wz * forwardZ) / length);
+            float left = (float) ((wx * forwardZ - wz * forwardX) / length);
+            input.keyPresses = new Input(forward > 0.3f, forward < -0.3f, left > 0.3f, left < -0.3f, jumpNow || pressed.jump(), pressed.shift(), pressed.sprint());
+            MoveVector.set(input, new Vec2(left, forward).normalized());
+            return;
+        }
         if (WAYPOINTS.isEmpty()) {
             if (jumpNow) input.keyPresses = new Input(pressed.forward(), pressed.backward(), pressed.left(), pressed.right(), true, pressed.shift(), pressed.sprint());
             return;
@@ -87,5 +114,6 @@ public final class Autopilot {
         WAYPOINTS.clear();
         INCOMING.clear();
         jump = false;
+        steer = Vector3.ZERO;
     }
 }

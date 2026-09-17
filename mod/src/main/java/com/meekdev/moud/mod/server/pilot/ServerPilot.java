@@ -59,6 +59,11 @@ public final class ServerPilot implements Walkers.Pilot {
         send(body, new PilotDownPayload(PilotDownPayload.STOP, new double[0]));
     }
 
+    @Override
+    public void move(Character body, Vector3 direction, boolean relativeToCamera) {
+        send(body, new PilotDownPayload(PilotDownPayload.MOVE, new double[] {direction.x(), direction.y(), direction.z(), relativeToCamera ? 1 : 0}));
+    }
+
     private static void send(Character body, PilotDownPayload payload) {
         MinecraftServer server = ServerScene.server();
         if (server == null) return;

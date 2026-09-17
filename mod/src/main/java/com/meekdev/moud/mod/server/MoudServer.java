@@ -100,6 +100,7 @@ public final class MoudServer {
         ServerPrompts.tick(server);
         ServerPilot.tick(server);
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
+        if (!place.editing()) HumanoidStates.tick(server, ServerScene.tree());
         ServerHistory.INSTANCE.record(ServerScene.tree());
         Editing.tick(server);
         if (!place.editing()) Spawning.tick(server, dt);
@@ -141,6 +142,7 @@ public final class MoudServer {
         Physics.bodies().release(player);
         if (character != null) Instances.destroy(character);
         Spawning.left(player);
+        HumanoidStates.left(player);
         Broadcast.forget(player.getUUID());
     }
 }

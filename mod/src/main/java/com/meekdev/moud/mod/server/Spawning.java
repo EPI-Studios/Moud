@@ -145,7 +145,18 @@ public final class Spawning {
         }
     }
 
+    private static final Map<UUID, Integer> humanoidHolds = new HashMap<>();
+    private static final int HOLD_MOVE = 1;
+    private static final int HOLD_JUMP = 2;
+
+    static void humanoid(ServerPlayer player, boolean move, boolean jump) {
+        int holds = (move ? 0 : HOLD_MOVE) | (jump ? 0 : HOLD_JUMP);
+        Integer before = humanoidHolds.put(player.getUUID(), holds);
+        if (before == null ? holds != 0 : before != holds) send(player);
+    }
+
     static void left(ServerPlayer player) {
+        humanoidHolds.remove(player.getUUID());
         dead.remove(player.getUUID());
         waiting.remove(player.getUUID());
         controls.remove(player.getUUID());
@@ -176,7 +187,9 @@ public final class Spawning {
         if (!ServerPlayNetworking.canSend(player, ControlsPayload.TYPE)) return;
         Map<String, Boolean> set = controls.getOrDefault(player.getUUID(), Map.of());
         boolean held = waiting.contains(player.getUUID());
-        ServerPlayNetworking.send(player, new ControlsPayload(!held && set.getOrDefault("move", true), !held && set.getOrDefault("jump", true), set.getOrDefault("look", true)));
+        int holds = humanoidHolds.getOrDefault(player.getUUID(), 0);
+        ServerPlayNetworking.send(player, new ControlsPayload(!held && (holds & HOLD_MOVE) == 0 && set.getOrDefault("move", true),
+                !held && (holds & HOLD_JUMP) == 0 && set.getOrDefault("jump", true), set.getOrDefault("look", true)));
     }
 
     private static Point point(InstanceTree tree) {

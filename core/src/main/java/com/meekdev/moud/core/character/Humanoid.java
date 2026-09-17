@@ -4,6 +4,8 @@ import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Vector3;
+import java.util.EnumSet;
+import java.util.Set;
 
 public final class Humanoid extends Instance {
 
@@ -14,6 +16,48 @@ public final class Humanoid extends Instance {
     public final Signal<Instance> stateChanged = new Signal<>();
 
     public final Signal<Instance> arrived = new Signal<>();
+
+    public final Signal<Double> running = new Signal<>();
+
+    public final Signal<Boolean> jumping = new Signal<>();
+
+    public final Signal<Boolean> freeFalling = new Signal<>();
+
+    public final Signal<Double> swimming = new Signal<>();
+
+    public final Signal<Double> climbing = new Signal<>();
+
+    public final Signal<Boolean> seated = new Signal<>();
+
+    public final Signal<Boolean> platformStanding = new Signal<>();
+
+    public final Signal<Double> damaged = new Signal<>();
+
+    @Prop(driven = true) public Vector3 moveDirection = Vector3.ZERO;
+
+    @Prop(driven = true) public String floorMaterial = "";
+
+    public boolean sit;
+
+    public boolean platformStand;
+
+    public boolean autoRotate = true;
+
+    @Prop(min = 0) public double healthRegen;
+
+    private final EnumSet<HumanoidState> disabled = EnumSet.noneOf(HumanoidState.class);
+
+    public boolean stateEnabled(HumanoidState state) {
+        return !disabled.contains(state);
+    }
+
+    public void stateEnabled(HumanoidState state, boolean on) {
+        if (on) disabled.remove(state); else disabled.add(state);
+    }
+
+    public Set<HumanoidState> disabledStates() {
+        return Set.copyOf(disabled);
+    }
 
     @Prop(min = 0) public double health = 20.0;
 

@@ -5,6 +5,7 @@ import com.meekdev.moud.core.character.ArmPose;
 import com.meekdev.moud.core.character.Armour;
 import com.meekdev.moud.core.character.Cape;
 import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.character.Humanoid;
 import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.character.Wings;
 import com.meekdev.moud.core.clazz.Classes;
@@ -141,7 +142,7 @@ public final class PlayerMirror {
         Instances.setNum(character, ATTACK_TIME, player.getAttackAnim(1.0f));
         Instances.setBool(character, ATTACK_LEFT, player.getMainArm() == HumanoidArm.LEFT);
         Instances.setNum(character, SWIM_AMOUNT, player.getSwimAmount(1.0f));
-        Instances.setBool(character, RIDING, player.isPassenger());
+        Instances.setBool(character, RIDING, player.isPassenger() || Rig.humanoid(character) instanceof Humanoid living && living.sit);
         Instances.setBool(character, FLYING, player.isFallFlying());
         Instances.setBool(character, IN_WATER, player.isInWater());
         Vec3 motion = player.getDeltaMovement();
