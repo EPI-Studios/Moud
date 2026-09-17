@@ -369,7 +369,8 @@ public final class Queries {
     }
 
     static boolean elsewhere(Part part, Instance root) {
-        if (Instance.outOfWorld(part) && !Instance.outOfWorld(root) && !isUnder(part, root)) return true;
+        Instance container = Instance.container(part);
+        if (container != null && container != root && !isUnder(root, container)) return true;
         ViewportFrame viewport = ViewportFrame.around(part);
         return viewport != null && viewport != root && ViewportFrame.around(root) != viewport;
     }

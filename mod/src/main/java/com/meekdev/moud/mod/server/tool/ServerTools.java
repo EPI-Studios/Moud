@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.server.tool;
 
+import com.meekdev.moud.core.character.Backpack;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Tool;
 import com.meekdev.moud.core.character.Tools;
@@ -102,8 +103,9 @@ public final class ServerTools implements ToolRef {
     private static Tool[] assign(ServerPlayer player, Character body) {
         Tool[] slots = SLOTTED.computeIfAbsent(player.getUUID(), id -> new Tool[SLOTS]);
         Tool held = Tools.held(body);
-        List<Tool> owned = new ArrayList<>(Tools.carried(body));
+        List<Tool> owned = new ArrayList<>();
         if (held != null) owned.add(held);
+        owned.addAll(Tools.carried(body));
         for (int n = 0; n < SLOTS; n++) {
             if (slots[n] != null && !owned.contains(slots[n])) slots[n] = null;
         }
@@ -164,18 +166,16 @@ public final class ServerTools implements ToolRef {
             Tools.equip(body, tool);
             return;
         }
+        if (!Tools.canEquip(tool)) return;
         EMPTIED.remove(player.getUUID());
+        if (tool.parent() != body && !(tool.parent() instanceof Backpack)) Instances.reparent(tool, Tools.backpack(body));
+        Tools.equip(body, tool);
         Tool[] slots = assign(player, body);
-        if (indexOf(slots, tool) < 0 && tool.parent() != body) {
-            Instances.reparent(tool, Tools.backpack(body));
-            slots = assign(player, body);
-        }
         int slot = indexOf(slots, tool);
         if (slot >= 0 && slot != player.getInventory().getSelectedSlot()) {
             player.getInventory().setSelectedSlot(slot);
             player.connection.send(new ClientboundSetHeldSlotPacket(slot));
         }
-        Tools.equip(body, tool);
     }
 
     @Override

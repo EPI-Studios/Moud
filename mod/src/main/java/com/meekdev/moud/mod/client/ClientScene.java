@@ -78,7 +78,8 @@ public final class ClientScene {
             }
         }
         Stages.run(tree, Stage.COMPOSE, 0);
-        if (!EditMode.editing()) ClientTools.tick(tree, own);
+        if (EditMode.editing()) ClientTools.idle();
+        else ClientTools.tick(tree, own);
         Touches.step(tree);
         Zones.step(tree, Addons.classes(), System.nanoTime() / 1e9);
         ZoneSounds.tick(tree);

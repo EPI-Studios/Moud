@@ -51,6 +51,7 @@ public final class Sounds {
 
         Motion motion = ClientScene.motion();
         for (Sound sound : tree.ofClass(Classes.SOUND)) {
+            if (Instance.outOfWorld(sound)) continue;
             Voice voice = VOICES.computeIfAbsent(sound, s -> new Voice());
             Instance anchor = anchor(sound);
             Vector3 at = anchor == null ? null : motion.sample(anchor, partialTick).position();

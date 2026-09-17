@@ -103,6 +103,7 @@ public final class Spawning {
             character = Instances.create(Classes.CHARACTER, world, player.getGameProfile().name());
             Physics.bodies().bind(player, character);
             Tools.stock(character, tree, Addons.classes());
+            Teams.mirror(player);
             fresh = true;
         }
         player.teleportTo(player.level(), point.position().x(), point.position().y(), point.position().z(), Set.of(), (float) point.yawDegrees(), player.getXRot(), true);

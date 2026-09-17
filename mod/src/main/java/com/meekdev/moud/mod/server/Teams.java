@@ -83,7 +83,7 @@ public final class Teams {
         CHOSEN.values().removeIf(team -> !team.isAlive());
         List<SpawnLocation> pads = new ArrayList<>();
         for (SpawnLocation pad : tree.ofClass(Classes.SPAWN_LOCATION)) {
-            if (pad.allowTeamChangeOnTouch && !pad.neutral && pad.enabled) pads.add(pad);
+            if (pad.allowTeamChangeOnTouch && !pad.neutral && pad.enabled && !Instance.outOfWorld(pad)) pads.add(pad);
         }
         for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
             Character body = Physics.bodies().of(player, tree);
@@ -104,7 +104,7 @@ public final class Teams {
         return pad.neutral || team != null && pad.teamColor.equals(team.teamColor);
     }
 
-    private static void mirror(ServerPlayer player) {
+    public static void mirror(ServerPlayer player) {
         InstanceTree tree = ServerScene.tree();
         Character body = tree == null ? null : Physics.bodies().of(player, tree);
         Team team = of(player);
@@ -129,7 +129,7 @@ public final class Teams {
 
     private static @Nullable Team teamColored(InstanceTree tree, SpawnLocation pad) {
         for (Team team : tree.ofClass(Classes.TEAM)) {
-            if (team.teamColor.equals(pad.teamColor)) return team;
+            if (team.teamColor.equals(pad.teamColor) && !Instance.outOfWorld(team)) return team;
         }
         return null;
     }

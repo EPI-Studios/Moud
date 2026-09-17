@@ -150,10 +150,14 @@ public abstract class Instance {
     }
 
     public static boolean outOfWorld(Instance instance) {
+        return container(instance) != null;
+    }
+
+    public static Instance container(Instance instance) {
         for (Instance at = instance.parent(); at != null; at = at.parent()) {
-            if (at.holdsTemplates() || at.serverOnly() || at.storesAway()) return true;
+            if (at.holdsTemplates() || at.serverOnly() || at.storesAway()) return at;
         }
-        return false;
+        return null;
     }
 
     public static boolean hidden(Instance instance) {

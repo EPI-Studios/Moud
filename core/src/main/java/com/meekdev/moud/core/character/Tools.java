@@ -46,9 +46,13 @@ public final class Tools {
         return tools;
     }
 
+    public static boolean canEquip(Tool tool) {
+        return !tool.requiresHandle || tool.child(HANDLE) instanceof Part;
+    }
+
     public static void equip(Character body, Tool tool) {
         Tool current = held(body);
-        if (current == tool || tool.requiresHandle && !(tool.child(HANDLE) instanceof Part)) return;
+        if (current == tool || !canEquip(tool)) return;
         if (current != null) unequip(body);
         Instances.reparent(tool, body);
         tool.equipped.fire(tool);

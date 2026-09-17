@@ -176,6 +176,7 @@ public final class Ui {
 
         for (Widget child : new ArrayList<>(hud.root().children())) hud.root().removeChild(child);
         for (ScreenGui screen : tree.ofClass(Classes.SCREEN_GUI)) {
+            if (Instance.outOfWorld(screen)) continue;
             Node node = node(screen);
             attach(node);
             if (!Windows.claims(screen)) hud.root().add(node);
@@ -196,6 +197,7 @@ public final class Ui {
         worldly.addAll(tree.ofClass(Classes.BILLBOARD_GUI));
         worldly.addAll(tree.ofClass(Classes.SURFACE_GUI));
         for (Instance gui : worldly) {
+            if (Instance.outOfWorld(gui)) continue;
             Node node = node(gui);
             attach(node);
             if (!PLACED.containsKey(gui)) PLACED.put(gui, new Placed(null, -1, -1, -1));

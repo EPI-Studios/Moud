@@ -26,6 +26,10 @@ public final class ClientTools {
         return holding;
     }
 
+    public static void idle() {
+        holding = false;
+    }
+
     public static void tick(InstanceTree tree, @Nullable Character own) {
         for (Tool tool : tree.ofClass(Classes.TOOL)) {
             boolean held = tool.parent() instanceof Character;
