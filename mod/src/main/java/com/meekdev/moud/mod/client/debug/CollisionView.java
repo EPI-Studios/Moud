@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.debug;
 
 import com.meekdev.bkun.collision.BoxCollider;
+import com.meekdev.bkun.collision.TriangleCollider;
 import com.meekdev.bkun.physics.MovementProfile;
 import com.meekdev.bkun.physics.Physics;
 import com.meekdev.moud.core.character.Character;
@@ -26,6 +27,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.lwjgl.glfw.GLFW;
 
@@ -65,14 +67,22 @@ public final class CollisionView {
 
         AABB region = new AABB(eye.x - RANGE, eye.y - RANGE, eye.z - RANGE, eye.x + RANGE, eye.y + RANGE, eye.z + RANGE);
         List<AABB> collected = new ArrayList<>();
+        List<TriangleCollider> surfaces = new ArrayList<>();
         ClientPhysics.boxes().collect(region, collider -> {
             if (collider instanceof BoxCollider box) collected.add(box.bounds());
+            else if (collider instanceof TriangleCollider face) surfaces.add(face);
         });
+        for (TriangleCollider face : surfaces) {
+            debug.line(corner(face.a()), corner(face.b()), GREEN, LIFE);
+            debug.line(corner(face.b()), corner(face.c()), GREEN, LIFE);
+            debug.line(corner(face.c()), corner(face.a()), GREEN, LIFE);
+        }
         for (AABB b : collected) {
             debug.box(CFrame.at((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2),
                     new Vector3(b.getXsize(), b.getYsize(), b.getZsize()), GREEN, LIFE);
         }
         int boxes = collected.size();
+        int faces = surfaces.size();
 
         int turned = 0;
         int ghosts = 0;
@@ -120,8 +130,12 @@ public final class CollisionView {
             bodies++;
         }
 
-        debug.watch("collisions", "F7  " + boxes + " boxes, " + turned + (SubLevels.available() ? " turned (real)" : " turned (as boxes)")
+        debug.watch("collisions", "F7  " + boxes + " boxes, " + faces + " shape faces, " + turned + (SubLevels.available() ? " turned (real)" : " turned (as boxes)")
                 + ", " + ghosts + " not colliding, " + blocks + " block boxes, " + bodies + " bodies");
+    }
+
+    private static Vector3 corner(Vec3 at) {
+        return new Vector3(at.x, at.y, at.z);
     }
 
     private static void capsule(ClientDebug debug, Vector3 feet, double radius, double height) {
