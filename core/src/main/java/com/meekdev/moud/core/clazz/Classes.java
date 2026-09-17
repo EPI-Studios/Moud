@@ -31,6 +31,7 @@ import com.meekdev.moud.core.chat.TextChannel;
 import com.meekdev.moud.core.chat.TextSource;
 import com.meekdev.moud.core.effect.Beam;
 import com.meekdev.moud.core.effect.Decal;
+import com.meekdev.moud.core.effect.Explosion;
 import com.meekdev.moud.core.effect.Fire;
 import com.meekdev.moud.core.effect.Highlight;
 import com.meekdev.moud.core.effect.ParticleEmitter;
@@ -374,6 +375,7 @@ public final class Classes {
     public static final ClassDef<Trail> TRAIL = ClassDef.of("Trail", null, Trail.class, Trail::new);
     public static final ClassDef<Highlight> HIGHLIGHT = ClassDef.of("Highlight", null, Highlight.class, Highlight::new);
     public static final ClassDef<Decal> DECAL = ClassDef.of("Decal", null, Decal.class, Decal::new);
+    public static final ClassDef<Explosion> EXPLOSION = ClassDef.of("Explosion", null, Explosion.class, Explosion::new);
     public static final ClassDef<Texture> TEXTURE = ClassDef.of("Texture", DECAL, Texture.class, Texture::new);
     public static final ClassDef<Fire> FIRE = ClassDef.of("Fire", null, Fire.class, Fire::new);
     public static final ClassDef<Smoke> SMOKE = ClassDef.of("Smoke", null, Smoke.class, Smoke::new);
@@ -524,6 +526,7 @@ public final class Classes {
         r.register(TRAIL);
         r.register(HIGHLIGHT);
         r.register(DECAL);
+        r.register(EXPLOSION);
         r.register(TEXTURE);
         r.register(FIRE);
         r.register(SMOKE);

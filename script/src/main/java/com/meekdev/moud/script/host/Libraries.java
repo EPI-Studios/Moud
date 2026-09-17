@@ -43,6 +43,7 @@ final class Libraries {
         host.api().declare(HostSignal.decl("InstanceSignal", "(instance: Instance) -> ()"));
         host.api().declare(HostSignal.decl("AncestrySignal", "(child: Instance, parent: Instance?) -> ()"));
         host.api().declare(HostSignal.decl("PlayerSignal", "(player: Player) -> ()"));
+        host.api().declare(HostSignal.decl("ExplosionSignal", "(part: Instance, distance: number) -> ()"));
         host.api().declare(HostSignal.decl("RemoteServerSignal", "(body: Instance, ...any) -> ()"));
         host.api().declare(HostSignal.decl("RemotePlayerSignal", "(player: Player, ...any) -> ()"));
         host.api().declare(HostSignal.decl("ChatCommandSignal", "(body: Instance?, text: string, args: { string }) -> ()"));

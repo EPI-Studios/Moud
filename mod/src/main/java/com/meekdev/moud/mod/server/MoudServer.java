@@ -77,6 +77,7 @@ public final class MoudServer {
         ServerHistory.INSTANCE.clear();
         Broadcast.stop();
         WorldTime.stopped();
+        Explosions.stopped();
         place = null;
         ServerScene.stop();
     }
@@ -100,6 +101,7 @@ public final class MoudServer {
         });
         if (place.reloadedFully()) Post.wired().sendReloaded(server);
         WorldTime.tick(server);
+        Explosions.tick(server);
         Physics.settle(ServerScene.tree(), !place.editing());
         Post.drainToServer(ServerScene.tree());
         ServerChat.INSTANCE.tick(server);
