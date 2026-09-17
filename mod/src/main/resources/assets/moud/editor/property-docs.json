@@ -76,7 +76,7 @@
     "manualActivationOnly": "Clicking does not activate the tool, only tool:activate() does.",
     "Tool.item": "The Minecraft item shown in the hotbar and in the hand, like minecraft:iron_sword. A stick when empty.",
     "toolTip": "The name shown in the hotbar. The tool's name when empty.",
-    "Tool.grip": "Where the Handle sits in the hand, relative to the hand.",
+    "Tool.grip": "Where the hand holds the Handle, in the Handle's own space.",
     "animationId": "A res:// path to a .anim file. A KeyframeSequence inside the Animation is used instead when there is one.",
     "AnimationTrack.animation": "The Animation or KeyframeSequence this track plays.",
     "AnimationTrack.speed": "How fast the track plays. 1 is normal, negative plays backwards.",

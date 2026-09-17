@@ -18,7 +18,13 @@ public final class ClientTools {
     private static final Map<Tool, Boolean> HELD = new WeakHashMap<>();
     private static boolean pressed;
 
+    private static boolean holding;
+
     private ClientTools() {}
+
+    public static boolean holding() {
+        return holding;
+    }
 
     public static void tick(InstanceTree tree, @Nullable Character own) {
         for (Tool tool : tree.ofClass(Classes.TOOL)) {
@@ -34,6 +40,7 @@ public final class ClientTools {
         Minecraft client = Minecraft.getInstance();
         boolean down = client.screen == null && client.options.keyAttack.isDown();
         Tool tool = own == null ? null : Tools.held(own);
+        holding = tool != null;
         if (down == pressed) return;
         pressed = down;
         if (tool == null || tool.manualActivationOnly) return;

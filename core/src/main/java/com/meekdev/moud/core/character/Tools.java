@@ -96,7 +96,7 @@ public final class Tools {
     }
 
     public static Character pickedUpBy(Tool tool, List<Character> bodies) {
-        if (tool.parent() instanceof Character || tool.parent() instanceof Backpack) return null;
+        if (tool.parent() instanceof Character || Instance.outOfWorld(tool)) return null;
         if (!(tool.child(HANDLE) instanceof Part handle)) return null;
         Vector3 at = Transforms.world(handle).position();
         for (Character body : bodies) {

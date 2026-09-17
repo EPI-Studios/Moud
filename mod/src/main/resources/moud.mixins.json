@@ -65,6 +65,7 @@
     "client.WindowMixin",
     "client.FrameEndMixin",
     "client.PointerMixin",
+    "client.ToolAttackMixin",
     "client.KeyPressMixin",
     "client.ScrollMixin"
   ],

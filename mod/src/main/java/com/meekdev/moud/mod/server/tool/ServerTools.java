@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.component.DataComponents;
@@ -47,6 +48,12 @@ public final class ServerTools implements ToolRef {
 
     private static final Queue<Press> PRESSES = new ConcurrentLinkedQueue<>();
     private static final Map<UUID, Tool[]> SLOTTED = new HashMap<>();
+    private static final Map<UUID, Integer> EMPTIED = new HashMap<>();
+    private static final Map<Tool, Dropped> DROPPED = new WeakHashMap<>();
+    private static final long PICKUP_DELAY_MILLIS = 1000;
+    private static final long DROP_GRACE_MILLIS = 4000;
+
+    private record Dropped(Character by, long at) {}
 
     public static final ServerTools INSTANCE = new ServerTools();
 
@@ -63,10 +70,19 @@ public final class ServerTools implements ToolRef {
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
             if (instance instanceof Character body) bodies.add(body);
         }
+        long now = System.currentTimeMillis();
+        DROPPED.values().removeIf(drop -> now - drop.at() > DROP_GRACE_MILLIS);
         for (Tool tool : List.copyOf(tree.ofClass(Classes.TOOL))) {
-            Character taker = Tools.pickedUpBy(tool, bodies);
-            if (taker != null) Instances.reparent(tool, Tools.backpack(taker));
+            Dropped dropped = DROPPED.get(tool);
+            List<Character> takers = dropped == null ? bodies : bodies.stream().filter(body -> body != dropped.by()).toList();
+            if (dropped != null && now - dropped.at() < PICKUP_DELAY_MILLIS) continue;
+            Character taker = Tools.pickedUpBy(tool, takers);
+            if (taker != null) {
+                DROPPED.remove(tool);
+                Instances.reparent(tool, Tools.backpack(taker));
+            }
         }
+        for (Character body : bodies) Tools.hold(body, true);
         for (ServerPlayer player : List.copyOf(server.getPlayerList().getPlayers())) {
             Character body = Physics.bodies().of(player, tree);
             if (body == null) {
@@ -74,7 +90,6 @@ public final class ServerTools implements ToolRef {
                 continue;
             }
             sync(player, body);
-            Tools.hold(body, true);
         }
         for (Press press; (press = PRESSES.poll()) != null; ) {
             ServerPlayer player = server.getPlayerList().getPlayer(press.player());
@@ -84,7 +99,7 @@ public final class ServerTools implements ToolRef {
         }
     }
 
-    private static void sync(ServerPlayer player, Character body) {
+    private static Tool[] assign(ServerPlayer player, Character body) {
         Tool[] slots = SLOTTED.computeIfAbsent(player.getUUID(), id -> new Tool[SLOTS]);
         Tool held = Tools.held(body);
         List<Tool> owned = new ArrayList<>(Tools.carried(body));
@@ -101,74 +116,105 @@ public final class ServerTools implements ToolRef {
                 }
             }
         }
+        return slots;
+    }
+
+    private static void sync(ServerPlayer player, Character body) {
+        Tool[] slots = assign(player, body);
+        Tool held = Tools.held(body);
         boolean managed = false;
+        boolean changed = false;
         Inventory inventory = player.getInventory();
         for (int n = 0; n < SLOTS; n++) {
             if (slots[n] == null) {
-                if (tagged(inventory.getItem(n))) inventory.setItem(n, ItemStack.EMPTY);
+                if (tagged(inventory.getItem(n))) {
+                    inventory.setItem(n, ItemStack.EMPTY);
+                    changed = true;
+                }
                 continue;
             }
             managed = true;
             ItemStack want = stack(slots[n]);
-            ItemStack have = inventory.getItem(n);
-            if (!ItemStack.isSameItemSameComponents(want, have)) inventory.setItem(n, want);
+            if (!ItemStack.isSameItemSameComponents(want, inventory.getItem(n))) {
+                inventory.setItem(n, want);
+                changed = true;
+            }
         }
         for (int n = SLOTS; n < inventory.getContainerSize(); n++) {
-            if (tagged(inventory.getItem(n))) inventory.setItem(n, ItemStack.EMPTY);
+            if (tagged(inventory.getItem(n))) {
+                inventory.setItem(n, ItemStack.EMPTY);
+                changed = true;
+            }
         }
+        if (changed) player.inventoryMenu.broadcastChanges();
         if (!managed) return;
-        Tool selected = slots[inventory.getSelectedSlot()];
+        int selectedSlot = inventory.getSelectedSlot();
+        Integer emptied = EMPTIED.get(player.getUUID());
+        if (emptied != null && emptied != selectedSlot) EMPTIED.remove(player.getUUID());
+        if (EMPTIED.containsKey(player.getUUID())) return;
+        Tool selected = slots[selectedSlot];
         if (selected != null && selected != held && selected.parent() != null) Tools.equip(body, selected);
         else if (selected == null && held != null) Tools.unequip(body);
     }
 
     @Override
     public void equip(Character body, Tool tool) {
-        Tools.equip(body, tool);
         ServerPlayer player = playerOf(body);
-        if (player == null) return;
-        sync(player, body);
-        int slot = indexOf(SLOTTED.getOrDefault(player.getUUID(), new Tool[SLOTS]), tool);
+        if (player == null) {
+            Tools.equip(body, tool);
+            return;
+        }
+        EMPTIED.remove(player.getUUID());
+        Tool[] slots = assign(player, body);
+        if (indexOf(slots, tool) < 0 && tool.parent() != body) {
+            Instances.reparent(tool, Tools.backpack(body));
+            slots = assign(player, body);
+        }
+        int slot = indexOf(slots, tool);
         if (slot >= 0 && slot != player.getInventory().getSelectedSlot()) {
             player.getInventory().setSelectedSlot(slot);
             player.connection.send(new ClientboundSetHeldSlotPacket(slot));
         }
+        Tools.equip(body, tool);
     }
 
     @Override
     public void unequip(Character body) {
         Tools.unequip(body);
         ServerPlayer player = playerOf(body);
-        if (player == null) return;
-        Tool[] slots = SLOTTED.get(player.getUUID());
-        if (slots == null) return;
-        for (int n = 0; n < SLOTS; n++) {
-            if (slots[n] == null) {
-                player.getInventory().setSelectedSlot(n);
-                player.connection.send(new ClientboundSetHeldSlotPacket(n));
-                return;
-            }
-        }
+        if (player != null) EMPTIED.put(player.getUUID(), player.getInventory().getSelectedSlot());
     }
 
     public static boolean drop(ServerPlayer player) {
         InstanceTree tree = ServerScene.tree();
         Character body = tree == null ? null : Physics.bodies().of(player, tree);
         Tool held = body == null ? null : Tools.held(body);
-        if (held == null) return tagged(player.getInventory().getSelectedItem());
-        if (held.canBeDropped && ServerScene.world() != null) {
+        if (held == null) {
+            if (!tagged(player.getInventory().getSelectedItem())) return false;
+            player.inventoryMenu.sendAllDataToRemote();
+            return true;
+        }
+        if (held.canBeDropped && held.child(Tools.HANDLE) instanceof Part handle && ServerScene.world() != null) {
             CFrame frame = Transforms.world(body);
             Vector3 ahead = frame.position().add(frame.lookVector().mul(DROP_AHEAD)).add(new Vector3(0, body.height * 0.5, 0));
             Instances.reparent(held, ServerScene.world());
             held.unequipped.fire(held);
-            if (held.child(Tools.HANDLE) instanceof Part handle) {
-                Instances.setObj(handle, Classes.SPATIAL.property("cframe"), Transforms.localFor(handle, CFrame.at(ahead)));
-            }
+            DROPPED.put(held, new Dropped(body, System.currentTimeMillis()));
+            Instances.setObj(handle, Classes.SPATIAL.property("cframe"), Transforms.localFor(handle, CFrame.at(ahead)));
+            sync(player, body);
         }
+        player.inventoryMenu.sendAllDataToRemote();
+        return true;
+    }
+
+    public static boolean throwing(ServerPlayer player, ItemStack stack) {
+        if (!tagged(stack)) return false;
+        player.inventoryMenu.sendAllDataToRemote();
         return true;
     }
 
     public static void clear(ServerPlayer player) {
+        EMPTIED.remove(player.getUUID());
         Tool[] slots = SLOTTED.remove(player.getUUID());
         if (slots == null) return;
         Inventory inventory = player.getInventory();

@@ -138,6 +138,10 @@ public abstract class Instance {
         return false;
     }
 
+    public boolean storesAway() {
+        return false;
+    }
+
     public static boolean dormant(Instance instance) {
         for (Instance at = instance.parent(); at != null; at = at.parent()) {
             if (at.holdsTemplates()) return true;
@@ -147,7 +151,7 @@ public abstract class Instance {
 
     public static boolean outOfWorld(Instance instance) {
         for (Instance at = instance.parent(); at != null; at = at.parent()) {
-            if (at.holdsTemplates() || at.serverOnly()) return true;
+            if (at.holdsTemplates() || at.serverOnly() || at.storesAway()) return true;
         }
         return false;
     }
