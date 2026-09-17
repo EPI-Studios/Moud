@@ -76,22 +76,7 @@ public final class Parts {
             int at = shape.ordinal();
             mesh(shape).staticInstances().onRender((ctx, batch) -> renderStatic(shape, ctx, batch)).register(STILL[at]);
             mesh(shape).onRender((ctx, batch) -> renderMoving(shape, ctx, batch)).register(MOVING[at]);
-            InstancedMesh.<Lit>builder(LAYOUT,
-                            (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
-                                    .putVec2(inst.light().x, inst.light().y))
-                    .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
-                    .extraSampler("LightMap", Parts::lightMap, 1)
-                    .geometry(ShapeMeshes.of(shape))
-                    .renderState(RenderState.builder()
-                            .blend(RenderState.BlendMode.ALPHA)
-                            .depthWrite(false)
-                            .backfaceCulling(false)
-                            .build())
-                    .phase(InstancePhase.WORLD_TRANSLUCENT)
-                    .writeGBuffer(false)
-                    .worldSpace()
-                    .onRender((ctx, batch) -> renderTransparent(shape, ctx, batch))
-                    .register(GLASS[at]);
+            glass(shape).onRender((ctx, batch) -> renderTransparent(shape, ctx, batch)).register(GLASS[at]);
         }
     }
 
@@ -107,6 +92,23 @@ public final class Parts {
 
     public static void invalidateStatic() {
         for (Identifier id : STILL) InstancedMesh.invalidate(id);
+    }
+
+    private static InstancedMesh.Builder<Lit> glass(PartShape shape) {
+        return InstancedMesh.<Lit>builder(LAYOUT,
+                        (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
+                                .putVec2(inst.light().x, inst.light().y))
+                .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
+                .extraSampler("LightMap", Parts::lightMap, 1)
+                .geometry(ShapeMeshes.of(shape))
+                .renderState(RenderState.builder()
+                        .blend(RenderState.BlendMode.ALPHA)
+                        .depthWrite(false)
+                        .backfaceCulling(false)
+                        .build())
+                .phase(InstancePhase.WORLD_TRANSLUCENT)
+                .writeGBuffer(false)
+                .worldSpace();
     }
 
     private static InstancedMesh.Builder<Lit> mesh(PartShape shape) {

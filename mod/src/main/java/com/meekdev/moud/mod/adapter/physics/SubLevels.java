@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.adapter.physics;
 import com.meekdev.bkun.sublevel.SubLevel;
 import com.meekdev.bkun.sublevel.SubLevelContainer;
 import com.meekdev.bkun.sublevel.SubLevelEntity;
+import com.meekdev.bkun.sublevel.SubLevelModel;
 import com.meekdev.box3d.B3Body;
 import com.meekdev.box3d.B3BodyType;
 import com.meekdev.box3d.B3Shape;
@@ -239,8 +240,9 @@ public final class SubLevels {
             return;
         }
         SubLevel subLevel = byInstance.get(id);
-        if (subLevel != null && subLevel.model() != PartShapes.of(part.size, part.shape)) {
-            subLevel.setModel(PartShapes.of(part.size, part.shape));
+        SubLevelModel wanted = PartShapes.of(part.size, part.shape);
+        if (subLevel != null && subLevel.model() != wanted) {
+            subLevel.setModel(wanted);
             subLevel.recentreOrigin();
             dressed.remove(id);
         }
@@ -253,7 +255,7 @@ public final class SubLevels {
         if (subLevel == null) {
             subLevel = allocate(id, world);
             if (subLevel == null) return;
-            subLevel.setModel(PartShapes.of(part.size, part.shape));
+            subLevel.setModel(wanted);
             subLevel.recentreOrigin();
             subLevel.markShapesDirty();
             SubLevelEntity spawned = SubLevelEntity.spawn(level, subLevel);
