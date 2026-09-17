@@ -124,6 +124,14 @@ public final class Players {
         return new Player(new Me(host));
     }
 
+    public static String idOf(Object value) {
+        return switch (value) {
+            case Player player -> player.ref().id();
+            case Character body when body.hasPlayer() -> body.owner;
+            case null, default -> null;
+        };
+    }
+
     static Members controls(ControlsRef ref) {
         Members controls = new Members("PlayerControls");
         for (String name : ControlsRef.NAMES) {

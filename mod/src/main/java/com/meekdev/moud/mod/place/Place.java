@@ -404,6 +404,7 @@ public final class Place {
 
         Host fresh = new Host(world, classes, client)
                 .post(Post.SERVER)
+                .invoke(Post.CALLS)
                 .blocks(new BlockRays(Physics::level, true))
                 .modules(new PlaceModules(root, client))
                 .files(new PlaceFileRef(root))

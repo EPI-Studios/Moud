@@ -15,6 +15,7 @@ import com.meekdev.moud.script.host.tween.TweenLibrary;
 import com.meekdev.moud.script.host.world.Blocks;
 import com.meekdev.moud.script.host.world.InstanceAttributes;
 import com.meekdev.moud.script.host.world.Paths;
+import com.meekdev.moud.script.host.world.RemoteFunctions;
 import com.meekdev.moud.script.host.world.Trees;
 import com.meekdev.moud.script.host.world.PartPhysics;
 import com.meekdev.moud.script.host.world.WorldQueries;
@@ -62,6 +63,7 @@ final class Libraries {
         PartPhysics.install(host);
         Trees.install(host, game);
         InstanceAttributes.install(host);
+        RemoteFunctions.install(host);
         Players.install(host, game);
         Paths.install(host, game);
         Blocks.install(host, game);

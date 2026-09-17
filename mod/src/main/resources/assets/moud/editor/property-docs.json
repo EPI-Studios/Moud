@@ -10,6 +10,7 @@
     "lightDirection": "Which way the viewport's light shines, as a direction.",
     "updateRate": "Times per second the viewport draws its 3D again. 0 draws every frame.",
     "resolutionScale": "Below 1 the viewport draws fewer pixels and looks blocky, above 1 it is sharper and costs more.",
+    "RemoteFunction.timeout": "Seconds an invoke waits for its answer before it fails. 0 waits forever.",
     "accepts": "What a message may carry, in order: \"string\", \"number, vec3?\"... Empty means no arguments; anything else sent is refused.",
     "Part.size": "Its dimensions in blocks.",
     "Part.color": "The colour it is drawn with.",

@@ -17,6 +17,7 @@ public final class Payloads {
         PayloadTypeRegistry<RegistryFriendlyByteBuf> down = PayloadTypeRegistry.clientboundPlay();
         down.registerLarge(DeltaPayload.TYPE, DeltaPayload.CODEC.cast(), DeltaPayload.MAX_BYTES);
         down.register(RemoteDownPayload.TYPE, RemoteDownPayload.CODEC.cast());
+        down.register(CallDownPayload.TYPE, CallDownPayload.CODEC.cast());
         down.register(ChatDownPayload.TYPE, ChatDownPayload.CODEC.cast());
         down.register(DebugPayload.TYPE, DebugPayload.CODEC.cast());
         down.register(PilotDownPayload.TYPE, PilotDownPayload.CODEC.cast());
@@ -27,6 +28,7 @@ public final class Payloads {
         down.register(SceneStatusPayload.TYPE, SceneStatusPayload.CODEC.cast());
         down.register(ScenePastedPayload.TYPE, ScenePastedPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(RemoteUpPayload.TYPE, RemoteUpPayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(CallUpPayload.TYPE, CallUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ChatUpPayload.TYPE, ChatUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ToolPayload.TYPE, ToolPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PromptPayload.TYPE, PromptPayload.CODEC.cast());

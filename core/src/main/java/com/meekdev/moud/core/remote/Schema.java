@@ -80,21 +80,25 @@ public final class Schema {
     }
 
     public static void check(Remote remote, List<Object> args) {
-        List<Takes> takes = parse(remote.accepts);
+        check(remote.name(), remote.accepts, args);
+    }
+
+    public static void check(String name, String accepts, List<Object> args) {
+        List<Takes> takes = parse(accepts);
         if (args.size() > takes.size()) {
             String hint = takes.isEmpty() ? ", list what it takes in its accepts, like \"string\" or \"string, number?\"" : "";
-            throw new IllegalArgumentException(remote.name() + " expects (" + shape(takes) + "), got " + args.size() + " arguments" + hint);
+            throw new IllegalArgumentException(name + " expects (" + shape(takes) + "), got " + args.size() + " arguments" + hint);
         }
         for (int n = 0; n < takes.size(); n++) {
             Takes want = takes.get(n);
             Object value = n < args.size() ? args.get(n) : null;
             if (value == null) {
                 if (want.optional()) continue;
-                throw new IllegalArgumentException(remote.name() + ": argument " + (n + 1) + " must be "
+                throw new IllegalArgumentException(name + ": argument " + (n + 1) + " must be "
                         + want.kind().name().toLowerCase() + ", got nil");
             }
             if (!want.kind().holds(value)) {
-                throw new IllegalArgumentException(remote.name() + ": argument " + (n + 1) + " must be "
+                throw new IllegalArgumentException(name + ": argument " + (n + 1) + " must be "
                         + want.kind().name().toLowerCase() + ", got " + value.getClass().getSimpleName().toLowerCase());
             }
         }

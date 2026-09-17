@@ -23,9 +23,11 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.remote.Remote;
+import com.meekdev.moud.core.remote.RemoteFunction;
 import com.meekdev.moud.core.ui.GuiLayout;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.host.player.Players;
+import com.meekdev.moud.script.host.world.RemoteFunctions;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -248,7 +250,27 @@ public final class InstanceAccess {
         Callable kept = fn.retain();
         assigned.put(callback, kept);
         String where = instance.def().name() + "." + def.name();
+        if (instance instanceof RemoteFunction remote) {
+            Object owner = host.ownership().current();
+            boolean onServer = def.name().equals("onServerInvoke");
+            callback.set(args -> {
+                answer(remote, onServer, kept, owner, where, args);
+                return new Object[0];
+            });
+            return;
+        }
         callback.set(args -> host.call(kept, where, args));
+    }
+
+    private void answer(RemoteFunction remote, boolean onServer, Callable fn, Object owner, String where, Object[] delivered) {
+        Fiber fiber = host.engine() == null ? null : host.engine().fiber(fn);
+        if (fiber != null) {
+            RemoteFunctions.serve(host, remote, onServer, fiber, owner, where, delivered);
+            return;
+        }
+        RemoteFunction.Reply reply = (RemoteFunction.Reply) delivered[0];
+        Object[] out = host.call(fn, where, ((List<?>) delivered[2]).toArray());
+        reply.send(out == null ? RemoteFunction.Answer.failed(where + " failed") : new RemoteFunction.Answer(true, List.of(out)));
     }
 
     private Signals signals(Instance instance) {

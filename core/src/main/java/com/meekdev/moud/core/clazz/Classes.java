@@ -49,6 +49,7 @@ import com.meekdev.moud.core.physics.RopeConstraint;
 import com.meekdev.moud.core.physics.SpringConstraint;
 import com.meekdev.moud.core.physics.WeldConstraint;
 import com.meekdev.moud.core.remote.Remote;
+import com.meekdev.moud.core.remote.RemoteFunction;
 import com.meekdev.moud.core.remote.UnreliableRemote;
 import com.meekdev.moud.core.render.AreaLight;
 import com.meekdev.moud.core.render.Camera;
@@ -207,6 +208,8 @@ public final class Classes {
             ClassDef.of("Remote", null, Remote.class, Remote::new);
     public static final ClassDef<UnreliableRemote> UNRELIABLE_REMOTE =
             ClassDef.of("UnreliableRemote", REMOTE, UnreliableRemote.class, UnreliableRemote::new);
+    public static final ClassDef<RemoteFunction> REMOTE_FUNCTION =
+            ClassDef.of("RemoteFunction", null, RemoteFunction.class, RemoteFunction::new);
 
     public static final ClassDef<ScreenGui> SCREEN_GUI =
             ClassDef.of("ScreenGui", null, ScreenGui.class, ScreenGui::new);
@@ -354,6 +357,7 @@ public final class Classes {
         r.register(OBJECT_VALUE);
         r.register(REMOTE);
         r.register(UNRELIABLE_REMOTE);
+        r.register(REMOTE_FUNCTION);
         r.register(SCREEN_GUI);
         r.register(BILLBOARD_GUI);
         r.register(SURFACE_GUI);

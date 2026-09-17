@@ -21,6 +21,7 @@ import com.meekdev.moud.script.api.FileRef;
 import com.meekdev.moud.script.api.GameRef;
 import com.meekdev.moud.script.api.HistoryRef;
 import com.meekdev.moud.script.api.InputRef;
+import com.meekdev.moud.script.api.InvokeRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PartPhysicsRef;
@@ -83,6 +84,7 @@ public final class Host {
     private ChatLibrary chatLibrary;
 
     private PostRef post;
+    private InvokeRef invoke;
     private BlockRef blocks;
     private ModuleSource modules = path -> null;
     private FileRef files;
@@ -122,6 +124,7 @@ public final class Host {
             Instance world = Instances.createRoot(new InstanceTree(), Classes.SPATIAL, "World");
             Host host = new Host(world, classes, client)
                     .post(inert(PostRef.class))
+                    .invoke(inert(InvokeRef.class))
                     .blocks(inert(BlockRef.class))
                     .modules(inert(ModuleSource.class))
                     .files(inert(FileRef.class))
@@ -199,6 +202,7 @@ public final class Host {
     public HostSignal pauseSignal() { return pauseRequested; }
 
     public PostRef post() { return post; }
+    public InvokeRef invoke() { return invoke; }
     public BlockRef blocks() { return blocks; }
     public ModuleSource modules() { return modules; }
     public FileRef files() { return files; }
@@ -226,6 +230,7 @@ public final class Host {
     public Supplier<Instance> own() { return own; }
 
     public Host post(PostRef post) { this.post = post; return this; }
+    public Host invoke(InvokeRef invoke) { this.invoke = invoke; return this; }
     public Host blocks(BlockRef blocks) { this.blocks = blocks; return this; }
     public Host modules(ModuleSource modules) { this.modules = modules; return this; }
     public Host files(FileRef files) { this.files = files; return this; }
