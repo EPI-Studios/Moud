@@ -52,6 +52,7 @@ public final class StoreLibrary {
         host.global("store", "(name: string) -> Store", new Builtin("store", a -> {
             String name = a.string(0);
             if (name.isEmpty()) throw a.error("store wants a name");
+            if (name.startsWith(ORDERED)) throw a.error("a store name cannot start with '%s', that is where ordered stores keep their numbers", ORDERED);
             return store(host, store, name);
         }));
     }

@@ -127,6 +127,7 @@ public final class MoudServer {
         }
 
         Teams.joined(player);
+        Post.tellWorld(player, Physics.gravity());
         boolean fresh = Spawning.autoSpawn() && Spawning.place(player, null);
         if (!Spawning.autoSpawn()) Spawning.hold(player);
 

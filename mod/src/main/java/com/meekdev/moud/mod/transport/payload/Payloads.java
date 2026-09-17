@@ -25,6 +25,7 @@ public final class Payloads {
         down.register(PlaceReloadedPayload.TYPE, PlaceReloadedPayload.CODEC.cast());
         down.register(ControlsPayload.TYPE, ControlsPayload.CODEC.cast());
         down.register(PushPayload.TYPE, PushPayload.CODEC.cast());
+        down.register(WorldPayload.TYPE, WorldPayload.CODEC.cast());
         down.register(SceneStatusPayload.TYPE, SceneStatusPayload.CODEC.cast());
         down.register(ScenePastedPayload.TYPE, ScenePastedPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(RemoteUpPayload.TYPE, RemoteUpPayload.CODEC.cast());

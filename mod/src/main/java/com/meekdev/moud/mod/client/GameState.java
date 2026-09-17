@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.place.Game;
 import com.meekdev.moud.script.api.GameRef;
+import com.meekdev.moud.script.host.HostError;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.options.OptionsScreen;
 
@@ -10,6 +11,7 @@ public final class GameState implements GameRef {
 
     public static final GameState INSTANCE = new GameState();
 
+    private volatile double gravity = 32;
     private volatile boolean paused;
     private volatile String reason = "escape";
 
@@ -30,6 +32,20 @@ public final class GameState implements GameRef {
 
     public void reset() {
         paused = false;
+    }
+
+    public void gravityFromServer(double value) {
+        gravity = value;
+    }
+
+    @Override
+    public double gravity() {
+        return gravity;
+    }
+
+    @Override
+    public void gravity(double metresPerSecondSquared) {
+        throw new HostError("game.gravity is set in a server Script");
     }
 
     @Override

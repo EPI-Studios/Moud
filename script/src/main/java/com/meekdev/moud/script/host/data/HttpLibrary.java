@@ -33,8 +33,10 @@ public final class HttpLibrary {
                     }
                 })
                 .function("generateGuid", "(wrapInBraces: boolean?) -> string", a -> {
+                    Object braces = a.get(0);
+                    if (braces != null && !(braces instanceof Boolean)) throw new HostError("generateGuid expects true or false");
                     String guid = UUID.randomUUID().toString().toUpperCase(Locale.ROOT);
-                    return Boolean.FALSE.equals(a.get(0)) ? guid : "{" + guid + "}";
+                    return Boolean.FALSE.equals(braces) ? guid : "{" + guid + "}";
                 })
                 .function("urlEncode", "(text: string) -> string", a -> URLEncoder.encode(a.string(0), StandardCharsets.UTF_8).replace("+", "%20"));
         HttpRef ref = host.http();

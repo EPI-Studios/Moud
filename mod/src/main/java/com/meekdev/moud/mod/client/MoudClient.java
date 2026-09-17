@@ -46,6 +46,7 @@ public final class MoudClient implements ClientModInitializer {
         Autopilot.listen();
         Controls.listen();
         Push.listen();
+        ClientWorld.listen();
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> Autopilot.clear());
         ChatView.install();
         ClientDebug.install();

@@ -67,6 +67,7 @@ public final class Place {
     }
 
     public static Place server(Instance world, ClassRegistry classes) {
+        Physics.gravity(Physics.DEFAULT_GRAVITY);
         return new Place(world, classes, entry(PlaceToml.config().server()), false, instance -> true, vm -> { });
     }
 

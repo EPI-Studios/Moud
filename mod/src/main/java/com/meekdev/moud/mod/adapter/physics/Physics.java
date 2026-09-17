@@ -5,6 +5,7 @@ import com.meekdev.bkun.box3d.LevelPhysics;
 import com.meekdev.bkun.collision.ColliderProvider;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.net.replicate.Change;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
 import net.minecraft.server.MinecraftServer;
@@ -67,9 +68,12 @@ public final class Physics {
         return Gravity.value();
     }
 
+    public static final double DEFAULT_GRAVITY = Gravity.DEFAULT;
+
     public static void gravity(double metresPerSecondSquared) {
         Gravity.set(metresPerSecondSquared, level == null ? null : Bkun.physics(level));
         BODIES.refreshProfiles(ServerScene.server(), ServerScene.tree());
+        Post.tellWorld(ServerScene.server(), Gravity.value());
     }
 
     public static void settle(@Nullable InstanceTree tree, boolean simulating) {

@@ -12,11 +12,16 @@ import com.meekdev.moud.mod.server.pilot.ServerPilot;
 import com.meekdev.moud.mod.server.tool.ServerTools;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import com.meekdev.moud.mod.transport.payload.Payloads;
+import com.meekdev.moud.mod.transport.payload.WorldPayload;
 import com.meekdev.moud.net.transport.Wire;
 import com.meekdev.moud.script.api.InvokeRef;
 import com.meekdev.moud.script.api.PostRef;
 import java.util.List;
 import java.util.function.Supplier;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -164,5 +169,14 @@ public final class Post {
                 CARRIER.toAllClients(remote, Wire.pack(args), reliable);
             }
         };
+    }
+
+    public static void tellWorld(@Nullable MinecraftServer server, double gravity) {
+        if (server == null) return;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) tellWorld(player, gravity);
+    }
+
+    public static void tellWorld(ServerPlayer player, double gravity) {
+        if (ServerPlayNetworking.canSend(player, WorldPayload.TYPE)) ServerPlayNetworking.send(player, new WorldPayload(gravity));
     }
 }
