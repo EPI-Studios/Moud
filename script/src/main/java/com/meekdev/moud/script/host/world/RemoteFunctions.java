@@ -5,6 +5,7 @@ import com.meekdev.moud.core.remote.RemoteFunction;
 import com.meekdev.moud.core.remote.Schema;
 import com.meekdev.moud.script.api.InvokeRef;
 import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.host.Args;
 import com.meekdev.moud.script.host.Callable;
 import com.meekdev.moud.script.host.Fiber;
@@ -18,8 +19,11 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntConsumer;
+import java.util.regex.Pattern;
 
 public final class RemoteFunctions {
+
+    private static final Pattern LOCATION = Pattern.compile("\\[string \"[^\"]*\"\\]:\\d+: |(?<!\\S)[\\w@-]*[/.][\\w/.@-]*:\\d+: ");
 
     private RemoteFunctions() {}
 
@@ -73,7 +77,7 @@ public final class RemoteFunctions {
                     next = fiber.resume(resumed);
                 } catch (RuntimeException e) {
                     replied[0] = true;
-                    reply.send(RemoteFunction.Answer.failed(where + ": " + e.getMessage()));
+                    reply.send(RemoteFunction.Answer.failed(where + ": " + withoutLocations(e)));
                     throw e;
                 }
                 if (next == null && !replied[0]) {
@@ -92,6 +96,12 @@ public final class RemoteFunctions {
             }
         };
         host.scheduler().start(answering, owner, args.toArray());
+    }
+
+    static String withoutLocations(RuntimeException e) {
+        String message = String.valueOf(e.getMessage());
+        if (e instanceof ScriptError script && message.startsWith(script.chunk() + ": ")) message = message.substring(script.chunk().length() + 2);
+        return LOCATION.matcher(message).replaceAll("");
     }
 
     private static Suspend call(RemoteFunction remote, String from, String side, BooleanSupplier present, IntConsumer send) {
