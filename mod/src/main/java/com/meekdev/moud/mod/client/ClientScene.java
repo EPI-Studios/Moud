@@ -33,6 +33,8 @@ import org.jspecify.annotations.Nullable;
 
 public final class ClientScene {
 
+    private static final double TICK_SECONDS = 0.05;
+
     private static final Motion MOTION = new Motion();
 
     private ClientScene() {}
@@ -56,6 +58,7 @@ public final class ClientScene {
         InstanceTree tree = tree();
         if (tree == null) return;
         Rig.follow(tree);
+        if (!EditMode.editing()) Animators.step(tree, TICK_SECONDS, false);
         LocalPlayer me = Minecraft.getInstance().player;
         Character own = own();
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {

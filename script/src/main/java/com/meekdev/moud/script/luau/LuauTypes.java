@@ -203,6 +203,7 @@ public final class LuauTypes {
             Type argument = generic.getActualTypeArguments()[0];
             if (argument == Double.class) return "NumberSignal";
             if (argument == Boolean.class) return "BoolSignal";
+            if (argument == String.class) return "StringSignal";
         }
         return DEFAULT_SIGNAL;
     }

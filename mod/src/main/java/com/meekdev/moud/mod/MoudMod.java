@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.features.Features;
 import com.meekdev.moud.mod.level.PlaceChunkGenerator;
+import com.meekdev.moud.mod.place.AnimationFiles;
 import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.server.MoudServer;
 import com.meekdev.moud.mod.transport.Post;
@@ -37,6 +38,7 @@ public final class MoudMod implements ModInitializer {
         Post.install();
         MoudServer.install();
         Physics.install();
+        AnimationFiles.install();
         GameTypes.install(() -> null, id -> null);
         Injections.prepare();
         LOG.info("moud {} starting", version());

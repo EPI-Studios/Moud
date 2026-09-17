@@ -95,6 +95,7 @@ public final class Players {
 
     public static void install(Host host, Members game) {
         HumanoidLibrary.install(host);
+        AnimationLibrary.install(host);
         host.api().declare(Player.METHODS.decl());
         host.api().declare(controls(new ControlsRef() {
             @Override

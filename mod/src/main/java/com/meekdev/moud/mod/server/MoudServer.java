@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.server;
 
 import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.character.Animators;
 import com.meekdev.moud.core.character.Humanoids;
 import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.clazz.Classes;
@@ -84,6 +85,7 @@ public final class MoudServer {
         Host host = place.host();
         if (host != null) host.step(dt);
         Humanoids.follow(ServerScene.tree(), dt);
+        if (!place.editing()) Animators.step(ServerScene.tree(), dt, true);
         Rig.follow(ServerScene.tree());
         Stages.run(ServerScene.tree(), Stage.COMPOSE, 0);
         Touches.step(ServerScene.tree());
