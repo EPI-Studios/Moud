@@ -319,6 +319,11 @@ public final class Players {
 
         Members bodies = host.instances().of(Classes.CHARACTER);
         bodies.declare("humanoid", "Humanoid");
+        bodies.declare("animator", "Animator");
+        bodies.declare("backpack", "Backpack");
+        bodies.declare("appearance", "Appearance");
+        bodies.declare("armour", "Armour");
+        bodies.declare("joints", "Instance");
         bodies.method("applyImpulse", "(change: Vector3) -> ()", a -> {
             push(host, a.self(Character.class), a.vector(1), false);
             return null;
