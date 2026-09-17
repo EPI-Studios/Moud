@@ -57,8 +57,6 @@ final class Node extends Widget {
     private float alpha = 1;
     private boolean clipped;
     private boolean enterPressed;
-    private int caret;
-    private int anchor;
     private float scrollX;
     private long blinkFrom;
     private long lastClick;
@@ -339,7 +337,7 @@ final class Node extends Widget {
                 : List.of(new UiText.Line(0, text.length()));
         editTop = top(box, editLine * editLines.size());
         editLefts = new float[editLines.size()];
-        TextEdit edit = edit(box);
+        TextEdit edit = box.edit();
         float full = UiText.width(face, text, px);
         boolean overflow = !box.multiLine && full > w;
         if (!overflow) {
@@ -387,10 +385,6 @@ final class Node extends Widget {
         if (previous != null) d.font(previous);
     }
 
-    private TextEdit edit(TextBox box) {
-        return new TextEdit(box.text, caret, anchor);
-    }
-
     private int indexAt(TextBox box, float mx, float my) {
         if (editLines.isEmpty() || editLefts.length != editLines.size()) return box.text.length();
         int n = Math.clamp((int) Math.floor((my - editTop) / editLine), 0, editLines.size() - 1);
@@ -417,11 +411,9 @@ final class Node extends Widget {
         if (!next.text().equals(box.text)) {
             Instances.setObj(box, box.def().property("text"), next.text());
         }
-        caret = next.caret();
-        anchor = next.anchor();
         blinkFrom = System.nanoTime();
-        Instances.setNum(box, box.def().property("cursorPosition"), caret + 1);
-        Instances.setNum(box, box.def().property("selectionStart"), caret == anchor ? -1 : anchor + 1);
+        Instances.setNum(box, box.def().property("cursorPosition"), next.caret() + 1);
+        Instances.setNum(box, box.def().property("selectionStart"), next.hasSelection() ? next.anchor() + 1 : -1);
     }
 
     private static Color shade(Color c, double amount) {
@@ -482,8 +474,8 @@ final class Node extends Widget {
     private void pressText(TextBox box, float mx, float my) {
         int at = indexAt(box, mx, my);
         long now = System.nanoTime();
-        TextEdit edit = edit(box);
-        if (now - lastClick < DOUBLE_CLICK_NANOS && at == caret && !edit.hasSelection()) {
+        TextEdit edit = box.edit();
+        if (now - lastClick < DOUBLE_CLICK_NANOS && at == edit.caret() && !edit.hasSelection()) {
             apply(box, edit.word(at));
             lastClick = 0;
             return;
@@ -497,7 +489,7 @@ final class Node extends Widget {
         float mx = local(surfaceX, offsetX);
         float my = local(surfaceY, offsetY);
         switch (source) {
-            case TextBox box -> apply(box, edit(box).move(indexAt(box, mx, my), true));
+            case TextBox box -> apply(box, box.edit().move(indexAt(box, mx, my), true));
             case ScrollingFrame frame when frame.scrollingEnabled && canvas != null -> {
                 double dx = mx - pressX;
                 double dy = my - pressY;
@@ -545,9 +537,7 @@ final class Node extends Widget {
         if (!(source instanceof TextBox box) || !box.isAlive()) return;
         KeyMapping.releaseAll();
         if (box.clearTextOnFocus && box.textEditable) Instances.setObj(box, box.def().property("text"), "");
-        caret = box.text.length();
-        anchor = caret;
-        apply(box, edit(box));
+        apply(box, TextEdit.at(box.text, box.text.length()));
         Ui.focusMoved(this);
         box.gainedFocus();
     }
@@ -571,7 +561,7 @@ final class Node extends Widget {
     public boolean onChar(int codepoint) {
         if (!(source instanceof TextBox box) || !box.isAlive()) return false;
         if (!box.textEditable || codepoint < 32 || codepoint == 127) return true;
-        apply(box, edit(box).insert(Character.toString(codepoint), box.multiLine));
+        apply(box, box.edit().insert(Character.toString(codepoint), box.multiLine));
         return true;
     }
 
@@ -582,7 +572,7 @@ final class Node extends Widget {
         boolean shift = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
         boolean word = (modifiers & (InputQuirks.REPLACE_CTRL_KEY_WITH_CMD_KEY ? GLFW.GLFW_MOD_ALT : GLFW.GLFW_MOD_CONTROL)) != 0;
         boolean editable = box.textEditable;
-        TextEdit edit = edit(box);
+        TextEdit edit = box.edit();
         switch (key) {
             case GLFW.GLFW_KEY_ESCAPE -> blur(false);
             case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {

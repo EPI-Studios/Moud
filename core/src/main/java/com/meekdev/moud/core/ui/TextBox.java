@@ -42,6 +42,12 @@ public final class TextBox extends TextLabel {
         return taken;
     }
 
+    public TextEdit edit() {
+        int caret = cursorPosition < 1 ? text.length() : cursorPosition - 1;
+        int anchor = selectionStart < 1 ? caret : selectionStart - 1;
+        return new TextEdit(text, caret, anchor);
+    }
+
     public void gainedFocus() {
         holding = true;
         focused.fire(new Object[0]);
