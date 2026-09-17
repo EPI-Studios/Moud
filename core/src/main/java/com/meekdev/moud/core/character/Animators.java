@@ -58,7 +58,9 @@ public final class Animators {
     static void advance(AnimationTrack track, double dt, boolean authoritative) {
         Clip clip = clip(track.animation);
         track.length = clip.length();
-        if (track.playing && !track.wasPlaying()) track.timePosition = Math.clamp(track.timePosition, 0, Math.max(0, clip.length()));
+        authoritative |= track.id() < 0;
+        if (track.playing && !track.wasPlaying()) track.timePosition = track.speed < 0 ? clip.length() : 0;
+        track.stepWeight(dt);
         if (!track.playing && track.wasPlaying()) track.stopped.fire(track);
         track.wasPlaying(track.playing);
         double rate = track.fadeTime <= 0 ? Double.POSITIVE_INFINITY : dt / track.fadeTime;
@@ -83,7 +85,17 @@ public final class Animators {
             track.ended.fire(track);
             return;
         }
-        if (after < 0) after = loops ? clip.length() + after % clip.length() : 0;
+        if (after <= 0 && track.speed < 0) {
+            if (loops) {
+                after = clip.length() + after % clip.length();
+                track.didLoop.fire(track);
+            } else {
+                track.timePosition = 0;
+                if (authoritative) Instances.setBool(track, PLAYING, false);
+                track.ended.fire(track);
+                return;
+            }
+        }
         markers(track, clip, before, after);
         track.timePosition = after;
     }

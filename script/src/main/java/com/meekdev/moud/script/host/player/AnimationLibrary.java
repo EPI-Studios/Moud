@@ -26,7 +26,6 @@ final class AnimationLibrary {
     private static final PropertyDef SPEED = Classes.TRACK.property("speed");
     private static final PropertyDef FADE = Classes.TRACK.property("fadeTime");
     private static final PropertyDef ANIMATION = Classes.TRACK.property("animation");
-    private static final double DEFAULT_FADE = 0.1;
 
     private AnimationLibrary() {}
 
@@ -57,7 +56,7 @@ final class AnimationLibrary {
         Members tracks = host.instances().of(Classes.TRACK);
         tracks.method("play", "(fadeTime: number?, weight: number?, speed: number?) -> ()", a -> {
             AnimationTrack track = a.self(AnimationTrack.class);
-            host.instances().write(track, FADE, a.number(1, DEFAULT_FADE));
+            if (a.has(1)) host.instances().write(track, FADE, a.number(1));
             host.instances().write(track, WEIGHT, a.number(2, track.weight));
             host.instances().write(track, SPEED, a.number(3, track.speed));
             if (!track.playing) track.timePosition = track.speed < 0 ? track.length : 0;
@@ -66,7 +65,7 @@ final class AnimationLibrary {
         });
         tracks.method("stop", "(fadeTime: number?) -> ()", a -> {
             AnimationTrack track = a.self(AnimationTrack.class);
-            host.instances().write(track, FADE, a.number(1, DEFAULT_FADE));
+            if (a.has(1)) host.instances().write(track, FADE, a.number(1));
             host.instances().write(track, PLAYING, false);
             return null;
         });
@@ -76,8 +75,10 @@ final class AnimationLibrary {
         });
         tracks.method("adjustWeight", "(weight: number, fadeTime: number?) -> ()", a -> {
             AnimationTrack track = a.self(AnimationTrack.class);
-            if (a.has(2)) host.instances().write(track, FADE, a.number(2));
-            host.instances().write(track, WEIGHT, a.number(1));
+            double target = Math.clamp(a.number(1), 0, 1);
+            host.instances().checkWrite(track, WEIGHT);
+            if (a.has(2) && a.number(2) > 0) track.fadeWeight(target, a.number(2));
+            else host.instances().write(track, WEIGHT, target);
             return null;
         });
         tracks.method("getMarkerReachedSignal", "(name: string) -> StringSignal", a -> {

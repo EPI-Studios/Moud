@@ -36,6 +36,31 @@ public final class AnimationTrack extends Instance {
 
     private double fade;
 
+    private double weightTarget = -1;
+
+    private double weightRate;
+
+    public void fadeWeight(double target, double seconds) {
+        if (seconds <= 0) {
+            weight = target;
+            weightTarget = -1;
+            return;
+        }
+        weightTarget = target;
+        weightRate = Math.abs(target - weight) / seconds;
+    }
+
+    void stepWeight(double dt) {
+        if (weightTarget < 0) return;
+        double step = weightRate * dt;
+        if (Math.abs(weightTarget - weight) <= step) {
+            weight = weightTarget;
+            weightTarget = -1;
+        } else {
+            weight += Math.signum(weightTarget - weight) * step;
+        }
+    }
+
     private boolean wasPlaying;
 
     public Signal<Clip.Marker> markers() {
