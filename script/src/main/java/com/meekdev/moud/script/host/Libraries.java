@@ -86,6 +86,7 @@ final class Libraries {
         MessagingLibrary.install(host);
         GameLibrary.install(host, game);
         WindowLibrary.install(host);
+        CoreGuiLibrary.install(host);
         InterfaceLibrary.install(host);
         if (host.chat() != null) host.chatLibrary(ChatLibrary.install(host, game));
 

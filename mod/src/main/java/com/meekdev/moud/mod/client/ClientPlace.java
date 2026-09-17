@@ -129,7 +129,9 @@ public final class ClientPlace {
                     .game(GameState.INSTANCE)
                     .settings(PlayerSettings.INSTANCE)
                     .window(WindowApi.INSTANCE)
+                    .coreGui(CoreGui.INSTANCE)
                     .devices(DEVICES);
+            CoreGui.INSTANCE.reset();
             GameState.INSTANCE.reset();
             Input.resetPointer();
             Devices.reset();

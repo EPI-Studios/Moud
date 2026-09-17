@@ -1,0 +1,9 @@
+{
+  "health": "HEALTH_BAR",
+  "hunger": "HUNGER_BAR",
+  "hotbar": "HOTBAR",
+  "chat": "CHAT",
+  "playerList": "TAB_LIST",
+  "crosshair": "CROSSHAIR",
+  "experience": "XP_BAR"
+}

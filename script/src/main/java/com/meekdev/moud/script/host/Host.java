@@ -15,6 +15,7 @@ import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.api.ControlsRef;
+import com.meekdev.moud.script.api.CoreGuiRef;
 import com.meekdev.moud.script.api.DebugRef;
 import com.meekdev.moud.script.api.DevicesRef;
 import com.meekdev.moud.script.api.FileRef;
@@ -109,6 +110,7 @@ public final class Host {
     private GameRef game;
     private SettingsRef settings;
     private WindowRef window;
+    private CoreGuiRef coreGui;
     private RosterRef roster;
     private HostSignal windowClosing;
     private Instance camera;
@@ -146,6 +148,7 @@ public final class Host {
                         .game(inert(GameRef.class))
                         .settings(inert(SettingsRef.class))
                         .window(inert(WindowRef.class))
+                        .coreGui(inert(CoreGuiRef.class))
                         .devices(inert(DevicesRef.class));
             } else {
                 host.http(inert(HttpRef.class))
@@ -229,6 +232,7 @@ public final class Host {
     public GameRef game() { return game; }
     public SettingsRef settings() { return settings; }
     public WindowRef window() { return window; }
+    public CoreGuiRef coreGui() { return coreGui; }
     public RosterRef roster() { return roster; }
     public HostSignal windowClosingSignal() { return windowClosing; }
     void windowClosing(HostSignal signal) { windowClosing = signal; }
@@ -257,6 +261,7 @@ public final class Host {
     public Host game(GameRef game) { this.game = game; return this; }
     public Host settings(SettingsRef settings) { this.settings = settings; return this; }
     public Host window(WindowRef window) { this.window = window; return this; }
+    public Host coreGui(CoreGuiRef coreGui) { this.coreGui = coreGui; return this; }
     public Host roster(RosterRef roster) { this.roster = roster; return this; }
     public Host devices(DevicesRef devices) { this.devices = devices; return this; }
     public void userInput(UserInput events) { userInput = events; }
