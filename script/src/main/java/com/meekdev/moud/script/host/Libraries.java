@@ -109,12 +109,16 @@ final class Libraries {
         host.global("require", "(module: string | Instance) -> any", new Builtin("require", a -> {
             if (a.get(0) instanceof ModuleScript module) {
                 if (!module.isAlive()) throw new HostError("%s has been destroyed", module.name());
+                Object cached = cache.get(module);
+                if (cached != null) return cached;
                 if (module.code.isEmpty() && module.source.isEmpty()) throw new HostError("%s has no code and no source", module.name());
-                if (module.code.isEmpty()) return file(host, cache, loading, module.source, module);
-                return load(host, cache, loading, module, fullName(module), module.code, module);
+                if (!module.code.isEmpty()) return load(host, cache, loading, module, fullName(module), module.code, module);
+                Host.Script found = find(host, module.source);
+                return load(host, cache, loading, module, found.path(), found.code(), module);
             }
             if (a.get(0) instanceof Instance other) throw new HostError("require expects a ModuleScript, got a %s", other.def().name());
-            return file(host, cache, loading, a.string(0), null);
+            Host.Script found = find(host, a.string(0));
+            return load(host, cache, loading, found.path(), found.path(), found.code(), null);
         }));
         host.onClose(() -> {
             for (Object module : cache.values()) {
@@ -123,7 +127,7 @@ final class Libraries {
         });
     }
 
-    private static Object file(Host host, Map<Object, Object> cache, Set<Object> loading, String text, Instance script) {
+    private static Host.Script find(Host host, String text) {
         String path;
         try {
             path = Res.script(text.startsWith("@") ? Res.SCHEME + text.substring(1) : text);
@@ -132,13 +136,13 @@ final class Libraries {
         }
         Host.Script found = host.readScript(path);
         if (found == null) throw new HostError("there is no res://%s", path);
-        return load(host, cache, loading, found.path(), found.path(), found.code(), script);
+        return found;
     }
 
     private static Object load(Host host, Map<Object, Object> cache, Set<Object> loading, Object key, String chunk, String code, Instance script) {
         Object cached = cache.get(key);
         if (cached != null) return cached;
-        if (!loading.add(key)) throw new HostError("circular require of %s", key instanceof String ? "res://" + chunk : chunk);
+        if (!loading.add(key)) throw new HostError("circular require of %s", key instanceof Instance module ? fullName(module) : "res://" + chunk);
         try {
             Object module = host.engine().module(chunk, code, script);
             cache.put(key, module);
