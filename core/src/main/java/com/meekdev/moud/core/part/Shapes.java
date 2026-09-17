@@ -285,7 +285,8 @@ public final class Shapes {
             boxes.add(Aabb.around(Vector3.ZERO, size));
             return boxes;
         }
-        double top = shape == PartShape.BALL ? across(shape, size) : size.y() * 0.5;
+        double top = shape == PartShape.BALL || shape == PartShape.CYLINDER
+                ? across(shape, size) : size.y() * 0.5;
         double bottom = -top;
         double step = (top - bottom) / count;
         for (int slab = 0; slab < count; slab++) {
