@@ -4,7 +4,6 @@ import com.meekdev.amnetic.client.framebuffer.ColorFormat;
 import com.meekdev.amnetic.client.framebuffer.Framebuffer;
 import com.meekdev.amnetic.client.framebuffer.FramebufferSpec;
 import com.meekdev.amnetic.client.framebuffer.Framebuffers;
-import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.amnetic.client.model.Model;
 import com.meekdev.amnetic.client.model.ModelLighting;
 import com.meekdev.amnetic.client.model.internal.OffscreenModelRenderer;
@@ -22,6 +21,7 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.PartShape;
 import com.meekdev.moud.core.render.post.ScreenEffect;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
@@ -60,7 +60,7 @@ public final class Viewports {
     private static final Map<ViewportFrame, State> STATES = new HashMap<>();
     private static final OffscreenModelRenderer MODELS = new OffscreenModelRenderer();
     private static ShaderProgram program;
-    private static VertexArray cube;
+    private static final VertexArray[] SHAPES = new VertexArray[PartShape.values().length];
     private static boolean failed;
 
     private Viewports() {}
@@ -197,7 +197,6 @@ public final class Viewports {
 
     private static void cubes(ViewportFrame viewport, Matrix4f projView, Vector3 eye, List<Part> parts) {
         if (parts.isEmpty()) return;
-        if (cube == null) cube = VertexArray.of(MeshData.unitCube());
         if (program == null) program = new ShaderProgram(VERTEX, FRAGMENT);
         program.begin();
         program.setMatrix4("ViewProj", projView);
@@ -205,17 +204,24 @@ public final class Viewports {
         program.setVec3("LightColor", viewport.lightColor.r(), viewport.lightColor.g(), viewport.lightColor.b());
         program.setVec3("LightDirection", (float) viewport.lightDirection.x(), (float) viewport.lightDirection.y(), (float) viewport.lightDirection.z());
         program.setVec3("CameraPosition", (float) eye.x(), (float) eye.y(), (float) eye.z());
-        cube.bind();
         Matrix4f model = new Matrix4f();
+        PartShape bound = null;
+        VertexArray shape = null;
         for (Part part : parts) {
+            if (part.shape != bound) {
+                bound = part.shape;
+                shape = shape(bound);
+                shape.bind();
+            }
             CFrame world = Transforms.world(part);
+            Vector3 size = ShapeMeshes.scale(part);
             model.translation((float) world.position().x(), (float) world.position().y(), (float) world.position().z())
                     .mul(rotation(world.rotation()))
-                    .scale((float) part.size.x(), (float) part.size.y(), (float) part.size.z());
+                    .scale((float) size.x(), (float) size.y(), (float) size.z());
             Color color = part.color;
             program.setMatrix4("Model", model);
             program.setVec4("Tint", color.r(), color.g(), color.b(), (float) (1 - part.transparency));
-            cube.draw();
+            shape.draw();
         }
         VertexArray.unbind();
         Programs.use(0);
@@ -249,5 +255,11 @@ public final class Viewports {
 
     private static Matrix4f rotation(Quat quat) {
         return new Matrix4f().rotation(new Quaternionf((float) quat.x(), (float) quat.y(), (float) quat.z(), (float) quat.w()));
+    }
+
+    private static VertexArray shape(PartShape shape) {
+        int at = shape.ordinal();
+        if (SHAPES[at] == null) SHAPES[at] = VertexArray.of(ShapeMeshes.of(shape));
+        return SHAPES[at];
     }
 }

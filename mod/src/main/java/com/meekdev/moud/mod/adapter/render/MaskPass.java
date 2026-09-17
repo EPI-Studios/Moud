@@ -4,7 +4,6 @@ import com.meekdev.amnetic.client.framebuffer.ColorFormat;
 import com.meekdev.amnetic.client.framebuffer.Framebuffer;
 import com.meekdev.amnetic.client.framebuffer.FramebufferSpec;
 import com.meekdev.amnetic.client.framebuffer.Framebuffers;
-import com.meekdev.amnetic.client.instanced.MeshData;
 import com.meekdev.amnetic.client.render.Geometry;
 import com.meekdev.amnetic.client.render.GlState;
 import com.meekdev.amnetic.client.render.ShaderProgram;
@@ -23,7 +22,6 @@ import org.joml.Quaternionf;
 public final class MaskPass {
 
     private static final Identifier FULLSCREEN = Identifier.fromNamespaceAndPath("amnetic", "shaders/util/fullscreen.vsh");
-    private static final MeshData CUBE = MeshData.unitCube();
 
     private final String maskName;
     private final Identifier composite;
@@ -83,11 +81,12 @@ public final class MaskPass {
         CFrame world = ClientScene.motion().sample(part, partialTick);
         Vector3 at = world.position().sub(eye);
         Quat turn = world.rotation();
+        Vector3 size = ShapeMeshes.scale(part);
         Matrix4f mvp = new Matrix4f(projectionView)
                 .translate((float) at.x(), (float) at.y(), (float) at.z())
                 .rotate(new Quaternionf((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()))
-                .scale((float) part.size.x(), (float) part.size.y(), (float) part.size.z());
-        Geometry.fill(CUBE, mvp, r, g, b, a);
+                .scale((float) size.x(), (float) size.y(), (float) size.z());
+        Geometry.fill(ShapeMeshes.of(part.shape), mvp, r, g, b, a);
     }
 
     public void beginMask(boolean depthTested) {
