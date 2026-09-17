@@ -6,6 +6,7 @@ import com.meekdev.moud.core.remote.Schema;
 import com.meekdev.moud.script.api.InvokeRef;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.host.Args;
+import com.meekdev.moud.script.host.Callable;
 import com.meekdev.moud.script.host.Fiber;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
@@ -39,7 +40,7 @@ public final class RemoteFunctions {
         });
     }
 
-    public static void serve(Host host, RemoteFunction remote, boolean onServer, Fiber fiber, Object owner, String where, Object[] delivered) {
+    public static void serve(Host host, RemoteFunction remote, boolean onServer, Callable fn, Object owner, String where, Object[] delivered) {
         RemoteFunction.Reply reply = (RemoteFunction.Reply) delivered[0];
         String from = (String) delivered[1];
         @SuppressWarnings("unchecked")
@@ -48,13 +49,18 @@ public final class RemoteFunctions {
         if (onServer) {
             PlayerRef player = host.roster() == null || from.isEmpty() ? null : host.roster().find(from);
             if (player == null) {
-                fiber.cancel();
                 reply.send(RemoteFunction.Answer.failed(remote.name() + " was invoked by someone who is not a player"));
                 return;
             }
             args.add(Players.wrap(host, player));
         }
         args.addAll(values);
+        Fiber fiber = host.engine() == null ? null : host.engine().fiber(fn);
+        if (fiber == null) {
+            Object[] out = host.call(fn, where, args.toArray());
+            reply.send(out == null ? RemoteFunction.Answer.failed(where + " failed") : new RemoteFunction.Answer(true, Arrays.asList(out)));
+            return;
+        }
         boolean[] replied = {false};
         Fiber answering = new Fiber() {
             @Override

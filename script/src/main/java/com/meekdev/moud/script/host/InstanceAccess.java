@@ -254,23 +254,12 @@ public final class InstanceAccess {
             Object owner = host.ownership().current();
             boolean onServer = def.name().equals("onServerInvoke");
             callback.set(args -> {
-                answer(remote, onServer, kept, owner, where, args);
+                RemoteFunctions.serve(host, remote, onServer, kept, owner, where, args);
                 return new Object[0];
             });
             return;
         }
         callback.set(args -> host.call(kept, where, args));
-    }
-
-    private void answer(RemoteFunction remote, boolean onServer, Callable fn, Object owner, String where, Object[] delivered) {
-        Fiber fiber = host.engine() == null ? null : host.engine().fiber(fn);
-        if (fiber != null) {
-            RemoteFunctions.serve(host, remote, onServer, fiber, owner, where, delivered);
-            return;
-        }
-        RemoteFunction.Reply reply = (RemoteFunction.Reply) delivered[0];
-        Object[] out = host.call(fn, where, ((List<?>) delivered[2]).toArray());
-        reply.send(out == null ? RemoteFunction.Answer.failed(where + " failed") : new RemoteFunction.Answer(true, List.of(out)));
     }
 
     private Signals signals(Instance instance) {
