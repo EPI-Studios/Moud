@@ -32,6 +32,11 @@ final class GameLibrary {
                     host.renderBindings().unbind(a.string(1));
                     return null;
                 });
+        game.method("bindToClose", "(handler: () -> ()) -> ()", a -> {
+            Callable closing = a.callable(1).retain();
+            host.onClose(() -> host.call(closing, "game:bindToClose"));
+            return null;
+        });
         GameRef ref = host.game();
         if (ref != null) {
             game.value("pauseRequested", "PauseSignal", host.pauseSignal())

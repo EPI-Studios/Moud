@@ -46,6 +46,10 @@ public final class Players {
                     a.self(Player.class).ref().spawn(a.has(1) ? a.vector(1) : null);
                     return null;
                 })
+                .method("ban", "(reason: string?, seconds: number?) -> ()", a -> {
+                    a.self(Player.class).ref().ban(a.string(1, "You were banned"), a.number(2, 0));
+                    return null;
+                })
                 .method("kick", "(message: string?) -> ()", a -> {
                     a.self(Player.class).ref().kick(a.has(1) ? a.string(1) : "");
                     return null;

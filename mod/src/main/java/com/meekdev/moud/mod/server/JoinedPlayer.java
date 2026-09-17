@@ -5,7 +5,12 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.PlayerRef;
+import java.time.Instant;
+import java.util.Date;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.players.NameAndId;
+import net.minecraft.server.players.UserBanListEntry;
 import net.minecraft.server.level.ServerPlayer;
 
 final class JoinedPlayer implements PlayerRef {
@@ -49,6 +54,16 @@ final class JoinedPlayer implements PlayerRef {
     @Override
     public void team(Instance team) {
         Teams.set(player, team);
+    }
+
+    @Override
+    public void ban(String reason, double seconds) {
+        MinecraftServer server = player.level().getServer();
+        if (server != null) {
+            Date until = seconds > 0 ? Date.from(Instant.now().plusSeconds((long) seconds)) : null;
+            server.getPlayerList().getBans().add(new UserBanListEntry(new NameAndId(player.getGameProfile()), null, "moud", until, reason));
+        }
+        kick(reason);
     }
 
     @Override

@@ -24,6 +24,10 @@ public interface PlayerRef {
 
     void kick(String message);
 
+    default void ban(String reason, double seconds) {
+        kick(reason);
+    }
+
     double ping();
 
     double viewTime();

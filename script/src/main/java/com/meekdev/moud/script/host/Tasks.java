@@ -1,6 +1,12 @@
 package com.meekdev.moud.script.host;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.TextStyle;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public final class Tasks {
@@ -13,6 +19,7 @@ public final class Tasks {
                 .function("spawn", "(handler: (...any) -> (), ...any) -> number", a -> (double) spawn(host, a.callable(0), a.from(1)))
                 .function("delay", "(seconds: number, handler: () -> ()) -> number",
                         a -> (double) delay(host, a.number(0), a.callable(1)))
+                .function("defer", "(handler: (...any) -> (), ...any) -> number", a -> (double) defer(host, a.callable(0), a.from(1)))
                 .function("cancel", "(handle: number) -> ()", a -> {
                     host.scheduler().cancel(a.integer(0));
                     return null;
@@ -26,6 +33,20 @@ public final class Tasks {
         host.api().declare(handle(() -> {}).decl());
 
         host.global("clock", "() -> number", new Builtin("clock", a -> now()));
+
+        Members os = new Members("Os")
+                .function("time", "() -> number", a -> (double) (System.currentTimeMillis() / 1000))
+                .function("clock", "() -> number", a -> now())
+                .function("difftime", "(later: number, earlier: number) -> number", a -> a.number(0) - a.number(1))
+                .function("date", "(format: string?, when: number?) -> string", a -> {
+                    String pattern = a.string(0, "%Y-%m-%d %H:%M:%S");
+                    Instant when = Instant.ofEpochSecond((long) a.number(1, System.currentTimeMillis() / 1000.0));
+                    boolean local = !pattern.startsWith("!");
+                    ZonedDateTime moment = when.atZone(local ? ZoneId.systemDefault() : ZoneOffset.UTC);
+                    return stamp(local ? pattern : pattern.substring(1), moment);
+                });
+        host.global("os", "Os", os);
+        host.declare(os);
 
         Map<String, Double> until = new HashMap<>();
         Members cooldown = new Members("Cooldown")
@@ -174,5 +195,41 @@ public final class Tasks {
             Object[] out = kept.call(args);
             return out == null ? new Object[0] : out;
         };
+    }
+
+    private static int defer(Host host, Callable fn, Object... args) {
+        Callable kept = fn.retain();
+        return delay(host, 0, kept);
+    }
+
+    private static String stamp(String pattern, ZonedDateTime moment) {
+        StringBuilder out = new StringBuilder();
+        for (int n = 0; n < pattern.length(); n++) {
+            char c = pattern.charAt(n);
+            if (c != '%' || n + 1 >= pattern.length()) {
+                out.append(c);
+                continue;
+            }
+            char field = pattern.charAt(++n);
+            out.append(switch (field) {
+                case 'Y' -> String.format("%04d", moment.getYear());
+                case 'y' -> String.format("%02d", moment.getYear() % 100);
+                case 'm' -> String.format("%02d", moment.getMonthValue());
+                case 'd' -> String.format("%02d", moment.getDayOfMonth());
+                case 'H' -> String.format("%02d", moment.getHour());
+                case 'M' -> String.format("%02d", moment.getMinute());
+                case 'S' -> String.format("%02d", moment.getSecond());
+                case 'j' -> String.format("%03d", moment.getDayOfYear());
+                case 'A' -> moment.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
+                case 'a' -> moment.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+                case 'B' -> moment.getMonth().getDisplayName(TextStyle.FULL, Locale.ENGLISH);
+                case 'b' -> moment.getMonth().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+                case 'p' -> moment.getHour() < 12 ? "AM" : "PM";
+                case 'I' -> String.format("%02d", (moment.getHour() % 12 == 0 ? 12 : moment.getHour() % 12));
+                case '%' -> "%";
+                default -> "%" + field;
+            });
+        }
+        return out.toString();
     }
 }
