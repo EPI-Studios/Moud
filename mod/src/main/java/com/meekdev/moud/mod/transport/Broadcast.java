@@ -3,6 +3,8 @@ package com.meekdev.moud.mod.transport;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.addon.Addons;
+import com.meekdev.moud.mod.place.Place;
+import com.meekdev.moud.mod.server.MoudServer;
 import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.mod.transport.payload.ResyncPayload;
 import com.meekdev.moud.net.replicate.Audience;
@@ -50,7 +52,8 @@ public final class Broadcast {
                     id -> new Audience(id.toString()));
             List<Change> mine = new ArrayList<>();
             Vector3 focus = new Vector3(player.getX(), player.getY(), player.getZ());
-            audience.drain(tree, batch, focus, Audience.RADIUS, mine::add);
+            Place place = MoudServer.place();
+            audience.drain(tree, batch, focus, Audience.RADIUS, place != null && place.editing(), mine::add);
             Post.wired().sendDelta(player, Codec.encode(mine, tree, Addons.classes()));
         }
     }

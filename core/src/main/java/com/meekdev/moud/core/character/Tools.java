@@ -12,6 +12,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.scene.Scene;
+import com.meekdev.moud.core.service.StarterCharacterScripts;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -87,6 +88,10 @@ public final class Tools {
                 if (child instanceof Tool) tools.add(child);
             }
             if (!tools.isEmpty()) Scene.load(Scene.save(tools), backpack, classes);
+        }
+        for (StarterCharacterScripts scripts : tree.ofClass(Classes.STARTER_CHARACTER_SCRIPTS)) {
+            List<Instance> copies = new ArrayList<>(scripts.children());
+            if (!copies.isEmpty()) Scene.load(Scene.save(copies), body, classes);
         }
     }
 

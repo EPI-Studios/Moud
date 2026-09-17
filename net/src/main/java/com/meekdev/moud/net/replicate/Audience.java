@@ -20,6 +20,8 @@ public final class Audience {
 
     private final BitSet has = new BitSet();
 
+    private boolean seesServer;
+
     public Audience(String player) {
         this.player = player;
     }
@@ -34,6 +36,12 @@ public final class Audience {
 
     public void drain(InstanceTree from, List<Change> tick, Vector3 focus, double radius,
                       Consumer<Change> out) {
+        drain(from, tick, focus, radius, false, out);
+    }
+
+    public void drain(InstanceTree from, List<Change> tick, Vector3 focus, double radius, boolean seesServer,
+                      Consumer<Change> out) {
+        this.seesServer = seesServer;
         if (from != tree) {
             tree = from;
             has.clear();
@@ -102,7 +110,7 @@ public final class Audience {
     }
 
     private void baseline(Instance top, Consumer<Change> out) {
-        if (top.parent() == null || has.get(top.id())) return;
+        if (top.parent() == null || has.get(top.id()) || top.serverOnly() && !seesServer) return;
         out.accept(new Change.Created(top.id(), top.def().name(), top.parent().id(), top.name()));
         has.set(top.id());
         long skip = top.def().unreplicated() | top.externalProperties();
@@ -121,10 +129,11 @@ public final class Audience {
     }
 
     private boolean shouldReceive(Instance made, Vector3 focus, double radius) {
-        return made.parent() != tree.root() || relevant(made, focus, radius);
+        return made.parent() != tree.root() ? !made.serverOnly() || seesServer : relevant(made, focus, radius);
     }
 
-    private static boolean relevant(Instance top, Vector3 focus, double radius) {
+    private boolean relevant(Instance top, Vector3 focus, double radius) {
+        if (top.serverOnly() && !seesServer) return false;
         if (!(top instanceof Spatial spatial)) return true;
         if (spatial.alwaysRelevant) return true;
         if (focus == null) return true;

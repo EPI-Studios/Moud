@@ -130,6 +130,35 @@ public abstract class Instance {
     protected void build() {
     }
 
+    public boolean serverOnly() {
+        return false;
+    }
+
+    public boolean holdsTemplates() {
+        return false;
+    }
+
+    public static boolean dormant(Instance instance) {
+        for (Instance at = instance.parent(); at != null; at = at.parent()) {
+            if (at.holdsTemplates()) return true;
+        }
+        return false;
+    }
+
+    public static boolean outOfWorld(Instance instance) {
+        for (Instance at = instance.parent(); at != null; at = at.parent()) {
+            if (at.holdsTemplates() || at.serverOnly()) return true;
+        }
+        return false;
+    }
+
+    public static boolean hidden(Instance instance) {
+        for (Instance at = instance; at != null; at = at.parent()) {
+            if (at.serverOnly()) return true;
+        }
+        return false;
+    }
+
     protected long externalPropertyMask() {
         return def().driven();
     }

@@ -35,7 +35,8 @@ final class ScriptInstances {
         }
     }
 
-    private static boolean enabled(Instance instance) {
+    private boolean enabled(Instance instance) {
+        if (Instance.dormant(instance)) return false;
         return switch (instance) {
             case Script s -> s.enabled;
             case LocalScript s -> s.enabled;

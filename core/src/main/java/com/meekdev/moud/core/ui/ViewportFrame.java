@@ -41,7 +41,7 @@ public final class ViewportFrame extends GuiObject {
     }
 
     public static boolean inside(Instance instance) {
-        return around(instance) != null;
+        return around(instance) != null || Instance.outOfWorld(instance);
     }
 
     public void measured(double width, double height) {
