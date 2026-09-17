@@ -10,6 +10,7 @@ import com.meekdev.moud.core.math.Vector3;
 public class Part extends Spatial {
 
     public Vector3 size = Vector3.ONE;
+    public PartShape shape = PartShape.BLOCK;
     public Color color = Color.WHITE;
     @Prop(min = 0, max = 1) public double transparency;
     public boolean anchored = true;

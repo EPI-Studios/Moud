@@ -10,6 +10,8 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.CollisionGroups;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.PartShape;
+import com.meekdev.moud.core.part.Shapes;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -53,19 +55,23 @@ public final class Queries {
 
     public record Cast(Part part, Vector3 at, Vector3 normal, double distance) {}
 
-    record Box(Vector3 centre, Vector3[] axes, Vector3 half) {
+    record Box(Vector3 centre, Vector3[] axes, Vector3 half, CFrame frame, PartShape shape, Vector3 size) {
 
         static Box of(Part part) {
-            return of(FRAMES.get().apply(part), part.size);
+            return of(FRAMES.get().apply(part), part.size, part.shape);
         }
 
         static Box of(CFrame frame, Vector3 size) {
+            return of(frame, size, PartShape.BLOCK);
+        }
+
+        static Box of(CFrame frame, Vector3 size, PartShape shape) {
             Vector3[] axes = {
                 frame.rotation().rotate(Vector3.RIGHT),
                 frame.rotation().rotate(Vector3.UP),
                 frame.rotation().rotate(new Vector3(0, 0, 1)),
             };
-            return new Box(frame.position(), axes, size.mul(0.5));
+            return new Box(frame.position(), axes, size.mul(0.5), frame, shape, size);
         }
 
         double extent(int axis) {
@@ -78,6 +84,9 @@ public final class Queries {
         }
 
         Vector3 closest(Vector3 point) {
+            if (shape != PartShape.BLOCK) {
+                return frame.pointToWorld(Shapes.closest(shape, size, frame.pointToObject(point)));
+            }
             Vector3 offset = point.sub(centre);
             Vector3 result = centre;
             for (int i = 0; i < 3; i++) {
@@ -85,6 +94,13 @@ public final class Queries {
                 result = result.add(axes[i].mul(d));
             }
             return result;
+        }
+
+        Vector3[] points() {
+            List<Vector3> local = Shapes.corners(shape, size);
+            Vector3[] world = new Vector3[local.size()];
+            for (int i = 0; i < world.length; i++) world[i] = frame.pointToWorld(local.get(i));
+            return world;
         }
     }
 
@@ -176,6 +192,7 @@ public final class Queries {
 
     private static Cast sweptHit(Part part, Vector3 from, Vector3 way, double range, double grow) {
         Box box = Box.of(part);
+        if (part.shape != PartShape.BLOCK) return shapedHit(part, box, from, way, range, grow);
         double near = 0;
         double far = range;
         int nearAxis = -1;
@@ -315,7 +332,64 @@ public final class Queries {
         for (Vector3 axis : axes(a, b)) {
             if (Math.abs(gap.dot(axis)) > a.reach(axis) + b.reach(axis) + margin) return false;
         }
+        if (a.shape() == PartShape.BLOCK && b.shape() == PartShape.BLOCK) return true;
+        return shapedOverlap(a, b, margin);
+    }
+
+    private static Cast shapedHit(Part part, Box box, Vector3 from, Vector3 way, double range, double grow) {
+        CFrame frame = box.frame();
+        Shapes.Hit hit = Shapes.rayHit(part.shape, part.size, frame.pointToObject(from),
+                frame.vectorToObject(way), range, grow);
+        if (hit == null) return null;
+        Vector3 normal = frame.vectorToWorld(hit.normal());
+        Vector3 centre = from.add(way.mul(hit.distance()));
+        return new Cast(part, centre.sub(normal.mul(grow)), normal, hit.distance());
+    }
+
+    private static boolean shapedOverlap(Box a, Box b, double margin) {
+        double ballA = Shapes.across(a.shape(), a.size());
+        double ballB = Shapes.across(b.shape(), b.size());
+        if (a.shape() == PartShape.BALL && b.shape() == PartShape.BALL) {
+            double reach = ballA + ballB + margin;
+            return a.centre().sub(b.centre()).lengthSq() <= reach * reach;
+        }
+        if (a.shape() == PartShape.BALL) return b.closest(a.centre()).distance(a.centre()) <= ballA + margin;
+        if (b.shape() == PartShape.BALL) return a.closest(b.centre()).distance(b.centre()) <= ballB + margin;
+        Vector3[] pointsA = a.points();
+        Vector3[] pointsB = b.points();
+        for (Vector3 axis : faces(a)) {
+            if (apart(pointsA, pointsB, axis, margin)) return false;
+        }
+        for (Vector3 axis : faces(b)) {
+            if (apart(pointsA, pointsB, axis, margin)) return false;
+        }
         return true;
+    }
+
+    private static List<Vector3> faces(Box box) {
+        List<Vector3> normals = new ArrayList<>();
+        for (Vector3 normal : Shapes.faceNormals(box.shape(), box.size())) {
+            normals.add(box.frame().vectorToWorld(normal));
+        }
+        return normals;
+    }
+
+    private static boolean apart(Vector3[] a, Vector3[] b, Vector3 axis, double margin) {
+        double minA = Double.MAX_VALUE;
+        double maxA = -Double.MAX_VALUE;
+        double minB = Double.MAX_VALUE;
+        double maxB = -Double.MAX_VALUE;
+        for (Vector3 point : a) {
+            double at = point.dot(axis);
+            minA = Math.min(minA, at);
+            maxA = Math.max(maxA, at);
+        }
+        for (Vector3 point : b) {
+            double at = point.dot(axis);
+            minB = Math.min(minB, at);
+            maxB = Math.max(maxB, at);
+        }
+        return minA > maxB + margin || minB > maxA + margin;
     }
 
     private static List<Vector3> axes(Box a, Box b) {
