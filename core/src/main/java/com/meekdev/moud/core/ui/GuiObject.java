@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.UDim2;
+import com.meekdev.moud.core.math.Vector3;
 
 public class GuiObject extends Instance {
 
@@ -24,5 +25,12 @@ public class GuiObject extends Instance {
 
     public int zIndex;
 
+    public int layoutOrder;
+
+    public AutomaticSize automaticSize = AutomaticSize.NONE;
+
     public boolean clipsDescendants;
+
+    @Prop(readOnly = true) public Vector3 absolutePosition = Vector3.ZERO;
+    @Prop(readOnly = true) public Vector3 absoluteSize = Vector3.ZERO;
 }

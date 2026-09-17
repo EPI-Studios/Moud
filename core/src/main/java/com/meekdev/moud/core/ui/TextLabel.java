@@ -2,6 +2,7 @@ package com.meekdev.moud.core.ui;
 
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.math.Color;
+import com.meekdev.moud.core.math.Vector3;
 
 public class TextLabel extends GuiObject {
 
@@ -21,4 +22,6 @@ public class TextLabel extends GuiObject {
     @Prop(asset = true) public String font = "";
 
     public boolean richText;
+
+    @Prop(readOnly = true) public Vector3 textBounds = Vector3.ZERO;
 }

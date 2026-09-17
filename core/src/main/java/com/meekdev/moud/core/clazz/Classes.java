@@ -105,6 +105,14 @@ import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextButton;
 import com.meekdev.moud.core.ui.TextLabel;
+import com.meekdev.moud.core.ui.UIAspectRatioConstraint;
+import com.meekdev.moud.core.ui.UIComponent;
+import com.meekdev.moud.core.ui.UIGridLayout;
+import com.meekdev.moud.core.ui.UILayout;
+import com.meekdev.moud.core.ui.UIListLayout;
+import com.meekdev.moud.core.ui.UIPadding;
+import com.meekdev.moud.core.ui.UIScale;
+import com.meekdev.moud.core.ui.UISizeConstraint;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.core.value.BoolValue;
 import com.meekdev.moud.core.value.NumberValue;
@@ -237,6 +245,20 @@ public final class Classes {
             ClassDef.of("TextButton", TEXT_LABEL, TextButton.class, TextButton::new);
     public static final ClassDef<ImageLabel> IMAGE_LABEL =
             ClassDef.of("ImageLabel", GUI_OBJECT, ImageLabel.class, ImageLabel::new);
+
+    public static final ClassDef<UIComponent> UI_COMPONENT =
+            ClassDef.of("UIComponent", null, UIComponent.class, UIComponent::new);
+    public static final ClassDef<UILayout> UI_LAYOUT = ClassDef.of("UILayout", UI_COMPONENT, UILayout.class, UILayout::new);
+    public static final ClassDef<UIListLayout> UI_LIST_LAYOUT =
+            ClassDef.of("UIListLayout", UI_LAYOUT, UIListLayout.class, UIListLayout::new);
+    public static final ClassDef<UIGridLayout> UI_GRID_LAYOUT =
+            ClassDef.of("UIGridLayout", UI_LAYOUT, UIGridLayout.class, UIGridLayout::new);
+    public static final ClassDef<UIPadding> UI_PADDING = ClassDef.of("UIPadding", UI_COMPONENT, UIPadding.class, UIPadding::new);
+    public static final ClassDef<UIAspectRatioConstraint> UI_ASPECT_RATIO_CONSTRAINT =
+            ClassDef.of("UIAspectRatioConstraint", UI_COMPONENT, UIAspectRatioConstraint.class, UIAspectRatioConstraint::new);
+    public static final ClassDef<UISizeConstraint> UI_SIZE_CONSTRAINT =
+            ClassDef.of("UISizeConstraint", UI_COMPONENT, UISizeConstraint.class, UISizeConstraint::new);
+    public static final ClassDef<UIScale> UI_SCALE = ClassDef.of("UIScale", UI_COMPONENT, UIScale.class, UIScale::new);
 
     public static final ClassDef<ViewportFrame> VIEWPORT_FRAME =
             ClassDef.of("ViewportFrame", GUI_OBJECT, ViewportFrame.class, ViewportFrame::new);
@@ -392,6 +414,14 @@ public final class Classes {
         r.register(TEXT_LABEL);
         r.register(TEXT_BUTTON);
         r.register(IMAGE_LABEL);
+        r.register(UI_COMPONENT);
+        r.register(UI_LAYOUT);
+        r.register(UI_LIST_LAYOUT);
+        r.register(UI_GRID_LAYOUT);
+        r.register(UI_PADDING);
+        r.register(UI_ASPECT_RATIO_CONSTRAINT);
+        r.register(UI_SIZE_CONSTRAINT);
+        r.register(UI_SCALE);
         r.register(VIEWPORT_FRAME);
         r.register(WINDOW);
         r.register(SOUND);
