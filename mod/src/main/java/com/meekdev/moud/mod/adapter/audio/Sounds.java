@@ -32,7 +32,6 @@ public final class Sounds {
 
     private static final PropertyDef TIME_LENGTH = Classes.SOUND.property("timeLength");
     private static final PropertyDef IS_LOADED = Classes.SOUND.property("isLoaded");
-    private static final PropertyDef LOUDNESS = Classes.SOUND.property("playbackLoudness");
 
     private static final class Voice {
         @Nullable SoundHandle handle;
@@ -104,12 +103,12 @@ public final class Sounds {
             voice.wanted = sound.playing;
 
             if (voice.handle == null) {
-                if (sound.playbackLoudness != 0) Instances.setNum(sound, LOUDNESS, 0);
+                sound.playbackLoudness = 0;
                 continue;
             }
             if (!voice.handle.isPlaying()) {
                 voice.handle = null;
-                Instances.setNum(sound, LOUDNESS, 0);
+                sound.playbackLoudness = 0;
                 sound.ended.fire(sound);
                 continue;
             }
@@ -129,7 +128,7 @@ public final class Sounds {
                 voice.at = voice.handle.position();
                 sound.timePosition = voice.at;
             }
-            Instances.setNum(sound, LOUDNESS, Math.min(1000, Math.max(0, voice.handle.loudness() * 1000)));
+            sound.playbackLoudness = Math.min(1000, Math.max(0, voice.handle.loudness() * 1000));
             if (at != null) voice.handle.setPosition(ResonaAudio.vec(at));
         }
 
