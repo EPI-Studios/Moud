@@ -57,7 +57,7 @@ public final class Characters {
         Humanoid living = Rig.humanoid(character);
         if (living == null) return MovementProfile.builder().build();
         return MovementProfile.builder()
-                .gravityScale(living.gravityScale)
+                .gravityScale(living.gravityScale * Gravity.scale())
                 .maxGroundSpeed(living.walkSpeed / TICKS)
                 .sprintMultiplier(living.sprintMultiplier)
                 .sneakMultiplier(living.sneakMultiplier)
@@ -162,6 +162,15 @@ public final class Characters {
             if (entry.getValue() != character.id()) continue;
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             if (player != null) Physics.setProfile(player, profileOf(character));
+        }
+    }
+
+    public void refreshProfiles(MinecraftServer server, InstanceTree tree) {
+        if (server == null || tree == null) return;
+        for (Map.Entry<UUID, Integer> entry : bound.entrySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
+            if (player == null || !(tree.byId(entry.getValue()) instanceof Character character)) continue;
+            Physics.setProfile(player, profileOf(character));
         }
     }
 }

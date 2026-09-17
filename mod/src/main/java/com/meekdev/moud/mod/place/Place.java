@@ -16,6 +16,7 @@ import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.Roster;
 import com.meekdev.moud.mod.server.ServerPush;
 import com.meekdev.moud.mod.server.ServerHistory;
+import com.meekdev.moud.mod.server.ServerGame;
 import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.mod.server.Spawning;
 import com.meekdev.moud.mod.server.tool.ServerTools;
@@ -425,6 +426,7 @@ public final class Place {
                     .physics(PartBodies.INSTANCE)
                     .tools(ServerTools.INSTANCE)
                     .http(HttpRequests.INSTANCE)
+                    .game(ServerGame.INSTANCE)
                     .push(ServerPush.INSTANCE);
         }
         fresh.persist(carried);

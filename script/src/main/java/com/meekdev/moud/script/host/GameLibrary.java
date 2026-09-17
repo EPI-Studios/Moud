@@ -39,7 +39,8 @@ final class GameLibrary {
         });
         GameRef ref = host.game();
         if (ref != null) {
-            game.value("pauseRequested", "PauseSignal", host.pauseSignal())
+            game.field("gravity", "number", ref::gravity, value -> ref.gravity(number("game.gravity", value, -500, 500)))
+                    .value("pauseRequested", "PauseSignal", host.pauseSignal())
                     .field("paused", "boolean", ref::paused, value -> ref.paused(bool("game.paused", value)))
                     .field("exported", "boolean", ref::exported)
                     .method("quit", "() -> ()", a -> {

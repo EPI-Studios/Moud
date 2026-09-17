@@ -11,4 +11,11 @@ public interface GameRef {
     void openSettings();
 
     boolean exported();
+
+    default double gravity() {
+        return 32;
+    }
+
+    default void gravity(double metresPerSecondSquared) {
+    }
 }
