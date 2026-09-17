@@ -80,7 +80,7 @@ public final class Parts {
 
     private record Lit(Matrix4f transform, Vector4f color, Vector2f light) {}
 
-    static int lightMap() {
+    public static int lightMap() {
         GpuTextureView view = Minecraft.getInstance().gameRenderer.levelLightmap();
         return view != null && view.texture() instanceof GlTexture texture ? texture.glId() : 0;
     }

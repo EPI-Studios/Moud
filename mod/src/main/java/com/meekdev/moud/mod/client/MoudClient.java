@@ -18,6 +18,7 @@ import com.meekdev.moud.mod.adapter.render.ViewportCapture;
 import com.meekdev.moud.mod.adapter.render.SceneLights;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.adapter.render.Skins;
+import com.meekdev.moud.mod.adapter.render.effect.Effects;
 import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
 import com.meekdev.moud.mod.client.debug.CollisionView;
@@ -61,6 +62,7 @@ public final class MoudClient implements ClientModInitializer {
         ModelSnapshots.register();
         EditorOverlay.register();
         ViewportCapture.register();
+        Effects.register();
         frames();
         new Launch(MoudMod.features()).install();
         MoudMod.LOG.info("moud client ready");
@@ -83,6 +85,7 @@ public final class MoudClient implements ClientModInitializer {
             Ui.frame(partialTick);
             Sounds.frame(partialTick);
             SceneLights.frame(partialTick);
+            Effects.frame();
             Bubbles.frame(partialTick);
             ClientPrompts.frame();
             PostStack.frame();

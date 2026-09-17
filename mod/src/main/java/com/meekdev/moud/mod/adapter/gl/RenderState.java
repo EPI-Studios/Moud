@@ -38,6 +38,10 @@ public final class RenderState {
         blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
     }
 
+    public static void premultipliedBlend() {
+        blendFunc(GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ZERO, GL11.GL_ONE);
+    }
+
     private static void blendFunc(int source, int destination, int sourceAlpha, int destinationAlpha) {
         GlStateManager._blendFuncSeparate(source, destination, sourceAlpha, destinationAlpha);
         GL14.glBlendFuncSeparate(source, destination, sourceAlpha, destinationAlpha);
