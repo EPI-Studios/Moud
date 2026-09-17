@@ -78,7 +78,7 @@ final class Node extends Widget {
         children().sort((a, b) -> Integer.compare(z(a), z(b)));
         GuiLayout.Box self = new GuiLayout.Box(x, y, w, h);
         if (source instanceof TextLabel label) {
-            GuiLayout.Size bounds = UiText.bounds(label, label.textWrapped ? w : Double.POSITIVE_INFINITY);
+            GuiLayout.Size bounds = UiText.bounds(label, GuiLayout.wraps(label) ? w : Double.POSITIVE_INFINITY);
             boundsW = (float) bounds.w();
             boundsH = (float) bounds.h();
         }
@@ -250,7 +250,7 @@ final class Node extends Widget {
         Identifier previous = d.currentFont();
         if (face instanceof UiFonts.Vector vector) d.font(vector.font());
         float px = label.textScaled ? scaled(face, label.text, (float) label.textSize) : (float) label.textSize;
-        List<UiText.Line> lines = UiText.lines(face, label.text, px, label.textWrapped ? w : Double.POSITIVE_INFINITY);
+        List<UiText.Line> lines = UiText.lines(face, label.text, px, GuiLayout.wraps(label) ? w : Double.POSITIVE_INFINITY);
         float line = UiText.lineHeight(face, px);
         float top = top(label, line * lines.size());
         int outline = stroke == null ? 0 : argb(stroke.color, (1 - stroke.transparency) * (1 - label.textTransparency) * alpha);
@@ -333,7 +333,7 @@ final class Node extends Widget {
         float px = (float) box.textSize;
         String text = box.text;
         editLine = UiText.lineHeight(face, px);
-        editLines = box.multiLine ? UiText.lines(face, text, px, box.textWrapped ? w : Double.POSITIVE_INFINITY)
+        editLines = box.multiLine ? UiText.lines(face, text, px, GuiLayout.wraps(box) ? w : Double.POSITIVE_INFINITY)
                 : List.of(new UiText.Line(0, text.length()));
         editTop = top(box, editLine * editLines.size());
         editLefts = new float[editLines.size()];

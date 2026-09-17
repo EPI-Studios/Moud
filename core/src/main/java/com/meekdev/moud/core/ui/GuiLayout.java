@@ -49,7 +49,7 @@ public final class GuiLayout {
         double ew = 0;
         double eh = 0;
         if (object instanceof TextLabel label && !label.text.isEmpty()) {
-            double wrap = label.textWrapped && !object.automaticSize.x() ? inner.w() : Double.POSITIVE_INFINITY;
+            double wrap = wraps(label) && !object.automaticSize.x() ? inner.w() : Double.POSITIVE_INFINITY;
             Size text = measure.text(label, wrap);
             ew = text.w();
             eh = text.h();
@@ -87,6 +87,10 @@ public final class GuiLayout {
         double shortest = Math.min(w, h);
         double radius = corner == null ? object.cornerRadius : udim(corner.cornerRadius, false, shortest);
         return Math.clamp(radius, 0, Math.max(0, shortest * 0.5));
+    }
+
+    public static boolean wraps(TextLabel label) {
+        return label.textWrapped && !(label instanceof TextBox box && !box.multiLine);
     }
 
     public static double scale(GuiObject object) {

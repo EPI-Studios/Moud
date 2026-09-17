@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.adapter.ui;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;
 import com.meekdev.amnetic.client.surface.internal.UiBatcher;
 import com.meekdev.moud.core.ui.GuiLayout;
+import com.meekdev.moud.core.ui.TextBox;
 import com.meekdev.moud.core.ui.TextLabel;
 import com.meekdev.moud.mod.adapter.text.TextLayout;
 import java.util.ArrayList;
@@ -21,13 +22,16 @@ final class UiText {
     static GuiLayout.Size bounds(TextLabel label, double wrapWidth) {
         float px = (float) label.textSize;
         String font = GuiLayout.font(label);
-        if (label.richText) {
+        if (label.richText && !(label instanceof TextBox)) {
             float width = Double.isInfinite(wrapWidth) ? 100_000f : (float) wrapWidth;
             TextLayout layout = TextLayout.of(MEASURING, label.text, width, px, font);
             return new GuiLayout.Size(layout.width(), layout.height());
         }
         UiFonts.Face face = UiFonts.of(font);
-        List<Line> lines = lines(face, label.text, px, label.textWrapped ? wrapWidth : Double.POSITIVE_INFINITY);
+        double wrap = GuiLayout.wraps(label) ? wrapWidth : Double.POSITIVE_INFINITY;
+        List<Line> lines = label instanceof TextBox box && !box.multiLine
+                ? List.of(new Line(0, label.text.length()))
+                : lines(face, label.text, px, wrap);
         float widest = 0;
         for (Line line : lines) widest = Math.max(widest, width(face, label.text.substring(line.start(), line.end()), px));
         return new GuiLayout.Size(widest, lineHeight(face, px) * lines.size());
