@@ -102,7 +102,7 @@ public final class ClientPlace {
     public static void frame(float partialTick) {
         if (place == null || camera == null || !camera.isAlive()) return;
         INPUT.poll();
-        Devices.moved(INPUT);
+        Devices.frame(INPUT);
         Actions.frame();
         Host host = place.host();
         if (host != null) host.renderStep(FRAME.tick());

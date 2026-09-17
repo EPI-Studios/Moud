@@ -48,8 +48,9 @@ public final class Devices implements DevicesRef {
         return host.input(new Event("mouseWheel", "unknown", "change", position(Math.signum(amount)), new Vector3(0, 0, amount), processed()));
     }
 
-    public static void moved(Input input) {
+    public static void frame(Input input) {
         Host host = ClientPlace.host();
+        Gamepads.frame(host, processed());
         if (host == null || input.mouseDeltaX() == 0 && input.mouseDeltaY() == 0) return;
         host.input(new Event("mouseMovement", "unknown", "change", position(0),
                 new Vector3(input.mouseDeltaX(), input.mouseDeltaY(), 0), processed()));
@@ -134,6 +135,6 @@ public final class Devices implements DevicesRef {
 
     @Override
     public List<Gamepad> gamepads() {
-        return List.of();
+        return Gamepads.all();
     }
 }

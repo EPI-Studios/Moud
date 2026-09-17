@@ -27,6 +27,7 @@ public final class Actions {
     private static final Map<String, Integer> KEYS = new HashMap<>();
     private static final Map<Integer, String> NAMES = new HashMap<>();
     private static final int MOUSE = 1 << 16;
+    private static final int GAMEPAD = 1 << 17;
     public static final int WHEEL = MOUSE | 16;
     public static final int MOVEMENT = MOUSE | 17;
 
@@ -44,10 +45,11 @@ public final class Actions {
         }
         key("mousewheel", WHEEL);
         key("mousemovement", MOVEMENT);
+        for (int n = 0; n < Gamepads.NAMES.size(); n++) key(Gamepads.NAMES.get(n), GAMEPAD | n);
     }
 
     private static void key(String name, int code) {
-        KEYS.put(name, code);
+        KEYS.put(name.toLowerCase(Locale.ROOT), code);
         NAMES.putIfAbsent(code, name);
     }
 
@@ -131,6 +133,7 @@ public final class Actions {
     }
 
     public static String label(int code) {
+        if ((code & GAMEPAD) != 0) return Gamepads.NAMES.get(code & ~GAMEPAD);
         if (code == WHEEL) return "Mouse Wheel";
         if (code == MOVEMENT) return "Mouse Movement";
         InputConstants.Key key = (code & MOUSE) != 0
@@ -151,7 +154,7 @@ public final class Actions {
     }
 
     public static boolean bindable(int code) {
-        return code < MOUSE || code <= (MOUSE | GLFW.GLFW_MOUSE_BUTTON_LAST);
+        return code <= (MOUSE | GLFW.GLFW_MOUSE_BUTTON_LAST);
     }
 
     public static boolean mouse(int code) {
@@ -171,6 +174,7 @@ public final class Actions {
     }
 
     private static boolean pressed(long window, int code) {
+        if ((code & GAMEPAD) != 0) return Gamepads.down(code & ~GAMEPAD);
         if ((code & MOUSE) == 0) return GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS;
         int button = code & ~MOUSE;
         return button <= GLFW.GLFW_MOUSE_BUTTON_LAST && GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS;

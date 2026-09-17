@@ -1,0 +1,23 @@
+{
+  "inputs": [
+    "buttonA",
+    "buttonB",
+    "buttonX",
+    "buttonY",
+    "buttonL1",
+    "buttonR1",
+    "buttonSelect",
+    "buttonStart",
+    "buttonGuide",
+    "buttonL3",
+    "buttonR3",
+    "dPadUp",
+    "dPadRight",
+    "dPadDown",
+    "dPadLeft",
+    "buttonL2",
+    "buttonR2",
+    "thumbstick1",
+    "thumbstick2"
+  ]
+}
