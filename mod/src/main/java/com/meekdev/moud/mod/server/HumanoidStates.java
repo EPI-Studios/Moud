@@ -11,6 +11,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.Seats;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import java.util.HashMap;
 import java.util.List;
@@ -76,7 +77,8 @@ public final class HumanoidStates {
             Spawning.humanoid(player, true, true);
             return;
         }
-        if (living.sit && (velocity.y() > RISING && !player.onGround() || !living.stateEnabled(HumanoidState.SEATED))) {
+        boolean onSeat = Seats.of(living) != null;
+        if (living.sit && (!onSeat && velocity.y() > RISING && !player.onGround() || !living.stateEnabled(HumanoidState.SEATED))) {
             Instances.setBool(living, SIT, false);
         }
         HumanoidState next;

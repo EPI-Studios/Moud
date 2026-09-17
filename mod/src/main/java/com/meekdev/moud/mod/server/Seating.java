@@ -86,6 +86,10 @@ public final class Seating {
     }
 
     private static void hold(ServerPlayer player, Seat seat) {
+        if (player.getLastClientInput().jump()) {
+            Seats.stand(seat);
+            return;
+        }
         Vector3 at = Seats.frame(seat).position();
         double dx = player.getX() - at.x();
         double dy = player.getY() - at.y();
