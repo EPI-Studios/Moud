@@ -59,7 +59,9 @@ public record ParticleLook(
     public static ParticleLook of(Smoke smoke) {
         double size = smoke.size;
         double opacity = Math.clamp(smoke.opacity, 0, 1);
-        return new ParticleLook(SMOKE, 6 + size * 2, 4, 6, smoke.riseVelocity * 0.8, smoke.riseVelocity * 1.2, 20,
+        double slow = smoke.riseVelocity * 0.8;
+        double fast = smoke.riseVelocity * 1.2;
+        return new ParticleLook(SMOKE, 6 + size * 2, 4, 6, Math.min(slow, fast), Math.max(slow, fast), 20,
                 SurfaceFace.TOP, EmissionShape.VOLUME, Vector3.ZERO, 0.2, -180, 180, -20, 20,
                 size * 0.6, size * 2.4, 1 - opacity, 1, smoke.color, smoke.color, 1,
                 0, 1, ParticleOrientation.FACING_CAMERA, false, smoke.timeScale);
