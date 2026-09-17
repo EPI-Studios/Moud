@@ -47,6 +47,7 @@
     "client.HeldItemsMixin",
     "client.HudMixin",
     "client.InstanceShaderMixin",
+    "client.LightmapMixin",
     "client.NameTagMixin",
     "client.PilotMixin",
     "client.ScreensMixin",
