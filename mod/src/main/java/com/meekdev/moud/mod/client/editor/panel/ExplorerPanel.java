@@ -63,7 +63,7 @@ public final class ExplorerPanel implements Panel {
     static final String PAYLOAD_INSTANCE = "moud-instance";
 
     private static final List<String> COMMON_CLASSES = List.of(
-            "Folder", "Model", "Part", "MeshPart", "SpawnLocation", "Camera", "CameraPath", "Attachment", "PointLight", "SpotLight", "AreaLight", "Sound", "Zone", "ClickDetector", "ScreenGui");
+            "Folder", "Model", "Part", "MeshPart", "SpawnLocation", "Seat", "VehicleSeat", "Camera", "CameraPath", "Attachment", "PointLight", "SpotLight", "AreaLight", "Sound", "Zone", "ClickDetector", "ScreenGui");
     private static final List<String> EFFECT_CLASSES = List.of(
             "ParticleEmitter", "Beam", "Trail", "Highlight", "Decal", "Texture", "Fire", "Smoke", "Sparkles", "SelectionBox", "SelectionSphere", "Explosion");
     private static final List<String> LIGHTING_CLASSES = List.of("Lighting", "Sky", "Atmosphere", "Clouds");

@@ -14,6 +14,8 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.Walkers;
+import com.meekdev.moud.core.part.Seat;
+import com.meekdev.moud.core.part.Seats;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
 import com.meekdev.moud.script.host.HostSignal;
@@ -112,6 +114,12 @@ final class HumanoidLibrary {
             if (host.tools() == null) Tools.unequip(body(living));
             else host.tools().unequip(body(living));
             return null;
+        });
+        Members seats = host.instances().of(Classes.SEAT);
+        seats.method("sit", "(humanoid: Humanoid) -> boolean", a -> {
+            if (host.client()) throw new HostError("seat:sit runs in a server Script");
+            if (!(a.instance(1) instanceof Humanoid living)) throw new HostError("sit expects a Humanoid");
+            return Seats.sit(a.self(Seat.class), living);
         });
         Members tools = host.instances().of(Classes.TOOL);
         tools.method("activate", "() -> ()", a -> {

@@ -7,6 +7,7 @@ import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.remote.RemoteFunction;
 import com.meekdev.moud.core.remote.Schema;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
+import com.meekdev.moud.mod.server.Seating;
 import com.meekdev.moud.mod.server.input.ServerClicks;
 import com.meekdev.moud.mod.server.pilot.ServerPilot;
 import com.meekdev.moud.mod.server.tool.ServerTools;
@@ -60,6 +61,7 @@ public final class Post {
         ServerChat.listen();
         ServerPrompts.listen();
         ServerClicks.listen();
+        Seating.listen();
         ServerPilot.listen();
         ServerTools.listen();
         Broadcast.listen();

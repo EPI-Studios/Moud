@@ -28,6 +28,7 @@ import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.input.Autopilot;
 import com.meekdev.moud.mod.client.input.Controls;
 import com.meekdev.moud.mod.client.input.Push;
+import com.meekdev.moud.mod.client.input.SeatInput;
 import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.client.zone.ClientPrompts;
 import com.meekdev.moud.mod.place.Game;
@@ -49,7 +50,10 @@ public final class MoudClient implements ClientModInitializer {
         Controls.listen();
         Push.listen();
         ClientWorld.listen();
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> Autopilot.clear());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            Autopilot.clear();
+            SeatInput.clear();
+        });
         ChatView.install();
         ClientDebug.install();
         Post.installOnClient(() -> Minecraft.getInstance().player instanceof LocalPlayer me

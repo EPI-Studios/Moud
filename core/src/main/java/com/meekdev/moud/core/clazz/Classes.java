@@ -52,7 +52,9 @@ import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.part.CollisionGroup;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.Seat;
 import com.meekdev.moud.core.part.SpawnLocation;
+import com.meekdev.moud.core.part.VehicleSeat;
 import com.meekdev.moud.core.physics.BallSocketConstraint;
 import com.meekdev.moud.core.physics.Constraint;
 import com.meekdev.moud.core.physics.HingeConstraint;
@@ -165,6 +167,9 @@ public final class Classes {
     public static final ClassDef<Limb> LIMB = ClassDef.of("Limb", PART, Limb.class, Limb::new);
     public static final ClassDef<MeshPart> MESH_PART = ClassDef.of("MeshPart", PART, MeshPart.class, MeshPart::new);
     public static final ClassDef<SpawnLocation> SPAWN_LOCATION = ClassDef.of("SpawnLocation", PART, SpawnLocation.class, SpawnLocation::new);
+    public static final ClassDef<Seat> SEAT = ClassDef.of("Seat", PART, Seat.class, Seat::new);
+    public static final ClassDef<VehicleSeat> VEHICLE_SEAT =
+            ClassDef.of("VehicleSeat", SEAT, VehicleSeat.class, VehicleSeat::new);
 
     public static final ClassDef<PostEffect> POST_EFFECT = ClassDef.of("PostEffect", null, PostEffect.class, PostEffect::new);
     public static final ClassDef<ScreenEffect> SCREEN_EFFECT = ClassDef.of("ScreenEffect", POST_EFFECT, ScreenEffect.class, ScreenEffect::new);
@@ -407,6 +412,8 @@ public final class Classes {
         r.register(LIMB);
         r.register(MESH_PART);
         r.register(SPAWN_LOCATION);
+        r.register(SEAT);
+        r.register(VEHICLE_SEAT);
         r.register(POST_EFFECT);
         r.register(SCREEN_EFFECT);
         r.register(BLOOM_EFFECT);

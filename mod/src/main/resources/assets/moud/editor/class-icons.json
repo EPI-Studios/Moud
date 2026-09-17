@@ -6,6 +6,8 @@
     "Part": "MESH_INSTANCE_3D",
     "Limb": "MESH",
     "SpawnLocation": "NAVIGATION_REGION_3D",
+    "Seat": "STATIC_BODY_3D",
+    "VehicleSeat": "RIGID_BODY_3D",
     "Character": "CHARACTER_BODY_3D",
     "Humanoid": "CHARACTER_BODY_3D",
     "Camera": "CAMERA_3D",
