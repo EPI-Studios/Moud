@@ -75,8 +75,11 @@ public final class PartPhysics {
             double scale = a.number(1);
             if (!(scale > 0) || !Double.isFinite(scale)) throw new HostError("scaleTo expects a number above 0, got %s", scale);
             double ratio = scale / model.scale;
+            CFrame before = pivot(model);
             for (Instance child : model.children()) resize(host, child, ratio);
             host.instances().write(model, Classes.MODEL.property("scale"), scale);
+            CFrame move = before.mul(pivot(model).inverse());
+            host.instances().write(model, Classes.SPATIAL.property("cframe"), Transforms.localFor(model, move.mul(Transforms.world(model))));
             return null;
         });
     }

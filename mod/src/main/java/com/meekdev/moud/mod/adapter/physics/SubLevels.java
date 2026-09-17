@@ -39,6 +39,7 @@ public final class SubLevels {
     private final Map<Integer, List<Consumer<B3Body>>> pending = new HashMap<>();
 
     private static final PropertyDef CFRAME = Classes.SPATIAL.property("cframe");
+    private static final PropertyDef PIVOT = Classes.SPATIAL.property("pivot");
     private static final PropertyDef VELOCITY = Classes.PART.property("velocity");
     private static final PropertyDef ANGULAR_VELOCITY = Classes.PART.property("angularVelocity");
     private static final double STILL = 1.0e-4;
@@ -169,8 +170,11 @@ public final class SubLevels {
             case Change.Reset ignored -> clear();
             case Change.Destroyed destroyed -> release(destroyed.id());
             case Change.Created created -> refresh(created.id());
-            case Change.Wrote wrote -> refresh(wrote.id());
-            case Change.Moved moved -> refresh(moved.id());
+            case Change.Wrote wrote -> {
+                if (wrote.property() == CFRAME.index() || wrote.property() == PIVOT.index()) refreshBranch(wrote.id());
+                else refresh(wrote.id());
+            }
+            case Change.Moved moved -> refreshBranch(moved.id());
             case Change.Tagged ignored -> { }
             case Change.Renamed ignored -> { }
         }
@@ -187,6 +191,13 @@ public final class SubLevels {
 
     public static boolean available() {
         return available;
+    }
+
+    private void refreshBranch(int id) {
+        refresh(id);
+        Instance instance = tree == null ? null : tree.byId(id);
+        if (instance == null || byInstance.isEmpty()) return;
+        for (Instance child : instance.children()) refreshBranch(child.id());
     }
 
     void refresh(int id) {
