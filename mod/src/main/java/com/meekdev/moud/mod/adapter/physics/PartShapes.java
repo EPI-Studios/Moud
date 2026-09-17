@@ -9,6 +9,7 @@ import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.PartShape;
 import com.meekdev.moud.core.part.Shapes;
+import com.meekdev.moud.mod.MoudMod;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -25,6 +26,7 @@ public final class PartShapes {
     };
 
     private static final int STEPS = 8;
+    private static final int MOST_POINTS = 60;
 
     private static final Map<String, SubLevelModel> BY_SIZE = new ConcurrentHashMap<>();
 
@@ -56,20 +58,24 @@ public final class PartShapes {
     }
 
     private static B3Hull hull(Vector3 size, PartShape shape) {
-        if (shape == PartShape.BLOCK) {
-            if (unit == null) unit = B3Hull.bake(UNIT_CUBE, 8);
-            return unit.transformed(new Vec3(0, 0, 0), new Quat(0, 0, 0, 1),
-                    new Vec3(size.x(), size.y(), size.z()));
+        if (shape != PartShape.BLOCK) {
+            List<Vector3> corners = Shapes.corners(shape, size, Shapes.COLLIDING_SIDES, Shapes.COLLIDING_RINGS);
+            float[] cloud = new float[corners.size() * 3];
+            int at = 0;
+            for (Vector3 corner : corners) {
+                cloud[at++] = (float) corner.x();
+                cloud[at++] = (float) corner.y();
+                cloud[at++] = (float) corner.z();
+            }
+            try {
+                return B3Hull.bake(cloud, Math.min(corners.size(), MOST_POINTS));
+            } catch (RuntimeException e) {
+                MoudMod.LOG.warn("a {} of {} collides as a box, its hull could not be built: {}", shape, size, e.getMessage());
+            }
         }
-        List<Vector3> corners = Shapes.corners(shape, size);
-        float[] cloud = new float[corners.size() * 3];
-        int at = 0;
-        for (Vector3 corner : corners) {
-            cloud[at++] = (float) corner.x();
-            cloud[at++] = (float) corner.y();
-            cloud[at++] = (float) corner.z();
-        }
-        return B3Hull.bake(cloud, corners.size());
+        if (unit == null) unit = B3Hull.bake(UNIT_CUBE, 8);
+        return unit.transformed(new Vec3(0, 0, 0), new Quat(0, 0, 0, 1),
+                new Vec3(size.x(), size.y(), size.z()));
     }
 
     private static String key(Vector3 size, PartShape shape) {

@@ -9,7 +9,7 @@ public class Seat extends Part {
 
     public boolean disabled;
 
-    @Prop(readOnly = true) public Instance occupant;
+    public Instance occupant;
 
     public Seat() {
         size = new Vector3(2, 0.4, 2);

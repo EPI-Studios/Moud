@@ -33,9 +33,9 @@ public final class Humanoid extends Instance {
 
     public final Signal<Double> damaged = new Signal<>();
 
-    @Prop(driven = true) public Vector3 moveDirection = Vector3.ZERO;
+    public Vector3 moveDirection = Vector3.ZERO;
 
-    @Prop(driven = true) public String floorMaterial = "";
+    public String floorMaterial = "";
 
     public boolean sit;
 

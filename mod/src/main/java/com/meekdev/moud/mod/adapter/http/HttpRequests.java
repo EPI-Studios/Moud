@@ -16,10 +16,10 @@ import java.util.concurrent.CompletableFuture;
 
 public final class HttpRequests implements HttpRef {
 
-    public static final HttpRequests INSTANCE = new HttpRequests();
-
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
     private static final int LARGEST = 16 * 1024 * 1024;
+
+    public static final HttpRequests INSTANCE = new HttpRequests();
 
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(TIMEOUT)

@@ -88,6 +88,10 @@ public final class Shapes {
     }
 
     public static List<Vector3> corners(PartShape shape, Vector3 size) {
+        return corners(shape, size, SIDES, RINGS);
+    }
+
+    public static List<Vector3> corners(PartShape shape, Vector3 size, int sides, int rings) {
         double hx = size.x() * 0.5;
         double hy = size.y() * 0.5;
         double hz = size.z() * 0.5;
@@ -95,10 +99,10 @@ public final class Shapes {
         switch (shape) {
             case BALL -> {
                 double r = across(shape, size);
-                for (int ring = 1; ring < RINGS; ring++) {
-                    double pitch = Math.PI * ring / RINGS;
-                    for (int side = 0; side < SIDES; side++) {
-                        double turn = 2 * Math.PI * side / SIDES;
+                for (int ring = 1; ring < rings; ring++) {
+                    double pitch = Math.PI * ring / rings;
+                    for (int side = 0; side < sides; side++) {
+                        double turn = 2 * Math.PI * side / sides;
                         points.add(new Vector3(r * Math.sin(pitch) * Math.cos(turn), r * Math.cos(pitch),
                                 r * Math.sin(pitch) * Math.sin(turn)));
                     }
@@ -108,8 +112,8 @@ public final class Shapes {
             }
             case CYLINDER -> {
                 double r = across(shape, size);
-                for (int side = 0; side < SIDES; side++) {
-                    double turn = 2 * Math.PI * side / SIDES;
+                for (int side = 0; side < sides; side++) {
+                    double turn = 2 * Math.PI * side / sides;
                     double y = r * Math.cos(turn);
                     double z = r * Math.sin(turn);
                     points.add(new Vector3(-hx, y, z));

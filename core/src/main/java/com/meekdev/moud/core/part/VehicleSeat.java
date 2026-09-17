@@ -10,7 +10,7 @@ public final class VehicleSeat extends Seat {
 
     @Prop(min = 0) public double turnSpeed = 1;
 
-    @Prop(readOnly = true, min = -1, max = 1) public double throttle;
+    @Prop(min = -1, max = 1) public double throttle;
 
-    @Prop(readOnly = true, min = -1, max = 1) public double steer;
+    @Prop(min = -1, max = 1) public double steer;
 }
