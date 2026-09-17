@@ -1,8 +1,18 @@
 package com.meekdev.moud.core.clazz;
 
 import com.meekdev.moud.core.addon.Addon;
+import com.meekdev.moud.core.audio.ChorusSoundEffect;
+import com.meekdev.moud.core.audio.CompressorSoundEffect;
+import com.meekdev.moud.core.audio.DistortionSoundEffect;
+import com.meekdev.moud.core.audio.EchoSoundEffect;
+import com.meekdev.moud.core.audio.EqualizerSoundEffect;
+import com.meekdev.moud.core.audio.FlangeSoundEffect;
+import com.meekdev.moud.core.audio.PitchShiftSoundEffect;
+import com.meekdev.moud.core.audio.ReverbSoundEffect;
 import com.meekdev.moud.core.audio.Sound;
 import com.meekdev.moud.core.audio.SoundBus;
+import com.meekdev.moud.core.audio.SoundEffect;
+import com.meekdev.moud.core.audio.TremoloSoundEffect;
 import com.meekdev.moud.core.character.AnimationTrack;
 import com.meekdev.moud.core.character.Animator;
 import com.meekdev.moud.core.character.Appearance;
@@ -308,6 +318,26 @@ public final class Classes {
     public static final ClassDef<Sound> SOUND = ClassDef.of("Sound", null, Sound.class, Sound::new);
     public static final ClassDef<SoundBus> SOUND_BUS =
             ClassDef.of("SoundBus", null, SoundBus.class, SoundBus::new);
+    public static final ClassDef<SoundEffect> SOUND_EFFECT =
+            ClassDef.of("SoundEffect", null, SoundEffect.class, SoundEffect::new);
+    public static final ClassDef<ReverbSoundEffect> REVERB_SOUND_EFFECT =
+            ClassDef.of("ReverbSoundEffect", SOUND_EFFECT, ReverbSoundEffect.class, ReverbSoundEffect::new);
+    public static final ClassDef<EqualizerSoundEffect> EQUALIZER_SOUND_EFFECT =
+            ClassDef.of("EqualizerSoundEffect", SOUND_EFFECT, EqualizerSoundEffect.class, EqualizerSoundEffect::new);
+    public static final ClassDef<DistortionSoundEffect> DISTORTION_SOUND_EFFECT =
+            ClassDef.of("DistortionSoundEffect", SOUND_EFFECT, DistortionSoundEffect.class, DistortionSoundEffect::new);
+    public static final ClassDef<EchoSoundEffect> ECHO_SOUND_EFFECT =
+            ClassDef.of("EchoSoundEffect", SOUND_EFFECT, EchoSoundEffect.class, EchoSoundEffect::new);
+    public static final ClassDef<PitchShiftSoundEffect> PITCH_SHIFT_SOUND_EFFECT =
+            ClassDef.of("PitchShiftSoundEffect", SOUND_EFFECT, PitchShiftSoundEffect.class, PitchShiftSoundEffect::new);
+    public static final ClassDef<CompressorSoundEffect> COMPRESSOR_SOUND_EFFECT =
+            ClassDef.of("CompressorSoundEffect", SOUND_EFFECT, CompressorSoundEffect.class, CompressorSoundEffect::new);
+    public static final ClassDef<ChorusSoundEffect> CHORUS_SOUND_EFFECT =
+            ClassDef.of("ChorusSoundEffect", SOUND_EFFECT, ChorusSoundEffect.class, ChorusSoundEffect::new);
+    public static final ClassDef<FlangeSoundEffect> FLANGE_SOUND_EFFECT =
+            ClassDef.of("FlangeSoundEffect", SOUND_EFFECT, FlangeSoundEffect.class, FlangeSoundEffect::new);
+    public static final ClassDef<TremoloSoundEffect> TREMOLO_SOUND_EFFECT =
+            ClassDef.of("TremoloSoundEffect", SOUND_EFFECT, TremoloSoundEffect.class, TremoloSoundEffect::new);
 
     public static final ClassDef<Script> SCRIPT = ClassDef.of("Script", null, Script.class, Script::new);
     public static final ClassDef<LocalScript> LOCAL_SCRIPT =
@@ -488,6 +518,16 @@ public final class Classes {
         r.register(WINDOW);
         r.register(SOUND);
         r.register(SOUND_BUS);
+        r.register(SOUND_EFFECT);
+        r.register(REVERB_SOUND_EFFECT);
+        r.register(EQUALIZER_SOUND_EFFECT);
+        r.register(DISTORTION_SOUND_EFFECT);
+        r.register(ECHO_SOUND_EFFECT);
+        r.register(PITCH_SHIFT_SOUND_EFFECT);
+        r.register(COMPRESSOR_SOUND_EFFECT);
+        r.register(CHORUS_SOUND_EFFECT);
+        r.register(FLANGE_SOUND_EFFECT);
+        r.register(TREMOLO_SOUND_EFFECT);
         r.register(SCRIPT);
         r.register(LOCAL_SCRIPT);
         r.register(MODULE_SCRIPT);

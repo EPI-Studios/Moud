@@ -2,9 +2,12 @@ package com.meekdev.moud.mod.adapter.audio;
 
 import com.meekdev.moud.core.audio.Sound;
 import com.meekdev.moud.core.audio.SoundBus;
+import com.meekdev.moud.core.audio.SoundEffect;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.Vector3;
@@ -15,8 +18,11 @@ import com.meekdev.resona.api.Resona;
 import com.meekdev.resona.api.SoundHandle;
 import com.meekdev.resona.bank.EventDefinition;
 import com.meekdev.resona.bank.SoundBank;
+import com.meekdev.resona.dsp.AudioEffect;
+import com.meekdev.resona.dsp.EffectChain;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import net.minecraft.resources.Identifier;
@@ -24,12 +30,23 @@ import org.jspecify.annotations.Nullable;
 
 public final class Sounds {
 
+    private static final PropertyDef TIME_LENGTH = Classes.SOUND.property("timeLength");
+    private static final PropertyDef IS_LOADED = Classes.SOUND.property("isLoaded");
+    private static final PropertyDef LOUDNESS = Classes.SOUND.property("playbackLoudness");
+
     private static final class Voice {
         @Nullable SoundHandle handle;
         int plays;
         boolean wanted;
+        boolean paused;
+        boolean processed;
         double volume;
         double pitch;
+        double at;
+        @Nullable EffectChain chain;
+        List<SoundEffect> shape = List.of();
+        String asked = "";
+        @Nullable Identifier sound;
     }
 
     private static final Map<Sound, Voice> VOICES = new HashMap<>();
@@ -56,23 +73,43 @@ public final class Sounds {
             Instance anchor = anchor(sound);
             Vector3 at = anchor == null ? null : motion.sample(anchor, partialTick).position();
 
+            List<SoundEffect> effects = SoundEffects.of(sound, tree);
+            List<AudioEffect> units = effects.isEmpty() ? List.of() : SoundEffects.units(effects);
+            if (!effects.equals(voice.shape)) {
+                voice.shape = effects;
+                if (voice.chain != null) voice.chain.set(units);
+            }
+            load(sound, voice);
+
+            boolean rebuild = voice.handle != null && voice.processed != !effects.isEmpty();
             if (!sound.playing && voice.handle != null) {
                 voice.handle.stop();
                 voice.handle = null;
             }
-            if (sound.playing && (!voice.wanted || sound.plays != voice.plays)) {
+            if (sound.playing && (!voice.wanted || sound.plays != voice.plays || rebuild)) {
+                double from = rebuild && voice.handle != null ? voice.handle.position() : 0;
                 if (voice.handle != null) voice.handle.stop();
-                voice.handle = start(sound, at);
+                voice.chain = effects.isEmpty() ? null : new EffectChain();
+                if (voice.chain != null) voice.chain.set(units);
+                voice.processed = !effects.isEmpty();
+                voice.handle = start(sound, at, voice.chain);
                 voice.volume = sound.volume;
                 voice.pitch = sound.pitch;
-                if (voice.handle != null) sound.played.fire(sound);
+                voice.paused = false;
+                voice.at = from;
+                if (voice.handle != null && from > 0) voice.handle.seek(from);
+                if (voice.handle != null && !rebuild) sound.played.fire(sound);
             }
             voice.plays = sound.plays;
             voice.wanted = sound.playing;
 
-            if (voice.handle == null) continue;
+            if (voice.handle == null) {
+                if (sound.playbackLoudness != 0) Instances.setNum(sound, LOUDNESS, 0);
+                continue;
+            }
             if (!voice.handle.isPlaying()) {
                 voice.handle = null;
+                Instances.setNum(sound, LOUDNESS, 0);
                 sound.ended.fire(sound);
                 continue;
             }
@@ -80,6 +117,19 @@ public final class Sounds {
             if (sound.pitch != voice.pitch) voice.handle.setPitch((float) sound.pitch);
             voice.volume = sound.volume;
             voice.pitch = sound.pitch;
+            if (sound.paused != voice.paused) {
+                if (sound.paused) voice.handle.pause();
+                else voice.handle.resume();
+                voice.paused = sound.paused;
+            }
+            if (sound.timePosition != voice.at) {
+                voice.handle.seek(sound.timePosition);
+                voice.at = sound.timePosition;
+            } else {
+                voice.at = voice.handle.position();
+                sound.timePosition = voice.at;
+            }
+            Instances.setNum(sound, LOUDNESS, Math.min(1000, Math.max(0, voice.handle.loudness() * 1000)));
             if (at != null) voice.handle.setPosition(ResonaAudio.vec(at));
         }
 
@@ -92,6 +142,22 @@ public final class Sounds {
         }
     }
 
+    private static void load(Sound sound, Voice voice) {
+        if (!sound.soundId.equals(voice.asked)) {
+            voice.asked = sound.soundId;
+            voice.sound = ResonaAudio.INSTANCE.sounds.id(sound.soundId);
+            if (voice.sound != null) Resona.preload(voice.sound);
+            if (sound.isLoaded) Instances.setBool(sound, IS_LOADED, false);
+            if (sound.timeLength != 0) Instances.setNum(sound, TIME_LENGTH, 0);
+        }
+        if (voice.sound == null || sound.isLoaded) return;
+        if (!Resona.isLoaded(voice.sound)) return;
+        double length = Resona.lengthOf(voice.sound);
+        Instances.setNum(sound, TIME_LENGTH, Math.max(0, length));
+        Instances.setBool(sound, IS_LOADED, true);
+        sound.loaded.fire(sound);
+    }
+
     private static @Nullable Instance anchor(Sound sound) {
         for (Instance at = sound.parent(); at != null; at = at.parent()) {
             if (at instanceof ViewportFrame) return null;
@@ -100,7 +166,7 @@ public final class Sounds {
         return null;
     }
 
-    private static @Nullable SoundHandle start(Sound sound, @Nullable Vector3 at) {
+    private static @Nullable SoundHandle start(Sound sound, @Nullable Vector3 at, @Nullable EffectChain chain) {
         PlaySettings settings;
         if (!sound.event.isEmpty()) {
             Optional<EventDefinition> event = SoundBank.event(sound.event);
@@ -118,7 +184,8 @@ public final class Sounds {
         settings.priority(sound.priority)
                 .distance((float) sound.minDistance, (float) sound.maxDistance, (float) sound.rollOff)
                 .fadeIn((float) sound.fadeIn)
-                .stream(sound.stream);
+                .stream(sound.stream)
+                .effects(chain);
         if (at != null) settings.at(ResonaAudio.vec(at));
         return Resona.play(settings);
     }
@@ -128,5 +195,6 @@ public final class Sounds {
             if (voice.handle != null) voice.handle.stop();
         }
         VOICES.clear();
+        SoundEffects.forget();
     }
 }

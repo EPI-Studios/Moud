@@ -63,6 +63,8 @@ dependencies {
 
     compileOnly files(amnetic, bkun, resona)
     runtimeOnly files(amnetic, bkun, resona)
+    testCompileOnly files(amnetic, bkun, resona)
+    testRuntimeOnly files(amnetic, bkun, resona)
 
     compileOnly files(box3d)
 

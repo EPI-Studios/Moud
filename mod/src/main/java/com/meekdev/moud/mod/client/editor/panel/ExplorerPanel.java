@@ -67,6 +67,9 @@ public final class ExplorerPanel implements Panel {
     private static final List<String> EFFECT_CLASSES = List.of(
             "ParticleEmitter", "Beam", "Trail", "Highlight", "Decal", "Texture", "Fire", "Smoke", "Sparkles", "SelectionBox", "SelectionSphere", "Explosion");
     private static final List<String> LIGHTING_CLASSES = List.of("Lighting", "Sky", "Atmosphere", "Clouds");
+    private static final List<String> SOUND_EFFECT_CLASSES = List.of(
+            "ReverbSoundEffect", "EqualizerSoundEffect", "DistortionSoundEffect", "EchoSoundEffect",
+            "PitchShiftSoundEffect", "CompressorSoundEffect", "ChorusSoundEffect", "FlangeSoundEffect", "TremoloSoundEffect");
     private static final List<String> INTERFACE_CLASSES = List.of(
             "Frame", "TextLabel", "TextButton", "TextBox", "ImageLabel", "ImageButton", "ScrollingFrame", "CanvasGroup",
             "ViewportFrame", "UIListLayout", "UIGridLayout", "UIPadding", "UICorner", "UIStroke", "UIGradient",
@@ -169,6 +172,12 @@ public final class ExplorerPanel implements Panel {
         }
         if (ImGui.beginMenu("Lighting")) {
             for (String name : LIGHTING_CLASSES) {
+                if (ImGui.menuItem(name)) document.insert(name, parent);
+            }
+            ImGui.endMenu();
+        }
+        if (ImGui.beginMenu("Sound effects")) {
+            for (String name : SOUND_EFFECT_CLASSES) {
                 if (ImGui.menuItem(name)) document.insert(name, parent);
             }
             ImGui.endMenu();

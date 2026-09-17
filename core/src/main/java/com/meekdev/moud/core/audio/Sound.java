@@ -16,7 +16,17 @@ public final class Sound extends Instance {
 
     public boolean playing;
 
+    public boolean paused;
+
     @Prop(min = 0) public int plays;
+
+    @Prop(min = 0) public double timePosition;
+
+    @Prop(readOnly = true, min = 0) public double timeLength;
+
+    @Prop(readOnly = true) public boolean isLoaded;
+
+    @Prop(readOnly = true, min = 0, max = 1000) public double playbackLoudness;
 
     public String bus = "sfx";
     public int priority;
@@ -31,4 +41,5 @@ public final class Sound extends Instance {
 
     public final Signal<Instance> played = new Signal<>();
     public final Signal<Instance> ended = new Signal<>();
+    public final Signal<Instance> loaded = new Signal<>();
 }

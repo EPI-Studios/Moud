@@ -84,12 +84,25 @@ public final class AudioLibrary {
         Members sounds = host.instances().of(Classes.SOUND);
         sounds.method("play", "() -> ()", a -> {
             Sound sound = a.self(Sound.class);
+            Instances.setBool(sound, Classes.SOUND.property("paused"), false);
             Instances.setBool(sound, Classes.SOUND.property("playing"), true);
             Instances.setNum(sound, Classes.SOUND.property("plays"), sound.plays + 1);
             return null;
         });
         sounds.method("stop", "() -> ()", a -> {
-            Instances.setBool(a.self(Sound.class), Classes.SOUND.property("playing"), false);
+            Sound sound = a.self(Sound.class);
+            Instances.setBool(sound, Classes.SOUND.property("paused"), false);
+            Instances.setBool(sound, Classes.SOUND.property("playing"), false);
+            return null;
+        });
+        sounds.method("pause", "() -> ()", a -> {
+            Instances.setBool(a.self(Sound.class), Classes.SOUND.property("paused"), true);
+            return null;
+        });
+        sounds.method("resume", "() -> ()", a -> {
+            Sound sound = a.self(Sound.class);
+            Instances.setBool(sound, Classes.SOUND.property("paused"), false);
+            Instances.setBool(sound, Classes.SOUND.property("playing"), true);
             return null;
         });
 
