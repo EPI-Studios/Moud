@@ -16,6 +16,7 @@ import com.meekdev.moud.script.host.player.Players;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.IntConsumer;
 
 public final class RemoteFunctions {
@@ -28,7 +29,7 @@ public final class RemoteFunctions {
             RemoteFunction remote = remote(a);
             if (!host.client()) throw new HostError("invokeServer is client-only");
             List<Object> args = declared(remote, a, 1);
-            return call(remote, "", "the server", call -> invoke(host).toServer(remote.id(), call, args));
+            return call(remote, "", "the server", () -> true, call -> invoke(host).toServer(remote.id(), call, args));
         });
         functions.method("invokeClient", "(player: Player, ...any) -> ...any", a -> {
             RemoteFunction remote = remote(a);
@@ -36,7 +37,9 @@ public final class RemoteFunctions {
             String player = Players.idOf(a.get(1));
             if (player == null) throw new HostError("invokeClient expects a player as the first argument");
             List<Object> args = declared(remote, a, 2);
-            return call(remote, player, "the client", call -> invoke(host).toClient(player, remote.id(), call, args));
+            BooleanSupplier present = () -> host.roster() == null || host.roster().find(player) != null;
+            if (!present.getAsBoolean()) throw new HostError("%s cannot invoke a player who has left", remote.name());
+            return call(remote, player, "the client", present, call -> invoke(host).toClient(player, remote.id(), call, args));
         });
     }
 
@@ -91,7 +94,7 @@ public final class RemoteFunctions {
         host.scheduler().start(answering, owner, args.toArray());
     }
 
-    private static Suspend call(RemoteFunction remote, String from, String side, IntConsumer send) {
+    private static Suspend call(RemoteFunction remote, String from, String side, BooleanSupplier present, IntConsumer send) {
         Object[][] settled = {null};
         int call = remote.await(from, answer -> settled[0] = answer.ok()
                 ? answer.values().toArray()
@@ -105,7 +108,14 @@ public final class RemoteFunctions {
         double[] waited = {0};
         return new Suspend(dt -> {
             if (settled[0] != null) return settled[0];
-            if (!remote.isAlive()) return Suspend.failed("%s was destroyed before %s answered", remote.name(), side);
+            if (!remote.isAlive()) {
+                remote.forget(call);
+                return Suspend.failed("%s was destroyed before %s answered", remote.name(), side);
+            }
+            if (!present.getAsBoolean()) {
+                remote.forget(call);
+                return Suspend.failed("%s got no answer, the player left", remote.name());
+            }
             waited[0] += dt;
             if (remote.timeout > 0 && waited[0] >= remote.timeout) {
                 remote.forget(call);
