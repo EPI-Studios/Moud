@@ -41,10 +41,10 @@ public final class BeamCurve {
     }
 
     public static double textureV(TextureMode mode, double along, double total, double textureLength, double scroll) {
-        double v = switch (mode) {
-            case STRETCH -> total <= 0 ? 0 : along / total * textureLength;
-            case WRAP, STATIC -> along / textureLength;
+        return switch (mode) {
+            case STRETCH -> (total <= 0 ? 0 : along / total * textureLength) - scroll;
+            case WRAP -> along / textureLength - scroll;
+            case STATIC -> along / textureLength;
         };
-        return v - scroll;
     }
 }
