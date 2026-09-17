@@ -106,6 +106,7 @@ public final class MoudServer {
         ServerPilot.tick(server);
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
         if (!place.editing()) HumanoidStates.tick(server, ServerScene.tree());
+        if (!place.editing()) Teams.tick(server);
         if (!place.editing()) ServerTools.tick(server, ServerScene.tree());
         ServerHistory.INSTANCE.record(ServerScene.tree());
         Editing.tick(server);
@@ -125,6 +126,7 @@ public final class MoudServer {
             return;
         }
 
+        Teams.joined(player);
         boolean fresh = Spawning.autoSpawn() && Spawning.place(player, null);
         if (!Spawning.autoSpawn()) Spawning.hold(player);
 
@@ -149,6 +151,7 @@ public final class MoudServer {
         if (character != null) Instances.destroy(character);
         Spawning.left(player);
         HumanoidStates.left(player);
+        Teams.left(player);
         ServerTools.clear(player);
         Broadcast.forget(player.getUUID());
     }

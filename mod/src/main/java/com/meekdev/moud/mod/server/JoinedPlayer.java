@@ -42,6 +42,16 @@ final class JoinedPlayer implements PlayerRef {
     }
 
     @Override
+    public Instance team() {
+        return Teams.of(player);
+    }
+
+    @Override
+    public void team(Instance team) {
+        Teams.set(player, team);
+    }
+
+    @Override
     public void kick(String message) {
         player.connection.disconnect(Component.literal(message.isBlank() ? "You were removed from the game" : message));
     }

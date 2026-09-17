@@ -13,6 +13,7 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.SpawnLocation;
+import com.meekdev.moud.core.player.Team;
 import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.adapter.physics.Physics;
@@ -91,7 +92,7 @@ public final class Spawning {
         InstanceTree tree = ServerScene.tree();
         if (world == null || tree == null) return false;
         boolean fresh = false;
-        Point point = at != null ? new Point(at, player.getYRot()) : point(tree);
+        Point point = at != null ? new Point(at, player.getYRot()) : point(tree, Teams.of(player));
         Character character = Physics.bodies().of(player, tree);
         if (character != null && Rig.humanoid(character) instanceof Humanoid humanoid && humanoid.state == HumanoidState.DEAD) {
             Physics.bodies().release(player);
@@ -128,7 +129,7 @@ public final class Spawning {
     static void hold(ServerPlayer player) {
         InstanceTree tree = ServerScene.tree();
         if (tree == null) return;
-        Point point = point(tree);
+        Point point = point(tree, Teams.of(player));
         player.teleportTo(player.level(), point.position().x(), point.position().y(), point.position().z(), Set.of(), (float) point.yawDegrees(), player.getXRot(), true);
         waiting.add(player.getUUID());
         send(player);
@@ -195,11 +196,15 @@ public final class Spawning {
                 !held && (holds & HOLD_JUMP) == 0 && set.getOrDefault("jump", true), set.getOrDefault("look", true)));
     }
 
-    private static Point point(InstanceTree tree) {
+    private static Point point(InstanceTree tree, @Nullable Team team) {
         List<SpawnLocation> open = new ArrayList<>();
+        List<SpawnLocation> anyTeam = new ArrayList<>();
         for (SpawnLocation location : tree.ofClass(Classes.SPAWN_LOCATION)) {
-            if (location.enabled && location.isAlive()) open.add(location);
+            if (!location.enabled || !location.isAlive() || Instance.outOfWorld(location)) continue;
+            anyTeam.add(location);
+            if (Teams.allowed(location, team)) open.add(location);
         }
+        if (open.isEmpty()) open = anyTeam;
         if (open.isEmpty()) return new Point(FALLBACK, 0);
         SpawnLocation chosen = open.get(ThreadLocalRandom.current().nextInt(open.size()));
         CFrame frame = Transforms.world(chosen);

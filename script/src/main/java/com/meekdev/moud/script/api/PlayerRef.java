@@ -15,6 +15,13 @@ public interface PlayerRef {
 
     ControlsRef controls();
 
+    default Instance team() {
+        return null;
+    }
+
+    default void team(Instance team) {
+    }
+
     void kick(String message);
 
     double ping();

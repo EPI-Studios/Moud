@@ -12,6 +12,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.player.Team;
 import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.InputRef;
@@ -40,6 +41,7 @@ public final class Players {
                 .declare("id", "string")
                 .declare("character", "Instance?")
                 .declare("controls", "PlayerControls")
+                .declare("team", "Team?")
                 .method("spawn", "(position: Vector3?) -> ()", a -> {
                     a.self(Player.class).ref().spawn(a.has(1) ? a.vector(1) : null);
                     return null;
@@ -63,8 +65,16 @@ public final class Players {
                 case "id" -> ref.id();
                 case "character" -> ref.character();
                 case "controls" -> controls(ref.controls());
+                case "team" -> ref.team();
                 default -> METHODS.get(key);
             };
+        }
+
+        @Override
+        public void set(String key, Object value) {
+            if (!key.equals("team")) HostObject.super.set(key, value);
+            else if (value == null || value instanceof Team) ref.team((Instance) value);
+            else throw new HostError("player.team expects a Team or nil");
         }
     }
 
@@ -101,6 +111,17 @@ public final class Players {
         @Override
         public void kick(String message) {
             throw new HostError("player:kick runs on the server");
+        }
+
+        @Override
+        public Instance team() {
+            Instance body = character();
+            return body instanceof Character character && character.team != null && character.team.isAlive() ? character.team : null;
+        }
+
+        @Override
+        public void team(Instance team) {
+            throw new HostError("player.team is set on the server");
         }
 
         @Override
@@ -153,6 +174,19 @@ public final class Players {
 
     public static void install(Host host, Members game) {
         HumanoidLibrary.install(host);
+        host.instances().of(Classes.TEAM).method("getPlayers", "() -> { Player }", a -> {
+            Team team = a.self(Team.class);
+            List<Object> members = new ArrayList<>();
+            if (host.roster() != null) {
+                for (PlayerRef player : host.roster().all()) {
+                    if (player.team() == team) members.add(wrap(host, player));
+                }
+            } else if (host.client()) {
+                PlayerRef me = new Me(host);
+                if (me.team() == team) members.add(new Player(me));
+            }
+            return members;
+        });
         AnimationLibrary.install(host);
         host.api().declare(Player.METHODS.decl());
         host.api().declare(controls(new ControlsRef() {
