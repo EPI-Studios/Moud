@@ -2,12 +2,14 @@ package com.meekdev.moud.mod.adapter.render.effect;
 
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.effect.EffectRuns;
 import com.meekdev.moud.core.effect.Fire;
 import com.meekdev.moud.core.effect.ParticleEmitter;
 import com.meekdev.moud.core.effect.ParticleField;
 import com.meekdev.moud.core.effect.ParticleLook;
 import com.meekdev.moud.core.effect.Smoke;
 import com.meekdev.moud.core.effect.Sparkles;
+import com.meekdev.moud.core.effect.Tally;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Spatial;
@@ -16,9 +18,7 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.ui.ViewportFrame;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import net.minecraft.util.Mth;
 
@@ -30,41 +30,37 @@ final class Emitters {
 
     private static final class Running {
         final ParticleField field = new ParticleField(new Random());
-        int emitted;
+        final Tally emitted;
         ParticleLook look;
         CFrame frame = CFrame.IDENTITY;
         int light;
+
+        Running(Instance source) {
+            emitted = new Tally(source instanceof ParticleEmitter emitter ? emitter.emitted : 0);
+        }
     }
 
     private static final List<ClassDef<? extends Instance>> SOURCES =
             List.of(Classes.PARTICLE_EMITTER, Classes.FIRE, Classes.SMOKE, Classes.SPARKLES);
 
-    private static final Map<Instance, Running> RUNNING = new IdentityHashMap<>();
-    private static InstanceTree seen;
+    private static final EffectRuns<Instance, Running> RUNNING = new EffectRuns<>(Running::new);
 
     private Emitters() {}
 
     static void step(InstanceTree tree, double seconds, float partialTick) {
-        boolean fresh = tree != seen;
-        if (fresh) {
-            RUNNING.clear();
-            seen = tree;
-        }
+        RUNNING.begin(tree);
         for (ClassDef<? extends Instance> def : SOURCES) {
-            for (Instance source : tree.ofClass(def)) {
-                if (ViewportFrame.inside(source)) continue;
-                step(source, fresh, seconds, partialTick);
-            }
+            for (Instance source : tree.ofClass(def)) step(source, RUNNING.run(source), seconds, partialTick);
         }
-        RUNNING.keySet().removeIf(source -> !source.isAlive() || source.tree() != tree);
+        RUNNING.end();
     }
 
-    private static void step(Instance source, boolean fresh, double seconds, float partialTick) {
-        Running run = RUNNING.get(source);
-        if (run == null) {
-            run = new Running();
-            if (fresh && source instanceof ParticleEmitter emitter) run.emitted = emitter.emitted;
-            RUNNING.put(source, run);
+    private static void step(Instance source, Running run, double seconds, float partialTick) {
+        int burst = 0;
+        if (source instanceof ParticleEmitter emitter) burst = run.emitted.take(emitter.emitted) + emitter.takeQueued();
+        if (ViewportFrame.inside(source)) {
+            run.field.clear();
+            return;
         }
         ParticleLook look = look(source);
         run.look = look;
@@ -76,13 +72,6 @@ final class Emitters {
         }
         double scaled = seconds * look.timeScale();
         run.field.step(look, run.frame, scaled);
-
-        int burst = 0;
-        if (source instanceof ParticleEmitter emitter) {
-            burst = Math.max(0, emitter.emitted - run.emitted);
-            run.emitted = emitter.emitted;
-            burst += emitter.takeQueued();
-        }
         int steady = run.field.due(enabled(source) && placed ? look.rate() : 0, scaled);
         if (!placed) return;
         Vector3 volume = holder instanceof Part part ? part.size : null;
@@ -109,7 +98,7 @@ final class Emitters {
     }
 
     static void draw(QuadBatch batch, Effects.View view) {
-        for (Running run : RUNNING.values()) {
+        for (Running run : RUNNING.runs().values()) {
             ParticleField field = run.field;
             if (field.count() == 0) continue;
             ParticleLook look = run.look;

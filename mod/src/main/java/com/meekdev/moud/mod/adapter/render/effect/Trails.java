@@ -1,13 +1,14 @@
 package com.meekdev.moud.mod.adapter.render.effect;
 
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.effect.EffectRuns;
+import com.meekdev.moud.core.effect.Tally;
 import com.meekdev.moud.core.effect.Trail;
 import com.meekdev.moud.core.effect.TrailPath;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.ui.ViewportFrame;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.util.Mth;
@@ -18,34 +19,27 @@ final class Trails {
 
     private static final class Following {
         final TrailPath path = new TrailPath();
-        int clears;
+        final Tally clears;
         Vector3 a;
         Vector3 b;
         int light;
+
+        Following(Trail trail) {
+            clears = new Tally(trail.clears);
+        }
     }
 
-    private static final Map<Trail, Following> FOLLOWING = new IdentityHashMap<>();
-    private static InstanceTree seen;
+    private static final EffectRuns<Trail, Following> FOLLOWING = new EffectRuns<>(Following::new);
 
     private Trails() {}
 
     static void step(InstanceTree tree, double now, float partialTick) {
-        if (tree != seen) {
-            FOLLOWING.clear();
-            seen = tree;
-        }
+        FOLLOWING.begin(tree);
         for (Trail trail : tree.ofClass(Classes.TRAIL)) {
-            if (ViewportFrame.inside(trail)) continue;
-            Following following = FOLLOWING.get(trail);
-            if (following == null) {
-                following = new Following();
-                following.clears = trail.clears;
-                FOLLOWING.put(trail, following);
-            }
+            Following following = FOLLOWING.run(trail);
             boolean requested = trail.takeClearRequest();
-            if (requested || trail.clears != following.clears) following.path.clear();
-            following.clears = trail.clears;
-            if (!Beams.attached(trail.attachment0) || !Beams.attached(trail.attachment1)) {
+            if (following.clears.take(trail.clears) > 0 || requested) following.path.clear();
+            if (ViewportFrame.inside(trail) || !Beams.attached(trail.attachment0) || !Beams.attached(trail.attachment1)) {
                 following.a = null;
                 following.path.clear();
                 continue;
@@ -58,11 +52,11 @@ final class Trails {
             path.expire(now, trail.lifetime);
             path.limit(trail.maxLength, following.a.lerp(following.b, 0.5));
         }
-        FOLLOWING.keySet().removeIf(trail -> !trail.isAlive() || trail.tree() != tree);
+        FOLLOWING.end();
     }
 
     static void draw(QuadBatch batch, Effects.View view, double now) {
-        for (Map.Entry<Trail, Following> entry : FOLLOWING.entrySet()) {
+        for (Map.Entry<Trail, Following> entry : FOLLOWING.runs().entrySet()) {
             Trail trail = entry.getKey();
             Following following = entry.getValue();
             List<TrailPath.Point> points = following.path.points();
