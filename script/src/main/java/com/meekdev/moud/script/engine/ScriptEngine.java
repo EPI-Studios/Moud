@@ -12,6 +12,10 @@ public interface ScriptEngine extends AutoCloseable {
 
     Object module(String chunk, String source);
 
+    default Object module(String chunk, String source, Instance script) {
+        return module(chunk, source);
+    }
+
     Fiber fiber(Callable fn);
 
     Fiber script(String chunk, String source, Instance script);

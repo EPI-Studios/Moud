@@ -385,23 +385,27 @@ public final class SceneDocument {
     }
 
     public void insertScript(ScriptTemplate template, boolean local, int parentId) {
+        insertScript(template, local ? "client/scripts" : "server/scripts", local ? Classes.LOCAL_SCRIPT : Classes.SCRIPT, parentId);
+    }
+
+    public void insertModule(ScriptTemplate template, int parentId) {
+        insertScript(template, "shared/modules", Classes.MODULE_SCRIPT, parentId);
+    }
+
+    private void insertScript(ScriptTemplate template, String directory, ClassDef<?> kind, int parentId) {
         Instance parent = find(parentId);
         if (parent == null) return;
-        String side = local ? "client" : "server";
         String text;
         try {
-            Path folder = PlaceToml.root().resolve(side).resolve("scripts");
+            Path folder = PlaceToml.root().resolve(directory);
             Files.createDirectories(folder);
             String name = template.name();
             for (int n = 2; Files.exists(folder.resolve(name + ".luau")); n++) name = template.name() + n;
             Files.writeString(folder.resolve(name + ".luau"), template.code());
             InstanceTree scratch = new InstanceTree();
             Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
-            if (local) {
-                Instances.create(Classes.LOCAL_SCRIPT, holder, name).source = "res://" + side + "/scripts/" + name + ".luau";
-            } else {
-                Instances.create(Classes.SCRIPT, holder, name).source = "res://" + side + "/scripts/" + name + ".luau";
-            }
+            Instance made = Instances.create(kind, holder, name);
+            Instances.setObj(made, kind.property("source"), "res://" + directory + "/" + name + ".luau");
             text = snapshot(new ArrayList<>(holder.children()));
         } catch (IOException | RuntimeException e) {
             SceneLink.local("Could not add a script: " + e.getMessage());

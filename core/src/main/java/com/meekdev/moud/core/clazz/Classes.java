@@ -82,6 +82,7 @@ import com.meekdev.moud.core.render.post.TonemapEffect;
 import com.meekdev.moud.core.render.post.VignetteEffect;
 import com.meekdev.moud.core.render.post.VolumetricEffect;
 import com.meekdev.moud.core.script.LocalScript;
+import com.meekdev.moud.core.script.ModuleScript;
 import com.meekdev.moud.core.script.Script;
 import com.meekdev.moud.core.ui.AppWindow;
 import com.meekdev.moud.core.ui.BillboardGui;
@@ -234,6 +235,8 @@ public final class Classes {
     public static final ClassDef<Script> SCRIPT = ClassDef.of("Script", null, Script.class, Script::new);
     public static final ClassDef<LocalScript> LOCAL_SCRIPT =
             ClassDef.of("LocalScript", null, LocalScript.class, LocalScript::new);
+    public static final ClassDef<ModuleScript> MODULE_SCRIPT =
+            ClassDef.of("ModuleScript", null, ModuleScript.class, ModuleScript::new);
 
     public static final ClassDef<InputAction> INPUT_ACTION =
             ClassDef.of("InputAction", null, InputAction.class, InputAction::new);
@@ -365,6 +368,7 @@ public final class Classes {
         r.register(SOUND_BUS);
         r.register(SCRIPT);
         r.register(LOCAL_SCRIPT);
+        r.register(MODULE_SCRIPT);
         r.register(INPUT_ACTION);
         r.register(CLICK_DETECTOR);
         r.register(COLLISION_GROUP);

@@ -19,6 +19,8 @@ public record ScriptTemplate(String label, String name, String code) {
     public static final List<ScriptTemplate> CLIENT = List.of(
             load("Empty", "LocalScript", "local-script.luau"));
 
+    public static final ScriptTemplate MODULE = load("Module script", "Module", "module.luau");
+
     private static ScriptTemplate load(String label, String name, String file) {
         try (InputStream in = ScriptTemplate.class.getResourceAsStream(ROOT + file)) {
             if (in == null) throw new IOException(ROOT + file + " is missing");

@@ -2,6 +2,8 @@ package com.meekdev.moud.script.host;
 
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.script.ModuleScript;
 import com.meekdev.moud.script.host.audio.AudioLibrary;
 import com.meekdev.moud.script.host.chat.ChatLibrary;
 import com.meekdev.moud.script.host.data.StoreLibrary;
@@ -93,34 +95,53 @@ final class Libraries {
     }
 
     private static void installRequire(Host host) {
-        Map<String, Object> cache = new HashMap<>();
-        Set<String> loading = new HashSet<>();
-        host.global("require", "(path: string) -> any", new Builtin("require", a -> {
-            String path;
-            try {
-                String text = a.string(0);
-                path = Res.script(text.startsWith("@") ? Res.SCHEME + text.substring(1) : text);
-            } catch (IllegalArgumentException e) {
-                throw new HostError(e.getMessage());
+        Map<Object, Object> cache = new HashMap<>();
+        Set<Object> loading = new HashSet<>();
+        host.global("require", "(module: string | Instance) -> any", new Builtin("require", a -> {
+            if (a.get(0) instanceof ModuleScript module) {
+                if (!module.isAlive()) throw new HostError("%s has been destroyed", module.name());
+                if (module.code.isEmpty() && module.source.isEmpty()) throw new HostError("%s has no code and no source", module.name());
+                if (module.code.isEmpty()) return file(host, cache, loading, module.source, module);
+                return load(host, cache, loading, module, fullName(module), module.code, module);
             }
-            Host.Script script = host.readScript(path);
-            if (script == null) throw new HostError("there is no res://%s", path);
-            Object cached = cache.get(script.path());
-            if (cached != null) return cached;
-            if (loading.contains(script.path())) throw new HostError("circular require of res://%s", script.path());
-            loading.add(script.path());
-            try {
-                Object module = host.engine().module(script.path(), script.code());
-                cache.put(script.path(), module);
-                return module;
-            } finally {
-                loading.remove(script.path());
-            }
+            if (a.get(0) instanceof Instance other) throw new HostError("require expects a ModuleScript, got a %s", other.def().name());
+            return file(host, cache, loading, a.string(0), null);
         }));
         host.onClose(() -> {
             for (Object module : cache.values()) {
                 if (module instanceof ScriptValue value) value.release();
             }
         });
+    }
+
+    private static Object file(Host host, Map<Object, Object> cache, Set<Object> loading, String text, Instance script) {
+        String path;
+        try {
+            path = Res.script(text.startsWith("@") ? Res.SCHEME + text.substring(1) : text);
+        } catch (IllegalArgumentException e) {
+            throw new HostError(e.getMessage());
+        }
+        Host.Script found = host.readScript(path);
+        if (found == null) throw new HostError("there is no res://%s", path);
+        return load(host, cache, loading, found.path(), found.path(), found.code(), script);
+    }
+
+    private static Object load(Host host, Map<Object, Object> cache, Set<Object> loading, Object key, String chunk, String code, Instance script) {
+        Object cached = cache.get(key);
+        if (cached != null) return cached;
+        if (!loading.add(key)) throw new HostError("circular require of %s", key instanceof String ? "res://" + chunk : chunk);
+        try {
+            Object module = host.engine().module(chunk, code, script);
+            cache.put(key, module);
+            return module;
+        } finally {
+            loading.remove(key);
+        }
+    }
+
+    private static String fullName(Instance instance) {
+        StringBuilder path = new StringBuilder(instance.name());
+        for (Instance up = instance.parent(); up != null; up = up.parent()) path.insert(0, up.name() + ".");
+        return path.toString();
     }
 }

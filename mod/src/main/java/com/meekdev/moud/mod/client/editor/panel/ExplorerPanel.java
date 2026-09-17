@@ -9,6 +9,7 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.script.LocalScript;
+import com.meekdev.moud.core.script.ModuleScript;
 import com.meekdev.moud.core.script.Script;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.addon.Addons;
@@ -411,6 +412,7 @@ public final class ExplorerPanel implements Panel {
         String source = switch (instance) {
             case Script script -> script.source;
             case LocalScript script -> script.source;
+            case ModuleScript script -> script.source;
             default -> null;
         };
         if (source == null || !source.startsWith(Res.SCHEME)) return false;
@@ -420,7 +422,7 @@ public final class ExplorerPanel implements Panel {
     }
 
     private static boolean openable(Instance instance) {
-        return instance instanceof Script || instance instanceof LocalScript;
+        return instance instanceof Script || instance instanceof LocalScript || instance instanceof ModuleScript;
     }
 
     private void renderScriptItems(int parent) {
@@ -436,6 +438,7 @@ public final class ExplorerPanel implements Panel {
             }
             ImGui.endMenu();
         }
+        if (ImGui.menuItem("Add module script")) document.insertModule(ScriptTemplate.MODULE, parent);
     }
 
     private void renderRowContextMenu(Instance instance) {

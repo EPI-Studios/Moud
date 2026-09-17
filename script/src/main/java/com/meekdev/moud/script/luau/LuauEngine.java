@@ -415,16 +415,22 @@ final class LuauEngine implements ScriptEngine {
 
     @Override
     public Object module(String chunk, String source) {
+        return module(chunk, source, null);
+    }
+
+    @Override
+    public Object module(String chunk, String source, Instance script) {
         byte[] bytecode;
         try {
-            bytecode = LuauCompiler.DEFAULT.compile(source);
+            bytecode = LuauCompiler.DEFAULT.compile(script == null ? source : withScript(source));
         } catch (LuauCompileException e) {
             throw new HostError("res://%s does not compile: %s", chunk, e.getMessage());
         }
         int before = state.top();
         try {
             state.load(chunk, bytecode);
-            state.call(0, -1);
+            if (script != null) push(state, script);
+            state.call(script == null ? 0 : 1, -1);
         } catch (LuaError e) {
             state.top(before);
             String why = e.getMessage();
