@@ -16,6 +16,7 @@ import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.ChatRef;
 import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.DebugRef;
+import com.meekdev.moud.script.api.DevicesRef;
 import com.meekdev.moud.script.api.FileRef;
 import com.meekdev.moud.script.api.GameRef;
 import com.meekdev.moud.script.api.HistoryRef;
@@ -36,6 +37,7 @@ import com.meekdev.moud.script.engine.ScriptLanguage;
 import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.host.chat.ChatLibrary;
 import com.meekdev.moud.script.host.player.Players;
+import com.meekdev.moud.script.host.player.UserInput;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -90,6 +92,8 @@ public final class Host {
     private AudioRef audio;
     private CameraRef lens;
     private InputRef input;
+    private DevicesRef devices;
+    private UserInput userInput;
     private ShaderRef shaders;
     private SpawnRef spawns;
     private ControlsRef controls;
@@ -132,7 +136,8 @@ public final class Host {
                         .controls(inert(ControlsRef.class))
                         .game(inert(GameRef.class))
                         .settings(inert(SettingsRef.class))
-                        .window(inert(WindowRef.class));
+                        .window(inert(WindowRef.class))
+                        .devices(inert(DevicesRef.class));
             } else {
                 host.physics(inert(PartPhysicsRef.class))
                         .spawns(inert(SpawnRef.class))
@@ -201,6 +206,7 @@ public final class Host {
     public AudioRef audio() { return audio; }
     public CameraRef lens() { return lens; }
     public InputRef input() { return input; }
+    public DevicesRef devices() { return devices; }
     public ShaderRef shaders() { return shaders; }
     public SpawnRef spawns() { return spawns; }
     public ControlsRef controls() { return controls; }
@@ -233,6 +239,8 @@ public final class Host {
     public Host settings(SettingsRef settings) { this.settings = settings; return this; }
     public Host window(WindowRef window) { this.window = window; return this; }
     public Host roster(RosterRef roster) { this.roster = roster; return this; }
+    public Host devices(DevicesRef devices) { this.devices = devices; return this; }
+    public void userInput(UserInput events) { userInput = events; }
 
     public Host clientSide(Instance camera, CameraRef lens, InputRef input, Supplier<Instance> own) {
         this.camera = camera;
@@ -472,6 +480,14 @@ public final class Host {
         if (pauseRequested.count() == 0) return false;
         pauseRequested.fire(reason);
         return true;
+    }
+
+    public boolean input(DevicesRef.Event event) {
+        return userInput != null && userInput.dispatch(event);
+    }
+
+    public void gamepad(int index, boolean connected) {
+        if (userInput != null) userInput.gamepad(index, connected);
     }
 
     public void reloaded() {

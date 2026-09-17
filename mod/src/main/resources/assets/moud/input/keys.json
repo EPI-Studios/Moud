@@ -1,0 +1,34 @@
+{
+  "keys": {
+    "space": 32,
+    "enter": 257,
+    "keypadenter": 335,
+    "tab": 258,
+    "escape": 256,
+    "backspace": 259,
+    "delete": 261,
+    "insert": 260,
+    "home": 268,
+    "end": 269,
+    "pageup": 266,
+    "pagedown": 267,
+    "capslock": 280,
+    "leftshift": 340,
+    "rightshift": 344,
+    "leftcontrol": 341,
+    "rightcontrol": 345,
+    "leftalt": 342,
+    "rightalt": 346,
+    "leftsuper": 343,
+    "rightsuper": 347,
+    "up": 265,
+    "down": 264,
+    "left": 263,
+    "right": 262
+  },
+  "mouseButtons": {
+    "mousebutton1": 0,
+    "mousebutton2": 1,
+    "mousebutton3": 2
+  }
+}

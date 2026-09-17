@@ -292,6 +292,7 @@ public final class Players {
         }
         if (host.input() != null) {
             Members input = input(host.input());
+            host.userInput(UserInput.install(host, input));
             host.global("input", "Input", input);
             host.declare(input);
         }

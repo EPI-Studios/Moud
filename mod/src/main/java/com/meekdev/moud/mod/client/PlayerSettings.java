@@ -145,6 +145,7 @@ public final class PlayerSettings implements SettingsRef {
     @Override
     public void bind(String action, String key) {
         int code = Actions.code(key);
+        if (!Actions.bindable(code)) throw new IllegalArgumentException("'" + key + "' cannot be bound to a minecraft action, only keys and mouse buttons can");
         InputConstants.Key bound = Actions.mouse(code)
                 ? InputConstants.Type.MOUSE.getOrCreate(Actions.button(code))
                 : InputConstants.Type.KEYSYM.getOrCreate(code);

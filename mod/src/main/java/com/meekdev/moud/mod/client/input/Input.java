@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.input;
 
+import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.debug.CollisionView;
 import com.meekdev.moud.script.api.InputRef;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -47,6 +48,9 @@ public final class Input implements InputRef {
 
     private static boolean pointerReleased;
     private static boolean scriptFree;
+    private static boolean held;
+    private static double heldX;
+    private static double heldY;
 
     public static boolean scriptWantsPointer() {
         return scriptFree;
@@ -54,10 +58,27 @@ public final class Input implements InputRef {
 
     public static void resetPointer() {
         scriptFree = false;
+        hold(false);
+    }
+
+    public static boolean pointerHeld() {
+        return held;
+    }
+
+    public static void hold(boolean on) {
+        Minecraft client = Minecraft.getInstance();
+        if (on == held || on && (client.screen != null || client.mouseHandler.isMouseGrabbed())) return;
+        held = on;
+        if (on) {
+            heldX = client.mouseHandler.xpos();
+            heldY = client.mouseHandler.ypos();
+        }
+        InputConstants.grabOrReleaseMouse(client.getWindow(), on ? GLFW.GLFW_CURSOR_DISABLED : GLFW.GLFW_CURSOR_NORMAL, heldX, heldY);
     }
 
     public static void pointerFrame() {
         Minecraft client = Minecraft.getInstance();
+        if (held && (client.screen != null || client.mouseHandler.isMouseGrabbed() || EditMode.editing())) hold(false);
         if (pointer == null || client.player == null || client.screen != null) {
             pointerReleased = false;
             return;
@@ -103,8 +124,13 @@ public final class Input implements InputRef {
         dy = rawDown - lastY;
         lastX = raw;
         lastY = rawDown;
-        x = raw * window.getGuiScaledWidth() / across;
-        y = rawDown * window.getGuiScaledHeight() / down;
+        x = (held ? heldX : raw) * window.getGuiScaledWidth() / across;
+        y = (held ? heldY : rawDown) * window.getGuiScaledHeight() / down;
+    }
+
+    public KeyMapping mapping(String action) {
+        Supplier<KeyMapping> key = actions.get(action);
+        return key == null ? null : key.get();
     }
 
     @Override
@@ -127,6 +153,7 @@ public final class Input implements InputRef {
 
     @Override
     public void lockMouse(boolean locked) {
+        hold(false);
         scriptFree = !locked;
         Minecraft client = Minecraft.getInstance();
         if (locked && client.screen != null) return;

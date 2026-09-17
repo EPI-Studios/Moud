@@ -17,6 +17,7 @@ import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
 import com.meekdev.moud.mod.client.input.Actions;
 import com.meekdev.moud.mod.client.input.Controls;
+import com.meekdev.moud.mod.client.input.Devices;
 import com.meekdev.moud.mod.client.input.Push;
 import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.place.Place;
@@ -34,6 +35,7 @@ public final class ClientPlace {
     private static @Nullable Instance placeWorld;
     private static @Nullable Camera camera;
     private static final Input INPUT = new Input();
+    private static final Devices DEVICES = new Devices(INPUT);
     private static final CameraApi LENS = new CameraApi();
     private static final double TICK = 0.05;
 
@@ -45,6 +47,10 @@ public final class ClientPlace {
 
     public static @Nullable Host host() {
         return place == null ? null : place.host();
+    }
+
+    public static Input input() {
+        return INPUT;
     }
 
     public static @Nullable Camera camera() {
@@ -96,6 +102,7 @@ public final class ClientPlace {
     public static void frame(float partialTick) {
         if (place == null || camera == null || !camera.isAlive()) return;
         INPUT.poll();
+        Devices.moved(INPUT);
         Actions.frame();
         Host host = place.host();
         if (host != null) host.renderStep(FRAME.tick());
@@ -118,9 +125,11 @@ public final class ClientPlace {
                     .push(Push.INSTANCE)
                     .game(GameState.INSTANCE)
                     .settings(PlayerSettings.INSTANCE)
-                    .window(WindowApi.INSTANCE);
+                    .window(WindowApi.INSTANCE)
+                    .devices(DEVICES);
             GameState.INSTANCE.reset();
             Input.resetPointer();
+            Devices.reset();
             WindowApi.INSTANCE.reset();
         });
         place.start();

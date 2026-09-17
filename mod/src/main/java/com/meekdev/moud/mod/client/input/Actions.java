@@ -1,14 +1,20 @@
 package com.meekdev.moud.mod.client.input;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.input.InputAction;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.client.JsonResources;
+import com.mojang.blaze3d.platform.InputConstants;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -17,31 +23,32 @@ import org.lwjgl.glfw.GLFW;
 
 public final class Actions {
 
+    private static final String KEY_TABLE = "/assets/moud/input/keys.json";
     private static final Map<String, Integer> KEYS = new HashMap<>();
+    private static final Map<Integer, String> NAMES = new HashMap<>();
     private static final int MOUSE = 1 << 16;
+    public static final int WHEEL = MOUSE | 16;
+    public static final int MOVEMENT = MOUSE | 17;
 
     static {
-        for (char c = 'A'; c <= 'Z'; c++) KEYS.put(String.valueOf(c).toLowerCase(Locale.ROOT), GLFW.GLFW_KEY_A + (c - 'A'));
-        for (char c = '0'; c <= '9'; c++) KEYS.put(String.valueOf(c), GLFW.GLFW_KEY_0 + (c - '0'));
-        for (int n = 1; n <= 12; n++) KEYS.put("f" + n, GLFW.GLFW_KEY_F1 + n - 1);
-        KEYS.put("space", GLFW.GLFW_KEY_SPACE);
-        KEYS.put("enter", GLFW.GLFW_KEY_ENTER);
-        KEYS.put("tab", GLFW.GLFW_KEY_TAB);
-        KEYS.put("escape", GLFW.GLFW_KEY_ESCAPE);
-        KEYS.put("backspace", GLFW.GLFW_KEY_BACKSPACE);
-        KEYS.put("leftshift", GLFW.GLFW_KEY_LEFT_SHIFT);
-        KEYS.put("rightshift", GLFW.GLFW_KEY_RIGHT_SHIFT);
-        KEYS.put("leftcontrol", GLFW.GLFW_KEY_LEFT_CONTROL);
-        KEYS.put("rightcontrol", GLFW.GLFW_KEY_RIGHT_CONTROL);
-        KEYS.put("leftalt", GLFW.GLFW_KEY_LEFT_ALT);
-        KEYS.put("rightalt", GLFW.GLFW_KEY_RIGHT_ALT);
-        KEYS.put("up", GLFW.GLFW_KEY_UP);
-        KEYS.put("down", GLFW.GLFW_KEY_DOWN);
-        KEYS.put("left", GLFW.GLFW_KEY_LEFT);
-        KEYS.put("right", GLFW.GLFW_KEY_RIGHT);
-        KEYS.put("mousebutton1", MOUSE | GLFW.GLFW_MOUSE_BUTTON_LEFT);
-        KEYS.put("mousebutton2", MOUSE | GLFW.GLFW_MOUSE_BUTTON_RIGHT);
-        KEYS.put("mousebutton3", MOUSE | GLFW.GLFW_MOUSE_BUTTON_MIDDLE);
+        for (char c = 'a'; c <= 'z'; c++) key(String.valueOf(c), GLFW.GLFW_KEY_A + (c - 'a'));
+        for (char c = '0'; c <= '9'; c++) key(String.valueOf(c), GLFW.GLFW_KEY_0 + (c - '0'));
+        for (int n = 1; n <= 12; n++) key("f" + n, GLFW.GLFW_KEY_F1 + n - 1);
+        for (int n = 0; n <= 9; n++) key("keypad" + n, GLFW.GLFW_KEY_KP_0 + n);
+        JsonObject table = JsonResources.read(KEY_TABLE);
+        for (Map.Entry<String, JsonElement> key : table.getAsJsonObject("keys").entrySet()) {
+            key(key.getKey(), key.getValue().getAsInt());
+        }
+        for (Map.Entry<String, JsonElement> button : table.getAsJsonObject("mouseButtons").entrySet()) {
+            key(button.getKey(), MOUSE | button.getValue().getAsInt());
+        }
+        key("mousewheel", WHEEL);
+        key("mousemovement", MOVEMENT);
+    }
+
+    private static void key(String name, int code) {
+        KEYS.put(name, code);
+        NAMES.putIfAbsent(code, name);
     }
 
     private static final Map<String, Boolean> DOWN = new HashMap<>();
@@ -114,6 +121,39 @@ public final class Actions {
         return code;
     }
 
+    public static String name(int code) {
+        boolean digit = code >= GLFW.GLFW_KEY_0 && code <= GLFW.GLFW_KEY_9;
+        if (code < GLFW.GLFW_KEY_ESCAPE && !digit) {
+            String label = GLFW.glfwGetKeyName(code, 0);
+            if (label != null && label.length() == 1) return label.toLowerCase(Locale.ROOT);
+        }
+        return NAMES.getOrDefault(code, "unknown");
+    }
+
+    public static String label(int code) {
+        if (code == WHEEL) return "Mouse Wheel";
+        if (code == MOVEMENT) return "Mouse Movement";
+        InputConstants.Key key = (code & MOUSE) != 0
+                ? InputConstants.Type.MOUSE.getOrCreate(code & ~MOUSE)
+                : InputConstants.Type.KEYSYM.getOrCreate(code);
+        return key.getDisplayName().getString();
+    }
+
+    public static List<String> keysDown() {
+        long window = Minecraft.getInstance().getWindow().handle();
+        List<String> down = new ArrayList<>();
+        for (int code = GLFW.GLFW_KEY_SPACE; code <= GLFW.GLFW_KEY_LAST; code++) {
+            if (GLFW.glfwGetKey(window, code) != GLFW.GLFW_PRESS) continue;
+            String name = name(code);
+            if (!name.equals("unknown")) down.add(name);
+        }
+        return down;
+    }
+
+    public static boolean bindable(int code) {
+        return code < MOUSE || code <= (MOUSE | GLFW.GLFW_MOUSE_BUTTON_LAST);
+    }
+
     public static boolean mouse(int code) {
         return (code & MOUSE) != 0;
     }
@@ -126,6 +166,16 @@ public final class Actions {
         return pressed(Minecraft.getInstance().getWindow().handle(), keys);
     }
 
+    public static boolean pressed(int code) {
+        return pressed(Minecraft.getInstance().getWindow().handle(), code);
+    }
+
+    private static boolean pressed(long window, int code) {
+        if ((code & MOUSE) == 0) return GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS;
+        int button = code & ~MOUSE;
+        return button <= GLFW.GLFW_MOUSE_BUTTON_LAST && GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS;
+    }
+
     private static boolean pressed(long window, String keys) {
         for (String raw : keys.split(",")) {
             String name = raw.trim().toLowerCase(Locale.ROOT);
@@ -136,10 +186,7 @@ public final class Actions {
                 if (UNKNOWN.add(name)) MoudMod.LOG.warn("unknown key '{}' in input action, expected one of {}", raw.trim(), KEYS.keySet());
                 continue;
             }
-            boolean down = (code & MOUSE) != 0
-                    ? GLFW.glfwGetMouseButton(window, code & ~MOUSE) == GLFW.GLFW_PRESS
-                    : GLFW.glfwGetKey(window, code) == GLFW.GLFW_PRESS;
-            if (down) return true;
+            if (pressed(window, code)) return true;
         }
         return false;
     }
