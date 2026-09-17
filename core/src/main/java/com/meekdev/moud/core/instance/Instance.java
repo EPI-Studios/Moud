@@ -6,6 +6,7 @@ import com.meekdev.moud.core.event.Signal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public abstract class Instance {
@@ -24,9 +25,12 @@ public abstract class Instance {
 
     Set<String> tags;
 
+    Map<String, Object> attributes;
+
     Signal<PropertyDef> changed;
     Signal<Instance> childAdded;
     Signal<Instance> destroying;
+    Signal<String> attributeChanged;
 
     public final void attachClass(ClassDef<?> def) {
         this.def = def;
@@ -50,6 +54,14 @@ public abstract class Instance {
 
     public final boolean hasTag(String tag) {
         return tags != null && tags.contains(tag);
+    }
+
+    public final Map<String, Object> attributes() {
+        return attributes == null ? Map.of() : Collections.unmodifiableMap(attributes);
+    }
+
+    public final Object attribute(String name) {
+        return attributes == null ? null : attributes.get(name);
     }
 
     public final boolean isAlive() {
@@ -80,6 +92,11 @@ public abstract class Instance {
     public final Signal<Instance> destroying() {
         if (destroying == null) destroying = new Signal<>();
         return destroying;
+    }
+
+    public final Signal<String> attributeChanged() {
+        if (attributeChanged == null) attributeChanged = new Signal<>();
+        return attributeChanged;
     }
 
     @Override

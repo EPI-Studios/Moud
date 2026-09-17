@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Assets;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -116,6 +117,22 @@ public final class Instances {
             i.tree.mutations++;
             i.tree.tag(i, tag, false);
         }
+    }
+
+    public static void setAttribute(Instance i, String name, Object value) {
+        if (i.tree == null) throw new IllegalStateException(i + " is destroyed");
+        Attributes.checkName(name);
+        Object next = Attributes.normalize(value);
+        if (Objects.equals(i.attribute(name), next)) return;
+        if (next == null) {
+            i.attributes.remove(name);
+        } else {
+            if (i.attributes == null) i.attributes = new LinkedHashMap<>();
+            i.attributes.put(name, next);
+        }
+        i.tree.mutations++;
+        i.tree.attributed(i, name);
+        if (i.attributeChanged != null) i.attributeChanged.fire(name);
     }
 
     private static void checkTag(Instance i, String tag) {

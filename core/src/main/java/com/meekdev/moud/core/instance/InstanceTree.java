@@ -18,6 +18,8 @@ public final class InstanceTree {
 
     public record TagChange(int id, String tag, boolean added) {}
 
+    public record AttributeChange(int id, String name) {}
+
     @FunctionalInterface
     public interface DirtyVisitor {
         void visit(Instance instance, long mask);
@@ -56,6 +58,7 @@ public final class InstanceTree {
     private final Map<String, Signal<Instance>> tagAdded = new HashMap<>();
     private final Map<String, Signal<Instance>> tagRemoved = new HashMap<>();
     private final List<TagChange> tagChanges = new ArrayList<>();
+    private final List<AttributeChange> attributeChanges = new ArrayList<>();
     private final IdList dirty = new IdList();
     private final IdList removed = new IdList();
     private final IdList moved = new IdList();
@@ -164,6 +167,15 @@ public final class InstanceTree {
     public void drainTags(Consumer<TagChange> visitor) {
         for (TagChange change : tagChanges) visitor.accept(change);
         tagChanges.clear();
+    }
+
+    public void drainAttributes(Consumer<AttributeChange> visitor) {
+        for (AttributeChange change : attributeChanges) visitor.accept(change);
+        attributeChanges.clear();
+    }
+
+    void attributed(Instance i, String name) {
+        if (i.id > 0) attributeChanges.add(new AttributeChange(i.id, name));
     }
 
     void markDirty(Instance i) {

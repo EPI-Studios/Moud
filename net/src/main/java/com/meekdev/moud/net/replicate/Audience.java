@@ -94,6 +94,9 @@ public final class Audience {
                 case Change.Renamed renamed -> {
                     if (has.get(renamed.id())) out.accept(renamed);
                 }
+                case Change.Attributed attributed -> {
+                    if (has.get(attributed.id())) out.accept(attributed);
+                }
             }
         }
     }
@@ -108,6 +111,7 @@ public final class Audience {
             out.accept(new Change.Wrote(top.id(), property.index(), Recorder.read(top, property)));
         }
         for (String tag : top.tags()) out.accept(new Change.Tagged(top.id(), tag, true));
+        top.attributes().forEach((name, value) -> out.accept(new Change.Attributed(top.id(), name, value)));
         for (Instance child : top.children()) baseline(child, out);
     }
 

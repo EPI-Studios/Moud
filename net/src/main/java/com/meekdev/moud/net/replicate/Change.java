@@ -15,4 +15,6 @@ public sealed interface Change {
     record Tagged(int id, String tag, boolean added) implements Change {}
 
     record Renamed(int id, String name) implements Change {}
+
+    record Attributed(int id, String name, Object value) implements Change {}
 }

@@ -70,6 +70,11 @@ public final class Scene {
         }
         if (!properties.isEmpty()) node.put("properties", properties);
         if (!instance.tags().isEmpty()) node.put("tags", new ArrayList<>(instance.tags()));
+        if (!instance.attributes().isEmpty()) {
+            Map<String, Object> attributes = new LinkedHashMap<>();
+            instance.attributes().forEach((name, value) -> attributes.put(name, attribute(value)));
+            node.put("attributes", attributes);
+        }
         List<Object> children = new ArrayList<>();
         for (Instance child : instance.children()) children.add(node(child, ids, referenced));
         if (!children.isEmpty()) node.put("children", children);
@@ -93,12 +98,7 @@ public final class Scene {
             case INT, NUM -> ((Number) value).doubleValue();
             case VEC3 -> vector((Vector3) value);
             case QUAT -> quat((Quat) value);
-            case CFRAME -> {
-                Map<String, Object> frame = new LinkedHashMap<>();
-                frame.put("position", vector(((CFrame) value).position()));
-                frame.put("rotation", quat(((CFrame) value).rotation()));
-                yield frame;
-            }
+            case CFRAME -> frame((CFrame) value);
             case COLOR -> {
                 Color c = (Color) value;
                 yield List.of((double) c.r(), (double) c.g(), (double) c.b(), (double) c.a());
@@ -110,6 +110,23 @@ public final class Scene {
             case ENUM -> Enums.name((Enum<?>) value);
             case REF -> value instanceof Instance target && ids.containsKey(target)
                     ? Map.of("ref", ids.get(target)) : null;
+        };
+    }
+
+    private static Map<String, Object> frame(CFrame value) {
+        Map<String, Object> frame = new LinkedHashMap<>();
+        frame.put("position", vector(value.position()));
+        frame.put("rotation", quat(value.rotation()));
+        return frame;
+    }
+
+    private static Object attribute(Object value) {
+        return switch (value) {
+            case Vector3 v -> Map.of("vec3", vector(v));
+            case Color c -> Map.of("color", List.of((double) c.r(), (double) c.g(), (double) c.b(), (double) c.a()));
+            case UDim2 u -> Map.of("udim2", List.of(u.xScale(), u.xOffset(), u.yScale(), u.yOffset()));
+            case CFrame c -> Map.of("cframe", frame(c));
+            default -> value;
         };
     }
 
@@ -175,6 +192,18 @@ public final class Scene {
             if (node.get("tags") instanceof List<?> tags) {
                 for (Object tag : tags) Instances.addTag(instance, String.valueOf(tag));
             }
+            if (node.get("attributes") instanceof Map<?, ?> attributes) {
+                for (Map.Entry<?, ?> entry : attributes.entrySet()) {
+                    String key = String.valueOf(entry.getKey());
+                    try {
+                        Instances.setAttribute(instance, key, attribute(entry.getValue()));
+                    } catch (ClassCastException | NullPointerException ignored) {
+                        throw new IllegalArgumentException(where + ": attribute " + key + " has a value that can not be read");
+                    } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException(where + ": " + e.getMessage());
+                    }
+                }
+            }
             if (node.get("children") instanceof List<?> children) {
                 for (Object child : children) build(child, instance, where);
             }
@@ -225,6 +254,23 @@ public final class Scene {
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(at + ": " + e.getMessage());
             }
+        }
+
+        private static Object attribute(Object raw) {
+            if (!(raw instanceof Map<?, ?> typed)) return raw;
+            if (typed.containsKey("vec3")) return vec3(typed.get("vec3"));
+            if (typed.containsKey("color")) {
+                double[] c = numbers(typed.get("color"), 4);
+                return new Color((float) c[0], (float) c[1], (float) c[2], (float) c[3]);
+            }
+            if (typed.containsKey("udim2")) {
+                double[] u = numbers(typed.get("udim2"), 4);
+                return new UDim2(u[0], u[1], u[2], u[3]);
+            }
+            if (typed.get("cframe") instanceof Map<?, ?> frame) {
+                return new CFrame(vec3(frame.get("position")), quat(frame.get("rotation")));
+            }
+            throw new ClassCastException();
         }
 
         private static String text(Map<?, ?> node, String key, String where) {

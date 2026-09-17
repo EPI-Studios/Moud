@@ -56,6 +56,10 @@ public final class Applier {
                 if (tagged.added()) Instances.addTag(instance, tagged.tag());
                 else Instances.removeTag(instance, tagged.tag());
             }
+            case Change.Attributed attributed -> {
+                Instance instance = tree == null ? null : tree.byId(attributed.id());
+                if (instance != null) Instances.setAttribute(instance, attributed.name(), attributed.value());
+            }
         }
     }
 

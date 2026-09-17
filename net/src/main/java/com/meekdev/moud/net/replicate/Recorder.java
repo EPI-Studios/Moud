@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public final class Recorder {
@@ -35,6 +36,9 @@ public final class Recorder {
                 out.accept(new Change.Wrote(id, property.index(), read(instance, property)));
             }
             for (String tag : instance.tags()) out.accept(new Change.Tagged(id, tag, true));
+            for (Map.Entry<String, Object> attribute : instance.attributes().entrySet()) {
+                out.accept(new Change.Attributed(id, attribute.getKey(), attribute.getValue()));
+            }
         }
         seen = highest;
 
@@ -52,6 +56,13 @@ public final class Recorder {
 
         tree.drainTags(tag -> {
             if (tag.id() <= before) out.accept(new Change.Tagged(tag.id(), tag.tag(), tag.added()));
+        });
+
+        tree.drainAttributes(change -> {
+            Instance instance = tree.byId(change.id());
+            if (change.id() <= before && instance != null) {
+                out.accept(new Change.Attributed(change.id(), change.name(), instance.attribute(change.name())));
+            }
         });
 
         tree.drainDirty((instance, mask) -> {

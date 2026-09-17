@@ -153,6 +153,7 @@ public final class Editing {
             }
             case Change.Destroyed destroyed -> sceneOwned(tree.byId(destroyed.id()), world) ? null : "that instance is not part of the scene";
             case Change.Tagged tagged -> sceneOwned(tree.byId(tagged.id()), world) ? null : "that instance is not part of the scene";
+            case Change.Attributed attributed -> sceneOwned(tree.byId(attributed.id()), world) ? null : "that instance is not part of the scene";
             case Change.Renamed renamed -> !sceneOwned(tree.byId(renamed.id()), world) ? "that instance is not part of the scene"
                     : renamed.name().isBlank() ? "a name can not be empty" : null;
             default -> "the editor can not send that";
