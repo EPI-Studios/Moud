@@ -66,6 +66,7 @@ public final class Host {
     private final List<Runnable> closers = new ArrayList<>();
     private final List<Consumer<Double>> steps = new ArrayList<>();
     private final List<Consumer<Double>> renderSteps = new ArrayList<>();
+    private final RenderSteps renderBindings = new RenderSteps(this);
 
     private final HostSignal stepped = new HostSignal(this, "StepSignal", "stepped");
     private final HostSignal renderStepped = new HostSignal(this, "StepSignal", "renderStepped");
@@ -110,6 +111,7 @@ public final class Host {
     private HostSignal windowClosing;
     private Instance camera;
     private Supplier<Instance> own = () -> null;
+    private boolean studio;
 
     public Host(Instance world, ClassRegistry classes, boolean client) {
         this.world = world;
@@ -228,6 +230,8 @@ public final class Host {
     void windowClosing(HostSignal signal) { windowClosing = signal; }
     public Instance camera() { return camera; }
     public Supplier<Instance> own() { return own; }
+    public boolean studio() { return studio; }
+    RenderSteps renderBindings() { return renderBindings; }
 
     public Host post(PostRef post) { this.post = post; return this; }
     public Host invoke(InvokeRef invoke) { this.invoke = invoke; return this; }
@@ -251,6 +255,7 @@ public final class Host {
     public Host roster(RosterRef roster) { this.roster = roster; return this; }
     public Host devices(DevicesRef devices) { this.devices = devices; return this; }
     public void userInput(UserInput events) { userInput = events; }
+    public Host studio(boolean studio) { this.studio = studio; return this; }
 
     public Host clientSide(Instance camera, CameraRef lens, InputRef input, Supplier<Instance> own) {
         this.camera = camera;
@@ -470,6 +475,7 @@ public final class Host {
             instances.scripts().poll(world.tree());
             scheduler.advance(dt);
         }
+        renderBindings.beforeCamera(dt);
         for (Consumer<Double> step : renderSteps) {
             try {
                 step.accept(dt);
@@ -478,6 +484,10 @@ public final class Host {
             }
         }
         renderStepped.fire(dt);
+    }
+
+    public void cameraUpdated() {
+        renderBindings.afterCamera();
     }
 
     public boolean windowClosing() {
@@ -524,6 +534,7 @@ public final class Host {
         instances.scripts().stopAll();
         scheduler.stopAll();
         ownership.releaseAll();
+        renderBindings.clear();
         for (Runnable closer : closers) {
             try {
                 closer.run();

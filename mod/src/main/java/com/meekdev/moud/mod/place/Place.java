@@ -405,6 +405,7 @@ public final class Place {
         Host fresh = new Host(world, classes, client)
                 .post(Post.SERVER)
                 .invoke(Post.CALLS)
+                .studio(PlaceToml.editOnStart() && !Game.standalone())
                 .blocks(new BlockRays(Physics::level, true))
                 .modules(new PlaceModules(root, client))
                 .files(new PlaceFileRef(root))

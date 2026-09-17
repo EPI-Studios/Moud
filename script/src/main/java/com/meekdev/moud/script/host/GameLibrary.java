@@ -3,6 +3,8 @@ package com.meekdev.moud.script.host;
 import com.meekdev.moud.script.api.GameRef;
 import com.meekdev.moud.script.api.SettingsRef;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 final class GameLibrary {
 
@@ -10,6 +12,26 @@ final class GameLibrary {
 
     static void install(Host host, Members game) {
         host.api().declare(HostSignal.decl("PauseSignal", "(reason: string) -> ()"));
+        Map<String, Object> priorities = new LinkedHashMap<>();
+        priorities.put("first", 0.0);
+        priorities.put("input", 100.0);
+        priorities.put("camera", RenderSteps.CAMERA);
+        priorities.put("character", 300.0);
+        priorities.put("last", 2000.0);
+        game.value("isServer", "boolean", !host.client())
+                .value("isClient", "boolean", host.client())
+                .field("isStudio", "boolean", host::studio)
+                .field("renderPriority", "{ first: number, input: number, camera: number, character: number, last: number }", () -> new LinkedHashMap<>(priorities))
+                .method("bindToRenderStep", "(name: string, priority: number, handler: (delta: number) -> ()) -> ()", a -> {
+                    if (!host.client()) throw new HostError("bindToRenderStep is client-only");
+                    host.renderBindings().bind(a.string(1), a.number(2), a.callable(3));
+                    return null;
+                })
+                .method("unbindFromRenderStep", "(name: string) -> ()", a -> {
+                    if (!host.client()) throw new HostError("unbindFromRenderStep is client-only");
+                    host.renderBindings().unbind(a.string(1));
+                    return null;
+                });
         GameRef ref = host.game();
         if (ref != null) {
             game.value("pauseRequested", "PauseSignal", host.pauseSignal())

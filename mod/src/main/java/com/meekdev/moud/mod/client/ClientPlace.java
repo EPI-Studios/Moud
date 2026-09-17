@@ -109,6 +109,7 @@ public final class ClientPlace {
         Host host = place.host();
         if (host != null) host.renderStep(FRAME.tick());
         Cameras.frame(camera, partialTick);
+        if (host != null) host.cameraUpdated();
     }
 
     private static void start(Instance world) {
