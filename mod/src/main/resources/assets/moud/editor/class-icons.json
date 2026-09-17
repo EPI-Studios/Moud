@@ -43,5 +43,16 @@
     "ModuleScript": "SCRIPT",
     "CollisionGroup": "STATIC_BODY_3D",
     "Joint": "HINGE_JOINT_3D",
+    "ParticleEmitter": "PARTICLES_3D",
+    "Fire": "PARTICLES_3D",
+    "Smoke": "FOG_VOLUME",
+    "Sparkles": "PARTICLES_3D",
+    "Beam": "LINE",
+    "Trail": "LINE",
+    "Highlight": "STANDARD_MATERIAL",
+    "Decal": "DECAL",
+    "Texture": "TEXTURE_2D",
+    "SelectionBox": "COLLISION_SHAPE_3D",
+    "SelectionSphere": "COLLISION_SHAPE_3D",
     "Spatial": "NODE_3D"
 }

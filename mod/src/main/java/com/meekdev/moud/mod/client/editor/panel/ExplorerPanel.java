@@ -60,6 +60,8 @@ public final class ExplorerPanel implements Panel {
 
     private static final List<String> COMMON_CLASSES = List.of(
             "Folder", "Model", "Part", "MeshPart", "SpawnLocation", "Camera", "CameraPath", "Attachment", "PointLight", "SpotLight", "AreaLight", "Sound", "Zone", "ClickDetector", "ScreenGui");
+    private static final List<String> EFFECT_CLASSES = List.of(
+            "ParticleEmitter", "Beam", "Trail", "Highlight", "Decal", "Texture", "Fire", "Smoke", "Sparkles", "SelectionBox", "SelectionSphere");
     private static final int TRANSPARENT = 0;
     private static final int SELECTION_COLOR_COUNT = 3;
     private static final float SELECTED_ALPHA = 0.16f;
@@ -137,6 +139,12 @@ public final class ExplorerPanel implements Panel {
     void renderInsertItems(int parent) {
         for (String name : COMMON_CLASSES) {
             if (Addons.classes().find(name) != null && ImGui.menuItem(name)) document.insert(name, parent);
+        }
+        if (ImGui.beginMenu("Effects")) {
+            for (String name : EFFECT_CLASSES) {
+                if (ImGui.menuItem(name)) document.insert(name, parent);
+            }
+            ImGui.endMenu();
         }
         ImGui.separator();
         if (!ImGui.beginMenu("All classes")) return;
