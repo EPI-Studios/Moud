@@ -22,6 +22,8 @@
     "ForceField": "FOG_VOLUME",
     "Tool": "TOOL_SELECT",
     "Team": "CHARACTER_BODY_3D",
+    "Leaderboard": "FOLDER",
+    "Leaderstats": "FOLDER",
     "ReplicatedStorage": "FOLDER",
     "ServerStorage": "FOLDER",
     "ServerScriptService": "SCRIPT",

@@ -114,6 +114,7 @@
     "SpawnLocation.neutral": "Anyone can spawn here. Off: only the team whose colour matches teamColor.",
     "allowTeamChangeOnTouch": "Standing on it moves the player to the team of its colour.",
     "Character.team": "The team of the player wearing this body.",
+    "Leaderstats.owner": "The player whose scores these are. The engine fills it in when they join.",
     "Tool.enabled": "Off: clicking with the tool does nothing.",
     "requiresHandle": "The tool can only be equipped while it holds a part named Handle. A Handle is held in the right hand either way.",
     "canBeDropped": "Pressing the drop key leaves the tool in the world, where walking into its Handle picks it up.",

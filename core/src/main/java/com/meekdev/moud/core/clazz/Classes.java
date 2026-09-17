@@ -113,6 +113,8 @@ import com.meekdev.moud.core.render.post.VolumetricEffect;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.ModuleScript;
 import com.meekdev.moud.core.script.Script;
+import com.meekdev.moud.core.player.Leaderboard;
+import com.meekdev.moud.core.player.Leaderstats;
 import com.meekdev.moud.core.player.Team;
 import com.meekdev.moud.core.service.ReplicatedStorage;
 import com.meekdev.moud.core.service.ServerScriptService;
@@ -376,6 +378,10 @@ public final class Classes {
     public static final ClassDef<ForceField> FORCE_FIELD = ClassDef.of("ForceField", null, ForceField.class, ForceField::new);
     public static final ClassDef<Tool> TOOL = ClassDef.of("Tool", null, Tool.class, Tool::new);
     public static final ClassDef<Team> TEAM = ClassDef.of("Team", null, Team.class, Team::new);
+    public static final ClassDef<Leaderboard> LEADERBOARD =
+            ClassDef.of("Leaderboard", null, Leaderboard.class, Leaderboard::new);
+    public static final ClassDef<Leaderstats> LEADERSTATS =
+            ClassDef.of("Leaderstats", null, Leaderstats.class, Leaderstats::new);
     public static final ClassDef<ReplicatedStorage> REPLICATED_STORAGE = ClassDef.of("ReplicatedStorage", null, ReplicatedStorage.class, ReplicatedStorage::new);
     public static final ClassDef<ServerStorage> SERVER_STORAGE = ClassDef.of("ServerStorage", null, ServerStorage.class, ServerStorage::new);
     public static final ClassDef<ServerScriptService> SERVER_SCRIPT_SERVICE = ClassDef.of("ServerScriptService", null, ServerScriptService.class, ServerScriptService::new);
@@ -548,6 +554,8 @@ public final class Classes {
         r.register(FORCE_FIELD);
         r.register(TOOL);
         r.register(TEAM);
+        r.register(LEADERBOARD);
+        r.register(LEADERSTATS);
         r.register(REPLICATED_STORAGE);
         r.register(SERVER_STORAGE);
         r.register(SERVER_SCRIPT_SERVICE);

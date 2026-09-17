@@ -241,7 +241,7 @@ public final class Place {
 
     public static boolean authored(Instance instance) {
         for (Instance at = instance; at != null; at = at.parent()) {
-            if (at.isA(Classes.CHARACTER)) return false;
+            if (at.isA(Classes.CHARACTER) || at.storesAway()) return false;
         }
         return instance.id() >= 0;
     }

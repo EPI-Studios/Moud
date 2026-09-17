@@ -12,6 +12,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.player.Leaderboards;
 import com.meekdev.moud.core.player.Team;
 import com.meekdev.moud.script.api.CameraRef;
 import com.meekdev.moud.script.api.ControlsRef;
@@ -42,6 +43,7 @@ public final class Players {
                 .declare("character", "Instance?")
                 .declare("controls", "PlayerControls")
                 .declare("team", "Team?")
+                .declare("leaderstats", "Leaderstats?")
                 .method("spawn", "(position: Vector3?) -> ()", a -> {
                     a.self(Player.class).ref().spawn(a.has(1) ? a.vector(1) : null);
                     return null;
@@ -70,6 +72,7 @@ public final class Players {
                 case "character" -> ref.character();
                 case "controls" -> controls(ref.controls());
                 case "team" -> ref.team();
+                case "leaderstats" -> ref.leaderstats();
                 default -> METHODS.get(key);
             };
         }
@@ -126,6 +129,11 @@ public final class Players {
         @Override
         public void team(Instance team) {
             throw new HostError("player.team is set on the server");
+        }
+
+        @Override
+        public Instance leaderstats() {
+            return Leaderboards.find(host.world(), id());
         }
 
         @Override

@@ -133,6 +133,7 @@ public final class MoudServer {
 
         Teams.joined(player);
         Post.tellWorld(player, Physics.gravity());
+        Scores.joined(player);
         boolean fresh = Spawning.autoSpawn() && Spawning.place(player, null);
         if (!Spawning.autoSpawn()) Spawning.hold(player);
 
@@ -159,6 +160,7 @@ public final class MoudServer {
         HumanoidStates.left(player);
         Teams.left(player);
         Seating.left(player);
+        Scores.left(player);
         ServerTools.clear(player);
         Broadcast.forget(player.getUUID());
     }

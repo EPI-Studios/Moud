@@ -54,6 +54,7 @@
     "client.ShaderSourceMixin",
     "client.SkyMixin",
     "client.SoundMixin",
+    "client.TabListMixin",
     "client.TextureCacheMixin",
     "client.WireframeMixin",
     "client.LevelPassMixin",

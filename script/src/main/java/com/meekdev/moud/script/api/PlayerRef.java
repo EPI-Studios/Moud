@@ -22,6 +22,10 @@ public interface PlayerRef {
     default void team(Instance team) {
     }
 
+    default Instance leaderstats() {
+        return null;
+    }
+
     void kick(String message);
 
     default void ban(String reason, double seconds) {

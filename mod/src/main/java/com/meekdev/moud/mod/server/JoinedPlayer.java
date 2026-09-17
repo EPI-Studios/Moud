@@ -67,6 +67,11 @@ final class JoinedPlayer implements PlayerRef {
     }
 
     @Override
+    public Instance leaderstats() {
+        return Scores.of(player);
+    }
+
+    @Override
     public void kick(String message) {
         player.connection.disconnect(Component.literal(message.isBlank() ? "You were removed from the game" : message));
     }
