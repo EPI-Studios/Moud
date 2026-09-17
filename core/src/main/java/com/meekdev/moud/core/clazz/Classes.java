@@ -107,12 +107,15 @@ import com.meekdev.moud.core.ui.TextButton;
 import com.meekdev.moud.core.ui.TextLabel;
 import com.meekdev.moud.core.ui.UIAspectRatioConstraint;
 import com.meekdev.moud.core.ui.UIComponent;
+import com.meekdev.moud.core.ui.UICorner;
+import com.meekdev.moud.core.ui.UIGradient;
 import com.meekdev.moud.core.ui.UIGridLayout;
 import com.meekdev.moud.core.ui.UILayout;
 import com.meekdev.moud.core.ui.UIListLayout;
 import com.meekdev.moud.core.ui.UIPadding;
 import com.meekdev.moud.core.ui.UIScale;
 import com.meekdev.moud.core.ui.UISizeConstraint;
+import com.meekdev.moud.core.ui.UIStroke;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.core.value.BoolValue;
 import com.meekdev.moud.core.value.NumberValue;
@@ -259,6 +262,10 @@ public final class Classes {
     public static final ClassDef<UISizeConstraint> UI_SIZE_CONSTRAINT =
             ClassDef.of("UISizeConstraint", UI_COMPONENT, UISizeConstraint.class, UISizeConstraint::new);
     public static final ClassDef<UIScale> UI_SCALE = ClassDef.of("UIScale", UI_COMPONENT, UIScale.class, UIScale::new);
+    public static final ClassDef<UIStroke> UI_STROKE = ClassDef.of("UIStroke", UI_COMPONENT, UIStroke.class, UIStroke::new);
+    public static final ClassDef<UIGradient> UI_GRADIENT =
+            ClassDef.of("UIGradient", UI_COMPONENT, UIGradient.class, UIGradient::new);
+    public static final ClassDef<UICorner> UI_CORNER = ClassDef.of("UICorner", UI_COMPONENT, UICorner.class, UICorner::new);
 
     public static final ClassDef<ViewportFrame> VIEWPORT_FRAME =
             ClassDef.of("ViewportFrame", GUI_OBJECT, ViewportFrame.class, ViewportFrame::new);
@@ -422,6 +429,9 @@ public final class Classes {
         r.register(UI_ASPECT_RATIO_CONSTRAINT);
         r.register(UI_SIZE_CONSTRAINT);
         r.register(UI_SCALE);
+        r.register(UI_STROKE);
+        r.register(UI_GRADIENT);
+        r.register(UI_CORNER);
         r.register(VIEWPORT_FRAME);
         r.register(WINDOW);
         r.register(SOUND);

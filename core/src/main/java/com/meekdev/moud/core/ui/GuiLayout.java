@@ -69,6 +69,13 @@ public final class GuiLayout {
         return new Box(box.x() + left, box.y() + top, Math.max(0, box.w() - left - right), Math.max(0, box.h() - top - bottom));
     }
 
+    public static double cornerRadius(GuiObject object, double w, double h) {
+        UICorner corner = component(object, UICorner.class);
+        double shortest = Math.min(w, h);
+        double radius = corner == null ? object.cornerRadius : udim(corner.cornerRadius, false, shortest);
+        return Math.clamp(radius, 0, Math.max(0, shortest * 0.5));
+    }
+
     public static double scale(GuiObject object) {
         UIScale scale = component(object, UIScale.class);
         return scale == null ? 1 : scale.scale;
