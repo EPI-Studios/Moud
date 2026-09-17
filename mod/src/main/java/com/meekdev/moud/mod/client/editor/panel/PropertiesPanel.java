@@ -45,6 +45,7 @@ public final class PropertiesPanel implements Panel {
     private final SceneDocument document;
     private final IconWidgets icons;
     private final PropertyRows rows;
+    private final AttributeRows attributes;
     private final ImString nameInput = new ImString(256);
     private int naming;
     private boolean nameActive;
@@ -59,6 +60,7 @@ public final class PropertiesPanel implements Panel {
         this.document = document;
         this.icons = icons;
         this.rows = new PropertyRows(document);
+        this.attributes = new AttributeRows(document);
     }
 
     public void viewTools(ViewTools tools) {
@@ -122,7 +124,8 @@ public final class PropertiesPanel implements Panel {
         }
         if (count == 1 && search.get().isBlank()) {
             renderTags(instance);
-            renderAttributes(instance);
+            if (Sections.header("Attributes", false)) attributes.render(instance);
+            renderValues(instance);
         }
         ImGui.endDisabled();
     }
@@ -217,24 +220,24 @@ public final class PropertiesPanel implements Panel {
         }
     }
 
-    private void renderAttributes(Instance instance) {
-        if (!Sections.header("Attributes", false)) return;
+    private void renderValues(Instance instance) {
+        if (!Sections.header("Values", false)) return;
         boolean any = false;
         for (Instance child : instance.children()) {
             if (!(child instanceof Value)) continue;
             PropertyDef value = child.def().property("value");
             if (value == null) continue;
             any = true;
-            ImGui.pushID("attribute-" + child.id());
+            ImGui.pushID("value-" + child.id());
             rows.render(child, value, List.of(child), child.name());
             ImGui.popID();
         }
         if (!any) Texts.muted("Values stored on this instance, read by scripts as instance:values().");
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.5f);
-        ImGui.inputTextWithHint("##attribute-name", "Name", valueName);
+        ImGui.inputTextWithHint("##value-name", "Name", valueName);
         ImGui.sameLine();
-        if (ImGui.button("Add##attribute-add")) ImGui.openPopup("##attribute-kind");
-        if (ImGui.beginPopup("##attribute-kind")) {
+        if (ImGui.button("Add##value-add")) ImGui.openPopup("##value-kind");
+        if (ImGui.beginPopup("##value-kind")) {
             for (String kind : VALUE_CLASSES) {
                 if (ImGui.menuItem(kind.replace("Value", ""))) {
                     document.addValue(instance.id(), kind, valueName.get());

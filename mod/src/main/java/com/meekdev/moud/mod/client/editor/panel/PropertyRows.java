@@ -49,20 +49,20 @@ import org.jspecify.annotations.Nullable;
 
 final class PropertyRows {
 
-    private static final float DRAG_STEP = 0.05f;
+    static final float DRAG_STEP = 0.05f;
     private static final float NUDGE_FAST = 10.0f;
     private static final float NUDGE_FINE = 0.1f;
     private static final float LABEL_SHARE = 0.36f;
     private static final float LABEL_MIN = 84.0f;
     private static final float LABEL_MAX = 150.0f;
-    private static final float DEGREE_STEP = 0.5f;
-    private static final float RADIANS_TO_DEGREES = 57.295776f;
-    private static final float DEGREES_TO_RADIANS = 0.017453293f;
+    static final float DEGREE_STEP = 0.5f;
+    static final float RADIANS_TO_DEGREES = 57.295776f;
+    static final float DEGREES_TO_RADIANS = 0.017453293f;
     private static final float QUAT_EPSILON = 0.0001f;
     private static final int STRING_CAPACITY = 512;
     private static final int REF_CHOICES = 400;
-    private static final String[] UDIM_LABELS = {"scale", "px"};
-    private static final float[] UDIM_STEPS = {0.01f, 1.0f};
+    static final String[] UDIM_LABELS = {"scale", "px"};
+    static final float[] UDIM_STEPS = {0.01f, 1.0f};
 
     private static final class Euler {
         final float[] degrees = new float[3];
@@ -187,10 +187,14 @@ final class PropertyRows {
         return out.toString();
     }
 
+    static float labelColumn(float available) {
+        return Math.clamp(available * LABEL_SHARE, EditorScale.of(LABEL_MIN), EditorScale.of(LABEL_MAX));
+    }
+
     private void beginLabelled(String label) {
         float start = ImGui.getCursorPosX();
         float available = ImGui.getContentRegionAvailX();
-        float column = Math.clamp(available * LABEL_SHARE, EditorScale.of(LABEL_MIN), EditorScale.of(LABEL_MAX));
+        float column = labelColumn(available);
         float left = ImGui.getCursorScreenPosX();
         float top = ImGui.getCursorScreenPosY();
         float height = ImGui.getFrameHeight();

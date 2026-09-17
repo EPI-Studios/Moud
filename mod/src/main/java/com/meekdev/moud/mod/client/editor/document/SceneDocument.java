@@ -7,6 +7,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Attachment;
+import com.meekdev.moud.core.instance.Attributes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
@@ -216,6 +217,16 @@ public final class SceneDocument {
         editableOrThrow(target);
         if (tag.isBlank()) throw new IllegalStateException("a tag can not be empty");
         apply(new Change.Tagged(target.id, tag, added));
+    }
+
+    @Nullable Object attribute(InstanceRef target, String name) {
+        return require(target).attribute(name);
+    }
+
+    void attribute(InstanceRef target, String name, @Nullable Object value) {
+        editableOrThrow(target);
+        Attributes.checkName(name);
+        apply(new Change.Attributed(target.id, name, Attributes.normalize(value)));
     }
 
     public void addValue(int parentId, String className, String name) {
