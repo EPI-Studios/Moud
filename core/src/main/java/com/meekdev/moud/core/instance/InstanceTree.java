@@ -48,6 +48,7 @@ public final class InstanceTree {
     long structureEpoch = 1;
     long mutations;
     boolean hierarchyListened;
+    boolean hierarchyHeld;
 
     private Instance root;
     private Instance[] byId = new Instance[64];

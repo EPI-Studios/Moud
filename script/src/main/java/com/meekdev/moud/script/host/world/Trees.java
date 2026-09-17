@@ -196,11 +196,20 @@ public final class Trees {
             Instance original = a.self();
             Instance parent = a.instance(1, original.parent());
             if (parent == null) throw new HostError("cannot clone the root without a parent");
-            Instance holder = Instances.create(Classes.FOLDER, parent, "clone");
-            List<Instance> made = Scene.load(Scene.save(List.of(original)), holder, host.classes());
-            Instance copy = made.isEmpty() ? null : made.getFirst();
-            if (copy != null) Instances.reparent(copy, parent);
-            Instances.destroy(holder);
+            if (!parent.isAlive()) throw new HostError("cannot clone into %s, it has been destroyed", parent.name());
+            String saved = Scene.save(List.of(original));
+            Instance copy = Instances.quietly(parent.tree(), () -> {
+                Instance holder = Instances.create(Classes.FOLDER, parent, "clone");
+                try {
+                    List<Instance> made = Scene.load(saved, holder, host.classes());
+                    Instance first = made.isEmpty() ? null : made.getFirst();
+                    if (first != null) Instances.reparent(first, parent);
+                    return first;
+                } finally {
+                    Instances.destroy(holder);
+                }
+            });
+            if (copy != null) Instances.announce(copy);
             return copy;
         });
         shared.method("query", "(selector: string) -> { Instance }", a -> new ArrayList<Object>(select(host, a)));

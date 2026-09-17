@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public final class Instances {
 
@@ -41,7 +42,7 @@ public final class Instances {
         i.parent = parent;
         parent.children.add(i);
         parent.tree.index(i);
-        if (parent.childAdded != null) parent.childAdded.fire(i);
+        if (parent.childAdded != null && !parent.tree.hierarchyHeld) parent.childAdded.fire(i);
         added(i);
         return i;
     }
@@ -66,7 +67,7 @@ public final class Instances {
         tree.index(i);
 
         i.build();
-        if (parent.childAdded != null) parent.childAdded.fire(i);
+        if (parent.childAdded != null && !parent.tree.hierarchyHeld) parent.childAdded.fire(i);
         added(i);
         return i;
     }
@@ -105,39 +106,55 @@ public final class Instances {
         newParent.children.add(i);
         i.tree.structureEpoch++;
         i.tree.markMoved(i);
-        if (newParent.childAdded != null) newParent.childAdded.fire(i);
+        if (newParent.childAdded != null && !i.tree.hierarchyHeld) newParent.childAdded.fire(i);
         ancestry(i, i);
         addedBranch(i);
     }
 
+    public static <T> T quietly(InstanceTree tree, Supplier<T> build) {
+        boolean held = tree.hierarchyHeld;
+        tree.hierarchyHeld = true;
+        try {
+            return build.get();
+        } finally {
+            tree.hierarchyHeld = held;
+        }
+    }
+
+    public static void announce(Instance i) {
+        if (i.tree == null || i.parent == null || i.tree.hierarchyHeld) return;
+        if (i.parent.childAdded != null) i.parent.childAdded.fire(i);
+        addedBranch(i);
+    }
+
     private static void added(Instance i) {
-        if (i.tree == null || !i.tree.hierarchyListened) return;
+        if (i.tree == null || !i.tree.hierarchyListened || i.tree.hierarchyHeld) return;
         for (Instance up = i.parent; up != null; up = up.parent) {
             if (up.descendantAdded != null) up.descendantAdded.fire(i);
         }
     }
 
     private static void removing(Instance i) {
-        if (i.tree == null || !i.tree.hierarchyListened) return;
+        if (i.tree == null || !i.tree.hierarchyListened || i.tree.hierarchyHeld) return;
         for (Instance up = i.parent; up != null; up = up.parent) {
             if (up.descendantRemoving != null) up.descendantRemoving.fire(i);
         }
     }
 
     private static void addedBranch(Instance i) {
-        if (i.tree == null || !i.tree.hierarchyListened) return;
+        if (i.tree == null || !i.tree.hierarchyListened || i.tree.hierarchyHeld) return;
         added(i);
         for (Instance child : List.copyOf(i.children)) addedBranch(child);
     }
 
     private static void removingBranch(Instance i) {
-        if (i.tree == null || !i.tree.hierarchyListened) return;
+        if (i.tree == null || !i.tree.hierarchyListened || i.tree.hierarchyHeld) return;
         removing(i);
         for (Instance child : List.copyOf(i.children)) removingBranch(child);
     }
 
     private static void ancestry(Instance i, Instance moved) {
-        if (i.tree == null || !i.tree.hierarchyListened) return;
+        if (i.tree == null || !i.tree.hierarchyListened || i.tree.hierarchyHeld) return;
         if (i.ancestryChanged != null) i.ancestryChanged.fire(moved);
         for (Instance child : List.copyOf(i.children)) ancestry(child, moved);
     }
