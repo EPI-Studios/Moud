@@ -13,6 +13,7 @@
     "RemoteFunction.timeout": "Seconds an invoke waits for its answer before it fails. 0 waits forever.",
     "accepts": "What a message may carry, in order: \"string\", \"number, vec3?\"... Empty means no arguments; anything else sent is refused.",
     "Part.size": "Its dimensions in blocks.",
+    "Part.shape": "Block, ball, cylinder, wedge or corner wedge. A ball is as wide as the smallest side, a cylinder lies along X, and a wedge slopes from its top back edge down to its front.",
     "Part.color": "The colour it is drawn with.",
     "transparency": "0 is solid, 1 is invisible.",
     "anchored": "On: physics never moves it, it stays exactly where it is placed. Off: it falls, gets pushed and rolls once the place plays.",

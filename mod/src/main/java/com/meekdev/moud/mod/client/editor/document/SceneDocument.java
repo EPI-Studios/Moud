@@ -4,6 +4,7 @@ import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.audio.Sound;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Attachment;
@@ -17,6 +18,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.PartShape;
 import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
@@ -47,6 +49,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -362,6 +365,17 @@ public final class SceneDocument {
     }
 
     public void insert(String className, int parentId) {
+        insert(className, className, parentId, made -> { });
+    }
+
+    public void insertShape(PartShape shape, int parentId) {
+        String name = Enums.name(shape);
+        insert("Part", Character.toUpperCase(name.charAt(0)) + name.substring(1), parentId, made -> {
+            if (made instanceof Part part) part.shape = shape;
+        });
+    }
+
+    private void insert(String className, String name, int parentId, Consumer<Instance> setup) {
         ClassDef<?> def = Addons.classes().find(className);
         Instance parent = find(parentId);
         if (def == null || parent == null) return;
@@ -369,7 +383,8 @@ public final class SceneDocument {
         try {
             InstanceTree scratch = new InstanceTree();
             Instance root = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
-            Instance made = Instances.create(def, root, className);
+            Instance made = Instances.create(def, root, name);
+            setup.accept(made);
             if (made instanceof Spatial spatial && !inViewport(parent)) {
                 Vector3 at = spawnPoint.get();
                 if (made instanceof Part part) at = at.add(new Vector3(0, part.size.y() * 0.5, 0));
@@ -378,10 +393,10 @@ public final class SceneDocument {
             }
             text = snapshot(List.of(made));
         } catch (RuntimeException e) {
-            SceneLink.local("Could not insert " + className + ": " + e.getMessage());
+            SceneLink.local("Could not insert " + name + ": " + e.getMessage());
             return;
         }
-        history.execute(Paste.fresh(text, ref(parentId), "Insert " + className));
+        history.execute(Paste.fresh(text, ref(parentId), "Insert " + name));
     }
 
     public void insertScript(ScriptTemplate template, boolean local, int parentId) {

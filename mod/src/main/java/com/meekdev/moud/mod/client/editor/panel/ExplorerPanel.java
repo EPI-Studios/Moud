@@ -2,12 +2,14 @@ package com.meekdev.moud.mod.client.editor.panel;
 
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.ClassDef;
+import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.PartShape;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.ModuleScript;
 import com.meekdev.moud.core.script.Script;
@@ -148,6 +150,16 @@ public final class ExplorerPanel implements Panel {
         boolean inInterface = at != null && GuiLayout.interfacePart(at) && !(at instanceof UIComponent) && !(at instanceof ViewportFrame);
         for (String name : inInterface ? INTERFACE_CLASSES : COMMON_CLASSES) {
             if (Addons.classes().find(name) != null && ImGui.menuItem(name)) document.insert(name, parent);
+        }
+        if (ImGui.beginMenu("Shapes")) {
+            for (PartShape shape : PartShape.values()) {
+                if (shape == PartShape.BLOCK) continue;
+                String spelled = Enums.name(shape);
+                if (ImGui.menuItem(Character.toUpperCase(spelled.charAt(0)) + spelled.substring(1))) {
+                    document.insertShape(shape, parent);
+                }
+            }
+            ImGui.endMenu();
         }
         if (ImGui.beginMenu("Effects")) {
             for (String name : EFFECT_CLASSES) {
