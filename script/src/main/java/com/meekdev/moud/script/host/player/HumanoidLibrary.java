@@ -4,6 +4,8 @@ import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Humanoid;
 import com.meekdev.moud.core.character.HumanoidState;
 import com.meekdev.moud.core.character.Humanoids;
+import com.meekdev.moud.core.character.Tool;
+import com.meekdev.moud.core.character.Tools;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.instance.Instances;
@@ -56,6 +58,28 @@ final class HumanoidLibrary {
             Humanoid living = server(host, a.self(Humanoid.class), "setStateEnabled");
             if (!(a.get(2) instanceof Boolean on)) throw new HostError("setStateEnabled expects true or false");
             living.stateEnabled(state(a.string(1)), on);
+            return null;
+        });
+        humanoids.method("equipTool", "(tool: Tool) -> ()", a -> {
+            Humanoid living = server(host, a.self(Humanoid.class), "equipTool");
+            if (!(a.instance(1) instanceof Tool tool)) throw new HostError("equipTool expects a Tool");
+            if (host.tools() == null) Tools.equip(body(living), tool);
+            else host.tools().equip(body(living), tool);
+            return null;
+        });
+        humanoids.method("unequipTools", "() -> ()", a -> {
+            Humanoid living = server(host, a.self(Humanoid.class), "unequipTools");
+            if (host.tools() == null) Tools.unequip(body(living));
+            else host.tools().unequip(body(living));
+            return null;
+        });
+        Members tools = host.instances().of(Classes.TOOL);
+        tools.method("activate", "() -> ()", a -> {
+            Tools.activate(a.self(Tool.class), true);
+            return null;
+        });
+        tools.method("deactivate", "() -> ()", a -> {
+            Tools.activate(a.self(Tool.class), false);
             return null;
         });
         humanoids.method("getStateEnabled", "(state: " + STATE + ") -> boolean", a -> a.self(Humanoid.class).stateEnabled(state(a.string(1))));

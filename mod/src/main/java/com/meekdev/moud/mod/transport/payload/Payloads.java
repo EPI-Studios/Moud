@@ -28,6 +28,7 @@ public final class Payloads {
         down.register(ScenePastedPayload.TYPE, ScenePastedPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(RemoteUpPayload.TYPE, RemoteUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ChatUpPayload.TYPE, ChatUpPayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(ToolPayload.TYPE, ToolPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PromptPayload.TYPE, PromptPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ClickPayload.TYPE, ClickPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PilotUpPayload.TYPE, PilotUpPayload.CODEC.cast());

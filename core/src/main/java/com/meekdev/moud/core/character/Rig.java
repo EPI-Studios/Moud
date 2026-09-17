@@ -44,6 +44,8 @@ public final class Rig {
 
     public static final String ANIMATOR = "animator";
 
+    public static final String BACKPACK = "backpack";
+
     public static final String ARMOUR = "armour";
 
     public static final String[] WORN_HEAD = {"wornHead", "wornHeadLayer"};
@@ -264,6 +266,7 @@ public final class Rig {
 
         Instances.create(Classes.HUMANOID, character, HUMANOID);
         Instances.create(Classes.ANIMATOR, character, ANIMATOR);
+        Instances.create(Classes.BACKPACK, character, BACKPACK);
         Instances.create(Classes.ARMOUR, character, ARMOUR);
         if (hat != null) {
             for (int n = 0; n < WORN_HEAD.length; n++) {

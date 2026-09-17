@@ -4,6 +4,7 @@ import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Humanoid;
 import com.meekdev.moud.core.character.HumanoidState;
 import com.meekdev.moud.core.character.Rig;
+import com.meekdev.moud.core.character.Tools;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
@@ -13,6 +14,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.SpawnLocation;
 import com.meekdev.moud.mod.adapter.physics.Characters;
+import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.transport.payload.ControlsPayload;
@@ -99,6 +101,7 @@ public final class Spawning {
         if (character == null) {
             character = Instances.create(Classes.CHARACTER, world, player.getGameProfile().name());
             Physics.bodies().bind(player, character);
+            Tools.stock(character, tree, Addons.classes());
             fresh = true;
         }
         player.teleportTo(player.level(), point.position().x(), point.position().y(), point.position().z(), Set.of(), (float) point.yawDegrees(), player.getXRot(), true);

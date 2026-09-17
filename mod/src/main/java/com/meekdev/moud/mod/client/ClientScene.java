@@ -21,6 +21,7 @@ import com.meekdev.moud.mod.adapter.physics.PlayerMirror;
 import com.meekdev.moud.mod.adapter.render.PartLight;
 import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.addon.Addons;
+import com.meekdev.moud.mod.client.tool.ClientTools;
 import com.meekdev.moud.mod.client.zone.ZoneSounds;
 import com.meekdev.moud.mod.transport.Post;
 import java.util.UUID;
@@ -77,6 +78,7 @@ public final class ClientScene {
             }
         }
         Stages.run(tree, Stage.COMPOSE, 0);
+        if (!EditMode.editing()) ClientTools.tick(tree, own);
         Touches.step(tree);
         Zones.step(tree, Addons.classes(), System.nanoTime() / 1e9);
         ZoneSounds.tick(tree);

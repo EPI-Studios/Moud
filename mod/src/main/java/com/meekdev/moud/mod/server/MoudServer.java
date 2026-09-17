@@ -21,6 +21,7 @@ import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.server.input.ServerClicks;
 import com.meekdev.moud.mod.server.pilot.ServerPilot;
+import com.meekdev.moud.mod.server.tool.ServerTools;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import com.meekdev.moud.mod.transport.Broadcast;
 import com.meekdev.moud.mod.transport.Post;
@@ -105,6 +106,7 @@ public final class MoudServer {
         ServerPilot.tick(server);
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
         if (!place.editing()) HumanoidStates.tick(server, ServerScene.tree());
+        if (!place.editing()) ServerTools.tick(server, ServerScene.tree());
         ServerHistory.INSTANCE.record(ServerScene.tree());
         Editing.tick(server);
         if (!place.editing()) Spawning.tick(server, dt);
@@ -147,6 +149,7 @@ public final class MoudServer {
         if (character != null) Instances.destroy(character);
         Spawning.left(player);
         HumanoidStates.left(player);
+        ServerTools.clear(player);
         Broadcast.forget(player.getUUID());
     }
 }

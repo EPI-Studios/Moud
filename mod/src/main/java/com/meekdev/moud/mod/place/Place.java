@@ -17,6 +17,7 @@ import com.meekdev.moud.mod.server.ServerPush;
 import com.meekdev.moud.mod.server.ServerHistory;
 import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.mod.server.Spawning;
+import com.meekdev.moud.mod.server.tool.ServerTools;
 import com.meekdev.moud.mod.server.debug.ServerDebug;
 import com.meekdev.moud.mod.transport.Post;
 import com.meekdev.moud.script.engine.PlaceModules;
@@ -419,6 +420,7 @@ public final class Place {
                     .spawns(Spawning.fresh())
                     .roster(Roster.INSTANCE)
                     .physics(PartBodies.INSTANCE)
+                    .tools(ServerTools.INSTANCE)
                     .push(ServerPush.INSTANCE);
         }
         fresh.persist(carried);

@@ -10,6 +10,9 @@ import com.meekdev.moud.core.character.Armour;
 import com.meekdev.moud.core.character.Cape;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Animation;
+import com.meekdev.moud.core.character.Backpack;
+import com.meekdev.moud.core.character.StarterPack;
+import com.meekdev.moud.core.character.Tool;
 import com.meekdev.moud.core.character.ForceField;
 import com.meekdev.moud.core.character.Keyframe;
 import com.meekdev.moud.core.character.KeyframeMarker;
@@ -261,6 +264,9 @@ public final class Classes {
     public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
     public static final ClassDef<Model> MODEL = ClassDef.of("Model", SPATIAL, Model.class, Model::new);
     public static final ClassDef<ForceField> FORCE_FIELD = ClassDef.of("ForceField", null, ForceField.class, ForceField::new);
+    public static final ClassDef<Tool> TOOL = ClassDef.of("Tool", null, Tool.class, Tool::new);
+    public static final ClassDef<Backpack> BACKPACK = ClassDef.of("Backpack", null, Backpack.class, Backpack::new);
+    public static final ClassDef<StarterPack> STARTER_PACK = ClassDef.of("StarterPack", null, StarterPack.class, StarterPack::new);
     public static final ClassDef<Animation> ANIMATION = ClassDef.of("Animation", null, Animation.class, Animation::new);
     public static final ClassDef<KeyframeSequence> KEYFRAME_SEQUENCE =
             ClassDef.of("KeyframeSequence", null, KeyframeSequence.class, KeyframeSequence::new);
@@ -374,6 +380,9 @@ public final class Classes {
         r.register(MOTOR);
         r.register(MODEL);
         r.register(FORCE_FIELD);
+        r.register(TOOL);
+        r.register(BACKPACK);
+        r.register(STARTER_PACK);
         r.register(ANIMATION);
         r.register(KEYFRAME_SEQUENCE);
         r.register(KEYFRAME);

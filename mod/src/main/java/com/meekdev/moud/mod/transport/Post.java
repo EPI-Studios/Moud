@@ -7,6 +7,7 @@ import com.meekdev.moud.core.remote.Schema;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.server.input.ServerClicks;
 import com.meekdev.moud.mod.server.pilot.ServerPilot;
+import com.meekdev.moud.mod.server.tool.ServerTools;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import com.meekdev.moud.mod.transport.payload.Payloads;
 import com.meekdev.moud.net.transport.Wire;
@@ -40,6 +41,7 @@ public final class Post {
         ServerPrompts.listen();
         ServerClicks.listen();
         ServerPilot.listen();
+        ServerTools.listen();
         Broadcast.listen();
     }
 
