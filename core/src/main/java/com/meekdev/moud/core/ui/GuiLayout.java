@@ -61,8 +61,8 @@ public final class GuiLayout {
     }
 
     public static Box canvas(ScrollingFrame frame, Box window, Measure measure) {
-        double w = Math.max(0, frame.canvasSize.x(window.w()));
-        double h = Math.max(0, frame.canvasSize.y(window.h()));
+        double w = Math.max(window.w(), frame.canvasSize.x(window.w()));
+        double h = Math.max(window.h(), frame.canvasSize.y(window.h()));
         if (frame.automaticCanvasSize != AutomaticSize.NONE) {
             Size needed = contentOf(frame, w, h, measure);
             if (frame.automaticCanvasSize.x()) w = Math.max(w, needed.w());
