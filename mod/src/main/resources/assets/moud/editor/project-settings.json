@@ -62,5 +62,11 @@
       "VANILLA_SOUNDS": "Footsteps, blocks and other game sounds",
       "VANILLA_MUSIC": "Minecraft's background music"
     }
+  },
+  {
+    "title": "Scripts",
+    "features": {
+      "HTTP_REQUESTS": "Server scripts may reach websites with http.request"
+    }
   }
 ]

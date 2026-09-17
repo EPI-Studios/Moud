@@ -10,6 +10,7 @@ import com.meekdev.moud.core.character.Animators;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
+import com.meekdev.moud.mod.adapter.http.HttpRequests;
 import com.meekdev.moud.mod.adapter.physics.PartBodies;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.Roster;
@@ -423,6 +424,7 @@ public final class Place {
                     .roster(Roster.INSTANCE)
                     .physics(PartBodies.INSTANCE)
                     .tools(ServerTools.INSTANCE)
+                    .http(HttpRequests.INSTANCE)
                     .push(ServerPush.INSTANCE);
         }
         fresh.persist(carried);

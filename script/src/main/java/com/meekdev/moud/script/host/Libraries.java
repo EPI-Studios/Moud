@@ -6,6 +6,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.script.ModuleScript;
 import com.meekdev.moud.script.host.audio.AudioLibrary;
 import com.meekdev.moud.script.host.chat.ChatLibrary;
+import com.meekdev.moud.script.host.data.HttpLibrary;
 import com.meekdev.moud.script.host.data.StoreLibrary;
 import com.meekdev.moud.script.host.debug.DebugLibrary;
 import com.meekdev.moud.script.host.java.JavaLibrary;
@@ -77,6 +78,7 @@ final class Libraries {
         EffectLibrary.install(host);
         DebugLibrary.install(host, game);
         StoreLibrary.install(host);
+        HttpLibrary.install(host);
         GameLibrary.install(host, game);
         WindowLibrary.install(host);
         InterfaceLibrary.install(host);

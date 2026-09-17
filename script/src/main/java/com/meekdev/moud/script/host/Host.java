@@ -26,6 +26,7 @@ import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PartPhysicsRef;
 import com.meekdev.moud.script.api.PostRef;
+import com.meekdev.moud.script.api.HttpRef;
 import com.meekdev.moud.script.api.PushRef;
 import com.meekdev.moud.script.api.ToolRef;
 import com.meekdev.moud.script.api.RosterRef;
@@ -104,6 +105,7 @@ public final class Host {
     private PushRef push;
     private PartPhysicsRef physics;
     private ToolRef tools;
+    private HttpRef http;
     private GameRef game;
     private SettingsRef settings;
     private WindowRef window;
@@ -146,7 +148,8 @@ public final class Host {
                         .window(inert(WindowRef.class))
                         .devices(inert(DevicesRef.class));
             } else {
-                host.tools(inert(ToolRef.class))
+                host.http(inert(HttpRef.class))
+                        .tools(inert(ToolRef.class))
                         .physics(inert(PartPhysicsRef.class))
                         .spawns(inert(SpawnRef.class))
                         .roster(inert(RosterRef.class));
@@ -222,6 +225,7 @@ public final class Host {
     public PushRef push() { return push; }
     public PartPhysicsRef physics() { return physics; }
     public ToolRef tools() { return tools; }
+    public HttpRef http() { return http; }
     public GameRef game() { return game; }
     public SettingsRef settings() { return settings; }
     public WindowRef window() { return window; }
@@ -249,6 +253,7 @@ public final class Host {
     public Host push(PushRef push) { this.push = push; return this; }
     public Host physics(PartPhysicsRef physics) { this.physics = physics; return this; }
     public Host tools(ToolRef tools) { this.tools = tools; return this; }
+    public Host http(HttpRef http) { this.http = http; return this; }
     public Host game(GameRef game) { this.game = game; return this; }
     public Host settings(SettingsRef settings) { this.settings = settings; return this; }
     public Host window(WindowRef window) { this.window = window; return this; }

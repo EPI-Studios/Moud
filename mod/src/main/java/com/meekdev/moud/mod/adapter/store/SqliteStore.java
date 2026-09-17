@@ -175,4 +175,23 @@ public final class SqliteStore implements StoreRef {
     private static IllegalStateException failed(SQLException e) {
         return new IllegalStateException("the save file refused that: " + e.getMessage(), e);
     }
+
+    @Override
+    public List<Ranked> sorted(String store, boolean ascending, int limit, double min, double max) {
+        String order = ascending ? "ASC" : "DESC";
+        try (PreparedStatement q = open().prepareStatement("SELECT key, CAST(value AS REAL) AS number FROM entries WHERE store = ? AND typeof(json_extract(value, '$')) IN ('integer', 'real')"
+                + " AND CAST(value AS REAL) BETWEEN ? AND ? ORDER BY number " + order + ", key LIMIT ?")) {
+            q.setString(1, store);
+            q.setDouble(2, min);
+            q.setDouble(3, max);
+            q.setInt(4, Math.max(0, limit));
+            List<Ranked> ranked = new ArrayList<>();
+            try (ResultSet row = q.executeQuery()) {
+                while (row.next()) ranked.add(new Ranked(row.getString(1), row.getDouble(2)));
+            }
+            return ranked;
+        } catch (SQLException e) {
+            throw failed(e);
+        }
+    }
 }

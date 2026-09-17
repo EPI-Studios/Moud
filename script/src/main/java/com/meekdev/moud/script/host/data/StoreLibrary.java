@@ -18,6 +18,9 @@ public final class StoreLibrary {
     private static final double LEASE = 60;
     private static final double RENEW = 20;
     private static final int DEEPEST = 32;
+    private static final String ORDERED = "ordered:";
+    private static final int PAGE = 100;
+    private static final double LARGEST = 1.0e300;
 
     private StoreLibrary() {}
 
@@ -35,6 +38,17 @@ public final class StoreLibrary {
                 .declare("data", "{ [string]: any }")
                 .method("save", "() -> ()", a -> null)
                 .method("release", "() -> ()", a -> null).decl());
+        host.api().declare(new Members("OrderedStore")
+                .method("get", "(key: any) -> number?", a -> null)
+                .method("set", "(key: any, value: number) -> ()", a -> null)
+                .method("increment", "(key: any, delta: number?) -> number", a -> null)
+                .method("remove", "(key: any) -> ()", a -> null)
+                .method("getSorted", "(ascending: boolean, limit: number?, min: number?, max: number?) -> { { key: string, value: number } }", a -> null).decl());
+        host.global("orderedStore", "(name: string) -> OrderedStore", new Builtin("orderedStore", a -> {
+            String name = a.string(0);
+            if (name.isEmpty()) throw a.error("orderedStore wants a name");
+            return ordered(host, store, ORDERED + name);
+        }));
         host.global("store", "(name: string) -> Store", new Builtin("store", a -> {
             String name = a.string(0);
             if (name.isEmpty()) throw a.error("store wants a name");
@@ -64,6 +78,48 @@ public final class StoreLibrary {
                 .method("keys", "(prefix: string?, limit: number?) -> { string }",
                         a -> new ArrayList<Object>(store.keys(name, a.string(1, ""), a.integer(2, 1000))))
                 .method("session", "(key: any) -> StoreSession", a -> session(host, store, name, host.text(a.get(1))));
+    }
+
+    private static Members ordered(Host host, StoreRef store, String name) {
+        return new Members("OrderedStore")
+                .method("get", "(key: any) -> number?", a -> number(store.get(name, host.text(a.get(1)))))
+                .method("set", "(key: any, value: number) -> ()", a -> {
+                    store.set(name, host.text(a.get(1)), encode(finite(a.number(2))));
+                    return null;
+                })
+                .method("increment", "(key: any, delta: number?) -> number", a -> {
+                    double delta = finite(a.number(2, 1));
+                    String next = store.update(name, host.text(a.get(1)), old -> {
+                        Double was = number(old);
+                        return encode((was == null ? 0 : was) + delta);
+                    });
+                    return number(next);
+                })
+                .method("remove", "(key: any) -> ()", a -> {
+                    store.set(name, host.text(a.get(1)), null);
+                    return null;
+                })
+                .method("getSorted", "(ascending: boolean, limit: number?, min: number?, max: number?) -> { { key: string, value: number } }", a -> {
+                    List<Object> rows = new ArrayList<>();
+                    int limit = Math.clamp(a.integer(2, PAGE), 0, 1000);
+                    for (StoreRef.Ranked ranked : store.sorted(name, Boolean.TRUE.equals(a.get(1)), limit, a.number(3, -LARGEST), a.number(4, LARGEST))) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("key", ranked.key());
+                        row.put("value", ranked.value());
+                        rows.add(row);
+                    }
+                    return rows;
+                });
+    }
+
+    private static Double number(String json) {
+        Object value = decode(json);
+        return value instanceof Number n ? n.doubleValue() : null;
+    }
+
+    private static double finite(double value) {
+        if (!Double.isFinite(value)) throw new HostError("an ordered store only keeps finite numbers");
+        return value;
     }
 
     private static Members session(Host host, StoreRef store, String name, String key) {
