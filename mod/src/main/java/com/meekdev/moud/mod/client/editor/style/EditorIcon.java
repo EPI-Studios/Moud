@@ -80,7 +80,18 @@ public enum EditorIcon {
     TOOL_ROTATE,
     TOOL_SCALE,
     TOOL_SELECT,
-    UNLOCK;
+    UNLOCK,
+    LINE_EDIT,
+    SCROLL_CONTAINER,
+    V_BOX_CONTAINER,
+    GRID_CONTAINER,
+    MARGIN_CONTAINER,
+    ASPECT_RATIO_CONTAINER,
+    TEXTURE_BUTTON,
+    CANVAS_GROUP,
+    GRADIENT_TEXTURE_1D,
+    STYLE_BOX_FLAT,
+    CONTAINER;
 
     private final String fileName;
 
