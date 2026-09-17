@@ -74,5 +74,10 @@
     "Texture": "TEXTURE_2D",
     "SelectionBox": "COLLISION_SHAPE_3D",
     "SelectionSphere": "COLLISION_SHAPE_3D",
+    "Lighting": "DIRECTIONAL_LIGHT_3D",
+    "Sky": "WORLD_ENVIRONMENT",
+    "Atmosphere": "FOG_VOLUME",
+    "Clouds": "LIGHTMAP_PROBE",
+    "Explosion": "PARTICLES_3D",
     "Spatial": "NODE_3D"
 }
