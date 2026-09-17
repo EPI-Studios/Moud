@@ -9,6 +9,7 @@ import com.meekdev.amnetic.client.surface.draw.UiDraw;
 import com.meekdev.amnetic.client.surface.internal.InputRouter;
 import com.meekdev.amnetic.client.surface.internal.UiBatcher;
 import com.meekdev.amnetic.client.surface.widget.Stack;
+import com.meekdev.amnetic.client.surface.widget.Widget;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
@@ -85,6 +86,13 @@ public final class Windows {
     public static boolean allowed() {
         Minecraft client = Minecraft.getInstance();
         return Game.standalone() || client.hasSingleplayerServer();
+    }
+
+    static @Nullable InputRouter input(Widget root) {
+        for (Open open : OPEN.values()) {
+            if (open.root == root) return open.input;
+        }
+        return null;
     }
 
     static boolean claims(ScreenGui screen) {

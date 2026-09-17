@@ -34,6 +34,8 @@
   "client": [
     "client.ProgramCacheMixin",
     "client.ClickMixin",
+    "client.WheelMixin",
+    "client.TypingMixin",
     "client.ChatInputMixin",
     "client.ChatComponentMixin",
     "client.ChatScreenMixin",
