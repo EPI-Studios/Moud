@@ -101,7 +101,7 @@ public final class MoudServer {
         });
         if (place.reloadedFully()) Post.wired().sendReloaded(server);
         WorldTime.tick(server);
-        Explosions.tick(server);
+        if (!place.editing()) Explosions.tick(server);
         Physics.settle(ServerScene.tree(), !place.editing());
         Post.drainToServer(ServerScene.tree());
         ServerChat.INSTANCE.tick(server);

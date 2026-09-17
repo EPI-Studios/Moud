@@ -284,7 +284,7 @@
     "globalShadows": "On: the sun casts shadows. A ShadowQuality effect has to be in the place for the shadow pass to run at all.",
     "environmentDiffuseScale": "How much of the surroundings' light reaches meshes. 0 leaves them lit by the sun alone.",
     "environmentSpecularScale": "How much the surroundings show up in the shine on meshes.",
-    "Lighting.rain": "How hard it rains, 0 to 1. Setting it takes the weather over from the game's own cycle.",
+    "Lighting.rain": "How hard it rains, 0 to 1. A Lighting in the world takes the weather over, so the game's own cycle no longer starts or stops rain.",
     "Lighting.thunder": "How dark and stormy it is, 0 to 1. Rain has to be on for it to show.",
     "skyboxBk": "The image for the back of the sky, facing south. Filling any face puts the whole box in place of the game's sky.",
     "skyboxDn": "The image for the bottom of the sky.",
