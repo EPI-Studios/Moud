@@ -74,11 +74,11 @@ public final class Humanoids {
             }
         }
         if (!living.stateEnabled(HumanoidState.JUMPING) && living.jump) Instances.setBool(living, JUMP, false);
-        if (!living.walking && living.moveDirection.lengthSq() > 1.0e-6 && living.stateEnabled(HumanoidState.RUNNING)) {
+        boolean steer = steering.contains(living) && living.moveDirection.lengthSq() > 1.0e-6;
+        if (steer && living.stateEnabled(HumanoidState.RUNNING)) {
             Instances.setObj(living, WALK_TO, Transforms.world(character).position().add(flat(living.moveDirection).mul(living.walkRadius + living.walkSpeed)));
-            Instances.setBool(living, WALKING, true);
-            steering.add(living);
-        } else if (living.walking && steering.contains(living) && living.moveDirection.lengthSq() <= 1.0e-6) {
+            if (!living.walking) Instances.setBool(living, WALKING, true);
+        } else if (steering.contains(living) && !living.stateEnabled(HumanoidState.RUNNING)) {
             Instances.setBool(living, WALKING, false);
         }
         if (!living.stateEnabled(HumanoidState.RUNNING)) Instances.setBool(living, WALKING, false);
@@ -105,7 +105,11 @@ public final class Humanoids {
         Humanoid living = Rig.humanoid(character);
         if (living == null) return;
         Instances.setObj(living, MOVE_DIRECTION, flat(direction));
-        if (direction.lengthSq() <= 1.0e-6) steering.remove(living);
+        if (direction.lengthSq() > 1.0e-6) {
+            steering.add(living);
+        } else if (steering.remove(living)) {
+            Instances.setBool(living, WALKING, false);
+        }
     }
 
     public static void takeDamage(Humanoid living, double amount) {
@@ -200,7 +204,8 @@ public final class Humanoids {
     private static void walk(Character character, Humanoid living, double dt) {
         if (!living.walking || living.state == HumanoidState.SEATED) {
             if (character.moveSpeed != 0) Instances.setNum(character, MOVE_SPEED, 0);
-            if (living.state != HumanoidState.SEATED) setState(living, HumanoidState.STANDING);
+            if (!steering.contains(living) && living.moveDirection.lengthSq() > 0) Instances.setObj(living, MOVE_DIRECTION, Vector3.ZERO);
+            if (living.state != HumanoidState.SEATED && !JUMPS.containsKey(character)) observe(living, HumanoidState.STANDING, 0);
             return;
         }
 
@@ -209,10 +214,11 @@ public final class Humanoids {
         Vector3 flat = new Vector3(toward.x(), 0, toward.z());
         double away = flat.length();
 
-        if (away <= living.walkRadius) {
+        if (away <= living.walkRadius && !steering.contains(living)) {
             Instances.setBool(living, WALKING, false);
             Instances.setNum(character, MOVE_SPEED, 0);
-            setState(living, HumanoidState.STANDING);
+            Instances.setObj(living, MOVE_DIRECTION, Vector3.ZERO);
+            observe(living, HumanoidState.STANDING, 0);
             living.arrived.fire(living);
             return;
         }
@@ -238,7 +244,8 @@ public final class Humanoids {
 
         Instances.setNum(character, MOVE_DISTANCE, character.moveDistance + step * 4.0);
         Instances.setNum(character, MOVE_SPEED, Math.min(1.0, living.walkSpeed / 4.317));
-        setState(living, HumanoidState.RUNNING);
+        if (!steering.contains(living) && way.sub(living.moveDirection).lengthSq() > 1.0e-3) Instances.setObj(living, MOVE_DIRECTION, way);
+        if (!JUMPS.containsKey(character)) observe(living, HumanoidState.RUNNING, living.walkSpeed);
     }
 
     private static void setState(Humanoid living, HumanoidState next) {
