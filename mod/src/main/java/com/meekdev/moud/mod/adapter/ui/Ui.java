@@ -125,10 +125,11 @@ public final class Ui {
             Vector3 size = new Vector3(node.scale * node.w, node.scale * node.h, 0);
             write(object, "absolutePosition", position);
             write(object, "absoluteSize", size);
-            if (object instanceof TextLabel) write(object, "textBounds", new Vector3(node.boundsW, node.boundsH, 0));
-            if (object instanceof ScrollingFrame && node.canvas != null) {
-                write(object, "absoluteCanvasSize", new Vector3(node.canvas.w(), node.canvas.h(), 0));
-                write(object, "absoluteWindowSize", new Vector3(node.w, node.h, 0));
+            if (object instanceof TextLabel) write(object, "textBounds", new Vector3(node.scale * node.boundsW, node.scale * node.boundsH, 0));
+            if (object instanceof ScrollingFrame frame && node.canvas != null) {
+                frame.measured(node.canvas.w(), node.canvas.h(), node.w, node.h);
+                write(object, "absoluteCanvasSize", new Vector3(node.scale * node.canvas.w(), node.scale * node.canvas.h(), 0));
+                write(object, "absoluteWindowSize", new Vector3(node.scale * node.w, node.scale * node.h, 0));
             }
         }
     }
