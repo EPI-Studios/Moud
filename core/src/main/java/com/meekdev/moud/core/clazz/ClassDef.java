@@ -141,7 +141,8 @@ public final class ClassDef<T extends Instance> {
         }
 
         Prop opts = field.getAnnotation(Prop.class);
-        boolean replicated = opts == null || opts.replicated();
+        boolean readOnly = opts != null && opts.readOnly();
+        boolean replicated = !readOnly && (opts == null || opts.replicated());
         boolean driven = opts != null && opts.driven();
         boolean asset = opts != null && opts.asset();
         if (asset && kind != PropertyType.STRING && kind != PropertyType.ASSET) {
@@ -153,7 +154,7 @@ public final class ClassDef<T extends Instance> {
         double min = opts == null ? Double.NEGATIVE_INFINITY : opts.min();
         double max = opts == null ? Double.POSITIVE_INFINITY : opts.max();
 
-        return new PropertyDef(field.getName(), kind, index, replicated, driven, asset,
+        return new PropertyDef(field.getName(), kind, index, replicated, driven, asset, readOnly,
                 handle.get(prototype), min, max, handle);
     }
 

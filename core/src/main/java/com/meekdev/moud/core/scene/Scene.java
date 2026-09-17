@@ -64,6 +64,7 @@ public final class Scene {
         if (referenced.contains(instance)) node.put("id", ids.get(instance));
         Map<String, Object> properties = new LinkedHashMap<>();
         for (PropertyDef property : instance.def().properties()) {
+            if (property.readOnly()) continue;
             Object value = read(instance, property);
             if (Objects.equals(value, property.defaultValue()) || isDefaultNumber(property, value)) continue;
             properties.put(property.name(), encode(property, value, ids));

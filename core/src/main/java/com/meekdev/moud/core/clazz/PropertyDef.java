@@ -11,19 +11,21 @@ public final class PropertyDef {
     private final boolean replicated;
     private final boolean driven;
     private final boolean asset;
+    private final boolean readOnly;
     private final Object defaultValue;
     private final double min;
     private final double max;
     private final VarHandle handle;
 
     PropertyDef(String name, PropertyType type, int index, boolean replicated, boolean driven,
-                        boolean asset, Object defaultValue, double min, double max, VarHandle handle) {
+                        boolean asset, boolean readOnly, Object defaultValue, double min, double max, VarHandle handle) {
         this.name = name;
         this.type = type;
         this.index = index;
         this.replicated = replicated;
         this.driven = driven;
         this.asset = asset;
+        this.readOnly = readOnly;
         this.defaultValue = defaultValue;
         this.min = min;
         this.max = max;
@@ -35,6 +37,7 @@ public final class PropertyDef {
     public boolean replicated() { return replicated; }
     public boolean driven() { return driven; }
     public boolean asset() { return asset; }
+    public boolean readOnly() { return readOnly; }
     public Object defaultValue() { return defaultValue; }
     public double min() { return min; }
     public double max() { return max; }

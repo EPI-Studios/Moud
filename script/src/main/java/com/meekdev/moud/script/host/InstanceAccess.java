@@ -156,6 +156,7 @@ public final class InstanceAccess {
     }
 
     public void write(Instance instance, PropertyDef property, Object value) {
+        if (property.readOnly()) throw new HostError("%s.%s is read-only", instance.def().name(), property.name());
         checkWrite(instance, property);
         Object parsed = parse(property, value);
         switch (property.type()) {

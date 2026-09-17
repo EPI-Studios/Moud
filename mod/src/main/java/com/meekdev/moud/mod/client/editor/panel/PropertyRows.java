@@ -118,7 +118,8 @@ final class PropertyRows {
         rowInstance = instance;
         rowProperty = property;
         ImGui.pushID(property.name());
-        ImGui.beginDisabled(property.driven());
+        boolean locked = property.driven() || property.readOnly();
+        ImGui.beginDisabled(locked);
         switch (property.type()) {
             case BOOL -> renderBoolean(instance, property);
             case INT -> renderInt(instance, property);
@@ -133,8 +134,13 @@ final class PropertyRows {
             case REF -> renderRef(instance, property);
         }
         ImGui.endDisabled();
-        if (property.driven() && ImGui.isItemHovered()) ImGui.setTooltip("Driven by the engine");
+        if (locked && ImGui.isItemHovered()) ImGui.setTooltip(lockedReason(property));
         ImGui.popID();
+    }
+
+    private static String lockedReason(PropertyDef property) {
+        if (!property.readOnly()) return "Driven by the engine";
+        return "Worked out while the interface is laid out";
     }
 
     private void commit(Instance instance, PropertyDef property, @Nullable Object value) {
