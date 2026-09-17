@@ -26,10 +26,6 @@ public final class Post {
 
     private static final Wired CARRIER = new Wired();
 
-    private static final int INVOKE = 0;
-    private static final int ANSWERED = 1;
-    private static final int FAILED = 2;
-
     private static Supplier<String> who = () -> "";
 
     public static final PostRef SERVER = ref(() -> "");
@@ -38,12 +34,12 @@ public final class Post {
     public static final InvokeRef CALLS = new InvokeRef() {
         @Override
         public void toServer(int remote, int call, List<Object> args) {
-            CARRIER.callServer(INVOKE, remote, call, Wire.pack(args));
+            CARRIER.callServer(Wired.INVOKE, remote, call, Wire.pack(args));
         }
 
         @Override
         public void toClient(String player, int remote, int call, List<Object> args) {
-            CARRIER.callClient(player, INVOKE, remote, call, Wire.pack(args));
+            CARRIER.callClient(player, Wired.INVOKE, remote, call, Wire.pack(args));
         }
     };
 
@@ -107,24 +103,24 @@ public final class Post {
 
     private static void called(InstanceTree tree, String from, int kind, int id, int call, List<Object> raw, boolean toServer) {
         RemoteFunction.Reply reply = answer -> {
-            int sent = answer.ok() ? ANSWERED : FAILED;
+            int sent = answer.ok() ? Wired.ANSWERED : Wired.FAILED;
             List<Object> packed;
             try {
                 packed = Wire.pack(answer.values());
             } catch (IllegalArgumentException e) {
-                sent = FAILED;
+                sent = Wired.FAILED;
                 packed = List.of("the answer could not be sent: " + e.getMessage());
             }
             if (toServer) CARRIER.callClient(from, sent, id, call, packed);
             else CARRIER.callServer(sent, id, call, packed);
         };
         if (!(tree.byId(id) instanceof RemoteFunction remote)) {
-            if (kind == INVOKE) reply.send(RemoteFunction.Answer.failed("that remote function no longer exists"));
+            if (kind == Wired.INVOKE) reply.send(RemoteFunction.Answer.failed("that remote function no longer exists"));
             return;
         }
         List<Object> values = Wire.unpack(raw, tree);
-        if (kind != INVOKE) {
-            remote.answer(call, from, new RemoteFunction.Answer(kind == ANSWERED, values));
+        if (kind != Wired.INVOKE) {
+            remote.answer(call, from, new RemoteFunction.Answer(kind == Wired.ANSWERED, values));
             return;
         }
         try {

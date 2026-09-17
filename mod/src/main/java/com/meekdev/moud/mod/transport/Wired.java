@@ -29,6 +29,10 @@ public final class Wired implements Transport {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("moud/wired");
 
+    static final int INVOKE = 0;
+    static final int ANSWERED = 1;
+    static final int FAILED = 2;
+
     private record Sent(UUID from, int remote, byte[] args) {}
 
     private record Called(UUID from, CallUpPayload payload) {}
@@ -163,14 +167,22 @@ public final class Wired implements Transport {
         Map<UUID, Map<Integer, Integer>> counted = new HashMap<>();
         for (Called one : take(callsUp)) {
             CallUpPayload payload = one.payload();
-            int already = counted.computeIfAbsent(one.from(), id -> new HashMap<>()).merge(payload.remote(), 1, Integer::sum);
-            if (already > InProcess.PER_TICK) continue;
+            if (overBudget(counted, one.from(), payload.kind(), payload.remote())) {
+                callClient(one.from().toString(), FAILED, payload.remote(), payload.call(),
+                        List.of("too many calls to this remote function at once, the server dropped this one"));
+                continue;
+            }
             try {
                 sink.deliver(one.from().toString(), payload.kind(), payload.remote(), payload.call(), Args.decode(payload.values()));
             } catch (RuntimeException e) {
                 LOGGER.warn("dropped a call from {}: {}", one.from(), e.toString());
             }
         }
+    }
+
+    static boolean overBudget(Map<UUID, Map<Integer, Integer>> counted, UUID from, int kind, int remote) {
+        if (kind != INVOKE) return false;
+        return counted.computeIfAbsent(from, id -> new HashMap<>()).merge(remote, 1, Integer::sum) > InProcess.PER_TICK;
     }
 
     public void drainCallsClient(CallSink sink) {
