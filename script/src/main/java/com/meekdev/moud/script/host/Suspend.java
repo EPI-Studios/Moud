@@ -7,6 +7,12 @@ public record Suspend(Waiter waiter, Runnable cancel) {
         Object[] poll(double dt);
     }
 
+    public record Failure(String message) {}
+
+    public static Object[] failed(String format, Object... args) {
+        return new Object[] {new Failure(String.format(format, args))};
+    }
+
     public Suspend(Waiter waiter) {
         this(waiter, () -> {});
     }

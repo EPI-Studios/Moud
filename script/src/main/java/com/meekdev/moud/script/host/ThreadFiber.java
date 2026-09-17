@@ -47,7 +47,10 @@ public final class ThreadFiber implements Fiber {
         }
         fiber.hand(fiber.toCaller, new Parked(suspend));
         Signal next = fiber.take(fiber.toFiber);
-        if (next instanceof Resume resume) return resume.values();
+        if (next instanceof Resume resume) {
+            if (resume.values().length == 1 && resume.values()[0] instanceof Suspend.Failure failure) throw new HostError("%s", failure.message());
+            return resume.values();
+        }
         throw new Stopped();
     }
 

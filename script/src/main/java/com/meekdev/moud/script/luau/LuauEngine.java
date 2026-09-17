@@ -15,6 +15,7 @@ import com.meekdev.moud.script.host.Results;
 import com.meekdev.moud.script.host.ScriptValue;
 import com.meekdev.moud.script.host.Values;
 import com.meekdev.moud.script.host.Suspend;
+import java.lang.foreign.Arena;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -45,6 +46,7 @@ final class LuauEngine implements ScriptEngine {
     private final LuaState state;
     private final Map<Builtin, Integer> builtins = new IdentityHashMap<>();
     private Suspend pending;
+    private int resumedWith;
     private List<Function> fresh = new ArrayList<>();
     private boolean closed;
 
@@ -112,6 +114,7 @@ final class LuauEngine implements ScriptEngine {
         private final LuaState thread;
         private final int threadRef;
         private Object[] initial;
+        private Object[] results = new Object[0];
         private boolean finished;
 
         LuauFiber(LuaState thread, int threadRef, Object[] initial) {
@@ -129,6 +132,7 @@ final class LuauEngine implements ScriptEngine {
                 initial = null;
             }
             for (Object arg : args) push(thread, arg);
+            resumedWith = args.length;
             LuaStatus status;
             try {
                 status = thread.resume(state, args.length);
@@ -144,9 +148,18 @@ final class LuauEngine implements ScriptEngine {
                 return next;
             }
             String failure = status == LuaStatus.OK ? null : thread.toString(-1);
+            if (failure == null) {
+                results = new Object[thread.top()];
+                for (int n = 0; n < results.length; n++) results[n] = read(thread, n + 1, 0);
+            }
             finish();
             if (failure != null) throw new ScriptError("task", failure, null);
             return null;
+        }
+
+        @Override
+        public Object[] results() {
+            return results;
         }
 
         @Override
@@ -292,10 +305,18 @@ final class LuauEngine implements ScriptEngine {
         }
     }
 
+    private int resumed(LuaState s, LuaStatus status) {
+        int count = resumedWith;
+        if (count == 1 && s.type(-1) == LuaType.USERDATA && s.toUserDataTagged(-1, HOST) instanceof Suspend.Failure failure) {
+            throw s.error("%s", failure.message());
+        }
+        return count;
+    }
+
     private void pushBuiltin(LuaState s, Builtin fn) {
         Integer ref = builtins.get(fn);
         if (ref == null) {
-            state.pushFunction(LuaFunc.wrap(t -> guarded(t, u -> results(u, host.invoke(fn, arguments(u, 1)))), fn.name()));
+            state.pushFunction(LuaFunc.yieldable(t -> guarded(t, u -> results(u, host.invoke(fn, arguments(u, 1)))), this::resumed, fn.name(), Arena.ofShared()));
             ref = state.ref(-1);
             state.pop(1);
             builtins.put(fn, ref);
