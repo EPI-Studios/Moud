@@ -25,6 +25,8 @@ public final class Devices implements DevicesRef {
 
     public static void reset() {
         SUNK.clear();
+        lookSunk = false;
+        Gamepads.reset();
     }
 
     public static boolean key(int key, int action) {
@@ -35,12 +37,12 @@ public final class Devices implements DevicesRef {
     }
 
     public static boolean button(int button, int action, boolean taken) {
-        if (!taken && !processed() && action != GLFW.GLFW_REPEAT) ClickDetectors.button(button, action == GLFW.GLFW_PRESS);
+        boolean detector = !taken && !processed() && action != GLFW.GLFW_REPEAT && ClickDetectors.button(button, action == GLFW.GLFW_PRESS);
         Host host = ClientPlace.host();
-        if (host == null || button > GLFW.GLFW_MOUSE_BUTTON_MIDDLE) return false;
+        if (host == null || button > GLFW.GLFW_MOUSE_BUTTON_MIDDLE) return detector;
         int code = Actions.code("mousebutton" + (button + 1));
-        Event event = new Event("mouseButton" + (button + 1), Actions.name(code), state(action), position(0), Vector3.ZERO, taken || processed());
-        return send(host, code, event, action);
+        Event event = new Event("mouseButton" + (button + 1), Actions.name(code), state(action), position(0), Vector3.ZERO, taken || detector || processed());
+        return send(host, code, event, action) || detector;
     }
 
     public static boolean scroll(double amount) {
@@ -52,9 +54,18 @@ public final class Devices implements DevicesRef {
     public static void frame(Input input) {
         Host host = ClientPlace.host();
         Gamepads.frame(host, processed());
-        if (host == null || input.mouseDeltaX() == 0 && input.mouseDeltaY() == 0) return;
-        host.input(new Event("mouseMovement", "unknown", "change", position(0),
+        if (host == null || input.mouseDeltaX() == 0 && input.mouseDeltaY() == 0) {
+            lookSunk = false;
+            return;
+        }
+        lookSunk = host.input(new Event("mouseMovement", "unknown", "change", position(0),
                 new Vector3(input.mouseDeltaX(), input.mouseDeltaY(), 0), processed()));
+    }
+
+    private static boolean lookSunk;
+
+    public static boolean lookSunk() {
+        return lookSunk;
     }
 
     private static boolean send(Host host, int code, Event event, int action) {

@@ -48,18 +48,19 @@ public final class ClickDetectors {
         WindowApi.INSTANCE.hover(hovered != null && free ? hovered.cursorIcon.isEmpty() ? "hand" : hovered.cursorIcon : null);
     }
 
-    public static void button(int button, boolean pressed) {
-        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return;
+    public static boolean button(int button, boolean pressed) {
+        if (button != GLFW.GLFW_MOUSE_BUTTON_LEFT && button != GLFW.GLFW_MOUSE_BUTTON_RIGHT) return false;
         boolean primary = button == GLFW.GLFW_MOUSE_BUTTON_LEFT;
         if (pressed) {
             if (primary) left = hovered;
             else right = hovered;
-            return;
+            return hovered != null;
         }
         ClickDetector down = primary ? left : right;
         if (primary) left = null;
         else right = null;
         if (down != null && down == hovered && down.isAlive()) fire(down, primary ? ClickPayload.CLICK : ClickPayload.RIGHT_CLICK);
+        return down != null;
     }
 
     private static void fire(ClickDetector detector, int kind) {

@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.mixin.client;
 
 import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.input.Controls;
+import com.meekdev.moud.mod.client.input.Devices;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,6 +15,6 @@ abstract class LookMixin {
 
     @Inject(method = "turn", at = @At("HEAD"), cancellable = true)
     private void moud$look(double yaw, double pitch, CallbackInfo ci) {
-        if ((Object) this instanceof LocalPlayer && !Controls.look() && !EditMode.editing()) ci.cancel();
+        if ((Object) this instanceof LocalPlayer && (!Controls.look() || Devices.lookSunk()) && !EditMode.editing()) ci.cancel();
     }
 }

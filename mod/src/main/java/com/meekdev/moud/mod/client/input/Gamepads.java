@@ -38,7 +38,7 @@ public final class Gamepads {
     private static final GLFWGamepadState STATE = GLFWGamepadState.create();
 
     static {
-        for (int n = 0; n < PADS.length; n++) PADS[n] = new Pad();
+        reset();
     }
 
     private Gamepads() {}
@@ -47,6 +47,10 @@ public final class Gamepads {
         List<String> names = new ArrayList<>();
         for (JsonElement name : JsonResources.read(NAME_TABLE).getAsJsonArray("inputs")) names.add(name.getAsString());
         return List.copyOf(names);
+    }
+
+    static void reset() {
+        for (int n = 0; n < PADS.length; n++) PADS[n] = new Pad();
     }
 
     public static void frame(@Nullable Host host, boolean processed) {
