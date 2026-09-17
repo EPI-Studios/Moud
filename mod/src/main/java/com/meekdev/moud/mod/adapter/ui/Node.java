@@ -395,15 +395,15 @@ final class Node extends Widget {
     }
 
     private int indexAt(TextBox box, float mx, float my) {
-        if (editLines.isEmpty() || editLefts.length != editLines.size()) return box.text.length();
+        if (box.text.isEmpty() || editLines.isEmpty() || editLefts.length != editLines.size()) return box.text.length();
         int n = Math.clamp((int) Math.floor((my - editTop) / editLine), 0, editLines.size() - 1);
         UiText.Line line = editLines.get(n);
         UiFonts.Face face = UiFonts.of(GuiLayout.font(box));
         float px = (float) box.textSize;
         float left = editLefts[n];
-        int best = line.start();
+        int best = Math.min(line.start(), box.text.length());
         float nearest = Math.abs(mx - left);
-        for (int at = line.start(); at < line.end(); ) {
+        for (int at = best; at < Math.min(line.end(), box.text.length()); ) {
             int next = at + Character.charCount(box.text.codePointAt(at));
             float pen = left + UiText.width(face, box.text.substring(line.start(), next), px);
             if (Math.abs(mx - pen) < nearest) {
