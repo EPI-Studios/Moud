@@ -69,6 +69,7 @@ public final class CoreGui implements CoreGuiRef {
     }
 
     private final List<Notice> notices = new ArrayList<>();
+    private final Map<String, Boolean> asPlaced = new LinkedHashMap<>();
     private final Clock clock = new Clock();
 
     private @Nullable ScreenGui screen;
@@ -92,7 +93,9 @@ public final class CoreGui implements CoreGuiRef {
     @Override
     public void enabled(String name, boolean on) {
         Feature part = PARTS.get(name);
-        if (part != null) MoudMod.features().set(part, on);
+        if (part == null) return;
+        asPlaced.putIfAbsent(name, MoudMod.features().isOn(part));
+        MoudMod.features().set(part, on);
     }
 
     @Override
@@ -105,6 +108,8 @@ public final class CoreGui implements CoreGuiRef {
         notices.clear();
         screen = null;
         clock.tick();
+        asPlaced.forEach((name, on) -> MoudMod.features().set(PARTS.get(name), on));
+        asPlaced.clear();
     }
 
     public void frame() {
