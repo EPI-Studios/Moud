@@ -4,3 +4,4 @@
     changed: ChangedSignal
     childAdded: InstanceSignal
     destroying: InstanceSignal
+    attributeChanged: AttributeSignal

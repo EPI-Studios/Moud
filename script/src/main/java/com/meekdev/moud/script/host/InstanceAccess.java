@@ -72,6 +72,7 @@ public final class InstanceAccess {
             case "changed" -> { return signals(instance).changed(); }
             case "childAdded" -> { return signals(instance).childAdded(); }
             case "destroying" -> { return signals(instance).destroying(); }
+            case "attributeChanged" -> { return signals(instance).attributeChanged(); }
             default -> { }
         }
         EventDef event = instance.def().event(key);
@@ -167,6 +168,20 @@ public final class InstanceAccess {
         String owner = Owners.of(instance);
         throw new HostError("cannot write %s.%s from the client%s", instance.def().name(),
                 property.name(), owner.isEmpty() ? "" : " (owned by " + owner + ")");
+    }
+
+    public HostSignal attributeSignal(Instance instance, String name) {
+        return signals(instance).attribute(name);
+    }
+
+    public HostSignal propertySignal(Instance instance, PropertyDef property) {
+        return signals(instance).property(property);
+    }
+
+    public void checkAttribute(Instance instance) {
+        if (instance.id() < 0 || !host.client()) return;
+        if (Owners.owns(host.me(), instance)) return;
+        throw new HostError("cannot set attributes on %s from the client", instance.name());
     }
 
     public void checkTag(Instance instance) {
@@ -275,9 +290,12 @@ public final class InstanceAccess {
         private final Instance instance;
         private final List<Signal.Connection> links = new ArrayList<>();
         private final Map<String, HostSignal> named = new HashMap<>();
+        private final Map<String, HostSignal> attributes = new HashMap<>();
+        private final Map<String, HostSignal> properties = new HashMap<>();
         private HostSignal changed;
         private HostSignal childAdded;
         private HostSignal destroying;
+        private HostSignal attributeChanged;
 
         Signals(Host host, Instance instance) {
             this.host = host;
@@ -306,6 +324,36 @@ public final class InstanceAccess {
                 links.add(instance.destroying().connect(signal::fire));
             }
             return destroying;
+        }
+
+        HostSignal attributeChanged() {
+            if (attributeChanged == null) {
+                HostSignal signal = attributeChanged = new HostSignal(host, "AttributeSignal", "attributeChanged");
+                links.add(instance.attributeChanged().connect(signal::fire));
+            }
+            return attributeChanged;
+        }
+
+        HostSignal attribute(String name) {
+            HostSignal existing = attributes.get(name);
+            if (existing != null) return existing;
+            HostSignal signal = new HostSignal(host, "AnySignal", "attribute " + name);
+            attributes.put(name, signal);
+            links.add(instance.attributeChanged().connect(changed -> {
+                if (changed.equals(name)) signal.fire();
+            }));
+            return signal;
+        }
+
+        HostSignal property(PropertyDef property) {
+            HostSignal existing = properties.get(property.name());
+            if (existing != null) return existing;
+            HostSignal signal = new HostSignal(host, "AnySignal", "property " + property.name());
+            properties.put(property.name(), signal);
+            links.add(instance.changed().connect(changed -> {
+                if (changed == property) signal.fire();
+            }));
+            return signal;
         }
 
         HostSignal named(EventDef event) {
@@ -345,7 +393,10 @@ public final class InstanceAccess {
             if (changed != null) changed.clear();
             if (childAdded != null) childAdded.clear();
             if (destroying != null) destroying.clear();
+            if (attributeChanged != null) attributeChanged.clear();
             for (HostSignal signal : named.values()) signal.clear();
+            for (HostSignal signal : attributes.values()) signal.clear();
+            for (HostSignal signal : properties.values()) signal.clear();
         }
     }
 }
