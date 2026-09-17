@@ -23,6 +23,14 @@ public class Part extends Spatial {
 
     public boolean locked;
 
+    @Prop(min = 0.01) public double density = 1;
+    @Prop(min = 0) public double friction = 0.5;
+    @Prop(min = 0, max = 1) public double elasticity;
+    public boolean massless;
+
+    @Prop(driven = true) public Vector3 velocity = Vector3.ZERO;
+    @Prop(driven = true) public Vector3 angularVelocity = Vector3.ZERO;
+
     public final Signal<Instance> touched = new Signal<>();
     public final Signal<Instance> touchEnded = new Signal<>();
 }

@@ -19,6 +19,7 @@ import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
+import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.ClientPlace;
@@ -538,7 +539,8 @@ public final class SceneDocument {
         try {
             InstanceTree scratch = new InstanceTree();
             Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
-            Instance folder = Instances.create(Classes.FOLDER, holder, "Group");
+            boolean spatial = members.stream().allMatch(member -> member instanceof Spatial) && !inViewport(parent) && !(parent instanceof GuiObject);
+            Instance folder = spatial ? Instances.create(Classes.MODEL, holder, "Model") : Instances.create(Classes.FOLDER, holder, "Group");
             relocate(members, parent, folder);
             text = snapshot(List.of(folder));
         } catch (RuntimeException e) {

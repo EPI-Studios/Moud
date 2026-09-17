@@ -161,7 +161,7 @@ public final class Colliders {
     private boolean refresh(int id) {
         Instance instance = tree == null ? null : tree.byId(id);
         if (!(instance instanceof Part part)) return false;
-        if (!part.collides || ViewportFrame.inside(part) || ((!isAxisAligned(part) || moving.contains(id)) && SubLevels.available())) {
+        if (!part.collides || ViewportFrame.inside(part) || ((!part.anchored || !isAxisAligned(part) || moving.contains(id) || Joints.holds(id)) && SubLevels.available())) {
             return grid.remove(part);
         }
         CFrame world = Transforms.world(part);

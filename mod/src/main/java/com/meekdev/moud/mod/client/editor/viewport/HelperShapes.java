@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.viewport;
 
 import com.meekdev.moud.core.audio.Sound;
+import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
@@ -8,7 +9,12 @@ import com.meekdev.moud.core.interp.PathCurve;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.part.SpawnLocation;
+import com.meekdev.moud.core.physics.Constraint;
+import com.meekdev.moud.core.physics.HingeConstraint;
+import com.meekdev.moud.core.physics.PrismaticConstraint;
+import com.meekdev.moud.core.physics.WeldConstraint;
 import com.meekdev.moud.core.render.Camera;
 import com.meekdev.moud.core.render.CameraPath;
 import com.meekdev.moud.core.render.LightSource;
@@ -32,6 +38,10 @@ final class HelperShapes {
     private static final int CAMERA_SELECTED = EditorStyle.rgba(255, 225, 130, 240);
     private static final int SPAWN = EditorStyle.rgba(120, 220, 255, 170);
     private static final int SPAWN_SELECTED = EditorStyle.rgba(170, 240, 255, 240);
+    private static final int JOINT = EditorStyle.rgba(240, 150, 255, 170);
+    private static final int JOINT_SELECTED = EditorStyle.rgba(250, 200, 255, 240);
+    private static final double AXIS_LENGTH = 1.2;
+    private static final float END_RADIUS = 4f;
     private static final double CONE_DEPTH = 1.6;
     private static final double ASPECT = 16.0 / 9.0;
     private static final int PATH_SAMPLES = 80;
@@ -54,6 +64,8 @@ final class HelperShapes {
                 case Camera shot -> camera(draw, view, shot, selected ? CAMERA_SELECTED : CAMERA);
                 case CameraPath path -> path(draw, view, path, selected ? CAMERA_SELECTED : CAMERA);
                 case SpawnLocation spawn -> spawn(draw, view, spawn, selected ? SPAWN_SELECTED : SPAWN);
+                case WeldConstraint weld -> weld(draw, view, weld, selected ? JOINT_SELECTED : JOINT);
+                case Constraint constraint -> constraint(draw, view, constraint, selected ? JOINT_SELECTED : JOINT);
                 default -> { }
             }
         }
@@ -123,6 +135,35 @@ final class HelperShapes {
         }
         line(draw, view, frame.pointToWorld(new Vector3(-wide * 0.4, tall * 1.15, -CONE_DEPTH)), frame.pointToWorld(new Vector3(0, tall * 1.5, -CONE_DEPTH)), colour);
         line(draw, view, frame.pointToWorld(new Vector3(0, tall * 1.5, -CONE_DEPTH)), frame.pointToWorld(new Vector3(wide * 0.4, tall * 1.15, -CONE_DEPTH)), colour);
+    }
+
+    private static void weld(ImDrawList draw, SceneView view, WeldConstraint weld, int colour) {
+        if (!(weld.part0 instanceof Part a) || !(weld.part1 instanceof Part b)) return;
+        Vector3 from = Transforms.world(a).position();
+        Vector3 to = Transforms.world(b).position();
+        line(draw, view, from, to, colour);
+        dot(draw, view, from, colour);
+        dot(draw, view, to, colour);
+    }
+
+    private static void constraint(ImDrawList draw, SceneView view, Constraint constraint, int colour) {
+        if (!(constraint.attachment0 instanceof Attachment a0)) return;
+        CFrame at0 = Transforms.world(a0);
+        dot(draw, view, at0.position(), colour);
+        if (constraint.attachment1 instanceof Attachment a1) {
+            Vector3 at1 = Transforms.world(a1).position();
+            line(draw, view, at0.position(), at1, colour);
+            dot(draw, view, at1, colour);
+        }
+        if (constraint instanceof HingeConstraint || constraint instanceof PrismaticConstraint) {
+            Vector3 axis = at0.rightVector().mul(AXIS_LENGTH);
+            line(draw, view, at0.position().sub(axis), at0.position().add(axis), colour);
+        }
+    }
+
+    private static void dot(ImDrawList draw, SceneView view, Vector3 at, int colour) {
+        float[] screen = view.toScreen(at);
+        if (screen != null) draw.addCircle(screen[0], screen[1], END_RADIUS, colour, 12, 1.5f);
     }
 
     private static void spawn(ImDrawList draw, SceneView view, SpawnLocation spawn, int colour) {

@@ -1,5 +1,8 @@
 {
     "Folder": "FOLDER",
+    "Model": "PACKED_SCENE",
+    "WeldConstraint": "REMOTE_TRANSFORM_3D",
+    "Constraint": "HINGE_JOINT_3D",
     "Part": "MESH_INSTANCE_3D",
     "Limb": "MESH",
     "SpawnLocation": "NAVIGATION_REGION_3D",

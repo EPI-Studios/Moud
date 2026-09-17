@@ -15,6 +15,7 @@ public final class Physics {
     private static final Colliders BOXES = new Colliders();
     private static final SubLevels SHAPES = new SubLevels();
     private static final Characters BODIES = new Characters(BOXES);
+    private static final Joints JOINTS = new Joints();
     private static @Nullable ServerLevel level;
 
     private Physics() {}
@@ -43,7 +44,10 @@ public final class Physics {
             Bkun.collision(loaded).addProvider(provider);
         });
         ServerLevelEvents.UNLOAD.register((server, unloaded) -> {
-            if (unloaded == level) level = null;
+            if (unloaded == level) {
+                JOINTS.clear();
+                level = null;
+            }
             Bkun.collision(unloaded).removeProvider(provider);
         });
     }
@@ -58,11 +62,14 @@ public final class Physics {
         }
     }
 
-    public static void settle() {
+    public static void settle(@Nullable InstanceTree tree, boolean simulating) {
         if (BOXES.settle() && level != null) {
             LevelPhysics physics = Bkun.physics(level);
             if (physics != null) physics.invalidateProviders();
         }
+        LevelPhysics physics = level == null ? null : Bkun.physics(level);
+        JOINTS.settle(simulating ? tree : null, SHAPES, physics == null ? null : physics.world());
+        SHAPES.simulating(simulating);
         SHAPES.settle();
     }
 }

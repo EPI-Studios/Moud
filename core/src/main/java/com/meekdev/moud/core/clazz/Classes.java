@@ -24,12 +24,20 @@ import com.meekdev.moud.core.input.InputAction;
 import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.Folder;
 import com.meekdev.moud.core.instance.Joint;
+import com.meekdev.moud.core.instance.Model;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.part.CollisionGroup;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.part.SpawnLocation;
+import com.meekdev.moud.core.physics.BallSocketConstraint;
+import com.meekdev.moud.core.physics.Constraint;
+import com.meekdev.moud.core.physics.HingeConstraint;
+import com.meekdev.moud.core.physics.PrismaticConstraint;
+import com.meekdev.moud.core.physics.RopeConstraint;
+import com.meekdev.moud.core.physics.SpringConstraint;
+import com.meekdev.moud.core.physics.WeldConstraint;
 import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.remote.UnreliableRemote;
 import com.meekdev.moud.core.render.AreaLight;
@@ -242,6 +250,20 @@ public final class Classes {
 
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
     public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
+    public static final ClassDef<Model> MODEL = ClassDef.of("Model", SPATIAL, Model.class, Model::new);
+    public static final ClassDef<WeldConstraint> WELD_CONSTRAINT =
+            ClassDef.of("WeldConstraint", null, WeldConstraint.class, WeldConstraint::new);
+    public static final ClassDef<Constraint> CONSTRAINT = ClassDef.of("Constraint", null, Constraint.class, Constraint::new);
+    public static final ClassDef<HingeConstraint> HINGE_CONSTRAINT =
+            ClassDef.of("HingeConstraint", CONSTRAINT, HingeConstraint.class, HingeConstraint::new);
+    public static final ClassDef<PrismaticConstraint> PRISMATIC_CONSTRAINT =
+            ClassDef.of("PrismaticConstraint", CONSTRAINT, PrismaticConstraint.class, PrismaticConstraint::new);
+    public static final ClassDef<BallSocketConstraint> BALL_SOCKET_CONSTRAINT =
+            ClassDef.of("BallSocketConstraint", CONSTRAINT, BallSocketConstraint.class, BallSocketConstraint::new);
+    public static final ClassDef<RopeConstraint> ROPE_CONSTRAINT =
+            ClassDef.of("RopeConstraint", CONSTRAINT, RopeConstraint.class, RopeConstraint::new);
+    public static final ClassDef<SpringConstraint> SPRING_CONSTRAINT =
+            ClassDef.of("SpringConstraint", CONSTRAINT, SpringConstraint.class, SpringConstraint::new);
 
     private Classes() {}
 
@@ -333,6 +355,14 @@ public final class Classes {
         r.register(CHAT_TEXT_SHADER);
         r.register(JOINT);
         r.register(MOTOR);
+        r.register(MODEL);
+        r.register(WELD_CONSTRAINT);
+        r.register(CONSTRAINT);
+        r.register(HINGE_CONSTRAINT);
+        r.register(PRISMATIC_CONSTRAINT);
+        r.register(BALL_SOCKET_CONSTRAINT);
+        r.register(ROPE_CONSTRAINT);
+        r.register(SPRING_CONSTRAINT);
         for (Addon addon : addons) {
             try {
                 addon.classes(r);

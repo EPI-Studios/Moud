@@ -13,6 +13,7 @@ import com.meekdev.moud.script.host.tween.TweenLibrary;
 import com.meekdev.moud.script.host.world.Blocks;
 import com.meekdev.moud.script.host.world.Paths;
 import com.meekdev.moud.script.host.world.Trees;
+import com.meekdev.moud.script.host.world.PartPhysics;
 import com.meekdev.moud.script.host.world.WorldQueries;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,6 +55,7 @@ final class Libraries {
         Tasks.install(host);
         MathLibrary.install(host);
         WorldQueries.install(host);
+        PartPhysics.install(host);
         Trees.install(host, game);
         Players.install(host, game);
         Paths.install(host, game);

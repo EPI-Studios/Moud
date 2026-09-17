@@ -5,9 +5,13 @@ import com.meekdev.bkun.sublevel.SubLevelContainer;
 import com.meekdev.bkun.sublevel.SubLevelEntity;
 import com.meekdev.box3d.B3Body;
 import com.meekdev.box3d.B3BodyType;
+import com.meekdev.box3d.B3Shape;
 import com.meekdev.box3d.Quat;
 import com.meekdev.box3d.Vec3;
+import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
@@ -20,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import net.minecraft.server.level.ServerLevel;
 import org.jspecify.annotations.Nullable;
 
@@ -28,9 +33,31 @@ public final class SubLevels {
     private final Map<Integer, SubLevel> byInstance = new HashMap<>();
     private final Map<Integer, SubLevelEntity> entities = new HashMap<>();
     private final Map<Integer, Integer> square = new HashMap<>();
+    private final Map<Integer, CFrame> written = new HashMap<>();
+    private static boolean simulating = true;
+    private final Map<Integer, B3Body> dressed = new HashMap<>();
+    private final Map<Integer, List<Consumer<B3Body>>> pending = new HashMap<>();
+
+    private static final PropertyDef CFRAME = Classes.SPATIAL.property("cframe");
+    private static final PropertyDef VELOCITY = Classes.PART.property("velocity");
+    private static final PropertyDef ANGULAR_VELOCITY = Classes.PART.property("angularVelocity");
+    private static final double STILL = 1.0e-4;
+    private static final float MASSLESS_DENSITY = 0.001f;
     private @Nullable ServerLevel level;
     private @Nullable InstanceTree tree;
     private boolean warned;
+
+    void simulating(boolean on) {
+        if (simulating == on) return;
+        simulating = on;
+        written.clear();
+        for (Map.Entry<Integer, SubLevel> entry : byInstance.entrySet()) {
+            if (tree != null && tree.byId(entry.getKey()) instanceof Part part) {
+                type(entry.getValue(), part);
+                pose(entry.getValue(), part, Transforms.world(part));
+            }
+        }
+    }
 
     public int size() {
         return byInstance.size();
@@ -56,11 +83,70 @@ public final class SubLevels {
             square.remove(entry.getKey());
             SubLevel subLevel = entry.getValue();
             type(subLevel, part);
-            drive(subLevel, part);
+            B3Body body = subLevel.body();
+            if (body != null) {
+                if (dressed.get(entry.getKey()) != body) dress(body, part);
+                List<Consumer<B3Body>> queued = pending.remove(entry.getKey());
+                if (queued != null) queued.forEach(action -> action.accept(body));
+            }
+            if (part.anchored || !simulating) drive(subLevel, part);
+            else follow(subLevel, part);
         }
         if (letGo != null) {
             for (int id : letGo) release(id);
         }
+    }
+
+    private void follow(SubLevel subLevel, Part part) {
+        B3Body body = subLevel.body();
+        if (body == null || body.type() != B3BodyType.DYNAMIC) return;
+        CFrame world = BoxFrames.of(body);
+        CFrame was = Transforms.world(part);
+        if (world.position().sub(was.position()).lengthSq() > STILL * STILL || turned(world, was)) {
+            written.put(part.id(), world);
+            Instances.setObj(part, CFRAME, Transforms.localFor(part, world));
+        }
+        Vector3 speed = BoxFrames.vector(body.linearVelocity());
+        Vector3 spin = BoxFrames.vector(body.angularVelocity());
+        if (speed.sub(part.velocity).lengthSq() > STILL) Instances.setObj(part, VELOCITY, speed);
+        if (spin.sub(part.angularVelocity).lengthSq() > STILL) Instances.setObj(part, ANGULAR_VELOCITY, spin);
+    }
+
+    private static boolean same(CFrame a, @Nullable CFrame b) {
+        return b != null && a.position().sub(b.position()).lengthSq() <= STILL * STILL && !turned(a, b);
+    }
+
+    private static boolean turned(CFrame a, CFrame b) {
+        var p = a.rotation();
+        var q = b.rotation();
+        double dot = Math.abs(p.x() * q.x() + p.y() * q.y() + p.z() * q.z() + p.w() * q.w());
+        return dot < 1 - STILL * STILL;
+    }
+
+    private void dress(B3Body body, Part part) {
+        dressed.put(part.id(), body);
+        float density = part.massless ? MASSLESS_DENSITY : (float) part.density;
+        for (B3Shape shape : body.shapes()) {
+            shape.setDensity(density);
+            shape.setFriction((float) part.friction);
+            shape.setRestitution((float) part.elasticity);
+        }
+        body.recomputeMass();
+    }
+
+    public @Nullable B3Body body(int id) {
+        SubLevel subLevel = byInstance.get(id);
+        return subLevel == null ? null : subLevel.body();
+    }
+
+    public void withBody(Part part, Consumer<B3Body> action) {
+        B3Body body = body(part.id());
+        if (body != null && dressed.get(part.id()) == body) {
+            action.accept(body);
+            return;
+        }
+        pending.computeIfAbsent(part.id(), id -> new ArrayList<>()).add(action);
+        refresh(part.id());
     }
 
     private static void drive(SubLevel subLevel, Part part) {
@@ -103,7 +189,7 @@ public final class SubLevels {
         return available;
     }
 
-    private void refresh(int id) {
+    void refresh(int id) {
         if (!available) return;
         try {
             refreshOrThrow(id);
@@ -124,6 +210,12 @@ public final class SubLevels {
             return;
         }
         SubLevel subLevel = byInstance.get(id);
+        if (subLevel != null && !part.anchored && simulating && same(world, written.get(id))) {
+            type(subLevel, part);
+            B3Body body = subLevel.body();
+            if (body != null) dress(body, part);
+            return;
+        }
         if (subLevel == null) {
             subLevel = allocate(id, world);
             if (subLevel == null) return;
@@ -135,6 +227,8 @@ public final class SubLevels {
             entities.put(id, spawned);
         }
         pose(subLevel, part, world);
+        B3Body body = subLevel.body();
+        if (body != null) dress(body, part);
     }
 
     private static void pose(SubLevel subLevel, Part part, CFrame world) {
@@ -149,14 +243,14 @@ public final class SubLevels {
     private static void type(SubLevel subLevel, Part part) {
         B3Body body = subLevel.body();
         if (body == null) return;
-        B3BodyType wanted = part.anchored ? B3BodyType.KINEMATIC : B3BodyType.DYNAMIC;
+        B3BodyType wanted = part.anchored || !simulating ? B3BodyType.KINEMATIC : B3BodyType.DYNAMIC;
         if (body.type() != wanted) body.setType(wanted);
     }
 
     private static final int SQUARE_TICKS = 40;
 
     private static boolean needsSubLevel(Part part) {
-        return part.collides && !ViewportFrame.inside(part) && (!part.anchored || !Colliders.isAxisAligned(part) || Physics.boxes().moving(part));
+        return part.collides && !ViewportFrame.inside(part) && (!part.anchored || !Colliders.isAxisAligned(part) || Physics.boxes().moving(part) || Joints.holds(part.id()));
     }
 
     static void mirror(InstanceTree tree, Change change) {
@@ -194,6 +288,9 @@ public final class SubLevels {
 
     private void release(int id) {
         square.remove(id);
+        written.remove(id);
+        dressed.remove(id);
+        pending.remove(id);
         SubLevelEntity entity = entities.remove(id);
         if (entity != null) entity.discard();
         SubLevel subLevel = byInstance.remove(id);
@@ -208,6 +305,9 @@ public final class SubLevels {
         }
         byInstance.clear();
         square.clear();
+        written.clear();
+        dressed.clear();
+        pending.clear();
         warned = false;
     }
 }

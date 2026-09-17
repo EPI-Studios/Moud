@@ -58,7 +58,7 @@ public final class ExplorerPanel implements Panel {
     static final String PAYLOAD_INSTANCE = "moud-instance";
 
     private static final List<String> COMMON_CLASSES = List.of(
-            "Folder", "Part", "MeshPart", "SpawnLocation", "Camera", "CameraPath", "Attachment", "PointLight", "SpotLight", "AreaLight", "Sound", "Zone", "ScreenGui");
+            "Folder", "Model", "Part", "MeshPart", "SpawnLocation", "Camera", "CameraPath", "Attachment", "PointLight", "SpotLight", "AreaLight", "Sound", "Zone", "ScreenGui");
     private static final int TRANSPARENT = 0;
     private static final int SELECTION_COLOR_COUNT = 3;
     private static final float SELECTED_ALPHA = 0.16f;

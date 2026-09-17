@@ -94,7 +94,7 @@ public final class MoudServer {
             ServerHistory.INSTANCE.note(ServerScene.tree(), change);
         });
         if (place.reloadedFully()) Post.wired().sendReloaded(server);
-        Physics.settle();
+        Physics.settle(ServerScene.tree(), !place.editing());
         Post.drainToServer(ServerScene.tree());
         ServerChat.INSTANCE.tick(server);
         ServerPrompts.tick(server);
