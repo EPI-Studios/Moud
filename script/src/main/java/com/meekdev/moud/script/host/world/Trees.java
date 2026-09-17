@@ -139,6 +139,10 @@ public final class Trees {
             while (up != null && !up.def().isA(def)) up = up.parent();
             return up;
         });
+        shared.method("firstChildOfClass", "(className: string, recursive: boolean?) -> Instance?", a -> {
+            ClassDef<?> def = type(host, a.string(1));
+            return firstOfClass(a.self(), def, a.bool(2, false));
+        });
         shared.method("firstAncestor", "(name: string) -> Instance?", a -> {
             String name = a.string(1);
             Instance up = a.self().parent();
@@ -150,6 +154,21 @@ public final class Trees {
             Instance up = a.self().parent();
             while (up != null && up != other) up = up.parent();
             return up != null;
+        });
+        shared.method("isAncestorOf", "(other: Instance) -> boolean", a -> {
+            Instance self = a.self();
+            Instance up = a.instance(1).parent();
+            while (up != null && up != self) up = up.parent();
+            return up != null;
+        });
+        shared.method("getFullName", "() -> string", a -> {
+            StringBuilder path = new StringBuilder(a.self().name());
+            for (Instance up = a.self().parent(); up != null; up = up.parent()) path.insert(0, up.name() + ".");
+            return path.toString();
+        });
+        shared.method("clearAllChildren", "() -> ()", a -> {
+            for (Instance child : List.copyOf(a.self().children())) Instances.destroy(child);
+            return null;
         });
         shared.method("byTag", "(tag: string) -> { Instance }", a -> {
             Instance root = a.self();
@@ -350,6 +369,18 @@ public final class Trees {
         ClassDef<?> def = host.classes().find(name);
         if (def == null) throw new HostError("there is no class called %s", name);
         return def;
+    }
+
+    private static Instance firstOfClass(Instance at, ClassDef<?> def, boolean recursive) {
+        for (Instance child : at.children()) {
+            if (child.def().isA(def)) return child;
+        }
+        if (!recursive) return null;
+        for (Instance child : at.children()) {
+            Instance found = firstOfClass(child, def, true);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     private static Instance first(Instance at, String name) {

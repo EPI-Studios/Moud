@@ -5,3 +5,6 @@
     childAdded: InstanceSignal
     destroying: InstanceSignal
     attributeChanged: AttributeSignal
+    ancestryChanged: AncestrySignal
+    descendantAdded: InstanceSignal
+    descendantRemoving: InstanceSignal

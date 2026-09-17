@@ -31,6 +31,9 @@ public abstract class Instance {
     Signal<Instance> childAdded;
     Signal<Instance> destroying;
     Signal<String> attributeChanged;
+    Signal<Instance> ancestryChanged;
+    Signal<Instance> descendantAdded;
+    Signal<Instance> descendantRemoving;
 
     public final void attachClass(ClassDef<?> def) {
         this.def = def;
@@ -97,6 +100,26 @@ public abstract class Instance {
     public final Signal<String> attributeChanged() {
         if (attributeChanged == null) attributeChanged = new Signal<>();
         return attributeChanged;
+    }
+
+    public final Signal<Instance> ancestryChanged() {
+        if (ancestryChanged == null) ancestryChanged = listened(new Signal<>());
+        return ancestryChanged;
+    }
+
+    public final Signal<Instance> descendantAdded() {
+        if (descendantAdded == null) descendantAdded = listened(new Signal<>());
+        return descendantAdded;
+    }
+
+    public final Signal<Instance> descendantRemoving() {
+        if (descendantRemoving == null) descendantRemoving = listened(new Signal<>());
+        return descendantRemoving;
+    }
+
+    private Signal<Instance> listened(Signal<Instance> signal) {
+        if (tree != null) tree.hierarchyListened = true;
+        return signal;
     }
 
     @Override

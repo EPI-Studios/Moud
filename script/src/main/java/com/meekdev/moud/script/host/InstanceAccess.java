@@ -73,6 +73,9 @@ public final class InstanceAccess {
             case "childAdded" -> { return signals(instance).childAdded(); }
             case "destroying" -> { return signals(instance).destroying(); }
             case "attributeChanged" -> { return signals(instance).attributeChanged(); }
+            case "ancestryChanged" -> { return signals(instance).ancestryChanged(); }
+            case "descendantAdded" -> { return signals(instance).descendantAdded(); }
+            case "descendantRemoving" -> { return signals(instance).descendantRemoving(); }
             default -> { }
         }
         EventDef event = instance.def().event(key);
@@ -296,6 +299,9 @@ public final class InstanceAccess {
         private HostSignal childAdded;
         private HostSignal destroying;
         private HostSignal attributeChanged;
+        private HostSignal ancestryChanged;
+        private HostSignal descendantAdded;
+        private HostSignal descendantRemoving;
 
         Signals(Host host, Instance instance) {
             this.host = host;
@@ -332,6 +338,30 @@ public final class InstanceAccess {
                 links.add(instance.attributeChanged().connect(signal::fire));
             }
             return attributeChanged;
+        }
+
+        HostSignal ancestryChanged() {
+            if (ancestryChanged == null) {
+                HostSignal signal = ancestryChanged = new HostSignal(host, "AncestrySignal", "ancestryChanged");
+                links.add(instance.ancestryChanged().connect(moved -> signal.fire(moved, moved.parent())));
+            }
+            return ancestryChanged;
+        }
+
+        HostSignal descendantAdded() {
+            if (descendantAdded == null) {
+                HostSignal signal = descendantAdded = new HostSignal(host, "InstanceSignal", "descendantAdded");
+                links.add(instance.descendantAdded().connect(signal::fire));
+            }
+            return descendantAdded;
+        }
+
+        HostSignal descendantRemoving() {
+            if (descendantRemoving == null) {
+                HostSignal signal = descendantRemoving = new HostSignal(host, "InstanceSignal", "descendantRemoving");
+                links.add(instance.descendantRemoving().connect(signal::fire));
+            }
+            return descendantRemoving;
         }
 
         HostSignal attribute(String name) {
@@ -394,6 +424,9 @@ public final class InstanceAccess {
             if (childAdded != null) childAdded.clear();
             if (destroying != null) destroying.clear();
             if (attributeChanged != null) attributeChanged.clear();
+            if (ancestryChanged != null) ancestryChanged.clear();
+            if (descendantAdded != null) descendantAdded.clear();
+            if (descendantRemoving != null) descendantRemoving.clear();
             for (HostSignal signal : named.values()) signal.clear();
             for (HostSignal signal : attributes.values()) signal.clear();
             for (HostSignal signal : properties.values()) signal.clear();

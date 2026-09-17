@@ -47,6 +47,7 @@ public final class InstanceTree {
     int nextLocalId = -1;
     long structureEpoch = 1;
     long mutations;
+    boolean hierarchyListened;
 
     private Instance root;
     private Instance[] byId = new Instance[64];

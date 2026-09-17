@@ -6,6 +6,7 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -41,6 +42,7 @@ public final class Instances {
         parent.children.add(i);
         parent.tree.index(i);
         if (parent.childAdded != null) parent.childAdded.fire(i);
+        added(i);
         return i;
     }
 
@@ -65,6 +67,7 @@ public final class Instances {
 
         i.build();
         if (parent.childAdded != null) parent.childAdded.fire(i);
+        added(i);
         return i;
     }
 
@@ -72,12 +75,14 @@ public final class Instances {
         if (i.tree == null) return;
         if (i.tree.root() == i) throw new IllegalArgumentException("cannot destroy the root");
 
+        removing(i);
         for (int n = i.children.size() - 1; n >= 0; n--) destroy(i.children.get(n));
 
         if (i.destroying != null) i.destroying.fire(i);
         if (i.parent != null) i.parent.children.remove(i);
-        i.tree.unindex(i);
         i.parent = null;
+        if (i.ancestryChanged != null) i.ancestryChanged.fire(i);
+        i.tree.unindex(i);
         i.tree = null;
         i.dirty = 0;
         i.generation++;
@@ -94,12 +99,47 @@ public final class Instances {
         }
         if (i.parent == newParent) return;
 
+        removingBranch(i);
         i.parent.children.remove(i);
         i.parent = newParent;
         newParent.children.add(i);
         i.tree.structureEpoch++;
         i.tree.markMoved(i);
         if (newParent.childAdded != null) newParent.childAdded.fire(i);
+        ancestry(i, i);
+        addedBranch(i);
+    }
+
+    private static void added(Instance i) {
+        if (i.tree == null || !i.tree.hierarchyListened) return;
+        for (Instance up = i.parent; up != null; up = up.parent) {
+            if (up.descendantAdded != null) up.descendantAdded.fire(i);
+        }
+    }
+
+    private static void removing(Instance i) {
+        if (i.tree == null || !i.tree.hierarchyListened) return;
+        for (Instance up = i.parent; up != null; up = up.parent) {
+            if (up.descendantRemoving != null) up.descendantRemoving.fire(i);
+        }
+    }
+
+    private static void addedBranch(Instance i) {
+        if (i.tree == null || !i.tree.hierarchyListened) return;
+        added(i);
+        for (Instance child : List.copyOf(i.children)) addedBranch(child);
+    }
+
+    private static void removingBranch(Instance i) {
+        if (i.tree == null || !i.tree.hierarchyListened) return;
+        removing(i);
+        for (Instance child : List.copyOf(i.children)) removingBranch(child);
+    }
+
+    private static void ancestry(Instance i, Instance moved) {
+        if (i.tree == null || !i.tree.hierarchyListened) return;
+        if (i.ancestryChanged != null) i.ancestryChanged.fire(moved);
+        for (Instance child : List.copyOf(i.children)) ancestry(child, moved);
     }
 
     public static void addTag(Instance i, String tag) {
