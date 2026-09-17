@@ -102,6 +102,7 @@ public final class TweenLibrary {
         }
         PropertyDef property = instance.def().property(key);
         if (property == null) throw new HostError("%s has no property '%s'", instance.def().name(), key);
+        if (property.readOnly()) throw new HostError("%s.%s is read-only", instance.def().name(), property.name());
         host.instances().checkWrite(instance, property);
         return new Tween.Goal(property, InstanceAccess.parse(property, value));
     }
