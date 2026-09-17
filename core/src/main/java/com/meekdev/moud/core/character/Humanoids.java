@@ -232,7 +232,7 @@ public final class Humanoids {
         Vector3 facing = Transforms.world(character).rotation().rotate(new Vector3(0, 0, -1));
         double now = Math.atan2(-facing.x(), -facing.z());
         double turn = Math.IEEEremainder(yaw - now, Math.PI * 2);
-        yaw = now + Math.clamp(turn, -TURN_RATE * dt, TURN_RATE * dt);
+        yaw = living.autoRotate ? now + Math.clamp(turn, -TURN_RATE * dt, TURN_RATE * dt) : now;
         Instances.setObj(character, CFRAME, Transforms.localFor(character,
                 new CFrame(moved, Quat.euler(0, yaw, 0))));
 
