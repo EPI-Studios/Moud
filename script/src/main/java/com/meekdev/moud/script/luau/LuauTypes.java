@@ -25,6 +25,7 @@ public final class LuauTypes {
     private static final String DEFAULT_SIGNAL = "InstanceSignal";
     private static final String ANY_SIGNAL = "AnySignal";
     private static final String PLACED = LuauResource.text("types/placed.d.luau");
+    private static final Properties GUI_SIGNALS = LuauResource.properties("types/gui-signals.properties");
     private static final Properties CLASS_SIGNALS = LuauResource.properties("types/class-signals.properties");
     private static final Properties REMOTE_SIGNALS = LuauResource.properties("types/remote-signals.properties");
 
@@ -114,6 +115,8 @@ public final class LuauTypes {
     }
 
     private static String signal(ClassDef<?> def, EventDef event) {
+        String gui = GUI_SIGNALS.getProperty(event.name());
+        if (gui != null && def.isA(Classes.GUI_OBJECT)) return gui;
         String shape = CLASS_SIGNALS.getProperty(def.name());
         if (shape != null) return shape;
         if (remote(def)) return REMOTE_SIGNALS.getProperty(event.name(), ANY_SIGNAL);

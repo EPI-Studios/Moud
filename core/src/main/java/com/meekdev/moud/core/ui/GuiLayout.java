@@ -36,7 +36,8 @@ public final class GuiLayout {
     }
 
     public static List<Placed> arrange(Instance parent, Box box, Measure measure) {
-        return children(parent, inset(parent, box), measure).placed();
+        Box content = parent instanceof ScrollingFrame frame ? canvas(frame, box, measure) : box;
+        return children(parent, inset(parent, content), measure).placed();
     }
 
     public static Size size(GuiObject object, double parentW, double parentH, Measure measure) {
@@ -57,6 +58,18 @@ public final class GuiLayout {
         ew = Math.max(ew, inside.w());
         eh = Math.max(eh, inside.h());
         return new Size(ew + w - inner.w(), eh + h - inner.h());
+    }
+
+    public static Box canvas(ScrollingFrame frame, Box window, Measure measure) {
+        double w = Math.max(0, frame.canvasSize.x(window.w()));
+        double h = Math.max(0, frame.canvasSize.y(window.h()));
+        if (frame.automaticCanvasSize != AutomaticSize.NONE) {
+            Size needed = contentOf(frame, w, h, measure);
+            if (frame.automaticCanvasSize.x()) w = Math.max(w, needed.w());
+            if (frame.automaticCanvasSize.y()) h = Math.max(h, needed.h());
+        }
+        Vector3 at = frame.clamp(frame.canvasPosition, w, h, window.w(), window.h());
+        return new Box(window.x() - at.x(), window.y() - at.y(), w, h);
     }
 
     public static Box inset(Instance object, Box box) {
@@ -99,6 +112,12 @@ public final class GuiLayout {
         }
         order.sort(Comparator.comparingInt(object -> object.zIndex));
         return order;
+    }
+
+    private static Size contentOf(Instance parent, double w, double h, Measure measure) {
+        Box inner = inset(parent, new Box(0, 0, w, h));
+        Arranged inside = children(parent, inner, measure);
+        return new Size(inside.w() + w - inner.w(), inside.h() + h - inner.h());
     }
 
     private static Size constrain(GuiObject object, double w, double h, Measure measure) {

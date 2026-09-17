@@ -3,7 +3,7 @@ package com.meekdev.moud.core.ui;
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.math.Color;
 
-public final class ImageLabel extends GuiObject {
+public class ImageLabel extends GuiObject {
 
     @Prop(asset = true) public String image = "";
     public Color imageColor = Color.WHITE;

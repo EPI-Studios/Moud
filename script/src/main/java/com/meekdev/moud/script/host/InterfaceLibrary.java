@@ -4,6 +4,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.UDim2;
+import com.meekdev.moud.core.ui.TextBox;
 import com.meekdev.moud.core.ui.UIGradient;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,12 +14,25 @@ final class InterfaceLibrary {
     private InterfaceLibrary() {}
 
     static void install(Host host) {
+        host.api().declare(HostSignal.decl("PointerSignal", "(x: number, y: number) -> ()"));
+        host.api().declare(HostSignal.decl("FocusLostSignal", "(enterPressed: boolean) -> ()"));
         host.api().alias("GradientKeypoint", "{ number | Color }");
         host.global("udim", "(scale: number, offset: number) -> UDim2", new Builtin("udim", a -> {
             double scale = a.number(0);
             double offset = a.number(1);
             return new UDim2(scale, offset, scale, offset);
         }));
+
+        Members boxes = host.instances().of(Classes.TEXT_BOX);
+        boxes.method("captureFocus", "() -> ()", a -> {
+            ((TextBox) a.self()).captureFocus();
+            return null;
+        });
+        boxes.method("releaseFocus", "() -> ()", a -> {
+            ((TextBox) a.self()).releaseFocus();
+            return null;
+        });
+        boxes.method("isFocused", "() -> boolean", a -> ((TextBox) a.self()).isFocused());
 
         Members gradients = host.instances().of(Classes.UI_GRADIENT);
         gradients.method("setKeypoints", "(keypoints: { GradientKeypoint }) -> ()", a -> {

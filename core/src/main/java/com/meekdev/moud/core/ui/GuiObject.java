@@ -1,6 +1,7 @@
 package com.meekdev.moud.core.ui;
 
 import com.meekdev.moud.core.clazz.Prop;
+import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.UDim2;
@@ -33,4 +34,17 @@ public class GuiObject extends Instance {
 
     @Prop(readOnly = true) public Vector3 absolutePosition = Vector3.ZERO;
     @Prop(readOnly = true) public Vector3 absoluteSize = Vector3.ZERO;
+
+    public final Signal<Instance> mouseEnter = new Signal<>();
+    public final Signal<Instance> mouseLeave = new Signal<>();
+    public final Signal<Object[]> mouseMoved = new Signal<>();
+    public final Signal<Object[]> mouseButton1Down = new Signal<>();
+    public final Signal<Object[]> mouseButton1Up = new Signal<>();
+    public final Signal<Object[]> mouseButton2Click = new Signal<>();
+    public final Signal<Object[]> mouseWheelForward = new Signal<>();
+    public final Signal<Object[]> mouseWheelBackward = new Signal<>();
+
+    public boolean sinksInput() {
+        return false;
+    }
 }

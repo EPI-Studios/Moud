@@ -98,11 +98,15 @@ import com.meekdev.moud.core.script.ModuleScript;
 import com.meekdev.moud.core.script.Script;
 import com.meekdev.moud.core.ui.AppWindow;
 import com.meekdev.moud.core.ui.BillboardGui;
+import com.meekdev.moud.core.ui.CanvasGroup;
 import com.meekdev.moud.core.ui.Frame;
 import com.meekdev.moud.core.ui.GuiObject;
+import com.meekdev.moud.core.ui.ImageButton;
 import com.meekdev.moud.core.ui.ImageLabel;
 import com.meekdev.moud.core.ui.ScreenGui;
+import com.meekdev.moud.core.ui.ScrollingFrame;
 import com.meekdev.moud.core.ui.SurfaceGui;
+import com.meekdev.moud.core.ui.TextBox;
 import com.meekdev.moud.core.ui.TextButton;
 import com.meekdev.moud.core.ui.TextLabel;
 import com.meekdev.moud.core.ui.UIAspectRatioConstraint;
@@ -249,6 +253,13 @@ public final class Classes {
     public static final ClassDef<ImageLabel> IMAGE_LABEL =
             ClassDef.of("ImageLabel", GUI_OBJECT, ImageLabel.class, ImageLabel::new);
 
+    public static final ClassDef<ImageButton> IMAGE_BUTTON =
+            ClassDef.of("ImageButton", IMAGE_LABEL, ImageButton.class, ImageButton::new);
+    public static final ClassDef<TextBox> TEXT_BOX = ClassDef.of("TextBox", TEXT_LABEL, TextBox.class, TextBox::new);
+    public static final ClassDef<ScrollingFrame> SCROLLING_FRAME =
+            ClassDef.of("ScrollingFrame", GUI_OBJECT, ScrollingFrame.class, ScrollingFrame::new);
+    public static final ClassDef<CanvasGroup> CANVAS_GROUP =
+            ClassDef.of("CanvasGroup", GUI_OBJECT, CanvasGroup.class, CanvasGroup::new);
     public static final ClassDef<UIComponent> UI_COMPONENT =
             ClassDef.of("UIComponent", null, UIComponent.class, UIComponent::new);
     public static final ClassDef<UILayout> UI_LAYOUT = ClassDef.of("UILayout", UI_COMPONENT, UILayout.class, UILayout::new);
@@ -421,6 +432,10 @@ public final class Classes {
         r.register(TEXT_LABEL);
         r.register(TEXT_BUTTON);
         r.register(IMAGE_LABEL);
+        r.register(IMAGE_BUTTON);
+        r.register(TEXT_BOX);
+        r.register(SCROLLING_FRAME);
+        r.register(CANVAS_GROUP);
         r.register(UI_COMPONENT);
         r.register(UI_LAYOUT);
         r.register(UI_LIST_LAYOUT);

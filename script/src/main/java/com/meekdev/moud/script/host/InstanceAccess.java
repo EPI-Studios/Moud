@@ -423,6 +423,7 @@ public final class InstanceAccess {
                         if (player != null) signal.fire(Players.wrap(host, player));
                     }
                     case ChatCommand.Invoked typed -> signal.fire(typed.body(), typed.text(), new ArrayList<>(typed.args()));
+                    case Object[] values -> signal.fire(values);
                     default -> signal.fire(what);
                 }
             }));
