@@ -17,18 +17,26 @@ public record PlaceConfig(
         String client,
         String scene,
         Map<String, Boolean> features,
-        Loading loading) {
+        Loading loading,
+        Streaming streaming) {
+
+    public record Streaming(boolean enabled, double radius) {
+        public static final Streaming DEFAULT = new Streaming(true, 256);
+    }
 
     public record Loading(String background, String color, String logo, String text, List<String> tips) {
         public static final Loading DEFAULT = new Loading("", "#12151c", "", "Loading", List.of());
     }
 
-    private static final List<String> TOP = List.of("name", "id", "version", "engine", "maxPlayers", "entry", "features", "loading");
+    private static final List<String> TOP = List.of("name", "id", "version", "engine", "maxPlayers", "entry", "features", "loading", "streaming");
     private static final Set<String> LOADING = Set.of("background", "color", "logo", "text", "tips");
+    private static final Set<String> STREAMING = Set.of("enabled", "radius");
+    private static final double NEAREST = 32;
+    private static final double FARTHEST = 4096;
     private static final Set<String> ENTRY = Set.of("server", "client", "scene");
 
     public static final PlaceConfig DEFAULT = new PlaceConfig("place", "place", "0.0.0", "", 16,
-            "res://server/main", "res://client/main", "", Map.of(), Loading.DEFAULT);
+            "res://server/main", "res://client/main", "", Map.of(), Loading.DEFAULT, Streaming.DEFAULT);
 
     public static PlaceConfig parse(String text) {
         Map<String, Object> root = Toml.parse(text);
@@ -58,7 +66,23 @@ public record PlaceConfig(
                 path(entry, "client", DEFAULT.client),
                 path(entry, "scene", ""),
                 Map.copyOf(features),
-                loading(table(root, "loading")));
+                loading(table(root, "loading")),
+                streaming(table(root, "streaming")));
+    }
+
+    private static Streaming streaming(Map<String, Object> table) {
+        for (String key : table.keySet()) {
+            if (!STREAMING.contains(key)) throw new IllegalArgumentException("unknown [streaming] setting '" + key + "', expected enabled or radius");
+        }
+        boolean enabled = !Boolean.FALSE.equals(table.get("enabled"));
+        Object radius = table.get("radius");
+        if (radius == null) return new Streaming(enabled, Streaming.DEFAULT.radius());
+        if (!(radius instanceof Number number)) throw new IllegalArgumentException("[streaming] radius must be a number");
+        double metres = number.doubleValue();
+        if (metres < NEAREST || metres > FARTHEST) {
+            throw new IllegalArgumentException("[streaming] radius must be between " + (int) NEAREST + " and " + (int) FARTHEST + " metres");
+        }
+        return new Streaming(enabled, metres);
     }
 
     private static Loading loading(Map<String, Object> table) {
