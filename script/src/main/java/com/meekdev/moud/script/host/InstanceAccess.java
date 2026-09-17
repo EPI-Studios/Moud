@@ -10,6 +10,7 @@ import com.meekdev.moud.core.clazz.EventDef;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.event.Callback;
 import com.meekdev.moud.core.event.Signal;
+import com.meekdev.moud.core.input.ClickDetector;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
@@ -323,6 +324,14 @@ public final class InstanceAccess {
                         signal.fire(args);
                     }
                     case Remote.Sent sent -> signal.fire(sent(sent, instance.tree()));
+                    case ClickDetector.Clicker clicker -> {
+                        if (host.client()) {
+                            signal.fire(Players.local(host));
+                            return;
+                        }
+                        PlayerRef player = host.roster() == null ? null : host.roster().find(clicker.player());
+                        if (player != null) signal.fire(Players.wrap(host, player));
+                    }
                     case ChatCommand.Invoked typed -> signal.fire(typed.body(), typed.text(), new ArrayList<>(typed.args()));
                     default -> signal.fire(what);
                 }

@@ -28,6 +28,7 @@
     "TubeLight": "LINE",
     "Value": "FILE",
     "Remote": "GRAPH_EDIT",
+    "ClickDetector": "TOOL_SELECT",
     "ScreenGui": "CANVAS_LAYER",
     "BillboardGui": "LABEL_3D",
     "SurfaceGui": "DECAL",

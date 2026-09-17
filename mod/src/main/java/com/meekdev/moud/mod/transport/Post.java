@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.remote.Schema;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
+import com.meekdev.moud.mod.server.input.ServerClicks;
 import com.meekdev.moud.mod.server.pilot.ServerPilot;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import com.meekdev.moud.mod.transport.payload.Payloads;
@@ -37,6 +38,7 @@ public final class Post {
         CARRIER.listen();
         ServerChat.listen();
         ServerPrompts.listen();
+        ServerClicks.listen();
         ServerPilot.listen();
         Broadcast.listen();
     }

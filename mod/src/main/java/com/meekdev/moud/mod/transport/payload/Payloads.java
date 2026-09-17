@@ -29,6 +29,7 @@ public final class Payloads {
         PayloadTypeRegistry.serverboundPlay().register(RemoteUpPayload.TYPE, RemoteUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ChatUpPayload.TYPE, ChatUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PromptPayload.TYPE, PromptPayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(ClickPayload.TYPE, ClickPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PilotUpPayload.TYPE, PilotUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ResyncPayload.TYPE, ResyncPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(EditUpPayload.TYPE, EditUpPayload.CODEC.cast());

@@ -16,6 +16,7 @@ import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
 import com.meekdev.moud.mod.client.input.Actions;
+import com.meekdev.moud.mod.client.input.ClickDetectors;
 import com.meekdev.moud.mod.client.input.Controls;
 import com.meekdev.moud.mod.client.input.Devices;
 import com.meekdev.moud.mod.client.input.Push;
@@ -103,6 +104,7 @@ public final class ClientPlace {
         if (place == null || camera == null || !camera.isAlive()) return;
         INPUT.poll();
         Devices.frame(INPUT);
+        ClickDetectors.frame();
         Actions.frame();
         Host host = place.host();
         if (host != null) host.renderStep(FRAME.tick());

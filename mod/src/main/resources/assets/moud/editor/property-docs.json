@@ -122,5 +122,7 @@
     "SpawnLocation.enabled": "Players can arrive here. With several enabled, each player picks one at random.",
     "ViewportFrame.camera": "The Camera the viewport looks through. Empty uses the first Camera inside it.",
     "ViewportFrame.imageColor": "Tints the drawn 3D, white leaves it as it is.",
-    "ViewportFrame.imageTransparency": "0 shows the drawn 3D fully, 1 hides it."
+    "ViewportFrame.imageTransparency": "0 shows the drawn 3D fully, 1 hides it.",
+    "ClickDetector.maxActivationDistance": "How far from its part, in blocks, a player can still hover and click it.",
+    "ClickDetector.cursorIcon": "The cursor shown while a free pointer is over it: arrow, hand, text, crosshair, a res:// image. Empty shows a hand."
 }

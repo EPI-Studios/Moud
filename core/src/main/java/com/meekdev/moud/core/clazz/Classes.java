@@ -26,6 +26,7 @@ import com.meekdev.moud.core.chat.ChatTextShader;
 import com.meekdev.moud.core.chat.ChatWindow;
 import com.meekdev.moud.core.chat.TextChannel;
 import com.meekdev.moud.core.chat.TextSource;
+import com.meekdev.moud.core.input.ClickDetector;
 import com.meekdev.moud.core.input.InputAction;
 import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.Folder;
@@ -233,6 +234,8 @@ public final class Classes {
 
     public static final ClassDef<InputAction> INPUT_ACTION =
             ClassDef.of("InputAction", null, InputAction.class, InputAction::new);
+    public static final ClassDef<ClickDetector> CLICK_DETECTOR =
+            ClassDef.of("ClickDetector", null, ClickDetector.class, ClickDetector::new);
 
     public static final ClassDef<ChatWindow> CHAT_WINDOW =
             ClassDef.of("ChatWindow", null, ChatWindow.class, ChatWindow::new);
@@ -357,6 +360,7 @@ public final class Classes {
         r.register(SCRIPT);
         r.register(LOCAL_SCRIPT);
         r.register(INPUT_ACTION);
+        r.register(CLICK_DETECTOR);
         r.register(COLLISION_GROUP);
         r.register(CHAT_WINDOW);
         r.register(CHAT_COMMAND);

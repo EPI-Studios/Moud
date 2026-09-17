@@ -35,6 +35,7 @@ public final class Devices implements DevicesRef {
     }
 
     public static boolean button(int button, int action, boolean taken) {
+        if (!taken && !processed() && action != GLFW.GLFW_REPEAT) ClickDetectors.button(button, action == GLFW.GLFW_PRESS);
         Host host = ClientPlace.host();
         if (host == null || button > GLFW.GLFW_MOUSE_BUTTON_MIDDLE) return false;
         int code = Actions.code("mousebutton" + (button + 1));

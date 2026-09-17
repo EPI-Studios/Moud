@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import net.minecraft.client.Minecraft;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.BufferUtils;
@@ -45,6 +46,8 @@ public final class WindowApi implements WindowRef {
     private String icon = "";
     private String cursor = "arrow";
     private long cursorHandle;
+    private @Nullable String hovering;
+    private long hoverHandle;
     private boolean cursorVisible = true;
     private double opacity = 1;
     private boolean resizable = true;
@@ -283,6 +286,21 @@ public final class WindowApi implements WindowRef {
             GLFW.glfwSetCursor(handle(), value.equals("arrow") ? 0 : cursorHandle);
             if (previous != 0) GLFW.glfwDestroyCursor(previous);
         });
+    }
+
+    public void hover(@Nullable String over) {
+        String wanted = over == null || CURSORS.containsKey(over) || over.startsWith(Res.SCHEME) ? over : "hand";
+        if (Objects.equals(wanted, hovering)) return;
+        hovering = wanted;
+        long previous = hoverHandle;
+        if (wanted == null) {
+            hoverHandle = 0;
+            GLFW.glfwSetCursor(handle(), cursor.equals("arrow") ? 0 : cursorHandle);
+        } else {
+            hoverHandle = wanted.startsWith(Res.SCHEME) ? imageCursor(wanted) : GLFW.glfwCreateStandardCursor(CURSORS.get(wanted));
+            GLFW.glfwSetCursor(handle(), hoverHandle);
+        }
+        if (previous != 0) GLFW.glfwDestroyCursor(previous);
     }
 
     private static long imageCursor(String res) {

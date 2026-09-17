@@ -19,6 +19,7 @@ import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.adapter.player.EditorBody;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.place.Place;
+import com.meekdev.moud.mod.server.input.ServerClicks;
 import com.meekdev.moud.mod.server.pilot.ServerPilot;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import com.meekdev.moud.mod.transport.Broadcast;
@@ -100,6 +101,7 @@ public final class MoudServer {
         Post.drainToServer(ServerScene.tree());
         ServerChat.INSTANCE.tick(server);
         ServerPrompts.tick(server);
+        ServerClicks.tick(server);
         ServerPilot.tick(server);
         Physics.bodies().follow(server, ServerScene.tree(), Physics.shapes());
         if (!place.editing()) HumanoidStates.tick(server, ServerScene.tree());

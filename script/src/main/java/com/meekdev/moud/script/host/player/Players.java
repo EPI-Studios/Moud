@@ -68,10 +68,60 @@ public final class Players {
         }
     }
 
+    private record Me(Host host) implements PlayerRef {
+
+        @Override
+        public String name() {
+            Instance body = character();
+            return body == null ? host.me() : body.name();
+        }
+
+        @Override
+        public String id() {
+            return host.me();
+        }
+
+        @Override
+        public Instance character() {
+            Instance body = host.own().get();
+            return body == null || !body.isAlive() ? null : body;
+        }
+
+        @Override
+        public void spawn(Vector3 position) {
+            throw new HostError("player:spawn runs on the server");
+        }
+
+        @Override
+        public ControlsRef controls() {
+            if (host.controls() == null) throw new HostError("player.controls is not available here");
+            return host.controls();
+        }
+
+        @Override
+        public void kick(String message) {
+            throw new HostError("player:kick runs on the server");
+        }
+
+        @Override
+        public double ping() {
+            return 0;
+        }
+
+        @Override
+        public double viewTime() {
+            return 0;
+        }
+    }
+
     private Players() {}
 
     public static HostObject wrap(Host host, PlayerRef player) {
         return new Player(player);
+    }
+
+    public static HostObject local(Host host) {
+        return new Player(new Me(host));
     }
 
     static Members controls(ControlsRef ref) {
