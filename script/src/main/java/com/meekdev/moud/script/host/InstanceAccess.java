@@ -180,8 +180,17 @@ public final class InstanceAccess {
         return signals(instance).attribute(name);
     }
 
-    public HostSignal propertySignal(Instance instance, PropertyDef property) {
-        return signals(instance).property(property);
+    public HostSignal propertySignal(Instance instance, String name) {
+        switch (name) {
+            case "name" -> { return signals(instance).renamed(); }
+            case "parent" -> { return signals(instance).reparented(); }
+            case "position", "rotation", "worldCframe" -> {
+                if (instance instanceof Spatial) return signals(instance).world(name);
+            }
+            default -> { }
+        }
+        PropertyDef property = instance.def().property(name);
+        return property == null ? null : signals(instance).property(property);
     }
 
     public void checkAttribute(Instance instance) {
@@ -396,6 +405,68 @@ public final class InstanceAccess {
                 if (changed == property) signal.fire();
             }));
             return signal;
+        }
+
+        HostSignal renamed() {
+            HostSignal existing = properties.get("name");
+            if (existing != null) return existing;
+            HostSignal signal = new HostSignal(host, "AnySignal", "property name");
+            properties.put("name", signal);
+            links.add(instance.renamed().connect(renamed -> signal.fire()));
+            return signal;
+        }
+
+        HostSignal reparented() {
+            HostSignal existing = properties.get("parent");
+            if (existing != null) return existing;
+            HostSignal signal = new HostSignal(host, "AnySignal", "property parent");
+            properties.put("parent", signal);
+            links.add(instance.ancestryChanged().connect(moved -> {
+                if (moved == instance) signal.fire();
+            }));
+            return signal;
+        }
+
+        HostSignal world(String key) {
+            HostSignal existing = properties.get(key);
+            if (existing != null) return existing;
+            HostSignal signal = new HostSignal(host, "AnySignal", "property " + key);
+            properties.put(key, signal);
+            Object[] last = {worldValue(key)};
+            List<Signal.Connection> above = new ArrayList<>();
+            Runnable check = () -> {
+                if (!instance.isAlive()) return;
+                Object now = worldValue(key);
+                if (now.equals(last[0])) return;
+                last[0] = now;
+                signal.fire();
+            };
+            Runnable follow = () -> {
+                above.forEach(Signal.Connection::disconnect);
+                above.clear();
+                for (Instance at = instance; at != null; at = at.parent()) {
+                    if (!(at instanceof Spatial)) continue;
+                    above.add(at.changed().connect(property -> {
+                        if (property.name().equals("cframe") || property.name().equals("pivot")) check.run();
+                    }));
+                }
+            };
+            follow.run();
+            links.add(instance.ancestryChanged().connect(moved -> {
+                follow.run();
+                check.run();
+            }));
+            links.add(() -> above.forEach(Signal.Connection::disconnect));
+            return signal;
+        }
+
+        private Object worldValue(String key) {
+            CFrame world = Transforms.world(instance);
+            return switch (key) {
+                case "position" -> world.position();
+                case "rotation" -> world.rotation();
+                default -> world;
+            };
         }
 
         HostSignal named(EventDef event) {

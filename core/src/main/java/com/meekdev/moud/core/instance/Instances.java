@@ -188,6 +188,7 @@ public final class Instances {
             i.tree.markRenamed(i);
             i.tree.mutations++;
         }
+        if (i.renamed != null) i.renamed.fire(i);
     }
 
     public static void setNum(Instance i, PropertyDef p, double value) {

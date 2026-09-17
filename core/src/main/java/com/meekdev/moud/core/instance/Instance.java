@@ -30,6 +30,7 @@ public abstract class Instance {
     Signal<PropertyDef> changed;
     Signal<Instance> childAdded;
     Signal<Instance> destroying;
+    Signal<Instance> renamed;
     Signal<String> attributeChanged;
     Signal<Instance> ancestryChanged;
     Signal<Instance> descendantAdded;
@@ -95,6 +96,11 @@ public abstract class Instance {
     public final Signal<Instance> destroying() {
         if (destroying == null) destroying = new Signal<>();
         return destroying;
+    }
+
+    public final Signal<Instance> renamed() {
+        if (renamed == null) renamed = new Signal<>();
+        return renamed;
     }
 
     public final Signal<String> attributeChanged() {

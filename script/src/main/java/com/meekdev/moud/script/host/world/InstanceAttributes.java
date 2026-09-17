@@ -1,6 +1,5 @@
 package com.meekdev.moud.script.host.world;
 
-import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.script.host.Host;
@@ -33,9 +32,9 @@ public final class InstanceAttributes {
         shared.method("getPropertyChangedSignal", "(property: string) -> AnySignal", a -> {
             Instance instance = a.self();
             String name = a.string(1);
-            PropertyDef property = instance.def().property(name);
-            if (property == null) throw new HostError("%s has no property '%s'", instance.def().name(), name);
-            return host.instances().propertySignal(instance, property);
+            HostSignal signal = host.instances().propertySignal(instance, name);
+            if (signal == null) throw new HostError("%s has no property '%s'", instance.def().name(), name);
+            return signal;
         });
     }
 }
