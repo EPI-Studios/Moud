@@ -121,6 +121,15 @@ final class Node extends Widget {
         return mx >= left && my >= top && mx < left + scale * w && my < top + scale * h;
     }
 
+    boolean seeThrough() {
+        return source instanceof CanvasGroup group && group.seeThrough();
+    }
+
+    @Override
+    public Widget hitTest(float mx, float my) {
+        return seeThrough() ? null : super.hitTest(mx, my);
+    }
+
     boolean clips() {
         return source instanceof GuiObject object && (object.clipsDescendants || source instanceof CanvasGroup);
     }

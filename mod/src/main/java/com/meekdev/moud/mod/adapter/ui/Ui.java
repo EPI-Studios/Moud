@@ -407,7 +407,7 @@ public final class Ui {
                 if (child.isVisible()) collect(child, x, y, into);
                 continue;
             }
-            if (!node.isVisible()) continue;
+            if (!node.isVisible() || node.seeThrough()) continue;
             boolean inside = node.contains(x, y);
             if (node.source instanceof GuiObject && inside) into.add(node);
             if (inside || !node.clips()) collect(node, x, y, into);

@@ -8,4 +8,8 @@ public final class CanvasGroup extends GuiObject {
     @Prop(min = 0, max = 1) public double groupTransparency;
 
     public Color groupColor = Color.WHITE;
+
+    public boolean seeThrough() {
+        return groupTransparency >= 1;
+    }
 }
