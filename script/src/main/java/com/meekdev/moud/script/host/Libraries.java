@@ -12,6 +12,7 @@ import com.meekdev.moud.script.host.data.StoreLibrary;
 import com.meekdev.moud.script.host.debug.DebugLibrary;
 import com.meekdev.moud.script.host.java.JavaLibrary;
 import com.meekdev.moud.script.host.render.EffectLibrary;
+import com.meekdev.moud.script.host.render.LightingLibrary;
 import com.meekdev.moud.script.host.render.ShaderLibrary;
 import com.meekdev.moud.script.host.player.Players;
 import com.meekdev.moud.script.host.tween.TweenLibrary;
@@ -77,6 +78,7 @@ final class Libraries {
         JavaLibrary.install(host);
         ShaderLibrary.install(host);
         EffectLibrary.install(host);
+        LightingLibrary.install(host);
         DebugLibrary.install(host, game);
         StoreLibrary.install(host);
         HttpLibrary.install(host);

@@ -63,10 +63,14 @@ import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.remote.RemoteFunction;
 import com.meekdev.moud.core.remote.UnreliableRemote;
 import com.meekdev.moud.core.render.AreaLight;
+import com.meekdev.moud.core.render.Atmosphere;
 import com.meekdev.moud.core.render.Camera;
 import com.meekdev.moud.core.render.CameraPath;
+import com.meekdev.moud.core.render.Clouds;
 import com.meekdev.moud.core.render.LightSource;
+import com.meekdev.moud.core.render.Lighting;
 import com.meekdev.moud.core.render.PointLight;
+import com.meekdev.moud.core.render.Sky;
 import com.meekdev.moud.core.render.SpotLight;
 import com.meekdev.moud.core.render.TubeLight;
 import com.meekdev.moud.core.render.post.AmbientOcclusionEffect;
@@ -221,6 +225,12 @@ public final class Classes {
             ClassDef.of("AreaLight", LIGHT, AreaLight.class, AreaLight::new);
     public static final ClassDef<TubeLight> TUBE_LIGHT =
             ClassDef.of("TubeLight", LIGHT, TubeLight.class, TubeLight::new);
+
+    public static final ClassDef<Lighting> LIGHTING = ClassDef.of("Lighting", null, Lighting.class, Lighting::new);
+    public static final ClassDef<Sky> SKY = ClassDef.of("Sky", null, Sky.class, Sky::new);
+    public static final ClassDef<Atmosphere> ATMOSPHERE =
+            ClassDef.of("Atmosphere", null, Atmosphere.class, Atmosphere::new);
+    public static final ClassDef<Clouds> CLOUDS = ClassDef.of("Clouds", null, Clouds.class, Clouds::new);
     public static final ClassDef<Cape> CAPE = ClassDef.of("Cape", LIMB, Cape.class, Cape::new);
     public static final ClassDef<Humanoid> HUMANOID =
             ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
@@ -426,6 +436,10 @@ public final class Classes {
         r.register(SPOT_LIGHT);
         r.register(AREA_LIGHT);
         r.register(TUBE_LIGHT);
+        r.register(LIGHTING);
+        r.register(SKY);
+        r.register(ATMOSPHERE);
+        r.register(CLOUDS);
         r.register(CAPE);
         r.register(HUMANOID);
         r.register(WINGS);
