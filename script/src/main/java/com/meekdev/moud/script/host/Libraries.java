@@ -9,6 +9,7 @@ import com.meekdev.moud.script.host.chat.ChatLibrary;
 import com.meekdev.moud.script.host.data.StoreLibrary;
 import com.meekdev.moud.script.host.debug.DebugLibrary;
 import com.meekdev.moud.script.host.java.JavaLibrary;
+import com.meekdev.moud.script.host.render.EffectLibrary;
 import com.meekdev.moud.script.host.render.ShaderLibrary;
 import com.meekdev.moud.script.host.player.Players;
 import com.meekdev.moud.script.host.tween.TweenLibrary;
@@ -73,6 +74,7 @@ final class Libraries {
         TweenLibrary.install(host);
         JavaLibrary.install(host);
         ShaderLibrary.install(host);
+        EffectLibrary.install(host);
         DebugLibrary.install(host, game);
         StoreLibrary.install(host);
         GameLibrary.install(host, game);

@@ -29,6 +29,17 @@ import com.meekdev.moud.core.chat.ChatTextShader;
 import com.meekdev.moud.core.chat.ChatWindow;
 import com.meekdev.moud.core.chat.TextChannel;
 import com.meekdev.moud.core.chat.TextSource;
+import com.meekdev.moud.core.effect.Beam;
+import com.meekdev.moud.core.effect.Decal;
+import com.meekdev.moud.core.effect.Fire;
+import com.meekdev.moud.core.effect.Highlight;
+import com.meekdev.moud.core.effect.ParticleEmitter;
+import com.meekdev.moud.core.effect.SelectionBox;
+import com.meekdev.moud.core.effect.SelectionSphere;
+import com.meekdev.moud.core.effect.Smoke;
+import com.meekdev.moud.core.effect.Sparkles;
+import com.meekdev.moud.core.effect.Texture;
+import com.meekdev.moud.core.effect.Trail;
 import com.meekdev.moud.core.input.ClickDetector;
 import com.meekdev.moud.core.input.InputAction;
 import com.meekdev.moud.core.instance.Attachment;
@@ -293,6 +304,21 @@ public final class Classes {
     public static final ClassDef<SpringConstraint> SPRING_CONSTRAINT =
             ClassDef.of("SpringConstraint", CONSTRAINT, SpringConstraint.class, SpringConstraint::new);
 
+    public static final ClassDef<ParticleEmitter> PARTICLE_EMITTER =
+            ClassDef.of("ParticleEmitter", null, ParticleEmitter.class, ParticleEmitter::new);
+    public static final ClassDef<Beam> BEAM = ClassDef.of("Beam", null, Beam.class, Beam::new);
+    public static final ClassDef<Trail> TRAIL = ClassDef.of("Trail", null, Trail.class, Trail::new);
+    public static final ClassDef<Highlight> HIGHLIGHT = ClassDef.of("Highlight", null, Highlight.class, Highlight::new);
+    public static final ClassDef<Decal> DECAL = ClassDef.of("Decal", null, Decal.class, Decal::new);
+    public static final ClassDef<Texture> TEXTURE = ClassDef.of("Texture", DECAL, Texture.class, Texture::new);
+    public static final ClassDef<Fire> FIRE = ClassDef.of("Fire", null, Fire.class, Fire::new);
+    public static final ClassDef<Smoke> SMOKE = ClassDef.of("Smoke", null, Smoke.class, Smoke::new);
+    public static final ClassDef<Sparkles> SPARKLES = ClassDef.of("Sparkles", null, Sparkles.class, Sparkles::new);
+    public static final ClassDef<SelectionBox> SELECTION_BOX =
+            ClassDef.of("SelectionBox", null, SelectionBox.class, SelectionBox::new);
+    public static final ClassDef<SelectionSphere> SELECTION_SPHERE =
+            ClassDef.of("SelectionSphere", null, SelectionSphere.class, SelectionSphere::new);
+
     private Classes() {}
 
     public static ClassRegistry registry() {
@@ -403,6 +429,17 @@ public final class Classes {
         r.register(BALL_SOCKET_CONSTRAINT);
         r.register(ROPE_CONSTRAINT);
         r.register(SPRING_CONSTRAINT);
+        r.register(PARTICLE_EMITTER);
+        r.register(BEAM);
+        r.register(TRAIL);
+        r.register(HIGHLIGHT);
+        r.register(DECAL);
+        r.register(TEXTURE);
+        r.register(FIRE);
+        r.register(SMOKE);
+        r.register(SPARKLES);
+        r.register(SELECTION_BOX);
+        r.register(SELECTION_SPHERE);
         for (Addon addon : addons) {
             try {
                 addon.classes(r);
