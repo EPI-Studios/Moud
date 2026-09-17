@@ -13,6 +13,8 @@ public final class Shapes {
 
     public static final int SIDES = 16;
     public static final int RINGS = 8;
+    public static final int COLLIDING_SIDES = 8;
+    public static final int COLLIDING_RINGS = 4;
 
     private static final double TINY = 1.0e-12;
 
@@ -336,13 +338,17 @@ public final class Shapes {
     }
 
     public static List<Vector3[]> triangles(PartShape shape, Vector3 size) {
+        return triangles(shape, size, SIDES, RINGS);
+    }
+
+    public static List<Vector3[]> triangles(PartShape shape, Vector3 size, int sides, int rings) {
         double hx = size.x() * 0.5;
         double hy = size.y() * 0.5;
         double hz = size.z() * 0.5;
         List<Vector3[]> faces = new ArrayList<>();
         switch (shape) {
-            case BALL -> ball(faces, across(shape, size));
-            case CYLINDER -> cylinder(faces, hx, across(shape, size));
+            case BALL -> ball(faces, across(shape, size), sides, rings);
+            case CYLINDER -> cylinder(faces, hx, across(shape, size), sides);
             case WEDGE -> {
                 Vector3 t1 = new Vector3(hx, hy, hz);
                 Vector3 t2 = new Vector3(-hx, hy, hz);
@@ -398,19 +404,19 @@ public final class Shapes {
         return faces;
     }
 
-    private static void ball(List<Vector3[]> faces, double r) {
-        for (int ring = 0; ring < RINGS; ring++) {
-            double high = Math.PI * ring / RINGS;
-            double low = Math.PI * (ring + 1) / RINGS;
-            for (int side = 0; side < SIDES; side++) {
-                double one = 2 * Math.PI * side / SIDES;
-                double two = 2 * Math.PI * (side + 1) / SIDES;
+    private static void ball(List<Vector3[]> faces, double r, int sides, int rings) {
+        for (int ring = 0; ring < rings; ring++) {
+            double high = Math.PI * ring / rings;
+            double low = Math.PI * (ring + 1) / rings;
+            for (int side = 0; side < sides; side++) {
+                double one = 2 * Math.PI * side / sides;
+                double two = 2 * Math.PI * (side + 1) / sides;
                 Vector3 topLeft = onBall(r, high, one);
                 Vector3 topRight = onBall(r, high, two);
                 Vector3 lowLeft = onBall(r, low, one);
                 Vector3 lowRight = onBall(r, low, two);
                 if (ring > 0) face(faces, topLeft, lowLeft, topRight);
-                if (ring < RINGS - 1) face(faces, topRight, lowLeft, lowRight);
+                if (ring < rings - 1) face(faces, topRight, lowLeft, lowRight);
             }
         }
     }
@@ -420,12 +426,12 @@ public final class Shapes {
                 r * Math.sin(pitch) * Math.cos(turn));
     }
 
-    private static void cylinder(List<Vector3[]> faces, double hx, double r) {
+    private static void cylinder(List<Vector3[]> faces, double hx, double r, int sides) {
         Vector3 right = new Vector3(hx, 0, 0);
         Vector3 left = new Vector3(-hx, 0, 0);
-        for (int side = 0; side < SIDES; side++) {
-            double one = 2 * Math.PI * side / SIDES;
-            double two = 2 * Math.PI * (side + 1) / SIDES;
+        for (int side = 0; side < sides; side++) {
+            double one = 2 * Math.PI * side / sides;
+            double two = 2 * Math.PI * (side + 1) / sides;
             Vector3 rightOne = new Vector3(hx, r * Math.cos(one), r * Math.sin(one));
             Vector3 rightTwo = new Vector3(hx, r * Math.cos(two), r * Math.sin(two));
             Vector3 leftOne = new Vector3(-hx, rightOne.y(), rightOne.z());

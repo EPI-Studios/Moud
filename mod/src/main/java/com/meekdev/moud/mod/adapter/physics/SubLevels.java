@@ -6,6 +6,7 @@ import com.meekdev.bkun.sublevel.SubLevelEntity;
 import com.meekdev.box3d.B3Body;
 import com.meekdev.box3d.B3BodyType;
 import com.meekdev.box3d.B3Shape;
+import com.meekdev.box3d.B3ShapeType;
 import com.meekdev.box3d.Quat;
 import com.meekdev.box3d.Vec3;
 import com.meekdev.moud.core.clazz.Classes;
@@ -17,6 +18,8 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.PartShape;
+import com.meekdev.moud.core.part.Shapes;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.net.replicate.Change;
@@ -87,6 +90,7 @@ public final class SubLevels {
             B3Body body = subLevel.body();
             if (body != null) {
                 if (dressed.get(entry.getKey()) != body) dress(body, part);
+                else round(body, part);
                 List<Consumer<B3Body>> queued = pending.remove(entry.getKey());
                 if (queued != null) queued.forEach(action -> action.accept(body));
             }
@@ -126,6 +130,7 @@ public final class SubLevels {
 
     private void dress(B3Body body, Part part) {
         dressed.put(part.id(), body);
+        round(body, part);
         float density = part.massless ? MASSLESS_DENSITY : (float) part.density;
         for (B3Shape shape : body.shapes()) {
             shape.setDensity(density);
@@ -133,6 +138,18 @@ public final class SubLevels {
             shape.setRestitution((float) part.elasticity);
         }
         body.recomputeMass();
+    }
+
+    private static void round(B3Body body, Part part) {
+        if (part.shape != PartShape.BALL) return;
+        float radius = (float) Shapes.across(PartShape.BALL, part.size);
+        List<B3Shape> shapes = body.shapes();
+        if (shapes.size() == 1 && shapes.getFirst().type() == B3ShapeType.SPHERE
+                && Math.abs(shapes.getFirst().sphere().radius() - radius) < 1.0e-4f) {
+            return;
+        }
+        for (B3Shape shape : shapes) shape.destroy();
+        body.addSphere(radius);
     }
 
     public @Nullable B3Body body(int id) {
@@ -222,6 +239,11 @@ public final class SubLevels {
             return;
         }
         SubLevel subLevel = byInstance.get(id);
+        if (subLevel != null && subLevel.model() != PartShapes.of(part.size, part.shape)) {
+            subLevel.setModel(PartShapes.of(part.size, part.shape));
+            subLevel.recentreOrigin();
+            dressed.remove(id);
+        }
         if (subLevel != null && !part.anchored && simulating && same(world, written.get(id))) {
             type(subLevel, part);
             B3Body body = subLevel.body();
@@ -231,7 +253,7 @@ public final class SubLevels {
         if (subLevel == null) {
             subLevel = allocate(id, world);
             if (subLevel == null) return;
-            subLevel.setModel(PartShapes.of(part.size));
+            subLevel.setModel(PartShapes.of(part.size, part.shape));
             subLevel.recentreOrigin();
             subLevel.markShapesDirty();
             SubLevelEntity spawned = SubLevelEntity.spawn(level, subLevel);
@@ -262,7 +284,8 @@ public final class SubLevels {
     private static final int SQUARE_TICKS = 40;
 
     private static boolean needsSubLevel(Part part) {
-        return part.collides && !ViewportFrame.inside(part) && (!part.anchored || !Colliders.isAxisAligned(part) || Physics.boxes().moving(part) || Joints.holds(part.id()));
+        return part.collides && !ViewportFrame.inside(part) && (!part.anchored || !Colliders.staysPut(part)
+                || Physics.boxes().moving(part) || Joints.holds(part.id()));
     }
 
     static void mirror(InstanceTree tree, Change change) {
@@ -278,7 +301,7 @@ public final class SubLevels {
             case Change.Attributed ignored -> -1;
         };
         if (id < 0) return;
-        if (tree.byId(id) instanceof Part part && needsSubLevel(part)) PartShapes.of(part.size);
+        if (tree.byId(id) instanceof Part part && needsSubLevel(part)) PartShapes.of(part.size, part.shape);
     }
 
     static boolean wantsSubLevel(Part part) {

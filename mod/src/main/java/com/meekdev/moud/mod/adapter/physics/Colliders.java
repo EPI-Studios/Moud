@@ -1,8 +1,10 @@
 package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.bkun.collision.BoxCollider;
+import com.meekdev.bkun.collision.Collider;
 import com.meekdev.bkun.collision.ColliderSink;
 import com.meekdev.bkun.collision.SurfaceMaterial;
+import com.meekdev.bkun.collision.TriangleCollider;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
@@ -11,9 +13,12 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Aabb;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.CollisionGroup;
 import com.meekdev.moud.core.part.CollisionGroups;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.PartShape;
+import com.meekdev.moud.core.part.Shapes;
 import com.meekdev.moud.core.query.SpatialIndex;
 import com.meekdev.moud.core.space.Broadphase;
 import com.meekdev.moud.core.ui.ViewportFrame;
@@ -24,7 +29,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 public final class Colliders {
@@ -38,6 +45,7 @@ public final class Colliders {
     private static final int STEADY_TICKS = 5;
     private static final int CALM_TICKS = 40;
 
+    private final Map<Integer, List<Collider>> faces = new ConcurrentHashMap<>();
     private final Map<Integer, int[]> moves = new HashMap<>();
     private final Set<Integer> moving = new HashSet<>();
     private int tick;
@@ -50,6 +58,10 @@ public final class Colliders {
 
     public int size() {
         return grid.size();
+    }
+
+    public static boolean staysPut(Part part) {
+        return part.shape != PartShape.BLOCK || isAxisAligned(part);
     }
 
     public static boolean isAxisAligned(Part part) {
@@ -74,10 +86,12 @@ public final class Colliders {
         boolean statics = switch (change) {
             case Change.Reset ignored -> {
                 boolean had = grid.size() > 0;
+                faces.clear();
                 grid.clear();
                 yield had;
             }
             case Change.Destroyed destroyed -> {
+                faces.remove(destroyed.id());
                 moves.remove(destroyed.id());
                 moving.remove(destroyed.id());
                 yield removeById(destroyed.id());
@@ -147,10 +161,34 @@ public final class Colliders {
                 region.maxX, region.maxY, region.maxZ), instance -> {
             Aabb box = grid.boundsOf(instance);
             if (box == null || !(instance instanceof Part part)) return;
+            if (part.shape != PartShape.BLOCK) {
+                for (Collider face : faces(part)) {
+                    if (face.bounds().intersects(region)) sink.add(face);
+                }
+                return;
+            }
             long category = groups().category(CollisionGroups.groupOf(part));
             sink.add(new BoxCollider(new AABB(box.minX(), box.minY(), box.minZ(),
                     box.maxX(), box.maxY(), box.maxZ()), SurfaceMaterial.DEFAULT, category));
         });
+    }
+
+    private List<Collider> faces(Part part) {
+        List<Collider> cached = faces.get(part.id());
+        if (cached != null) return cached;
+        CFrame world = Transforms.world(part);
+        List<Collider> made = new ArrayList<>();
+        for (Vector3[] face : Shapes.triangles(part.shape, part.size,
+                Shapes.COLLIDING_SIDES, Shapes.COLLIDING_RINGS)) {
+            made.add(new TriangleCollider(at(world, face[0]), at(world, face[1]), at(world, face[2])));
+        }
+        faces.put(part.id(), made);
+        return made;
+    }
+
+    private static Vec3 at(CFrame world, Vector3 corner) {
+        Vector3 point = world.pointToWorld(corner);
+        return new Vec3(point.x(), point.y(), point.z());
     }
 
     private boolean refreshBranch(Instance instance) {
@@ -161,9 +199,10 @@ public final class Colliders {
     }
 
     private boolean refresh(int id) {
+        faces.remove(id);
         Instance instance = tree == null ? null : tree.byId(id);
         if (!(instance instanceof Part part)) return false;
-        if (!part.collides || ViewportFrame.inside(part) || ((!part.anchored || !isAxisAligned(part) || moving.contains(id) || Joints.holds(id)) && SubLevels.available())) {
+        if (!part.collides || ViewportFrame.inside(part) || ((!part.anchored || !staysPut(part) || moving.contains(id) || Joints.holds(id)) && SubLevels.available())) {
             return grid.remove(part);
         }
         CFrame world = Transforms.world(part);
