@@ -33,6 +33,7 @@ public final class Effects {
 
     public static void register() {
         Pipeline.add(RenderStage.AFTER_WATER, 50, "moud effects", context -> EditorView.filled(() -> draw(context)));
+        Highlights.register();
     }
 
     public static void frame() {
