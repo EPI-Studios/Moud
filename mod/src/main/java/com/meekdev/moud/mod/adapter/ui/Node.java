@@ -13,6 +13,7 @@ import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ImageButton;
 import com.meekdev.moud.core.ui.ImageFit;
 import com.meekdev.moud.core.ui.ResampleMode;
+import com.meekdev.moud.core.ui.ScaleType;
 import com.meekdev.moud.core.ui.ImageLabel;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.ScrollingFrame;
@@ -205,7 +206,8 @@ final class Node extends Widget {
                 int[] size = UiImages.size(shown);
                 boolean pixelated = image.resampleMode == ResampleMode.PIXELATED;
                 if (size == null) {
-                    d.imageRegion(texture, x, y, x + w, y + h, 0, 0, 1, 1, colour, pixelated);
+                    boolean plain = image.scaleType == ScaleType.STRETCH && image.imageRectSize.x() <= 0 && image.imageRectSize.y() <= 0;
+                    if (plain) d.imageRegion(texture, x, y, x + w, y + h, 0, 0, 1, 1, colour, pixelated);
                 } else {
                     for (ImageFit.Piece piece : ImageFit.pieces(image, w, h, size[0], size[1])) {
                         d.imageRegion(texture, x + (float) piece.x0(), y + (float) piece.y0(), x + (float) piece.x1(), y + (float) piece.y1(),

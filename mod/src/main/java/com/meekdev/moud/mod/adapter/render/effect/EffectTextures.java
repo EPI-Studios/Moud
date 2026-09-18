@@ -19,12 +19,11 @@ final class EffectTextures {
     record Sprite(int gl, boolean nearest) {}
 
     private static final int DOT_SIZE = 64;
-    private static final long RETRY_MILLIS = 1000;
 
-    private static final Map<String, Sprite> KNOWN = new HashMap<>();
-    private static final Map<String, Long> FAILED = new HashMap<>();
+    private static final Map<String, Identifier> KNOWN = new HashMap<>();
     private static Sprite white;
     private static Sprite dot;
+    private static Sprite clear;
 
     private EffectTextures() {}
 
@@ -37,27 +36,19 @@ final class EffectTextures {
         if (src.isEmpty()) return dot();
         if (ImageStore.isEditable(src)) {
             int gl = EditableTextures.gl(src);
-            return gl == 0 ? dot() : new Sprite(gl, false);
+            return gl == 0 ? clear() : new Sprite(gl, false);
         }
-        Sprite known = KNOWN.get(src);
-        if (known != null) return known;
-        Long failed = FAILED.get(src);
-        if (failed != null && System.currentTimeMillis() - failed < RETRY_MILLIS) return dot();
-        Sprite found = find(src);
-        if (found == null) {
-            FAILED.put(src, System.currentTimeMillis());
-            return dot();
-        }
-        FAILED.remove(src);
-        KNOWN.put(src, found);
-        return found;
-    }
-
-    private static Sprite find(String src) {
         if (src.startsWith(Res.SCHEME)) {
             int gl = UiImages.texture(src);
-            return gl == 0 ? null : new Sprite(gl, false);
+            return gl == 0 ? dot() : new Sprite(gl, false);
         }
+        Identifier id = KNOWN.computeIfAbsent(src, EffectTextures::find);
+        if (id == null) return dot();
+        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(id);
+        return texture != null && texture.getTexture() instanceof GlTexture gl ? new Sprite(gl.glId(), true) : dot();
+    }
+
+    private static Identifier find(String src) {
         Identifier id = Identifier.tryParse(src);
         if (id == null) return null;
         String path = id.getPath();
@@ -65,10 +56,12 @@ final class EffectTextures {
             path = (path.indexOf('/') < 0 ? "textures/particle/" : "textures/") + path;
         }
         if (!path.endsWith(".png")) path += ".png";
-        AbstractTexture texture = Minecraft.getInstance().getTextureManager()
-                .getTexture(Identifier.fromNamespaceAndPath(id.getNamespace(), path));
-        if (texture == null || !(texture.getTexture() instanceof GlTexture gl)) return null;
-        return new Sprite(gl.glId(), true);
+        return Identifier.fromNamespaceAndPath(id.getNamespace(), path);
+    }
+
+    private static Sprite clear() {
+        if (clear == null) clear = new Sprite(Textures.upload(1, BufferUtils.createByteBuffer(4).put(new byte[] {0, 0, 0, 0}).flip()), true);
+        return clear;
     }
 
     private static Sprite dot() {

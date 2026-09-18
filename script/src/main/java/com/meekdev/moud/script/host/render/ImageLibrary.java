@@ -31,7 +31,7 @@ public final class ImageLibrary {
 
     private ImageLibrary() {}
 
-    public record Image(Host host, int id, EditableImage pixels) implements HostObject {
+    public record Image(Host host, Set<Integer> owned, int id, EditableImage pixels) implements HostObject {
 
         private static final Members METHODS = new Members("EditableImage")
                 .declare("width", "number")
@@ -75,7 +75,17 @@ public final class ImageLibrary {
                 })
                 .method("drawPolygon", "(points: { Vector3 } | { number }, color: Color, options: DrawOptions?) -> ()", a -> {
                     Style style = Style.of(a, 3, a.color(2));
-                    a.self(Image.class).live().polygon(points(a.list(1)), style.paint(), style.smooth());
+                    List<double[]> points = points(a.list(1));
+                    EditableImage image = a.self(Image.class).live();
+                    if (style.filled()) {
+                        image.polygon(points, style.paint(), style.smooth());
+                    } else {
+                        for (int n = 0; n < points.size(); n++) {
+                            double[] from = points.get(n);
+                            double[] to = points.get((n + 1) % points.size());
+                            image.line(from[0], from[1], to[0], to[1], style.paint(), style.thickness(), style.smooth());
+                        }
+                    }
                     return null;
                 })
                 .method("drawGradient", "(x: number, y: number, width: number, height: number, from: Color, to: Color, options: GradientOptions?) -> ()", a -> {
@@ -159,14 +169,14 @@ public final class ImageLibrary {
                 .method("crop", "(x: number, y: number, width: number, height: number) -> EditableImage", a -> {
                     Image self = a.self(Image.class);
                     try {
-                        return keep(self.host(), self.live().crop(a.integer(1), a.integer(2), a.integer(3), a.integer(4)));
+                        return track(self.host(), self.owned(), self.live().crop(a.integer(1), a.integer(2), a.integer(3), a.integer(4)));
                     } catch (IllegalArgumentException e) {
                         throw new HostError("%s", e.getMessage());
                     }
                 })
                 .method("copy", "() -> EditableImage", a -> {
                     Image self = a.self(Image.class);
-                    return keep(self.host(), self.live().copy());
+                    return track(self.host(), self.owned(), self.live().copy());
                 })
                 .method("flip", "(direction: \"horizontal\" | \"vertical\") -> ()", a -> {
                     String direction = a.string(1);
@@ -190,6 +200,7 @@ public final class ImageLibrary {
 
         void destroy() {
             ImageStore.remove(id);
+            owned.remove(id);
         }
 
         public String uri() {
@@ -264,12 +275,8 @@ public final class ImageLibrary {
         });
     }
 
-    private static Image keep(Host host, EditableImage image) {
-        return new Image(host, ImageStore.add(image), image);
-    }
-
     private static Image track(Host host, Set<Integer> owned, EditableImage image) {
-        Image made = keep(host, image);
+        Image made = new Image(host, owned, ImageStore.add(image), image);
         owned.add(made.id());
         return made;
     }

@@ -12,7 +12,9 @@ import com.meekdev.moud.mod.place.PlaceToml;
 import com.mojang.blaze3d.opengl.GlTexture;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.Identifier;
@@ -20,7 +22,9 @@ import org.jspecify.annotations.Nullable;
 
 public final class UiImages {
 
-    private static final Map<String, Integer> KNOWN = new HashMap<>();
+    private static final Map<String, Identifier> KNOWN = new HashMap<>();
+    private static final Set<String> NEAREST = new HashSet<>();
+    private static final Set<Integer> FILTERED = new HashSet<>();
 
     private UiImages() {}
 
@@ -44,7 +48,7 @@ public final class UiImages {
             Image image = image(src);
             return image == null ? null : new int[] {image.width(), image.height()};
         }
-        Identifier id = Identifier.tryParse(src);
+        Identifier id = KNOWN.computeIfAbsent(src, UiImages::resolve);
         AbstractTexture texture = id == null ? null : Minecraft.getInstance().getTextureManager().getTexture(id);
         if (texture == null || texture.getTexture() == null) return null;
         return new int[] {texture.getTexture().getWidth(0), texture.getTexture().getHeight(0)};
@@ -52,24 +56,27 @@ public final class UiImages {
 
     public static int texture(String src) {
         if (ImageStore.isEditable(src)) return EditableTextures.gl(src);
-        Integer known = KNOWN.get(src);
-        if (known != null && known != 0) return known;
-        Identifier id;
-        boolean nearest = false;
+        Identifier id = KNOWN.computeIfAbsent(src, UiImages::resolve);
+        if (id == null) return 0;
+        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(id);
+        int gl = texture != null && texture.getTexture() instanceof GlTexture glTexture ? glTexture.glId() : 0;
+        if (gl != 0 && NEAREST.contains(src) && FILTERED.add(gl)) Textures.filterNearest(gl);
+        return gl;
+    }
+
+    private static @Nullable Identifier resolve(String src) {
         if (src.startsWith(Res.SCHEME)) {
             Path root = ClientPlace.root();
             if (root == null) root = PlaceToml.root();
             Path file = root.resolve(Res.parse(src));
-            nearest = ImportSettings.of(file).nearest();
-            id = ImportedTextures.idForPath(file.toAbsolutePath().toString());
-        } else {
-            id = Identifier.tryParse(src);
+            if (ImportSettings.of(file).nearest()) NEAREST.add(src);
+            return ImportedTextures.idForPath(file.toAbsolutePath().toString());
         }
-        if (id == null) return 0;
-        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(id);
-        int gl = texture != null && texture.getTexture() instanceof GlTexture glTexture ? glTexture.glId() : 0;
-        if (gl != 0 && nearest) Textures.filterNearest(gl);
-        KNOWN.put(src, gl);
-        return gl;
+        Identifier id = Identifier.tryParse(src);
+        if (id == null) return null;
+        String path = id.getPath();
+        if (!path.startsWith("textures/")) path = "textures/" + path;
+        if (!path.endsWith(".png")) path += ".png";
+        return Identifier.fromNamespaceAndPath(id.getNamespace(), path);
     }
 }
