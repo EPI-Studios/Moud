@@ -20,6 +20,7 @@ import com.meekdev.moud.mod.adapter.render.SceneLights;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.adapter.render.SkyBox;
 import com.meekdev.moud.mod.adapter.render.Skins;
+import com.meekdev.moud.mod.adapter.physics.OwnedBodies;
 import com.meekdev.moud.mod.adapter.render.effect.Effects;
 import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
@@ -87,6 +88,7 @@ public final class MoudClient implements ClientModInitializer {
         });
         LevelRenderEvents.START_MAIN.register(context -> {
             ClientScene.frame();
+            OwnedBodies.frame(ClientScene.tree(), ClientScene.motion());
             float partialTick = Minecraft.getInstance().getDeltaTracker()
                     .getGameTimeDeltaPartialTick(true);
             Skins.prepareFrame(partialTick);

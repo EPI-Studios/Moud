@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.box3d.B3Body;
 import com.meekdev.box3d.B3BodyType;
+import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
@@ -47,6 +48,9 @@ public final class PartBodies implements PartPhysicsRef {
         if (!part.collides) return "a part that does not collide is not simulated";
         if (Joints.holds(part.id())) return "a part held by a constraint stays with the server";
         if (Instance.outOfWorld(part)) return "a part kept in storage is not simulated";
+        for (Instance up = part.parent(); up != null; up = up.parent()) {
+            if (up instanceof Character) return "a part of a body moves with the body";
+        }
         return "";
     }
 

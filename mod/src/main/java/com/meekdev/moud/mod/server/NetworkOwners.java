@@ -11,7 +11,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
-import com.meekdev.moud.mod.adapter.physics.Joints;
+import com.meekdev.moud.mod.adapter.physics.PartBodies;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.transport.payload.OwnedPosePayload;
 import java.util.HashMap;
@@ -73,8 +73,7 @@ public final class NetworkOwners {
     }
 
     public static boolean ownable(Part part) {
-        return part.isAlive() && !part.anchored && part.collides && !Instance.outOfWorld(part)
-                && !(part.parent() instanceof Character) && !Joints.holds(part.id());
+        return part.isAlive() && PartBodies.INSTANCE.whyNotOwnable(part).isEmpty();
     }
 
     private static void decide(Part part, Map<String, Vector3> players) {

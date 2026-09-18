@@ -85,7 +85,7 @@ public class Part extends Spatial {
 
     @Override
     public boolean sentBy(String player, int property) {
-        return simulatedBy(player) && (property == Motion.CFRAME || property == Motion.VELOCITY || property == Motion.ANGULAR_VELOCITY);
+        return ownerReporting && simulatedBy(player) && (property == Motion.CFRAME || property == Motion.VELOCITY || property == Motion.ANGULAR_VELOCITY);
     }
 
     private static final class Motion {

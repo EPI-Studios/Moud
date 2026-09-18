@@ -22,6 +22,8 @@ public final class Motion {
     private final Set<Instance> moving = Collections.newSetFromMap(new IdentityHashMap<>());
 
     private final Map<Instance, CFrame> composed = new IdentityHashMap<>();
+
+    private final Map<Instance, CFrame> live = new IdentityHashMap<>();
     private double composedAt = Double.NaN;
 
     private long structure;
@@ -85,6 +87,15 @@ public final class Motion {
         composedAt = Double.NaN;
     }
 
+    public void live(Instance instance, CFrame local) {
+        live.put(instance, local);
+        composed.clear();
+    }
+
+    public void unlive(Instance instance) {
+        if (live.remove(instance) != null) composed.clear();
+    }
+
     public CFrame sample(Instance instance, double alpha) {
         if (alpha != composedAt) {
             composed.clear();
@@ -108,6 +119,8 @@ public final class Motion {
     }
 
     private CFrame localAt(Instance instance, double alpha) {
+        CFrame now = live.get(instance);
+        if (now != null) return now;
         Track track = tracks.get(instance);
         return track == null ? Transforms.local(instance) : (CFrame) track.sampleAt(alpha);
     }
@@ -125,6 +138,7 @@ public final class Motion {
             Instance instance = it.next().getKey();
             if (!instance.isAlive()) {
                 it.remove();
+                live.remove(instance);
                 stepping.remove(instance);
                 moving.remove(instance);
                 stillChanged = true;
