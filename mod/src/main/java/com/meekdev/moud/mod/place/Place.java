@@ -11,6 +11,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.http.HttpRequests;
+import com.meekdev.moud.mod.adapter.image.ImageSources;
 import com.meekdev.moud.mod.adapter.physics.PartBodies;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.Roster;
@@ -427,6 +428,7 @@ public final class Place {
                     .physics(PartBodies.INSTANCE)
                     .tools(ServerTools.INSTANCE)
                     .http(HttpRequests.INSTANCE)
+                    .images(ImageSources.SERVER)
                     .game(ServerGame.INSTANCE)
                     .push(ServerPush.INSTANCE);
         }

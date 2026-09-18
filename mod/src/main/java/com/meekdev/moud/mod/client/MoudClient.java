@@ -21,6 +21,8 @@ import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.adapter.render.SkyBox;
 import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.adapter.physics.OwnedBodies;
+import com.meekdev.moud.mod.adapter.image.ClientImageSources;
+import com.meekdev.moud.mod.adapter.render.EditableTextures;
 import com.meekdev.moud.mod.adapter.render.effect.Effects;
 import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
@@ -97,6 +99,8 @@ public final class MoudClient implements ClientModInitializer {
             Sounds.frame(partialTick);
             SceneLights.frame(partialTick);
             Effects.frame();
+            EditableTextures.sweep();
+            ClientImageSources.INSTANCE.frame();
             Bubbles.frame(partialTick);
             ClientPrompts.frame();
             PostStack.frame();

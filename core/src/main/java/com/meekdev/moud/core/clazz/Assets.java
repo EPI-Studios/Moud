@@ -1,6 +1,7 @@
 package com.meekdev.moud.core.clazz;
 
 import com.meekdev.moud.core.asset.Res;
+import com.meekdev.moud.core.image.ImageStore;
 
 public final class Assets {
 
@@ -27,7 +28,7 @@ public final class Assets {
     }
 
     public static void check(String where, String value) {
-        if (value.isEmpty()) return;
+        if (value.isEmpty() || ImageStore.isEditable(value)) return;
         if (value.startsWith(Res.SCHEME)) {
             try {
                 Res.parse(value);

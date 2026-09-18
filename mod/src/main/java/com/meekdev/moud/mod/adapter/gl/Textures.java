@@ -2,13 +2,18 @@ package com.meekdev.moud.mod.adapter.gl;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL30;
 import org.lwjgl.opengl.GL33;
+import org.lwjgl.system.MemoryUtil;
 
 public final class Textures {
+
+    public record Pixels(int width, int height, int[] argb) {}
 
     public static final int NEAREST = GL11.GL_NEAREST;
     public static final int LINEAR = GL11.GL_LINEAR;
@@ -60,6 +65,27 @@ public final class Textures {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
+    }
+
+    public static @Nullable Pixels read(int texture, int largest) {
+        int bound = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+        try {
+            int width = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_WIDTH);
+            int height = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, 0, GL11.GL_TEXTURE_HEIGHT);
+            if (width <= 0 || height <= 0 || width > largest || height > largest) return null;
+            IntBuffer pixels = MemoryUtil.memAllocInt(width * height);
+            try {
+                GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGRA, GL12.GL_UNSIGNED_INT_8_8_8_8_REV, pixels);
+                int[] argb = new int[width * height];
+                pixels.get(argb);
+                return new Pixels(width, height, argb);
+            } finally {
+                MemoryUtil.memFree(pixels);
+            }
+        } finally {
+            GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
+        }
     }
 
     public static void readPixels(int x, int y, int width, int height, ByteBuffer rgba) {

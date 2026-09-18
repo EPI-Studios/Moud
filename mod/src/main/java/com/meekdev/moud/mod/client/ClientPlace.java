@@ -15,6 +15,7 @@ import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
+import com.meekdev.moud.mod.adapter.image.ClientImageSources;
 import com.meekdev.moud.mod.client.input.Actions;
 import com.meekdev.moud.mod.client.input.ClickDetectors;
 import com.meekdev.moud.mod.client.input.Controls;
@@ -129,6 +130,7 @@ public final class ClientPlace {
                     .game(GameState.INSTANCE)
                     .settings(PlayerSettings.INSTANCE)
                     .window(WindowApi.INSTANCE)
+                    .images(ClientImageSources.INSTANCE)
                     .coreGui(CoreGui.INSTANCE)
                     .devices(DEVICES);
             CoreGui.INSTANCE.reset();

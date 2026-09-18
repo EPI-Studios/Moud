@@ -15,6 +15,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Owners;
+import com.meekdev.moud.script.host.render.ImageLibrary;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
@@ -219,7 +220,8 @@ public final class InstanceAccess {
         return switch (property.type()) {
             case BOOL -> value != null && !Boolean.FALSE.equals(value);
             case INT, NUM -> expect(value, Number.class, property.name(), "a number").doubleValue();
-            case STRING, ASSET -> expect(value, String.class, property.name(), "a string");
+            case STRING, ASSET -> property.asset() && value instanceof ImageLibrary.Image image ? image.uri()
+                    : expect(value, String.class, property.name(), "a string");
             case VEC3 -> expect(value, Vector3.class, property.name(), "a vec3");
             case COLOR -> expect(value, Color.class, property.name(), "a color");
             case UDIM2 -> expect(value, UDim2.class, property.name(), "a udim2");

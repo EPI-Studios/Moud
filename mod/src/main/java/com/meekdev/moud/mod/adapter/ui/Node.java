@@ -11,6 +11,8 @@ import com.meekdev.moud.core.ui.CanvasGroup;
 import com.meekdev.moud.core.ui.GuiLayout;
 import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ImageButton;
+import com.meekdev.moud.core.ui.ImageFit;
+import com.meekdev.moud.core.ui.ResampleMode;
 import com.meekdev.moud.core.ui.ImageLabel;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.ScrollingFrame;
@@ -199,7 +201,17 @@ final class Node extends Widget {
                 if (image instanceof ImageButton button && button.autoButtonColor && shown.equals(image.image)) {
                     tint = shade(tint, pressed ? 0.25 : hovered ? 0.12 : 0);
                 }
-                d.image(texture, x, y, w, h, argb(tint, (1 - image.imageTransparency) * alpha));
+                int colour = argb(tint, (1 - image.imageTransparency) * alpha);
+                int[] size = UiImages.size(shown);
+                boolean pixelated = image.resampleMode == ResampleMode.PIXELATED;
+                if (size == null) {
+                    d.imageRegion(texture, x, y, x + w, y + h, 0, 0, 1, 1, colour, pixelated);
+                } else {
+                    for (ImageFit.Piece piece : ImageFit.pieces(image, w, h, size[0], size[1])) {
+                        d.imageRegion(texture, x + (float) piece.x0(), y + (float) piece.y0(), x + (float) piece.x1(), y + (float) piece.y1(),
+                                (float) piece.u0(), (float) piece.v0(), (float) piece.u1(), (float) piece.v1(), colour, pixelated);
+                    }
+                }
             }
         }
         if (source instanceof TextBox box) textBox(d, box, alpha, textStroke);

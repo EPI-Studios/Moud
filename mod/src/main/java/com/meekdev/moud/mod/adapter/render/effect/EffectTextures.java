@@ -1,7 +1,9 @@
 package com.meekdev.moud.mod.adapter.render.effect;
 
 import com.meekdev.moud.core.asset.Res;
+import com.meekdev.moud.core.image.ImageStore;
 import com.meekdev.moud.mod.adapter.gl.Textures;
+import com.meekdev.moud.mod.adapter.render.EditableTextures;
 import com.meekdev.moud.mod.adapter.ui.UiImages;
 import com.mojang.blaze3d.opengl.GlTexture;
 import java.nio.ByteBuffer;
@@ -33,6 +35,10 @@ final class EffectTextures {
 
     static Sprite of(String src) {
         if (src.isEmpty()) return dot();
+        if (ImageStore.isEditable(src)) {
+            int gl = EditableTextures.gl(src);
+            return gl == 0 ? dot() : new Sprite(gl, false);
+        }
         Sprite known = KNOWN.get(src);
         if (known != null) return known;
         Long failed = FAILED.get(src);
