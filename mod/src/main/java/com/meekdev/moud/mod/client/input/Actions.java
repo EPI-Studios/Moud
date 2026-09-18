@@ -104,6 +104,7 @@ public final class Actions {
             typedAt = now;
             TYPED.clear();
             for (int key : PRINTABLE) {
+                if (GLFW.glfwGetKeyScancode(key) < 0) continue;
                 String name = GLFW.glfwGetKeyName(key, 0);
                 if (name != null && name.length() == 1) TYPED.putIfAbsent(Character.toLowerCase(name.charAt(0)), key);
             }
@@ -125,7 +126,7 @@ public final class Actions {
 
     public static String name(int code) {
         boolean digit = code >= GLFW.GLFW_KEY_0 && code <= GLFW.GLFW_KEY_9;
-        if (code < GLFW.GLFW_KEY_ESCAPE && !digit) {
+        if (code < GLFW.GLFW_KEY_ESCAPE && !digit && GLFW.glfwGetKeyScancode(code) >= 0) {
             String label = GLFW.glfwGetKeyName(code, 0);
             if (label != null && label.length() == 1) return label.toLowerCase(Locale.ROOT);
         }
