@@ -22,6 +22,7 @@ import com.meekdev.moud.mod.adapter.render.SkyBox;
 import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.adapter.physics.OwnedBodies;
 import com.meekdev.moud.mod.adapter.image.ClientImageSources;
+import com.meekdev.moud.mod.adapter.image.ImageSources;
 import com.meekdev.moud.mod.adapter.render.EditableTextures;
 import com.meekdev.moud.mod.adapter.render.effect.Effects;
 import com.meekdev.moud.mod.adapter.ui.Ui;
@@ -63,6 +64,7 @@ public final class MoudClient implements ClientModInitializer {
                 ? me.getUUID().toString() : "");
         Pipeline.install();
         ResonaAudio.INSTANCE.install();
+        ImageSources.fontFrom(ClientImageSources.INSTANCE::font);
         if (!Game.standalone()) Editor.install();
         GameTypes.install(ClientScene::tree, id -> Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getPlayerByUUID(id));
         Parts.register();

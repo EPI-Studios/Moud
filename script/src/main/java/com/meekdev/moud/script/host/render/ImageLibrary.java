@@ -2,8 +2,10 @@ package com.meekdev.moud.script.host.render;
 
 import com.meekdev.moud.core.image.Blend;
 import com.meekdev.moud.core.image.EditableImage;
+import com.meekdev.moud.core.image.GlyphFont;
 import com.meekdev.moud.core.image.ImageStore;
 import com.meekdev.moud.core.image.Paint;
+import com.meekdev.moud.core.image.TextDraw;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.ImagesRef;
@@ -27,6 +29,7 @@ import java.util.concurrent.CompletionException;
 public final class ImageLibrary {
 
     private static final String BLEND = "\"over\" | \"replace\" | \"add\" | \"multiply\" | \"erase\"";
+    private static final String ALIGN = "\"left\" | \"center\" | \"right\"";
     private static final int MOST_PIXELS_READ = EditableImage.LARGEST * EditableImage.LARGEST;
 
     private ImageLibrary() {}
@@ -108,6 +111,19 @@ public final class ImageLibrary {
                     target.image(source, sx, sy, sw, sh, a.number(2), a.number(3), number(options, "width", sw), number(options, "height", sh),
                             number(options, "transparency", 0), blend(options.get("blend")), Boolean.TRUE.equals(options.get("smooth")));
                     return null;
+                })
+                .method("drawText", "(text: string, x: number, y: number, color: Color, options: TextOptions?) -> (number, number)", a -> {
+                    Image self = a.self(Image.class);
+                    EditableImage target = self.live();
+                    Map<String, Object> options = a.map(5, Map.of());
+                    Paint paint = Paint.of(a.color(4), number(options, "transparency", 0), blend(options.get("blend")));
+                    TextDraw.Extent drawn = TextDraw.draw(target, font(self.host()), a.string(1), a.number(2), a.number(3), paint, textStyle(options));
+                    return Results.of(drawn.width(), drawn.height());
+                })
+                .method("measureText", "(text: string, options: TextOptions?) -> (number, number)", a -> {
+                    Image self = a.self(Image.class);
+                    self.live();
+                    return measure(self.host(), a.string(1), a.map(2, Map.of()));
                 })
                 .method("floodFill", "(x: number, y: number, color: Color, options: FillOptions?) -> number", a -> {
                     Map<String, Object> options = a.map(4, Map.of());
@@ -239,6 +255,8 @@ public final class ImageLibrary {
         host.api().alias("DrawOptions", "{ transparency: number?, blend: ImageBlend?, smooth: boolean?, filled: boolean?, thickness: number?, cornerRadius: number? }");
         host.api().alias("GradientOptions", "{ rotation: number?, fromTransparency: number?, toTransparency: number?, blend: ImageBlend? }");
         host.api().alias("ImageDrawOptions", "{ width: number?, height: number?, sourceX: number?, sourceY: number?, sourceWidth: number?, sourceHeight: number?, transparency: number?, blend: ImageBlend?, smooth: boolean? }");
+        host.api().alias("TextAlign", ALIGN);
+        host.api().alias("TextOptions", "{ size: number?, shadow: boolean?, align: TextAlign?, wrap: number?, lineHeight: number?, transparency: number?, blend: ImageBlend?, bold: boolean?, italic: boolean?, smooth: boolean? }");
         host.api().alias("FillOptions", "{ tolerance: number?, transparency: number?, blend: ImageBlend? }");
         host.api().declare(Image.METHODS.decl());
         Members images = new Members("Images")
@@ -259,6 +277,7 @@ public final class ImageLibrary {
                     image.touched();
                     return track(host, owned, image);
                 })
+                .function("measureText", "(text: string, options: TextOptions?) -> (number, number)", a -> measure(host, a.string(0), a.map(1, Map.of())))
                 .function("load", "(source: string) -> EditableImage", a -> waitFor(host, owned, loader(host).load(a.string(0)), "load " + a.string(0)))
                 .function("skin", "(player: any, part: (\"head\" | \"full\")?) -> EditableImage", a -> {
                     String id = Players.idOf(a.get(0));
@@ -292,6 +311,46 @@ public final class ImageLibrary {
     private static ImagesRef loader(Host host) {
         if (host.images() == null) throw new HostError("images can not be loaded here");
         return host.images();
+    }
+
+    private static GlyphFont font(Host host) {
+        GlyphFont font = host.images() == null ? null : host.images().font();
+        if (font == null) throw new HostError("text is drawn with Minecraft's font, which only a player's game has; draw text in a LocalScript");
+        return font;
+    }
+
+    private static Results measure(Host host, String text, Map<String, Object> options) {
+        TextDraw.Extent size = TextDraw.measure(font(host), text, textStyle(options));
+        return Results.of(size.width(), size.height());
+    }
+
+    private static TextDraw.Style textStyle(Map<String, Object> options) {
+        double size = number(options, "size", 1);
+        if (size <= 0) throw new HostError("size must be above 0, not %s", size);
+        double wrap = number(options, "wrap", 0);
+        if (wrap < 0) throw new HostError("wrap must be 0 or more, not %s", wrap);
+        double lineHeight = number(options, "lineHeight", 0);
+        if (lineHeight < 0) throw new HostError("lineHeight must be 0 or more, not %s", lineHeight);
+        return new TextDraw.Style(size, flag(options, "shadow"), align(options.get("align")), wrap, lineHeight,
+                flag(options, "bold"), flag(options, "italic"), flag(options, "smooth"));
+    }
+
+    private static TextDraw.Align align(Object value) {
+        if (value == null) return TextDraw.Align.LEFT;
+        if (!(value instanceof String name)) throw new HostError("align is one of %s", ALIGN);
+        return switch (name) {
+            case "left" -> TextDraw.Align.LEFT;
+            case "center" -> TextDraw.Align.CENTER;
+            case "right" -> TextDraw.Align.RIGHT;
+            default -> throw new HostError("align is one of %s, not %s", ALIGN, name);
+        };
+    }
+
+    private static boolean flag(Map<String, Object> options, String key) {
+        Object value = options.get(key);
+        if (value == null) return false;
+        if (!(value instanceof Boolean on)) throw new HostError("%s must be true or false", key);
+        return on;
     }
 
     private static Suspend waitFor(Host host, Set<Integer> owned, CompletableFuture<EditableImage> future, String what) {

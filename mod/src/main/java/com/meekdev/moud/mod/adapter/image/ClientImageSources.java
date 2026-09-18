@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.adapter.image;
 
 import com.meekdev.moud.core.image.EditableImage;
+import com.meekdev.moud.core.image.GlyphFont;
 import com.meekdev.moud.mod.adapter.gl.Textures;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.place.PlaceToml;
@@ -21,7 +22,9 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 
 public final class ClientImageSources extends ImageSources {
 
@@ -32,6 +35,8 @@ public final class ClientImageSources extends ImageSources {
     private record Asked(UUID player, boolean head, long since, CompletableFuture<EditableImage> result) {}
 
     private final List<Asked> waiting = new ArrayList<>();
+    private GlyphFont font;
+    private List<PackResources> fontPacks = List.of();
 
     private ClientImageSources() {
         super(ClientImageSources::root);
@@ -57,6 +62,17 @@ public final class ClientImageSources extends ImageSources {
         } catch (IOException e) {
             return CompletableFuture.failedFuture(new UncheckedIOException(e));
         }
+    }
+
+    @Override
+    public synchronized GlyphFont font() {
+        ResourceManager resources = Minecraft.getInstance().getResourceManager();
+        List<PackResources> packs = resources.listPacks().toList();
+        if (font == null || !packs.equals(fontPacks)) {
+            font = MinecraftFont.read(resources);
+            fontPacks = packs;
+        }
+        return font;
     }
 
     @Override

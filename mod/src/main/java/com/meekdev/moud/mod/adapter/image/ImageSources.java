@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.adapter.image;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.image.Blend;
 import com.meekdev.moud.core.image.EditableImage;
+import com.meekdev.moud.core.image.GlyphFont;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.features.Feature;
 import com.meekdev.moud.mod.place.PlaceToml;
@@ -31,6 +32,8 @@ public class ImageSources implements ImagesRef {
     private static final Duration TIMEOUT = Duration.ofSeconds(20);
     private static final int LARGEST_FILE = 16 * 1024 * 1024;
 
+    private static Supplier<GlyphFont> gameFont = () -> null;
+
     private final Supplier<Path> root;
     private HttpClient client;
 
@@ -58,6 +61,15 @@ public class ImageSources implements ImagesRef {
         }
         if (source.startsWith("https://") || source.startsWith("http://")) return web(source);
         return other(source);
+    }
+
+    public static void fontFrom(Supplier<GlyphFont> font) {
+        gameFont = font;
+    }
+
+    @Override
+    public GlyphFont font() {
+        return gameFont.get();
     }
 
     protected CompletableFuture<EditableImage> other(String source) {
