@@ -119,12 +119,11 @@ final class Ropes {
             Vector3 dir = next.sub(points.get(Math.max(n - 1, 0)));
             if (dir.lengthSq() < MIN_STEP_SQ) continue;
             dir = dir.normalize();
-            if (reference == null) reference = notAlong(dir);
-            Vector3 u = dir.cross(reference);
-            if (u.lengthSq() < MIN_NORMAL_SQ) u = dir.cross(new Vector3(0, 0, 1));
+            Vector3 u = reference == null ? Vector3.ZERO : reference.sub(dir.mul(reference.dot(dir)));
+            if (u.lengthSq() < MIN_NORMAL_SQ) u = dir.cross(notAlong(dir));
             u = u.normalize();
             Vector3 v = dir.cross(u);
-            reference = v;
+            reference = u;
             Vector3[] ring = new Vector3[SIDES];
             for (int k = 0; k < SIDES; k++) {
                 double a = 2 * Math.PI * k / SIDES;
