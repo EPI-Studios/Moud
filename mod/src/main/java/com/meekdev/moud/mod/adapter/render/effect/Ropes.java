@@ -61,7 +61,7 @@ final class Ropes {
             batch.light(Effects.light(from.lerp(to, 0.5)), 1, 0);
             switch (constraint) {
                 case RopeConstraint rope -> {
-                    if (!Meshes.ready(rope.mesh)) rope(batch, colour, from, to, rope.length, rope.thickness);
+                    if (!Meshes.linked(rope)) rope(batch, colour, from, to, rope.length, rope.thickness);
                 }
                 case SpringConstraint spring -> coil(batch, colour, from, to, spring.coils, spring.radius, spring.thickness);
                 case RodConstraint rod -> tube(batch, colour, List.of(from, to), rod.thickness);

@@ -73,24 +73,24 @@ public final class Meshes {
         }
     }
 
-    public static boolean ready(String meshId) {
-        if (meshId.isEmpty()) return false;
-        Model model = model(meshId);
-        return model != null && model.isReady();
+    public static boolean linked(RopeConstraint rope) {
+        if (rope.mesh.isEmpty()) return false;
+        Model model = model(rope.mesh);
+        if (model == null || !model.isReady()) return false;
+        double spacing = rope.meshLength > 0 ? rope.meshLength : model.boundsMax().z - model.boundsMin().z;
+        return spacing > MIN_LINK;
     }
 
     private static void links(RopeConstraint rope, float partialTick) {
         if (!rope.visible || !rope.enabled || rope.mesh.isEmpty()) return;
         if (!(rope.attachment0 instanceof Attachment a0) || !a0.isAlive() || ViewportFrame.inside(a0)) return;
         if (!(rope.attachment1 instanceof Attachment a1) || !a1.isAlive()) return;
+        if (!linked(rope)) return;
         Model model = model(rope.mesh);
-        if (model == null || !model.isReady()) return;
         Vector3f min = model.boundsMin();
         Vector3f max = model.boundsMax();
         float along = max.z - min.z;
         double spacing = rope.meshLength > 0 ? rope.meshLength : along;
-        if (!(spacing > MIN_LINK)) return;
-        float scale = along < 1e-5f ? 1f : (float) (spacing / along);
         Vector3 from = ClientScene.motion().sample(a0, partialTick).position();
         Vector3 to = ClientScene.motion().sample(a1, partialTick).position();
         List<Vector3> points = RopeCurve.points(from, to, rope.length, ROPE_SEGMENTS);
@@ -99,6 +99,7 @@ public final class Meshes {
             Vector3 y = link.up();
             Vector3 x = y.cross(z);
             Vector3 at = link.position();
+            float scale = along < 1e-5f ? (float) (link.length() / spacing) : (float) (link.length() / along);
             WORLD.set((float) x.x(), (float) x.y(), (float) x.z(), 0,
                     (float) y.x(), (float) y.y(), (float) y.z(), 0,
                     (float) z.x(), (float) z.y(), (float) z.z(), 0,
