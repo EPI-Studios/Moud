@@ -7,11 +7,15 @@ import com.meekdev.amnetic.client.model.Models;
 import com.meekdev.amnetic.client.model.internal.ammesh.AmmeshConverter;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Attachment;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.MeshPart;
+import com.meekdev.moud.core.physics.RopeConstraint;
+import com.meekdev.moud.core.physics.RopeCurve;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
@@ -19,6 +23,7 @@ import com.meekdev.moud.mod.client.PlaceFiles;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
@@ -40,6 +45,9 @@ public final class Meshes {
     private static final Set<String> MISSING = new HashSet<>();
 
     private static final Matrix4f WORLD = new Matrix4f();
+    private static final int ROPE_SEGMENTS = 24;
+    private static final int MOST_LINKS = 512;
+    private static final double MIN_LINK = 0.01;
 
     private Meshes() {}
 
@@ -60,6 +68,45 @@ public final class Meshes {
             draw(part, model, partialTick, dt);
         }
         ANIMATORS.keySet().removeIf(id -> !(tree.byId(id) instanceof MeshPart));
+        for (Instance instance : tree.ofClass(Classes.ROPE_CONSTRAINT)) {
+            if (instance instanceof RopeConstraint rope) links(rope, partialTick);
+        }
+    }
+
+    public static boolean ready(String meshId) {
+        if (meshId.isEmpty()) return false;
+        Model model = model(meshId);
+        return model != null && model.isReady();
+    }
+
+    private static void links(RopeConstraint rope, float partialTick) {
+        if (!rope.visible || !rope.enabled || rope.mesh.isEmpty()) return;
+        if (!(rope.attachment0 instanceof Attachment a0) || !a0.isAlive() || ViewportFrame.inside(a0)) return;
+        if (!(rope.attachment1 instanceof Attachment a1) || !a1.isAlive()) return;
+        Model model = model(rope.mesh);
+        if (model == null || !model.isReady()) return;
+        Vector3f min = model.boundsMin();
+        Vector3f max = model.boundsMax();
+        float along = max.z - min.z;
+        double spacing = rope.meshLength > 0 ? rope.meshLength : along;
+        if (!(spacing > MIN_LINK)) return;
+        float scale = along < 1e-5f ? 1f : (float) (spacing / along);
+        Vector3 from = ClientScene.motion().sample(a0, partialTick).position();
+        Vector3 to = ClientScene.motion().sample(a1, partialTick).position();
+        List<Vector3> points = RopeCurve.points(from, to, rope.length, ROPE_SEGMENTS);
+        for (RopeCurve.Link link : RopeCurve.links(points, spacing, Math.toRadians(rope.meshTwist), MOST_LINKS)) {
+            Vector3 z = link.forward();
+            Vector3 y = link.up();
+            Vector3 x = y.cross(z);
+            Vector3 at = link.position();
+            WORLD.set((float) x.x(), (float) x.y(), (float) x.z(), 0,
+                    (float) y.x(), (float) y.y(), (float) y.z(), 0,
+                    (float) z.x(), (float) z.y(), (float) z.z(), 0,
+                    (float) at.x(), (float) at.y(), (float) at.z(), 1)
+                    .scale(scale)
+                    .translate(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -(min.z + max.z) / 2);
+            model.render(WORLD);
+        }
     }
 
     private static void draw(MeshPart part, Model model, float partialTick, float dt) {

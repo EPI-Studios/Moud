@@ -72,7 +72,7 @@ public final class Effects {
             Beams.draw(BATCH, seen, tree, partialTick, clock);
             Trails.draw(BATCH, seen, clock);
             Selections.draw(BATCH, tree, partialTick);
-            Ropes.draw(BATCH, seen, tree);
+            Ropes.draw(BATCH, seen, tree, partialTick);
             BATCH.draw(camera);
         } catch (RuntimeException e) {
             broken = true;

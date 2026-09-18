@@ -257,7 +257,8 @@ public final class Joints {
     private static void winch(RopeConstraint rope, B3DistanceJoint distance) {
         double gap = rope.winchTarget - rope.length;
         if (Math.abs(gap) <= EPSILON) return;
-        double rate = Math.min(rope.winchSpeed, Math.abs(gap) * rope.winchResponsiveness * WINCH_EASE);
+        double eased = Math.min(rope.winchSpeed, Math.abs(gap) * rope.winchResponsiveness * WINCH_EASE);
+        double rate = rope.winchResponsiveness <= 0 ? rope.winchSpeed : eased;
         if (gap < 0) {
             var pull = distance.constraintForce();
             double load = Math.sqrt(pull.x() * pull.x() + pull.y() * pull.y() + pull.z() * pull.z());

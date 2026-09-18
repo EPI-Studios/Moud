@@ -8,6 +8,12 @@ public final class RopeConstraint extends Constraint {
 
     @Prop(min = 0.01) public double thickness = 0.1;
 
+    @Prop(asset = true) public String mesh = "";
+
+    @Prop(min = 0) public double meshLength;
+
+    public double meshTwist;
+
     public boolean winchEnabled;
 
     @Prop(min = 0) public double winchTarget = 5;

@@ -4,7 +4,6 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
-import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
@@ -12,9 +11,12 @@ import com.meekdev.moud.core.physics.Constraint;
 import com.meekdev.moud.core.physics.HingeConstraint;
 import com.meekdev.moud.core.physics.PrismaticConstraint;
 import com.meekdev.moud.core.physics.RodConstraint;
+import com.meekdev.moud.core.physics.RopeCurve;
 import com.meekdev.moud.core.physics.RopeConstraint;
 import com.meekdev.moud.core.physics.SpringConstraint;
 import com.meekdev.moud.core.ui.ViewportFrame;
+import com.meekdev.moud.mod.adapter.render.Meshes;
+import com.meekdev.moud.mod.client.ClientScene;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,13 +26,10 @@ final class Ropes {
     private static final double AXIS_LENGTH = 0.6;
     private static final int ROPE_SEGMENTS = 24;
     private static final int COIL_SEGMENTS = 16;
-    private static final Vector3 DOWN = new Vector3(0, -1, 0);
     private static final int SIDES = 6;
     private static final double SHADE_FLOOR = 0.55;
     private static final Vector3 SUN = new Vector3(0.3, 1, 0.2).normalize();
     private static final double NEAR_VERTICAL = 0.9;
-    private static final double MIN_SLACK = 1.0e-4;
-    private static final double MIN_APART = 1.0e-3;
     private static final double MIN_COIL_SQ = 1.0e-8;
     private static final double MIN_SEGMENT_SQ = 1.0e-10;
     private static final double MIN_NORMAL_SQ = 1.0e-10;
@@ -39,7 +38,7 @@ final class Ropes {
 
     private Ropes() {}
 
-    static void draw(QuadBatch batch, Effects.View view, InstanceTree tree) {
+    static void draw(QuadBatch batch, Effects.View view, InstanceTree tree, float partialTick) {
         boolean started = false;
         for (Instance instance : tree.ofClass(Classes.CONSTRAINT)) {
             if (!(instance instanceof Constraint constraint) || !constraint.visible || !constraint.enabled) continue;
@@ -48,7 +47,7 @@ final class Ropes {
                 batch.use(QuadBatch.Layer.WORLD, EffectTextures.white());
                 started = true;
             }
-            CFrame at0 = Transforms.world(a0);
+            CFrame at0 = ClientScene.motion().sample(a0, partialTick);
             batch.tint(constraint.color, 1, 1);
             Color colour = constraint.color;
             if (constraint instanceof HingeConstraint || constraint instanceof PrismaticConstraint) {
@@ -58,10 +57,12 @@ final class Ropes {
             }
             if (!(constraint.attachment1 instanceof Attachment a1) || !a1.isAlive()) continue;
             Vector3 from = at0.position();
-            Vector3 to = Transforms.world(a1).position();
+            Vector3 to = ClientScene.motion().sample(a1, partialTick).position();
             batch.light(Effects.light(from.lerp(to, 0.5)), 1, 0);
             switch (constraint) {
-                case RopeConstraint rope -> rope(batch, colour, from, to, rope.length, rope.thickness);
+                case RopeConstraint rope -> {
+                    if (!Meshes.ready(rope.mesh)) rope(batch, colour, from, to, rope.length, rope.thickness);
+                }
                 case SpringConstraint spring -> coil(batch, colour, from, to, spring.coils, spring.radius, spring.thickness);
                 case RodConstraint rod -> tube(batch, colour, List.of(from, to), rod.thickness);
                 default -> segment(batch, view, from, to, JOINT_THICKNESS);
@@ -69,18 +70,9 @@ final class Ropes {
         }
     }
 
-    static Vector3 ropeAt(Vector3 from, Vector3 to, double length, double t) {
-        double apart = to.sub(from).length();
-        double slack = Math.max(0, length - apart);
-        Vector3 straight = from.lerp(to, t);
-        if (slack <= MIN_SLACK) return straight;
-        double sag = apart < MIN_APART ? length * 0.5 : Math.min(length * 0.5, Math.sqrt(3 * apart * slack / 8));
-        return straight.add(DOWN.mul(sag * 4 * t * (1 - t)));
-    }
-
     private static void rope(QuadBatch batch, Color colour, Vector3 from, Vector3 to, double length, double thickness) {
         List<Vector3> points = new ArrayList<>(ROPE_SEGMENTS + 1);
-        for (int n = 0; n <= ROPE_SEGMENTS; n++) points.add(ropeAt(from, to, length, (double) n / ROPE_SEGMENTS));
+        for (int n = 0; n <= ROPE_SEGMENTS; n++) points.add(RopeCurve.at(from, to, length, (double) n / ROPE_SEGMENTS));
         tube(batch, colour, points, thickness);
     }
 
@@ -112,6 +104,7 @@ final class Ropes {
     private static void tube(QuadBatch batch, Color colour, List<Vector3> points, double thickness) {
         double r = thickness * 0.5;
         Vector3[] previous = null;
+        Vector3 previousAt = null;
         Vector3 reference = null;
         for (int n = 0; n < points.size(); n++) {
             Vector3 here = points.get(n);
@@ -129,8 +122,8 @@ final class Ropes {
                 double a = 2 * Math.PI * k / SIDES;
                 ring[k] = u.mul(Math.cos(a)).add(v.mul(Math.sin(a)));
             }
-            if (previous != null) {
-                Vector3 last = points.get(n - 1);
+            if (previous != null && here.sub(previousAt).lengthSq() > MIN_STEP_SQ) {
+                Vector3 last = previousAt;
                 for (int k = 0; k < SIDES; k++) {
                     int j = (k + 1) % SIDES;
                     Vector3 normal = ring[k].add(ring[j]).normalize();
@@ -143,6 +136,7 @@ final class Ropes {
                 }
             }
             previous = ring;
+            previousAt = here;
         }
         batch.tint(colour, 1, 1);
     }
