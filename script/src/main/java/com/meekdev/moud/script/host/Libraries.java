@@ -7,6 +7,7 @@ import com.meekdev.moud.core.script.ModuleScript;
 import com.meekdev.moud.script.host.audio.AudioLibrary;
 import com.meekdev.moud.script.host.chat.ChatLibrary;
 import com.meekdev.moud.script.host.data.HttpLibrary;
+import com.meekdev.moud.script.host.data.MemoryLibrary;
 import com.meekdev.moud.script.host.data.MessagingLibrary;
 import com.meekdev.moud.script.host.data.StoreLibrary;
 import com.meekdev.moud.script.host.debug.DebugLibrary;
@@ -86,6 +87,7 @@ final class Libraries {
         StoreLibrary.install(host);
         HttpLibrary.install(host);
         MessagingLibrary.install(host);
+        MemoryLibrary.install(host);
         GameLibrary.install(host, game);
         WindowLibrary.install(host);
         CoreGuiLibrary.install(host);

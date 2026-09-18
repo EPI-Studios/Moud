@@ -111,6 +111,7 @@ public final class Place {
     public void close() {
         if (host != null) host.close();
         host = null;
+        if (!client) ServerScene.memory().clear();
         if (watcher != null) watcher.close();
         watcher = null;
     }
@@ -133,6 +134,7 @@ public final class Place {
         host = null;
         clearWorld();
         if (client) return;
+        ServerScene.memory().clear();
         if (!unsaved) adoptChangedScene();
         if (edited != null) Scene.load(edited, world, classes);
         else scene();
@@ -428,6 +430,7 @@ public final class Place {
                     .physics(PartBodies.INSTANCE)
                     .tools(ServerTools.INSTANCE)
                     .http(HttpRequests.INSTANCE)
+                    .memory(ServerScene::memory)
                     .images(ImageSources.SERVER)
                     .game(ServerGame.INSTANCE)
                     .push(ServerPush.INSTANCE);

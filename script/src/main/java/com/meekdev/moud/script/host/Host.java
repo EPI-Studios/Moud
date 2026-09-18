@@ -23,6 +23,7 @@ import com.meekdev.moud.script.api.GameRef;
 import com.meekdev.moud.script.api.HistoryRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.InvokeRef;
+import com.meekdev.moud.script.api.MemoryRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PartPhysicsRef;
@@ -108,6 +109,7 @@ public final class Host {
     private PartPhysicsRef physics;
     private ToolRef tools;
     private HttpRef http;
+    private MemoryRef memory;
     private ImagesRef images;
     private GameRef game;
     private SettingsRef settings;
@@ -231,6 +233,7 @@ public final class Host {
     public PartPhysicsRef physics() { return physics; }
     public ToolRef tools() { return tools; }
     public HttpRef http() { return http; }
+    public MemoryRef memory() { return memory; }
     public ImagesRef images() { return images; }
     public GameRef game() { return game; }
     public SettingsRef settings() { return settings; }
@@ -261,6 +264,7 @@ public final class Host {
     public Host physics(PartPhysicsRef physics) { this.physics = physics; return this; }
     public Host tools(ToolRef tools) { this.tools = tools; return this; }
     public Host http(HttpRef http) { this.http = http; return this; }
+    public Host memory(MemoryRef memory) { this.memory = memory; return this; }
     public Host images(ImagesRef images) { this.images = images; return this; }
     public Host game(GameRef game) { this.game = game; return this; }
     public Host settings(SettingsRef settings) { this.settings = settings; return this; }
