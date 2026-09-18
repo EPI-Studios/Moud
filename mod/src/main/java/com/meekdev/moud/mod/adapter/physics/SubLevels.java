@@ -96,6 +96,7 @@ public final class SubLevels {
                 if (queued != null) queued.forEach(action -> action.accept(body));
             }
             if (part.anchored || !simulating) drive(subLevel, part);
+            else if (owned(part)) chase(subLevel, part);
             else follow(subLevel, part);
         }
         if (letGo != null) {
@@ -129,8 +130,25 @@ public final class SubLevels {
         return dot < 1 - STILL * STILL;
     }
 
+    private static boolean owned(Part part) {
+        return part.simulatedRemotely();
+    }
+
+    private static void chase(SubLevel subLevel, Part part) {
+        B3Body body = subLevel.body();
+        if (body == null) return;
+        CFrame world = Transforms.world(part);
+        var r = world.rotation();
+        body.setTargetTransform(BoxFrames.vec(world.position()),
+                new Quat((float) r.x(), (float) r.y(), (float) r.z(), (float) r.w()), 1f / 20f);
+    }
+
     private void dress(B3Body body, Part part) {
         dressed.put(part.id(), body);
+        dressBody(body, part);
+    }
+
+    static void dressBody(B3Body body, Part part) {
         round(body, part);
         float density = part.massless ? MASSLESS_DENSITY : (float) part.density;
         for (B3Shape shape : body.shapes()) {
@@ -151,6 +169,11 @@ public final class SubLevels {
         }
         for (B3Shape shape : shapes) shape.destroy();
         body.addSphere(radius);
+    }
+
+    public void retype(Part part) {
+        SubLevel subLevel = byInstance.get(part.id());
+        if (subLevel != null) type(subLevel, part);
     }
 
     public @Nullable B3Body body(int id) {
@@ -246,7 +269,7 @@ public final class SubLevels {
             subLevel.recentreOrigin();
             dressed.remove(id);
         }
-        if (subLevel != null && !part.anchored && simulating && same(world, written.get(id))) {
+        if (subLevel != null && !part.anchored && simulating && (owned(part) || same(world, written.get(id)))) {
             type(subLevel, part);
             B3Body body = subLevel.body();
             if (body != null) dress(body, part);
@@ -279,8 +302,14 @@ public final class SubLevels {
     private static void type(SubLevel subLevel, Part part) {
         B3Body body = subLevel.body();
         if (body == null) return;
-        B3BodyType wanted = part.anchored || !simulating ? B3BodyType.KINEMATIC : B3BodyType.DYNAMIC;
-        if (body.type() != wanted) body.setType(wanted);
+        B3BodyType wanted = part.anchored || !simulating || owned(part) ? B3BodyType.KINEMATIC : B3BodyType.DYNAMIC;
+        if (body.type() == wanted) return;
+        body.setType(wanted);
+        if (wanted == B3BodyType.DYNAMIC) {
+            body.setLinearVelocity(BoxFrames.vec(part.velocity));
+            body.setAngularVelocity(BoxFrames.vec(part.angularVelocity));
+            body.setAwake(true);
+        }
     }
 
     private static final int SQUARE_TICKS = 40;

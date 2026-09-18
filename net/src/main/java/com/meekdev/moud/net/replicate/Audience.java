@@ -94,7 +94,9 @@ public final class Audience {
                     }
                 }
                 case Change.Wrote wrote -> {
-                    if (has.get(wrote.id())) out.accept(wrote);
+                    if (!has.get(wrote.id())) continue;
+                    Instance written = tree.byId(wrote.id());
+                    if (written == null || !written.sentBy(player, wrote.property())) out.accept(wrote);
                 }
                 case Change.Tagged tagged -> {
                     if (has.get(tagged.id())) out.accept(tagged);

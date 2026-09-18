@@ -10,6 +10,7 @@ import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.server.Seating;
 import com.meekdev.moud.mod.server.input.ServerClicks;
 import com.meekdev.moud.mod.server.pilot.ServerPilot;
+import com.meekdev.moud.mod.server.NetworkOwners;
 import com.meekdev.moud.mod.server.tool.ServerTools;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import com.meekdev.moud.mod.transport.payload.Payloads;
@@ -62,6 +63,7 @@ public final class Post {
         ServerPrompts.listen();
         ServerClicks.listen();
         Seating.listen();
+        NetworkOwners.listen();
         ServerPilot.listen();
         ServerTools.listen();
         Broadcast.listen();

@@ -2,6 +2,10 @@ package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.box3d.B3Body;
 import com.meekdev.box3d.B3BodyType;
+import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.script.api.PartPhysicsRef;
@@ -11,6 +15,9 @@ import java.util.function.Consumer;
 public final class PartBodies implements PartPhysicsRef {
 
     public static final PartBodies INSTANCE = new PartBodies();
+
+    private static final PropertyDef OWNER = Classes.PART.property("networkOwner");
+    private static final int SERVER_HOLD_TICKS = 40;
 
     private PartBodies() {}
 
@@ -35,6 +42,15 @@ public final class PartBodies implements PartPhysicsRef {
     }
 
     @Override
+    public String whyNotOwnable(Part part) {
+        if (part.anchored) return "an anchored part is always the server's";
+        if (!part.collides) return "a part that does not collide is not simulated";
+        if (Joints.holds(part.id())) return "a part held by a constraint stays with the server";
+        if (Instance.outOfWorld(part)) return "a part kept in storage is not simulated";
+        return "";
+    }
+
+    @Override
     public Vector3 velocityAt(Part part, Vector3 position) {
         B3Body body = Physics.shapes().body(part.id());
         if (part.anchored || body == null || !body.isValid()) return part.velocity;
@@ -51,6 +67,15 @@ public final class PartBodies implements PartPhysicsRef {
     private static void push(Part part, Consumer<B3Body> action) {
         if (part.anchored) throw new HostError("%s is anchored, physics does not move it", part.name());
         if (!part.collides) throw new HostError("%s does not collide, so it has no physics body", part.name());
+        if (!part.networkOwner.isEmpty()) {
+            if (part.ownershipSet()) {
+                throw new HostError("%s is simulated by its network owner, give it back with setNetworkOwner(nil) or setNetworkOwnershipAuto() first", part.name());
+            }
+            part.ownerChanged();
+            Instances.setObj(part, OWNER, "");
+            Physics.shapes().retype(part);
+        }
+        if (!part.ownershipSet()) part.holdForServer(SERVER_HOLD_TICKS);
         Physics.shapes().withBody(part, body -> {
             if (!body.isValid()) return;
             action.accept(body);

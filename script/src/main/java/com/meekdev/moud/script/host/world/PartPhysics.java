@@ -10,12 +10,16 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.script.api.PartPhysicsRef;
+import com.meekdev.moud.script.api.PlayerRef;
+import com.meekdev.moud.script.host.player.Players;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
 import com.meekdev.moud.script.host.Members;
 import com.meekdev.moud.script.host.Results;
 
 public final class PartPhysics {
+
+    private static final PropertyDef NETWORK_OWNER = Classes.PART.property("networkOwner");
 
     private PartPhysics() {}
 
@@ -47,6 +51,40 @@ public final class PartPhysics {
             Part part = a.self(Part.class);
             if (host.physics() == null) return part.massless ? 0.0 : part.density * part.size.x() * part.size.y() * part.size.z();
             return host.physics().mass(part);
+        });
+
+        parts.method("setNetworkOwner", "(player: Player?) -> ()", a -> {
+            Part part = a.self(Part.class);
+            if (host.physics() == null) throw new HostError("network ownership is set from a server Script");
+            String why = host.physics().whyNotOwnable(part);
+            if (!why.isEmpty()) throw new HostError("%s can not be given an owner: %s", part.name(), why);
+            String owner = "";
+            if (a.has(1)) {
+                owner = Players.idOf(a.get(1));
+                if (owner == null) throw new HostError("setNetworkOwner expects a Player, a body with a player, or nil");
+            }
+            part.ownershipSet(true);
+            if (!owner.equals(part.networkOwner)) part.ownerChanged();
+            host.instances().write(part, NETWORK_OWNER, owner);
+            return null;
+        });
+        parts.method("setNetworkOwnershipAuto", "() -> ()", a -> {
+            if (host.physics() == null) throw new HostError("network ownership is set from a server Script");
+            a.self(Part.class).ownershipSet(false);
+            return null;
+        });
+        parts.method("isNetworkOwnershipAuto", "() -> boolean", a -> !a.self(Part.class).ownershipSet());
+        parts.method("canSetNetworkOwnership", "() -> (boolean, string?)", a -> {
+            Part part = a.self(Part.class);
+            String why = host.physics() == null ? "network ownership is set from a server Script" : host.physics().whyNotOwnable(part);
+            return why.isEmpty() ? Results.of(true) : Results.of(false, why);
+        });
+        parts.method("getNetworkOwner", "() -> Player?", a -> {
+            String owner = a.self(Part.class).networkOwner;
+            if (owner.isEmpty()) return null;
+            if (host.client()) return owner.equals(host.me()) ? Players.local(host) : null;
+            PlayerRef player = host.roster() == null ? null : host.roster().find(owner);
+            return player == null ? null : Players.wrap(host, player);
         });
 
         Members spatial = host.instances().of(Classes.SPATIAL);

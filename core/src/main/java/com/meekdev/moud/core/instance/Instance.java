@@ -136,6 +136,10 @@ public abstract class Instance {
     protected void build() {
     }
 
+    public boolean sentBy(String player, int property) {
+        return false;
+    }
+
     public boolean serverOnly() {
         return false;
     }

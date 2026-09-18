@@ -17,6 +17,7 @@ import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.core.zone.Zones;
 import com.meekdev.moud.mod.adapter.physics.Characters;
 import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
+import com.meekdev.moud.mod.adapter.physics.OwnedBodies;
 import com.meekdev.moud.mod.adapter.physics.PlayerMirror;
 import com.meekdev.moud.mod.adapter.render.PartLight;
 import com.meekdev.moud.mod.adapter.render.Skins;
@@ -78,6 +79,8 @@ public final class ClientScene {
             }
         }
         Stages.run(tree, Stage.COMPOSE, 0);
+        OwnedBodies.tick(tree, Minecraft.getInstance().level, me == null ? "" : me.getUUID().toString(), !EditMode.editing(),
+                GameState.INSTANCE.gravity());
         if (EditMode.editing()) ClientTools.idle();
         else ClientTools.tick(tree, own);
         Touches.step(tree);

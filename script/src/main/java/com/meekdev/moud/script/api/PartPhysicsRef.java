@@ -16,4 +16,8 @@ public interface PartPhysicsRef {
     Vector3 velocityAt(Part part, Vector3 position);
 
     double mass(Part part);
+
+    default String whyNotOwnable(Part part) {
+        return part.anchored ? "an anchored part is always the server's" : "";
+    }
 }

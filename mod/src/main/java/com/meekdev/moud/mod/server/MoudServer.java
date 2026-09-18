@@ -95,6 +95,7 @@ public final class MoudServer {
         Touches.step(ServerScene.tree());
         Zones.step(ServerScene.tree(), Addons.classes(), System.nanoTime() / 1e9);
         ServerChat.INSTANCE.zones(ServerScene.tree());
+        NetworkOwners.tick(server, ServerScene.tree(), place.editing());
         Broadcast.tick(server, change -> {
             Physics.apply(ServerScene.tree(), change, server);
             ServerHistory.INSTANCE.note(ServerScene.tree(), change);

@@ -1,5 +1,6 @@
 package com.meekdev.moud.core.part;
 
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.Prop;
 import com.meekdev.moud.core.event.Signal;
 import com.meekdev.moud.core.instance.Instance;
@@ -31,6 +32,67 @@ public class Part extends Spatial {
 
     @Prop(driven = true) public Vector3 velocity = Vector3.ZERO;
     @Prop(driven = true) public Vector3 angularVelocity = Vector3.ZERO;
+
+    public String networkOwner = "";
+
+    private boolean ownershipSet;
+
+    private int serverHold;
+
+    private boolean ownerReporting;
+
+    private int ownerSilence;
+
+    public boolean simulatedRemotely() {
+        return ownerReporting && !networkOwner.isEmpty();
+    }
+
+    public void ownerHeard() {
+        ownerReporting = true;
+        ownerSilence = 0;
+    }
+
+    public int ownerSilence() {
+        return networkOwner.isEmpty() ? 0 : ++ownerSilence;
+    }
+
+    public void ownerChanged() {
+        ownerReporting = false;
+        ownerSilence = 0;
+    }
+
+    public void holdForServer(int ticks) {
+        serverHold = Math.max(serverHold, ticks);
+    }
+
+    public boolean heldForServer() {
+        if (serverHold <= 0) return false;
+        serverHold--;
+        return true;
+    }
+
+    public boolean ownershipSet() {
+        return ownershipSet;
+    }
+
+    public void ownershipSet(boolean byScript) {
+        ownershipSet = byScript;
+    }
+
+    public boolean simulatedBy(String player) {
+        return !player.isEmpty() && !anchored && player.equals(networkOwner);
+    }
+
+    @Override
+    public boolean sentBy(String player, int property) {
+        return simulatedBy(player) && (property == Motion.CFRAME || property == Motion.VELOCITY || property == Motion.ANGULAR_VELOCITY);
+    }
+
+    private static final class Motion {
+        static final int CFRAME = Classes.SPATIAL.property("cframe").index();
+        static final int VELOCITY = Classes.PART.property("velocity").index();
+        static final int ANGULAR_VELOCITY = Classes.PART.property("angularVelocity").index();
+    }
 
     public final Signal<Instance> touched = new Signal<>();
     public final Signal<Instance> touchEnded = new Signal<>();

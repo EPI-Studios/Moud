@@ -35,6 +35,7 @@ public final class Payloads {
         PayloadTypeRegistry.serverboundPlay().register(PromptPayload.TYPE, PromptPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ClickPayload.TYPE, ClickPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(SeatPayload.TYPE, SeatPayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().register(OwnedPosePayload.TYPE, OwnedPosePayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(PilotUpPayload.TYPE, PilotUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ResyncPayload.TYPE, ResyncPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(EditUpPayload.TYPE, EditUpPayload.CODEC.cast());
