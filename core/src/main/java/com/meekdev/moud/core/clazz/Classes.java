@@ -69,6 +69,7 @@ import com.meekdev.moud.core.physics.BallSocketConstraint;
 import com.meekdev.moud.core.physics.Constraint;
 import com.meekdev.moud.core.physics.HingeConstraint;
 import com.meekdev.moud.core.physics.PrismaticConstraint;
+import com.meekdev.moud.core.physics.RodConstraint;
 import com.meekdev.moud.core.physics.RopeConstraint;
 import com.meekdev.moud.core.physics.SpringConstraint;
 import com.meekdev.moud.core.physics.WeldConstraint;
@@ -407,6 +408,8 @@ public final class Classes {
             ClassDef.of("BallSocketConstraint", CONSTRAINT, BallSocketConstraint.class, BallSocketConstraint::new);
     public static final ClassDef<RopeConstraint> ROPE_CONSTRAINT =
             ClassDef.of("RopeConstraint", CONSTRAINT, RopeConstraint.class, RopeConstraint::new);
+    public static final ClassDef<RodConstraint> ROD_CONSTRAINT =
+            ClassDef.of("RodConstraint", CONSTRAINT, RodConstraint.class, RodConstraint::new);
     public static final ClassDef<SpringConstraint> SPRING_CONSTRAINT =
             ClassDef.of("SpringConstraint", CONSTRAINT, SpringConstraint.class, SpringConstraint::new);
 
@@ -576,6 +579,7 @@ public final class Classes {
         r.register(BALL_SOCKET_CONSTRAINT);
         r.register(ROPE_CONSTRAINT);
         r.register(SPRING_CONSTRAINT);
+        r.register(ROD_CONSTRAINT);
         r.register(PARTICLE_EMITTER);
         r.register(BEAM);
         r.register(TRAIL);

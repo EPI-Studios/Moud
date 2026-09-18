@@ -11,5 +11,11 @@ public final class SpringConstraint extends Constraint {
     @Prop(min = 0) public double minLength;
     @Prop(min = 0) public double maxLength = 5;
 
-    @Prop(driven = true) public double currentLength;
+    public double currentLength;
+
+    @Prop(min = 0, max = 50) public double coils = 5;
+
+    @Prop(min = 0) public double radius = 0.4;
+
+    @Prop(min = 0.01) public double thickness = 0.1;
 }

@@ -22,6 +22,7 @@ import com.meekdev.moud.core.physics.BallSocketConstraint;
 import com.meekdev.moud.core.physics.Constraint;
 import com.meekdev.moud.core.physics.HingeConstraint;
 import com.meekdev.moud.core.physics.PrismaticConstraint;
+import com.meekdev.moud.core.physics.RodConstraint;
 import com.meekdev.moud.core.physics.RopeConstraint;
 import com.meekdev.moud.core.physics.SpringConstraint;
 import com.meekdev.moud.core.physics.WeldConstraint;
@@ -39,6 +40,8 @@ public final class Joints {
 
     private static final Set<Integer> HELD = new HashSet<>();
     private static final double SERVO_GAIN = 8;
+    private static final double TICK = 0.05;
+    private static final double WINCH_EASE = 0.1;
     private static final double EPSILON = 1.0e-4;
 
     private record Built(B3Joint joint, int shape) {}
@@ -141,6 +144,7 @@ public final class Joints {
             case BallSocketConstraint ball -> List.of(ball.collideConnected);
             case RopeConstraint rope -> List.of(rope.collideConnected);
             case SpringConstraint spring -> List.of(spring.collideConnected);
+            case RodConstraint rod -> List.of(rod.collideConnected);
             default -> List.of();
         };
     }
@@ -155,6 +159,7 @@ public final class Joints {
             case BallSocketConstraint ignored -> world.createSphericalJoint(a, b, anchor0);
             case RopeConstraint rope -> world.createDistanceJoint(a, b, anchor0, anchor1, (float) rope.length);
             case SpringConstraint spring -> world.createDistanceJoint(a, b, anchor0, anchor1, (float) spring.freeLength);
+            case RodConstraint rod -> world.createDistanceJoint(a, b, anchor0, anchor1, (float) rod.length);
             default -> world.createWeldJoint(a, b, anchor1);
         };
     }
@@ -165,6 +170,7 @@ public final class Joints {
             case PrismaticConstraint slide when joint instanceof B3PrismaticJoint prismatic -> slide(slide, prismatic);
             case BallSocketConstraint ball when joint instanceof B3SphericalJoint spherical -> ball(ball, spherical);
             case RopeConstraint rope when joint instanceof B3DistanceJoint distance -> rope(rope, distance, ends);
+            case RodConstraint rod when joint instanceof B3DistanceJoint distance -> rod(rod, distance, ends);
             case SpringConstraint spring when joint instanceof B3DistanceJoint distance -> spring(spring, distance, a, b);
             default -> { }
         }
@@ -218,11 +224,19 @@ public final class Joints {
     }
 
     private static void rope(RopeConstraint rope, B3DistanceJoint distance, Ends ends) {
+        if (rope.winchEnabled) winch(rope, distance);
         distance.enableSpring(true);
         distance.setSpring(0, 0);
         distance.enableLimit(true);
         distance.setLengthRange(0, (float) rope.length);
         write(rope, "currentDistance", ends.frame0().position().distance(ends.frame1().position()));
+    }
+
+    private static void rod(RodConstraint rod, B3DistanceJoint distance, Ends ends) {
+        distance.enableSpring(false);
+        distance.enableLimit(false);
+        distance.setLength((float) rod.length);
+        write(rod, "currentDistance", ends.frame0().position().distance(ends.frame1().position()));
     }
 
     private static void spring(SpringConstraint spring, B3DistanceJoint distance, B3Body a, B3Body b) {
@@ -238,6 +252,20 @@ public final class Joints {
             distance.setLengthRange(limits.low(), limits.high());
         }
         write(spring, "currentLength", distance.currentLength());
+    }
+
+    private static void winch(RopeConstraint rope, B3DistanceJoint distance) {
+        double gap = rope.winchTarget - rope.length;
+        if (Math.abs(gap) <= EPSILON) return;
+        double rate = Math.min(rope.winchSpeed, Math.abs(gap) * rope.winchResponsiveness * WINCH_EASE);
+        if (gap < 0) {
+            var pull = distance.constraintForce();
+            double load = Math.sqrt(pull.x() * pull.x() + pull.y() * pull.y() + pull.z() * pull.z());
+            if (load > rope.winchForce) return;
+        }
+        double next = rope.length + Math.signum(gap) * Math.min(Math.abs(gap), rate * TICK);
+        write(rope, "length", Math.max(0, next));
+        distance.wakeBodies();
     }
 
     private static double effectiveMass(B3Body a, B3Body b) {
