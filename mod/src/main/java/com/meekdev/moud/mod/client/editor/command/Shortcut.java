@@ -53,6 +53,10 @@ public record Shortcut(boolean ctrl, boolean shift, boolean alt, int key, String
         return -1;
     }
 
+    public boolean same(Shortcut other) {
+        return ctrl == other.ctrl && shift == other.shift && alt == other.alt && key == other.key;
+    }
+
     public boolean pressed() {
         ImGuiIO io = ImGui.getIO();
         return io.getKeyCtrl() == ctrl && io.getKeyShift() == shift && io.getKeyAlt() == alt && ImGui.isKeyPressed(key, false);

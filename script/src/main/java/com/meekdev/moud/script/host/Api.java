@@ -10,7 +10,12 @@ public final class Api {
 
     public enum Kind { METHOD, FUNCTION, FIELD }
 
-    public record Member(String name, Kind kind, String type) {}
+    public record Member(String name, Kind kind, String type, boolean readOnly) {
+
+        public Member(String name, Kind kind, String type) {
+            this(name, kind, type, false);
+        }
+    }
 
     public record Decl(String name, String parent, List<Member> members) {}
 
@@ -26,10 +31,8 @@ public final class Api {
             return;
         }
         List<Member> merged = new ArrayList<>(existing.members());
-        for (Member member : decl.members()) {
-            merged.removeIf(one -> one.name().equals(member.name()));
-            merged.add(member);
-        }
+        for (Member member : decl.members()) merged.removeIf(one -> one.name().equals(member.name()));
+        merged.addAll(decl.members());
         classes.put(decl.name(), new Decl(decl.name(), decl.parent() != null ? decl.parent() : existing.parent(), merged));
     }
 

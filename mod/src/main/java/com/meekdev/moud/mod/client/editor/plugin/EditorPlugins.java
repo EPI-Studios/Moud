@@ -44,8 +44,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.ToIntFunction;
 import java.util.stream.Stream;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import org.jspecify.annotations.Nullable;
 
 public final class EditorPlugins {
@@ -56,9 +58,21 @@ public final class EditorPlugins {
     private static final String FOLDER = "plugins";
     private static final String EXTENSION = ".luau";
     private static final String SIDE = "plugins";
+    private static final String USER_PREFIX = "~/.moud/plugins/";
     private static final long SCAN_NANOS = 500_000_000L;
 
     private record Source(Path file, String chunk, FileTime modified, long size) {}
+
+    private record Stamp(Path file, @Nullable FileTime modified, long size) {
+
+        static Stamp of(Path file) {
+            try {
+                return new Stamp(file, Files.getLastModifiedTime(file), Files.size(file));
+            } catch (IOException e) {
+                return new Stamp(file, null, -1);
+            }
+        }
+    }
 
     private final SceneDocument document;
     private final IconWidgets icons;
@@ -66,7 +80,10 @@ public final class EditorPlugins {
     private final PluginSettings settings = new PluginSettings(SETTINGS);
     private final Map<String, Source> sources = new LinkedHashMap<>();
     private final Map<String, PanelWidgets> widgets = new HashMap<>();
+    private final Map<String, Stamp> watched = new HashMap<>();
+    private final Map<String, Boolean> shown = new HashMap<>();
     private final Set<String> warned = new HashSet<>();
+    private Function<Shortcut, @Nullable String> builtIn = shortcut -> null;
     private @Nullable Host host;
     private @Nullable Instance hostWorld;
     private @Nullable Plugins plugins;
@@ -79,6 +96,11 @@ public final class EditorPlugins {
         this.document = document;
         this.icons = icons;
         this.viewport = viewport;
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> settings.flush());
+    }
+
+    public void builtIn(Function<Shortcut, @Nullable String> taken) {
+        builtIn = taken;
     }
 
     public void tick() {
@@ -98,6 +120,7 @@ public final class EditorPlugins {
         if (running == null) return;
         scan();
         settle(() -> running.renderStep(ImGui.getIO().getDeltaTime()));
+        settings.tick();
         List<Integer> now = document.selection().all();
         if (selected != null && !selected.equals(now)) {
             Plugins loaded = plugins;
@@ -126,7 +149,7 @@ public final class EditorPlugins {
                 if (index > 0) ImGui.sameLine();
                 index++;
                 String id = "plugin-" + toolbar.plugin().name() + "-" + toolbar.name() + "-" + index;
-                EditorIcon icon = icon(button);
+                EditorIcon icon = icon(toolbar.plugin(), button);
                 ImGui.beginDisabled(!button.enabled());
                 boolean clicked;
                 if (icon != null) {
@@ -158,7 +181,7 @@ public final class EditorPlugins {
             List<Plugins.Panel> panels = List.copyOf(loaded.panels());
             if (!commands.isEmpty() && !panels.isEmpty()) ImGui.separator();
             for (Plugins.Panel panel : panels) {
-                if (ImGui.menuItem(panel.title() + "###plugin-panel-menu-" + panel.key(), "", panel.visible())) panel.visible(!panel.visible());
+                if (ImGui.menuItem(panel.title() + "###plugin-panel-menu-" + panel.key(), "", panel.visible())) loaded.show(panel, !panel.visible());
             }
             if (loaded.names().isEmpty()) Texts.muted("No plugins yet, add .luau files to plugins/");
             ImGui.separator();
@@ -193,7 +216,7 @@ public final class EditorPlugins {
             } finally {
                 ImGui.end();
             }
-            if (!open.get()) panel.visible(false);
+            if (!open.get()) loaded.show(panel, false);
         }
     }
 
@@ -212,7 +235,7 @@ public final class EditorPlugins {
         Path root = PlaceToml.root();
         Plugins[] made = new Plugins[1];
         PluginEdits changes = new PluginEdits(document, () -> made[0] == null ? "" : made[0].running());
-        Plugins fresh = new Plugins(new PluginDesk(document, changes, settings, viewport::mouse));
+        Plugins fresh = new Plugins(new PluginDesk(document, changes, settings, viewport::mouse), shown);
         made[0] = fresh;
         Host started = new Host(world, Addons.classes(), true)
                 .modules(modules(root))
@@ -238,6 +261,7 @@ public final class EditorPlugins {
     }
 
     private void stop() {
+        settings.flush();
         if (host == null) return;
         PluginEdits changes = edits;
         if (changes != null) {
@@ -259,6 +283,7 @@ public final class EditorPlugins {
         selected = null;
         sources.clear();
         widgets.clear();
+        watched.clear();
     }
 
     private void settle(Runnable action) {
@@ -292,17 +317,19 @@ public final class EditorPlugins {
         if (loaded == null) return;
         Map<String, Source> found = new LinkedHashMap<>();
         find(PlaceToml.root().resolve(FOLDER), FOLDER + "/", found);
-        find(USER_FOLDER, "~/.moud/plugins/", found);
+        find(USER_FOLDER, USER_PREFIX, found);
+        Set<String> stale = new HashSet<>(changedModules(loaded));
         for (String name : List.copyOf(sources.keySet())) {
             if (found.containsKey(name)) continue;
             sources.remove(name);
             settle(() -> loaded.unload(name));
+            settings.flush();
             Output.add(Output.Level.SYSTEM, SIDE, "unloaded " + name);
         }
         for (Map.Entry<String, Source> entry : found.entrySet()) {
             Source before = sources.get(entry.getKey());
             Source source = entry.getValue();
-            if (before != null && before.equals(source)) continue;
+            if (before != null && before.equals(source) && !stale.contains(entry.getKey())) continue;
             sources.put(entry.getKey(), source);
             String code;
             try {
@@ -341,35 +368,65 @@ public final class EditorPlugins {
         }
     }
 
-    private static ModuleSource modules(Path root) {
-        ModuleSource place = new PlaceModules(root, true);
+    private List<String> changedModules(Plugins loaded) {
+        List<String> changed = new ArrayList<>();
+        for (Map.Entry<String, Stamp> entry : List.copyOf(watched.entrySet())) {
+            if (Stamp.of(entry.getValue().file()).equals(entry.getValue())) continue;
+            watched.remove(entry.getKey());
+            changed.add(entry.getKey());
+        }
+        return changed.isEmpty() ? List.of() : loaded.changed(changed);
+    }
+
+    private ModuleSource modules(Path root) {
         return path -> {
-            if (!path.startsWith(FOLDER + "/")) return place.read(path);
-            Path file = root.resolve(path);
-            if (!Files.isRegularFile(file)) return null;
-            try {
-                return Files.readString(file);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
+            String top = path.substring(0, Math.max(0, path.indexOf('/')));
+            List<Path> files = switch (top) {
+                case FOLDER -> List.of(root.resolve(path), USER_FOLDER.resolve(path.substring(FOLDER.length() + 1)));
+                case "client", PlaceModules.SHARED -> List.of(root.resolve(path));
+                case "server" -> throw new IllegalArgumentException("a plugin cannot require res://" + path + ", plugins run on your client");
+                default -> throw new IllegalArgumentException("res://" + path + " is not in " + FOLDER + "/, client/ or " + PlaceModules.SHARED + "/");
+            };
+            for (Path file : files) {
+                if (!Files.isRegularFile(file)) continue;
+                Stamp stamp = Stamp.of(file);
+                try {
+                    String code = Files.readString(file);
+                    watched.put(path, stamp);
+                    return code;
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
             }
+            if (top.equals(FOLDER)) throw new IllegalArgumentException("there is no res://" + path + " in " + FOLDER + "/ or " + USER_PREFIX);
+            return null;
         };
     }
 
     private @Nullable Shortcut shortcut(Plugins.Command command) {
         if (command.shortcut().isEmpty()) return null;
+        String plugin = command.plugin().name();
         Shortcut shortcut = Shortcut.parse(command.shortcut());
-        if (shortcut == null && warned.add("shortcut " + command.shortcut())) {
-            Output.add(Output.Level.WARN, SIDE, command.plugin().name() + ": '" + command.shortcut()
-                    + "' is not a shortcut, use something like Ctrl+Shift+G or F5");
+        if (shortcut == null) {
+            if (warned.add(plugin + " shortcut " + command.shortcut())) {
+                Output.add(Output.Level.WARN, SIDE, plugin + ": '" + command.shortcut() + "' is not a shortcut, use something like Ctrl+Shift+G or F5");
+            }
+            return null;
         }
-        return shortcut;
+        String taken = builtIn.apply(shortcut);
+        if (taken == null) return shortcut;
+        if (warned.add(plugin + " shortcut " + shortcut.label())) {
+            Output.add(Output.Level.WARN, SIDE, plugin + ": " + shortcut.label() + " is the editor's " + taken
+                    + " shortcut, so '" + command.name() + "' gets no shortcut");
+        }
+        return null;
     }
 
-    private @Nullable EditorIcon icon(Plugins.Button button) {
+    private @Nullable EditorIcon icon(Plugins.Plugin plugin, Plugins.Button button) {
         if (button.icon().isEmpty()) return null;
         EditorIcon icon = EditorIcon.named(button.icon());
-        if (icon == null && warned.add("icon " + button.icon())) {
-            Output.add(Output.Level.WARN, SIDE, "there is no editor icon called '" + button.icon() + "', the button shows its text");
+        if (icon == null && warned.add(plugin.name() + " icon " + button.icon())) {
+            Output.add(Output.Level.WARN, SIDE, plugin.name() + ": there is no editor icon called '" + button.icon() + "', the button shows its text");
         }
         return icon;
     }

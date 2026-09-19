@@ -43,7 +43,7 @@ public class Members implements HostObject {
 
     public Members field(String name, String fieldType, Supplier<Object> getter, Consumer<Object> setter) {
         entries.put(name, new Field(getter, setter));
-        declared.add(new Api.Member(name, Api.Kind.FIELD, fieldType));
+        declared.add(new Api.Member(name, Api.Kind.FIELD, fieldType, setter == null));
         return this;
     }
 

@@ -21,20 +21,27 @@ import com.meekdev.moud.script.host.HostError;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 
 final class PluginEdits implements EditsRef {
 
+    private static final class Changes {
+
+        private final List<Edit> done = new ArrayList<>();
+        private final List<Edit> inverses = new ArrayList<>();
+        private final Set<Instance> added = Collections.newSetFromMap(new IdentityHashMap<>());
+        private @Nullable String label;
+    }
+
     private final SceneDocument document;
     private final Supplier<String> running;
-    private final List<Edit> done = new ArrayList<>();
-    private final List<Edit> inverses = new ArrayList<>();
-    private final Set<Instance> added = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Map<String, Changes> open = new LinkedHashMap<>();
     private final Set<Instance> chosen = Collections.newSetFromMap(new IdentityHashMap<>());
-    private @Nullable String label;
     private int recording;
 
     PluginEdits(SceneDocument document, Supplier<String> running) {
@@ -49,13 +56,22 @@ final class PluginEdits implements EditsRef {
 
     boolean pending(Instance instance) {
         for (Instance at = instance; at != null; at = at.parent()) {
-            if (added.contains(at)) return true;
+            for (Changes changes : open.values()) {
+                if (!changes.added.contains(at)) continue;
+                if (at.parent() != null && owns(at.parent())) return true;
+                changes.added.remove(at);
+                return false;
+            }
         }
         return false;
     }
 
     void select(Instance instance) {
         chosen.add(instance);
+    }
+
+    void unselect() {
+        chosen.clear();
     }
 
     @Override
@@ -100,8 +116,7 @@ final class PluginEdits implements EditsRef {
 
     @Override
     public void added(Instance instance) {
-        if (label == null) label = running.get();
-        added.add(instance);
+        changes().added.add(instance);
     }
 
     void record(String name, Runnable changes) {
@@ -111,7 +126,7 @@ final class PluginEdits implements EditsRef {
         }
         flush();
         recording++;
-        label = name;
+        changes().label = name;
         try {
             changes.run();
         } finally {
@@ -122,10 +137,20 @@ final class PluginEdits implements EditsRef {
 
     void flush() {
         if (recording > 0) return;
-        List<Edit> forward = new ArrayList<>(done);
-        List<Edit> backward = new ArrayList<>(inverses.reversed());
-        String name = label == null || label.isEmpty() ? "Plugin" : label;
-        for (Instance made : List.copyOf(added)) {
+        List<Map.Entry<String, Changes>> all = List.copyOf(open.entrySet());
+        open.clear();
+        boolean selecting = false;
+        for (Map.Entry<String, Changes> entry : all) selecting |= keep(entry.getKey(), entry.getValue());
+        chosen.clear();
+        if (selecting) document.gatherPastedSelection();
+    }
+
+    private boolean keep(String plugin, Changes changes) {
+        List<Edit> forward = new ArrayList<>(changes.done);
+        List<Edit> backward = new ArrayList<>(changes.inverses.reversed());
+        String name = changes.label != null && !changes.label.isEmpty() ? changes.label : plugin.isEmpty() ? "Plugin" : plugin;
+        boolean selecting = false;
+        for (Instance made : List.copyOf(changes.added)) {
             if (!made.isAlive() || made.parent() == null || !owns(made.parent())) continue;
             Instance parent = made.parent();
             String text;
@@ -141,18 +166,18 @@ final class PluginEdits implements EditsRef {
                 backward.addFirst(paste.invert(document));
                 paste.apply(document);
                 forward.add(paste);
+                selecting |= paste.select();
             } catch (RuntimeException e) {
                 backward.removeFirst();
                 Output.add(Output.Level.WARN, "plugins", "could not add " + made.name() + " to the scene: " + e.getMessage());
             }
         }
-        added.removeIf(made -> !made.isAlive());
-        chosen.clear();
-        done.clear();
-        inverses.clear();
-        label = null;
-        if (forward.isEmpty()) return;
-        document.history().record(new Batch(name, forward), new Batch(name, backward));
+        if (!forward.isEmpty()) document.history().record(new Batch(name, forward), new Batch(name, backward));
+        return selecting;
+    }
+
+    private Changes changes() {
+        return open.computeIfAbsent(running.get(), plugin -> new Changes());
     }
 
     private void run(Edit edit) {
@@ -163,8 +188,8 @@ final class PluginEdits implements EditsRef {
         } catch (RuntimeException e) {
             throw new HostError(e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
         }
-        if (label == null) label = running.get();
-        done.add(edit);
-        inverses.add(inverse);
+        Changes changes = changes();
+        changes.done.add(edit);
+        changes.inverses.add(inverse);
     }
 }

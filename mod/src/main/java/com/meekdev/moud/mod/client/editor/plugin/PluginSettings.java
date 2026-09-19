@@ -11,8 +11,12 @@ import org.jspecify.annotations.Nullable;
 
 final class PluginSettings {
 
+    private static final long WRITE_NANOS = 1_000_000_000L;
+
     private final Path file;
     private @Nullable Map<String, Map<String, Object>> kept;
+    private boolean dirty;
+    private long writtenAt = System.nanoTime() - WRITE_NANOS;
 
     PluginSettings(Path file) {
         this.file = file;
@@ -32,9 +36,20 @@ final class PluginSettings {
         } else {
             all.computeIfAbsent(plugin, name -> new LinkedHashMap<>()).put(key, value);
         }
+        dirty = true;
+    }
+
+    void tick() {
+        if (dirty && System.nanoTime() - writtenAt >= WRITE_NANOS) flush();
+    }
+
+    void flush() {
+        if (!dirty || kept == null) return;
+        dirty = false;
+        writtenAt = System.nanoTime();
         try {
             Files.createDirectories(file.getParent());
-            Files.writeString(file, Json.write(all));
+            Files.writeString(file, Json.write(kept));
         } catch (IOException e) {
             MoudMod.LOG.warn("could not keep plugin settings in {}", file, e);
         }

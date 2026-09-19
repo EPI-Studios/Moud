@@ -1,6 +1,7 @@
 package com.meekdev.moud.script.host.plugin;
 
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.api.PluginRef;
 import com.meekdev.moud.script.host.Callable;
 import com.meekdev.moud.script.host.Host;
@@ -32,8 +33,12 @@ final class PluginLibrary {
         host.declare(ui);
 
         Members selection = new Members("PluginSelection")
-                .method("get", "() -> { Instance }", a -> new ArrayList<Object>(editor.selection()))
+                .method("get", "() -> { Instance }", a -> {
+                    plugins.current();
+                    return new ArrayList<Object>(editor.selection());
+                })
                 .method("set", "(instances: { Instance }) -> ()", a -> {
+                    plugins.current();
                     List<Instance> chosen = new ArrayList<>();
                     for (Object value : a.list(1)) {
                         if (!(value instanceof Instance instance)) throw new HostError("selection:set expects a list of instances");
@@ -52,7 +57,7 @@ final class PluginLibrary {
                 .value("viewportClicked", "PluginMouseSignal", plugins.viewportSignal())
                 .field("preview", "Instance", () -> plugins.preview(plugins.current()))
                 .method("toolbar", "(name: string) -> PluginToolbar", a -> toolbar(plugins, plugins.toolbar(plugins.current(), a.string(1))))
-                .method("command", "(name: string, shortcut: string?, handler: () -> ()) -> ()", a -> {
+                .method("command", "(name: string, handler: () -> ()) -> ()", a -> {
                     Plugins.Plugin owner = plugins.current();
                     String name = a.string(1);
                     if (name.isBlank()) throw new HostError("a command needs a name");
@@ -64,6 +69,7 @@ final class PluginLibrary {
                     plugins.command(owner, name, shortcut, a.callable(3));
                     return null;
                 })
+                .declareMethod("command", "(name: string, shortcut: string?, handler: () -> ()) -> ()")
                 .method("panel", "(title: string, options: PanelOptions?) -> PluginPanel", a -> {
                     Plugins.Plugin owner = plugins.current();
                     String title = a.string(1);
@@ -79,18 +85,21 @@ final class PluginLibrary {
                     plugins.current();
                     String name = a.string(1);
                     Callable changes = a.callable(2);
-                    editor.record(name, () -> host.call(changes, "plugin:recording"));
+                    editor.record(name, changes::call);
                     return null;
                 })
-                .method("setting", "(key: string) -> any", a -> editor.setting(plugins.current().name(), a.string(1)))
+                .method("setting", "(key: string) -> any", a -> editor.setting(plugins.current().settingsKey(), a.string(1)))
                 .method("setSetting", "(key: string, value: any) -> ()", a -> {
                     Plugins.Plugin owner = plugins.current();
                     Object value = a.get(2);
                     storable(value);
-                    editor.setting(owner.name(), a.string(1), value);
+                    editor.setting(owner.settingsKey(), a.string(1), value);
                     return null;
                 })
-                .method("mouse", "() -> PluginMouse", a -> mouse(editor.mouse()))
+                .method("mouse", "() -> PluginMouse", a -> {
+                    plugins.current();
+                    return mouse(editor.mouse());
+                })
                 .method("activate", "(on: boolean) -> ()", a -> {
                     plugins.activate(plugins.current(), a.truthy(1));
                     return null;
@@ -104,6 +113,8 @@ final class PluginLibrary {
     static Map<String, Object> mouse(PluginRef.Mouse mouse) {
         Map<String, Object> out = new LinkedHashMap<>();
         if (mouse == null) {
+            out.put("origin", Vector3.ZERO);
+            out.put("direction", Vector3.ZERO);
             out.put("over", false);
             return out;
         }

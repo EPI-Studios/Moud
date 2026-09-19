@@ -3,7 +3,6 @@
     "aliases": {
         "server": "./server",
         "client": "./client",
-        "shared": "./shared",
-        "plugins": "./plugins"
+        "shared": "./shared"
     }
 }
