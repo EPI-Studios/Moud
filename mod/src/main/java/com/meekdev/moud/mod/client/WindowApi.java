@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Screenshot;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
@@ -198,6 +199,14 @@ public final class WindowApi implements WindowRef {
         setY = y;
         setAt = System.currentTimeMillis();
         render(() -> GLFW.glfwSetWindowPos(handle(), x, y));
+    }
+
+    @Override
+    public String screenshot(String name) {
+        Minecraft minecraft = Minecraft.getInstance();
+        String file = (name.isEmpty() ? "moud-" + System.currentTimeMillis() : name) + ".png";
+        minecraft.execute(() -> Screenshot.grab(minecraft.gameDirectory, file, minecraft.getMainRenderTarget(), 1, message -> { }));
+        return Screenshot.SCREENSHOT_DIR + "/" + file;
     }
 
     @Override

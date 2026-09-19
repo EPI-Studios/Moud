@@ -31,6 +31,8 @@ public interface WindowRef {
 
     void center();
 
+    String screenshot(String name);
+
     boolean canMove();
 
     int minWidth();

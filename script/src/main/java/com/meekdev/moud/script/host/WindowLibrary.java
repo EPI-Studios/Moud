@@ -81,6 +81,11 @@ final class WindowLibrary {
                     return null;
                 })
                 .method("monitors", "() -> { { [string]: any } }", a -> new ArrayList<Object>(window.monitors()))
+                .method("screenshot", "(name: string?) -> string", a -> {
+                    String name = a.string(1, "");
+                    if (!name.matches("[A-Za-z0-9_-]*")) throw new HostError("window:screenshot names may only use letters, digits, - and _");
+                    return window.screenshot(name);
+                })
                 .method("flash", "() -> ()", a -> {
                     window.flash();
                     return null;
