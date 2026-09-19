@@ -83,6 +83,9 @@ final class AnimationViewport implements ViewportTakeover {
             ImGui.sameLine();
             if (icons.toggleButton("anim-ik", EditorIcon.SKELETON_IK_3D, EditorStyle.iconSizeToolbar(), session.ikDrag())) session.ikDrag(!session.ikDrag());
             tip("Drag an arm to aim it, the same as holding Alt");
+            ImGui.sameLine();
+            if (icons.toggleButton("anim-bones", EditorIcon.SKELETON_3D, EditorStyle.iconSizeToolbar(), session.bones())) session.bones(!session.bones());
+            tip("Bones (B)");
         }
     }
 
@@ -151,6 +154,7 @@ final class AnimationViewport implements ViewportTakeover {
         if (ImGui.isKeyPressed(ImGuiKey.G, false)) session.tool(AnimationSession.Tool.MOVE);
         if (ImGui.isKeyPressed(ImGuiKey.M, false)) session.mirrorPose();
         if (ImGui.isKeyPressed(ImGuiKey.X, false)) session.local(!session.local());
+        if (!view() && ImGui.isKeyPressed(ImGuiKey.B, false)) session.bones(!session.bones());
         if (view() && ImGui.isKeyPressed(ImGuiKey.V, false)) workspace.through(!workspace.through());
         if (ImGui.isKeyPressed(ImGuiKey.Keypad5, false)) viewport.toggleOrthographic();
     }
@@ -292,11 +296,12 @@ final class AnimationViewport implements ViewportTakeover {
         String hoveredBone = null;
         double closest = EditorScale.of(9);
         List<Skeletons.Joint> bones = rig.skeleton();
+        boolean shown = session.bones();
         for (Skeletons.Joint bone : bones) {
             CFrame frame = rig.boneFrame(bone.name(), pose);
             float[] at = frame == null ? null : sceneView.toScreen(frame.position());
             if (at == null) continue;
-            if (!bone.parent().isEmpty()) {
+            if (shown && !bone.parent().isEmpty()) {
                 CFrame above = rig.boneFrame(bone.parent(), pose);
                 float[] from = above == null ? null : sceneView.toScreen(above.position());
                 if (from != null) draw.addLine(from[0], from[1], at[0], at[1], EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.55f), EditorScale.of(1.4f));
@@ -308,6 +313,7 @@ final class AnimationViewport implements ViewportTakeover {
             }
         }
         for (Skeletons.Joint bone : bones) {
+            if (!shown) break;
             CFrame frame = rig.boneFrame(bone.name(), pose);
             float[] at = frame == null ? null : sceneView.toScreen(frame.position());
             if (at == null) continue;
@@ -429,7 +435,7 @@ final class AnimationViewport implements ViewportTakeover {
         float clipBottom = Math.min(sceneView.originY() + sceneView.height(), ImGui.getWindowPosY() + ImGui.getWindowHeight());
         float clipLeft = Math.max(sceneView.originX(), ImGui.getWindowPosX());
         float clipRight = Math.min(sceneView.originX() + sceneView.width(), ImGui.getWindowPosX() + ImGui.getWindowWidth());
-        String hint = view() ? "R rotate  ·  G move  ·  M mirror" : "R rotate  ·  G move  ·  Alt drag aims an arm  ·  M mirror";
+        String hint = view() ? "R rotate  ·  G move  ·  M mirror" : rig.model() != null ? "R rotate  ·  G move  ·  B bones" : "R rotate  ·  G move  ·  Alt drag aims an arm  ·  M mirror";
         Paint.small(draw, clipRight - Paint.smallWidth(hint) - pad * 1.5f, clipBottom - Paint.smallSize() - pad * 1.5f, EditorStyle.COLOR_TEXT_MUTED, hint);
         String joint = session.joint();
         if (joint == null) return;

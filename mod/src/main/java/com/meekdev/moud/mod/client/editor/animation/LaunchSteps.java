@@ -1,7 +1,12 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
+import com.meekdev.moud.core.character.Animators;
+import com.meekdev.moud.core.character.Clip;
 import com.meekdev.moud.core.character.IKControl;
+import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
@@ -73,8 +78,21 @@ final class LaunchSteps {
             case "play" -> EditMode.request(false);
             case "edit" -> EditMode.request(true);
             case "log" -> log();
+            case "frame" -> workspace.frameRig();
+            case "view" -> session.create(parts[1], AnimClip.Space.VIEW, "view");
+            case "bones" -> session.bones(!session.bones());
+            case "probe" -> probe(parts[1], Double.parseDouble(parts[2]));
             default -> MoudMod.LOG.warn("unknown animate step {}", step);
         }
+    }
+
+    private void probe(String joint, double time) {
+        if (session.path() == null) return;
+        Instance holder = Instances.createRoot(new InstanceTree(), Classes.FOLDER, "Probe");
+        Instance animation = Instances.create(Classes.ANIMATION, holder, "probe");
+        Instances.setObj(animation, Classes.ANIMATION.property("animationId"), AnimationSession.res(session.path()));
+        Clip.Sample sample = Animators.clip(animation).pose(joint, time);
+        MoudMod.LOG.info("animate probe {} at {} is {}", joint, time, sample == null ? "missing" : sample.rotation());
     }
 
     private void log() {

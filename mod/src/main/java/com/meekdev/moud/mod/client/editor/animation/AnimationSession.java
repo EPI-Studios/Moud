@@ -44,6 +44,7 @@ public final class AnimationSession {
     private int onionAfter = 2;
     private boolean local = true;
     private boolean ikDrag;
+    private boolean bones;
     private Tool tool = Tool.ROTATE;
     private int gestures;
     private String message = "";
@@ -478,6 +479,14 @@ public final class AnimationSession {
 
     public void ikDrag(boolean on) {
         ikDrag = on;
+    }
+
+    public boolean bones() {
+        return bones;
+    }
+
+    public void bones(boolean on) {
+        bones = on;
     }
 
     public Tool tool() {

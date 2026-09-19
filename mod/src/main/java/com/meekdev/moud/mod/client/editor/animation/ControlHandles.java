@@ -53,6 +53,7 @@ final class ControlHandles {
         Instance selected = session.control();
         for (Instance control : workspace.controls()) {
             boolean chosen = control == selected;
+            if (!chosen && !session.bones()) continue;
             if (control instanceof IKControl ik) ik(draw, view, ik, chosen, handles);
             else if (control instanceof JointSpring spring) spring(draw, view, spring, chosen, handles);
         }
@@ -102,13 +103,13 @@ final class ControlHandles {
         int color = chosen ? Paint.SELECTED : EditorStyle.withAlpha(EditorStyle.COLOR_HIGHLIGHT, 0.8f);
         Handle target = target(control);
         handles.add(target);
-        if (end != null) dashed(draw, view, end, target.at(), color);
+        if (end != null && session.bones()) dashed(draw, view, end, target.at(), color);
         if (alive(control.pole)) {
             CFrame at = Rigs.world(control.pole);
             Handle pole = new Handle(control, movable(control.pole) ? control.pole : null, cframeOf(control.pole), at == null ? Vector3.ZERO : at.position(), "pole");
             handles.add(pole);
             Vector3 root = frame(Rigs.posable(control.chainRoot) ? control.chainRoot : control.endEffector);
-            if (root != null) dashed(draw, view, root, pole.at(), EditorStyle.withAlpha(color, 0.6f));
+            if (root != null && session.bones()) dashed(draw, view, root, pole.at(), EditorStyle.withAlpha(color, 0.6f));
         }
     }
 
@@ -138,7 +139,7 @@ final class ControlHandles {
             case "pole" -> draw.addCircle(at[0], at[1], size * 0.8f, color, 16, EditorScale.of(1.8f));
             default -> draw.addCircleFilled(at[0], at[1], size * 0.55f, color);
         }
-        if (lit) Paint.small(draw, at[0] + size + EditorScale.of(6), at[1] - Paint.smallSize() * 0.5f, color, handle.control().name() + " " + handle.label());
+        if (lit && session.bones()) Paint.small(draw, at[0] + size + EditorScale.of(6), at[1] - Paint.smallSize() * 0.5f, color, handle.control().name() + " " + handle.label());
     }
 
     static void nudge(SceneDocument document, IKControl control, Vector3 by) {
