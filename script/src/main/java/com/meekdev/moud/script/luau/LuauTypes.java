@@ -37,7 +37,7 @@ public final class LuauTypes {
         for (ClassDef<?> def : classes.all()) instanceClasses.add(def.name());
 
         for (Map.Entry<String, String> alias : api.aliases().entrySet()) {
-            line(out, "type ", alias.getKey(), " = ", alias.getValue());
+            line(out, "export type ", alias.getKey(), " = ", alias.getValue());
             out.append('\n');
         }
         for (Api.Decl decl : api.classes()) {
@@ -83,7 +83,7 @@ public final class LuauTypes {
     private static void members(StringBuilder out, Api.Decl decl) {
         for (Api.Member member : decl.members()) {
             switch (member.kind()) {
-                case FIELD -> line(out, INDENT, member.name(), ": ", member.type());
+                case FIELD -> line(out, INDENT, member.readOnly() ? "read " : "", member.name(), ": ", member.type());
                 case METHOD -> {
                     Signature signature = Signature.parse(member.type());
                     line(out, INDENT, "function ", member.name(), "(", signature.params(true), "): ", signature.returns());
