@@ -121,6 +121,7 @@ public final class ViewportPanel implements Panel, ViewTools {
     private @Nullable Instance hoveredInstance;
     private Vector3 cameraPosition = Vector3.ZERO;
     private long hoveredAt;
+    private @Nullable ViewportTakeover takeover;
 
     public ViewportPanel(SceneDocument document, IconWidgets icons) {
         this.document = document;
@@ -145,6 +146,34 @@ public final class ViewportPanel implements Panel, ViewTools {
 
     public void header(Runnable drawn) {
         header = drawn;
+    }
+
+    public void takeover(@Nullable ViewportTakeover by) {
+        takeover = by;
+        boxing = false;
+        surfaceDrag.cancel();
+        constraints.cancel();
+        gizmo.reset();
+    }
+
+    public void frame(Vector3 centre, double radius) {
+        camera.frame(new Vector3d(centre.x(), centre.y(), centre.z()), radius);
+    }
+
+    public void lookAt(Vector3 eye, Vector3 target) {
+        lookFrom(CFrame.lookAt(eye, target));
+    }
+
+    public boolean hovered() {
+        return hovered;
+    }
+
+    public boolean orthographic() {
+        return camera.orthographic();
+    }
+
+    public void toggleOrthographic() {
+        camera.toggleOrthographic();
     }
 
     public void plugins(Runnable tools, BooleanSupplier taken, Consumer<PluginRef.Mouse> click) {
@@ -172,9 +201,10 @@ public final class ViewportPanel implements Panel, ViewTools {
     @Override
     public void render() {
         placeCameraOnEntry();
-        header.run();
+        ViewportTakeover owner = takeover;
+        if (owner == null) header.run();
 
-        renderToolbar();
+        renderToolbar(owner);
         float deltaSeconds = ImGui.getIO().getDeltaTime();
         float left = ImGui.getCursorScreenPosX();
         float top = ImGui.getCursorScreenPosY();
@@ -194,6 +224,15 @@ public final class ViewportPanel implements Panel, ViewTools {
             drawList.pushClipRect(left, top, right, bottom, true);
             updateCamera(deltaSeconds);
             if (hovered && !lookGesture) EditorOverlay.requestPick((mouseX - view.originX()) / view.width(), (mouseY - view.originY()) / view.height());
+            if (owner != null) {
+                hoveredInstance = null;
+                boolean cubeBusy = cube.render(drawList, right, top, camera);
+                owner.draw(drawList, view, hovered && !lookGesture && !orbitGesture && !cubeBusy);
+                drawList.popClipRect();
+                if (hovered && !ImGui.getIO().getWantTextInput() && ImGui.isKeyPressed(ImGuiKey.F, false)) owner.frameRequested();
+                camera.apply();
+                return;
+            }
             hoveredInstance = hovered && !lookGesture ? pickAt(mouseX, mouseY) : null;
             boolean joining = gizmoState.tool() == GizmoState.Tool.CONSTRAINT;
             if (joining) constraints.hover(document, view, hovered && !lookGesture, mouseX, mouseY, snapActive(), gizmoState.gridStep());
@@ -249,11 +288,18 @@ public final class ViewportPanel implements Panel, ViewTools {
         gizmo.reset();
     }
 
-    private void renderToolbar() {
+    private void renderToolbar(@Nullable ViewportTakeover owner) {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, EditorScale.of(TOOLBAR_MARGIN_X), EditorScale.of(TOOLBAR_MARGIN_Y));
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, EditorStyle.itemSpacingX(), 0.0f);
         ImGui.beginChild("##viewport-toolbar", 0.0f, ImGui.getFrameHeight() + EditorScale.of(TOOLBAR_MARGIN_Y) * 2.0f, false);
         Toolbars.pushFlatButtons();
+        if (owner != null) {
+            owner.toolbar();
+            Toolbars.popFlatButtons();
+            ImGui.endChild();
+            ImGui.popStyleVar(2);
+            return;
+        }
         renderToolButton("tool-select", EditorIcon.TOOL_SELECT, GizmoState.Tool.SELECT, "Select (Q)");
         ImGui.sameLine();
         renderToolButton("tool-move", EditorIcon.TOOL_MOVE, GizmoState.Tool.TRANSLATE, "Move (W)");
@@ -542,7 +588,8 @@ public final class ViewportPanel implements Panel, ViewTools {
         camera.updateAligning(deltaSeconds);
         boolean rightHeld = heldGesture(lookGesture, ImGui.isMouseDown(ImGuiMouseButton.Right));
         lookGesture = rightHeld;
-        boolean orbitHeld = heldGesture(orbitGesture, !rightHeld && ImGui.getIO().getKeyAlt() && ImGui.isMouseDown(ImGuiMouseButton.Left));
+        boolean claimed = takeover != null && takeover.holdsLeftDrag() && !orbitGesture;
+        boolean orbitHeld = heldGesture(orbitGesture, !rightHeld && !claimed && ImGui.getIO().getKeyAlt() && ImGui.isMouseDown(ImGuiMouseButton.Left));
         orbitGesture = orbitHeld;
         camera.updateLook(ImGui.getMousePosX(), ImGui.getMousePosY(), rightHeld);
         camera.updateOrbit(ImGui.getMousePosX(), ImGui.getMousePosY(), orbitHeld);

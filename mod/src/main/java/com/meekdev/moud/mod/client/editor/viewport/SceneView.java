@@ -7,7 +7,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.jspecify.annotations.Nullable;
 
-final class SceneView {
+public final class SceneView {
 
     private static final float BEHIND = 1.0e-4f;
 
@@ -45,34 +45,42 @@ final class SceneView {
         height = h;
     }
 
-    float originX() {
+    public float[] viewMatrix() {
+        return view;
+    }
+
+    public float[] projectionMatrix() {
+        return projection;
+    }
+
+    public float originX() {
         return originX;
     }
 
-    float originY() {
+    public float originY() {
         return originY;
     }
 
-    float width() {
+    public float width() {
         return width;
     }
 
-    float height() {
+    public float height() {
         return height;
     }
 
-    Vector3 cameraPosition() {
+    public Vector3 cameraPosition() {
         return new Vector3(cameraX, cameraY, cameraZ);
     }
 
-    float @Nullable [] toScreen(Vector3 world) {
+    public float @Nullable [] toScreen(Vector3 world) {
         Vector4f clip = new Vector4f((float) (world.x() - cameraX), (float) (world.y() - cameraY), (float) (world.z() - cameraZ), 1.0f);
         viewProjection.transform(clip);
         if (clip.w <= BEHIND) return null;
         return new float[] {originX + (clip.x / clip.w * 0.5f + 0.5f) * width, originY + (1.0f - (clip.y / clip.w * 0.5f + 0.5f)) * height};
     }
 
-    Vector3 rayOrigin(float screenX, float screenY) {
+    public Vector3 rayOrigin(float screenX, float screenY) {
         float ndcX = (screenX - originX) / width * 2.0f - 1.0f;
         float ndcY = 1.0f - (screenY - originY) / height * 2.0f;
         Vector4f near = inverse.transform(new Vector4f(ndcX, ndcY, AmneticCamera.isOrthographic() ? -1.0f : 0.0f, 1.0f));
@@ -81,7 +89,7 @@ final class SceneView {
         return new Vector3(near.x + cameraX, near.y + cameraY, near.z + cameraZ);
     }
 
-    Vector3 rayDirection(float screenX, float screenY) {
+    public Vector3 rayDirection(float screenX, float screenY) {
         float ndcX = (screenX - originX) / width * 2.0f - 1.0f;
         float ndcY = 1.0f - (screenY - originY) / height * 2.0f;
         Vector4f near = inverse.transform(new Vector4f(ndcX, ndcY, -1.0f, 1.0f));

@@ -93,7 +93,22 @@ public enum EditorIcon {
     CANVAS_GROUP,
     GRADIENT_TEXTURE_1D,
     STYLE_BOX_FLAT,
-    CONTAINER;
+    CONTAINER,
+    PLAY_START_BACKWARDS,
+    BACK,
+    FORWARD,
+    LOOP,
+    ONION,
+    MIRROR_X,
+    BONE,
+    SKELETON_3D,
+    SKELETON_IK_3D("SkeletonIK3D"),
+    LOOK_AT_MODIFIER_3D,
+    SPRING_BONE_SIMULATOR_3D,
+    SIGNAL,
+    MARKER,
+    SEARCH,
+    KEY_VALUE;
 
     private final String fileName;
 

@@ -9,6 +9,7 @@ public enum AssetKind {
     SCRIPT("Scripts", EditorIcon.SCRIPT, List.of(".luau", ".rv", ".java")),
     SCENE("Scenes", EditorIcon.PACKED_SCENE, List.of(".scene")),
     MODEL("Models", EditorIcon.MESH, List.of(".gltf", ".glb", ".bbmodel", ".ammesh")),
+    ANIMATION("Animations", EditorIcon.ANIMATION, List.of(".anim")),
     TEXTURE("Textures", EditorIcon.TEXTURE_2D, List.of(".png", ".jpg", ".jpeg")),
     SOUND("Sounds", EditorIcon.AUDIO_STREAM, List.of(".ogg", ".wav", ".mp3", ".flac")),
     SHADER("Shaders", EditorIcon.SHADER, List.of(".glsl", ".vsh", ".fsh")),

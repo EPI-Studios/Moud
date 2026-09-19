@@ -39,6 +39,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.Set;
@@ -92,6 +93,8 @@ public final class AssetsPanel implements Panel {
     private List<Path> pendingDelete = List.of();
     private final MinecraftBrowser minecraft;
     private Consumer<String> sceneOpener = scene -> {};
+    private Consumer<Path> animationOpener = file -> {};
+    private Consumer<Path> modelImporter = file -> {};
     private List<AssetReferences.Reference> references = List.of();
     private String referencesOf = "";
     private boolean openReferences;
@@ -449,6 +452,7 @@ public final class AssetsPanel implements Panel {
         switch (entry.kind()) {
             case FOLDER -> navigateTo(entry.path());
             case SCENE -> openScene(entry);
+            case ANIMATION -> animationOpener.accept(entry.path());
             case SCRIPT, SHADER -> CodeEditor.open(entry.path(), 1);
             case MODEL, SOUND -> place(entry);
             default -> reveal(entry.path());
@@ -471,6 +475,8 @@ public final class AssetsPanel implements Panel {
         }
         if (entry.folder() && ImGui.menuItem("Open")) navigateTo(entry.path());
         if (entry.kind() == AssetKind.SCENE && ImGui.menuItem("Open scene")) openScene(entry);
+        if (entry.kind() == AssetKind.ANIMATION && ImGui.menuItem("Open in the animation editor")) animationOpener.accept(entry.path());
+        if (isBbmodel(entry) && ImGui.menuItem("Import animations...")) modelImporter.accept(entry.path());
         if (entry.kind() == AssetKind.SCRIPT || entry.kind() == AssetKind.SHADER || entry.kind() == AssetKind.SCENE) {
             if (ImGui.menuItem("Open in Zed")) CodeEditor.open(entry.path(), 1);
         }
@@ -491,6 +497,18 @@ public final class AssetsPanel implements Panel {
 
     public void onOpenScene(Consumer<String> opener) {
         sceneOpener = opener;
+    }
+
+    public void onOpenAnimation(Consumer<Path> opener) {
+        animationOpener = opener;
+    }
+
+    public void onImportModel(Consumer<Path> importer) {
+        modelImporter = importer;
+    }
+
+    private static boolean isBbmodel(AssetEntry entry) {
+        return entry.kind() == AssetKind.MODEL && entry.name().toLowerCase(Locale.ROOT).endsWith(".bbmodel");
     }
 
     private void openScene(AssetEntry entry) {

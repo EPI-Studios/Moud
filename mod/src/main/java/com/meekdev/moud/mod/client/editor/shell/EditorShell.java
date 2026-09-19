@@ -7,6 +7,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.editor.EditorScreen;
+import com.meekdev.moud.mod.client.editor.animation.AnimationWorkspace;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.command.Commands;
 import com.meekdev.moud.mod.client.editor.command.EditorCommand;
@@ -15,9 +16,11 @@ import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.SceneLink;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
+import com.meekdev.moud.mod.client.editor.kit.ToggleStyle;
 import com.meekdev.moud.mod.client.editor.kit.Toolbars;
 import com.meekdev.moud.mod.client.editor.panel.ExplorerPanel;
 import com.meekdev.moud.mod.client.editor.panel.OutputPanel;
+import com.meekdev.moud.mod.client.editor.panel.Panel;
 import com.meekdev.moud.mod.client.editor.panel.Panels;
 import com.meekdev.moud.mod.client.editor.panel.PropertiesPanel;
 import com.meekdev.moud.mod.client.editor.plugin.EditorPlugins;
@@ -63,7 +66,9 @@ public final class EditorShell {
     private final SceneDocument document = new SceneDocument();
     private final IconWidgets icons = new IconWidgets(new IconAtlas());
     private final DockLayout dockLayout = new DockLayout();
+    private final AnimationDock animationDock = new AnimationDock();
     private final ViewportPanel viewport = new ViewportPanel(document, icons);
+    private final AnimationWorkspace animation = new AnimationWorkspace(document, icons, viewport);
     private final ExplorerPanel explorer = new ExplorerPanel(document, icons, viewport::frameSelection);
     private final AssetsPanel assets = new AssetsPanel(document, icons, explorer::insertParent);
     private final PropertiesPanel properties = new PropertiesPanel(document, icons);
@@ -73,6 +78,7 @@ public final class EditorShell {
             .add(properties)
             .add(new OutputPanel())
             .add(assets);
+    private final Panels animationPanels = animationPanels();
     private final EditorPlugins plugins = new EditorPlugins(document, icons, viewport);
     private final SceneTabs scenes = new SceneTabs(document);
     private final WorldImportDialog worldImport = new WorldImportDialog();
@@ -83,8 +89,23 @@ public final class EditorShell {
     private boolean closePrompt;
     private boolean closeAfterSave;
 
+    private Panels animationPanels() {
+        Panels built = new Panels();
+        for (Panel panel : animation.panels()) built.add(panel);
+        return built;
+    }
+
+    private void toggleAnimation() {
+        animation.toggle();
+    }
+
+    private void save() {
+        if (animation.active()) animation.save();
+        else document.save();
+    }
+
     private void closeProject() {
-        if (document.dirty()) closePrompt = true;
+        if (document.dirty() || animation.anyDirty()) closePrompt = true;
         else Editor.requestCloseProject();
     }
 
@@ -99,7 +120,8 @@ public final class EditorShell {
         }
         if (!Dialogs.begin(CLOSE_PROMPT, CLOSE_PROMPT_WIDTH)) return;
         Dialogs.title("Save the scene before closing?");
-        Texts.muted(SceneLink.file() + " has changes that are not saved.");
+        if (document.dirty()) Texts.muted(SceneLink.file() + " has changes that are not saved.");
+        if (animation.anyDirty()) Texts.muted("Some animation clips have changes that are not saved.");
         Dialogs.gap();
         Dialogs.alignFooter(3);
         if (Dialogs.button("Cancel##close-cancel")) ImGui.closeCurrentPopup();
@@ -112,7 +134,8 @@ public final class EditorShell {
         if (Dialogs.primaryButton("Save##close-save", true)) {
             ImGui.closeCurrentPopup();
             closeAfterSave = true;
-            document.save();
+            animation.saveAll();
+            if (document.dirty()) document.save();
         }
         Dialogs.end();
     }
@@ -136,6 +159,8 @@ public final class EditorShell {
         viewport.header(scenes::renderTabs);
         properties.viewTools(viewport);
         assets.onOpenScene(scenes::switchTo);
+        assets.onOpenAnimation(animation::open);
+        assets.onImportModel(animation::importModel);
         viewport.plugins(plugins::renderToolbar, plugins::capturing, plugins::viewportClicked);
         plugins.builtIn(shortcut -> {
             EditorCommand command = commands.using(shortcut);
@@ -146,7 +171,7 @@ public final class EditorShell {
     private void addCommands() {
         commands.add(new EditorCommand("new-scene", "File", "New Scene...", Shortcut.ctrl(ImGuiKey.N, "N"), scenes::ready, scenes::askNew));
         commands.add(new EditorCommand("open-scene", "File", "Open Scene...", Shortcut.ctrl(ImGuiKey.O, "O"), scenes::ready, scenes::askOpen));
-        commands.add(new EditorCommand("save", "File", "Save Scene", Shortcut.ctrl(ImGuiKey.S, "S"), EditMode::allowed, document::save));
+        commands.add(new EditorCommand("save", "File", "Save Scene", Shortcut.ctrl(ImGuiKey.S, "S"), EditMode::allowed, this::save));
         commands.add(new EditorCommand("save-as", "File", "Save Scene As...", Shortcut.ctrlShift(ImGuiKey.S, "S"), scenes::ready, scenes::askSaveAs));
         commands.add(new EditorCommand("start-scene", "File", "Set as Start Scene", null, scenes::ready, () -> scenes.setStart(scenes.current())));
         commands.add(new EditorCommand("backups", "File", "Scene Backups...", null, scenes::ready, scenes::askBackups));
@@ -157,16 +182,12 @@ public final class EditorShell {
         commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo));
         commands.add(new EditorCommand("redo", "Edit", "Redo", Shortcut.ctrl(ImGuiKey.Y, "Y"), this::canRedo, this::redo));
         commands.add(new EditorCommand("redo-shift", "Edit", "Redo", Shortcut.ctrlShift(ImGuiKey.Z, "Z"), this::canRedo, this::redo).hidden());
-        commands.add(new EditorCommand("copy", "Edit", "Copy", Shortcut.ctrl(ImGuiKey.C, "C"),
-                this::hasSelection, () -> ExplorerPanel.copy(document)));
-        commands.add(new EditorCommand("paste", "Edit", "Paste", Shortcut.ctrl(ImGuiKey.V, "V"),
-                EditMode::allowed, () -> document.pasteText(ImGui.getClipboardText())));
-        commands.add(new EditorCommand("duplicate", "Edit", "Duplicate", Shortcut.ctrl(ImGuiKey.D, "D"),
-                this::hasSelection, document::duplicateSelected));
+        commands.add(new EditorCommand("copy", "Edit", "Copy", Shortcut.ctrl(ImGuiKey.C, "C"), this::canEditSelection, this::copy));
+        commands.add(new EditorCommand("paste", "Edit", "Paste", Shortcut.ctrl(ImGuiKey.V, "V"), EditMode::allowed, this::paste));
+        commands.add(new EditorCommand("duplicate", "Edit", "Duplicate", Shortcut.ctrl(ImGuiKey.D, "D"), this::canEditSelection, this::duplicate));
         commands.add(new EditorCommand("rename", "Edit", "Rename", Shortcut.key(ImGuiKey.F2, "F2"),
                 this::hasPrimary, () -> explorer.beginRename(document.primary().id())));
-        commands.add(new EditorCommand("delete", "Edit", "Delete", Shortcut.key(ImGuiKey.Delete, "Del"),
-                this::hasSelection, document::deleteSelected));
+        commands.add(new EditorCommand("delete", "Edit", "Delete", Shortcut.key(ImGuiKey.Delete, "Del"), this::canEditSelection, this::delete));
         commands.add(new EditorCommand("group", "Edit", "Group", Shortcut.ctrl(ImGuiKey.G, "G"), this::hasRoots, document::group));
         commands.add(new EditorCommand("ungroup", "Edit", "Ungroup", Shortcut.ctrl(ImGuiKey.U, "U"), this::hasRoots, document::ungroup));
         commands.add(new EditorCommand("rotate-y", "Edit", "Rotate 90° around Y", Shortcut.ctrl(ImGuiKey.R, "R"),
@@ -180,7 +201,7 @@ public final class EditorShell {
         commands.add(new EditorCommand("constraint-tool", "Edit", "Constraint Tool", null, this::hasWorld, viewport::useConstraintTool));
         commands.add(new EditorCommand("weld-selected", "Edit", "Weld Selected", Shortcut.ctrl(ImGuiKey.W, "W"),
                 () -> document.selection().count() > 1, document::weldSelected));
-        commands.add(new EditorCommand("select-all", "Select", "Select All", Shortcut.ctrl(ImGuiKey.A, "A"), this::hasWorld, document::selectAll));
+        commands.add(new EditorCommand("select-all", "Select", "Select All", Shortcut.ctrl(ImGuiKey.A, "A"), this::hasWorld, this::selectAll));
         commands.add(new EditorCommand("select-parent", "Select", "Select Parent", Shortcut.alt(ImGuiKey.UpArrow, "Up"),
                 this::hasSelection, document::selectParent));
         commands.add(new EditorCommand("select-children", "Select", "Select Children", Shortcut.alt(ImGuiKey.DownArrow, "Down"),
@@ -192,7 +213,9 @@ public final class EditorShell {
         commands.add(new EditorCommand("select-class", "Select", "Select Same Class", null, this::hasPrimary, this::selectSameClass));
         commands.add(new EditorCommand("frame", "Edit", "Frame Selection", null, this::hasSelection, viewport::frameSelection));
         commands.add(new EditorCommand("play", "Place", "Play", null, EditMode::allowed, () -> EditMode.request(false)));
-        commands.add(new EditorCommand("reset-layout", "Window", "Reset Layout", null, () -> true, dockLayout::requestDefault));
+        commands.add(new EditorCommand("animation", "Window", "Animation Editor", Shortcut.ctrlShift(ImGuiKey.A, "A"),
+                this::hasWorld, this::toggleAnimation));
+        commands.add(new EditorCommand("reset-layout", "Window", "Reset Layout", null, () -> true, this::resetLayout));
         commands.add(new EditorCommand("renderer-tools", "Window", "Renderer Tools", null, () -> true, AmneticEditor::toggle));
     }
 
@@ -212,20 +235,50 @@ public final class EditorShell {
         document.history().redo();
     }
 
-    private boolean hasSelection() {
+    private boolean canEditSelection() {
+        if (animation.active()) return animation.hasSelection();
         return document.selection().count() > 0;
+    }
+
+    private void copy() {
+        if (animation.active()) animation.copy();
+        else ExplorerPanel.copy(document);
+    }
+
+    private void paste() {
+        if (animation.active()) animation.paste();
+        else document.pasteText(ImGui.getClipboardText());
+    }
+
+    private void duplicate() {
+        if (animation.active()) animation.duplicate();
+        else document.duplicateSelected();
     }
 
     private boolean hasPrimary() {
         return document.primary() != null;
     }
 
+    private void delete() {
+        if (animation.active()) animation.delete();
+        else document.deleteSelected();
+    }
+
     private boolean hasRoots() {
         return !document.selectedRoots().isEmpty();
     }
 
+    private boolean hasSelection() {
+        return document.selection().count() > 0;
+    }
+
     private boolean hasWorld() {
         return document.world() != null;
+    }
+
+    private void selectAll() {
+        if (animation.active()) animation.selectAll();
+        else document.selectAll();
     }
 
     private void selectSameClass() {
@@ -233,8 +286,17 @@ public final class EditorShell {
         document.selectWhere(instance -> instance.def().name().equals(name));
     }
 
+    private void resetLayout() {
+        if (animation.active()) animationDock.requestDefault();
+        else dockLayout.requestDefault();
+    }
+
     public void tick() {
         plugins.tick();
+        Minecraft client = Minecraft.getInstance();
+        boolean waiting = animation.launching() && !EditMode.editing() && EditMode.allowed();
+        if (waiting && client.screen == null && client.level != null) EditMode.request(true);
+        if (EditMode.editing()) animation.tick();
     }
 
     public void render() {
@@ -248,13 +310,19 @@ public final class EditorShell {
         try {
             ImGuizmo.beginFrame();
             plugins.frame();
+            animation.frame();
             renderMainMenuBar();
             renderHostWindow();
-            panels.render();
-            plugins.renderPanels(dockLayout::node);
+            if (animation.active()) {
+                animationPanels.render();
+            } else {
+                panels.render();
+                plugins.renderPanels(dockLayout::node);
+            }
             if (!viewport.flying()) {
                 commands.handleShortcuts();
                 plugins.handleShortcuts();
+                animation.handleShortcuts();
             }
             renderClosePrompt();
             scenes.frame();
@@ -262,6 +330,7 @@ public final class EditorShell {
             worldImport.render();
             settings.render();
             export.render();
+            animation.renderDialogs();
             document.frame(ImGui.isAnyItemActive() || ImGui.isMouseDown(ImGuiMouseButton.Left));
         } catch (RuntimeException e) {
             MoudMod.LOG.error("editor frame failed", e);
@@ -298,6 +367,12 @@ public final class EditorShell {
 
     private void renderPlayControls() {
         Toolbars.groupSeparator();
+        boolean animating = animation.active();
+        ToggleStyle.push(animating);
+        boolean toggled = Toolbars.textButton("Animation##toolbar-animation");
+        ToggleStyle.pop(animating);
+        if (toggled && document.world() != null) toggleAnimation();
+        tooltip("Animation editor (Ctrl+Shift+A)");
         float leftEdge = ImGui.getCursorPosX();
         float centered = (ImGui.getWindowWidth() - playGroupWidth()) * 0.5f;
         ImGui.sameLine(Math.max(centered, leftEdge));
@@ -335,8 +410,17 @@ public final class EditorShell {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0.0f, 0.0f);
         ImGui.begin("##editor-host", HOST_WINDOW_FLAGS);
         ImGui.popStyleVar(2);
-        dockLayout.buildIfRequested(viewport);
-        ImGui.dockSpace(dockLayout.dockspaceId(), 0.0f, -EditorScale.of(STATUS_BAR_HEIGHT), ImGuiDockNodeFlags.PassthruCentralNode);
+        if (animation.active()) {
+            animation.renderTopBar();
+            float height = viewport.getWorkSizeY() - animation.topBarHeight() - EditorScale.of(STATUS_BAR_HEIGHT);
+            animationDock.buildIfRequested(animation, viewport.getWorkSizeX(), height);
+            ImGui.dockSpace(dockLayout.dockspaceId(), 0.0f, 0.0f, ImGuiDockNodeFlags.KeepAliveOnly);
+            ImGui.dockSpace(animationDock.dockspaceId(), 0.0f, -EditorScale.of(STATUS_BAR_HEIGHT), ImGuiDockNodeFlags.PassthruCentralNode);
+        } else {
+            dockLayout.buildIfRequested(viewport);
+            ImGui.dockSpace(animationDock.dockspaceId(), 0.0f, 0.0f, ImGuiDockNodeFlags.KeepAliveOnly);
+            ImGui.dockSpace(dockLayout.dockspaceId(), 0.0f, -EditorScale.of(STATUS_BAR_HEIGHT), ImGuiDockNodeFlags.PassthruCentralNode);
+        }
         renderStatusBar();
         ImGui.end();
     }
@@ -346,7 +430,11 @@ public final class EditorShell {
         ImGui.beginChild("##status-bar", 0.0f, EditorScale.of(STATUS_BAR_HEIGHT), false);
         ImGui.setCursorPosX(EditorStyle.windowPadding());
         ImGui.setCursorPosY(ImGui.getCursorPosY() + EditorStyle.framePaddingY() - 1.0f);
-        Texts.muted("Editing, scripts are off");
+        Texts.muted(animation.active() ? "Animating, scripts are off" : "Editing, scripts are off");
+        if (animation.active()) {
+            ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
+            Texts.colored(EditorStyle.COLOR_ACCENT, animation.status());
+        }
         ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
         if (document.dirty()) Texts.colored(EditorStyle.COLOR_WARNING, "Unsaved  " + SceneLink.file());
         else Texts.muted(SceneLink.file());
