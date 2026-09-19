@@ -11,6 +11,10 @@ import com.meekdev.moud.script.host.HostError;
 import com.meekdev.moud.script.host.HostSignal;
 import com.meekdev.moud.script.host.Members;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +26,7 @@ public final class Plugins {
 
         private final String name;
         private final String chunk;
+        private final Set<String> requires = new HashSet<>();
         private boolean active;
         private Instance preview;
 
@@ -40,6 +45,10 @@ public final class Plugins {
 
         public boolean active() {
             return active;
+        }
+
+        public String settingsKey() {
+            return chunk.startsWith(USER) ? "~/" + name : name;
         }
     }
 
@@ -197,7 +206,11 @@ public final class Plugins {
         }
     }
 
+    private static final String USER = "~/";
+
     private final PluginRef editor;
+    private final Map<String, Boolean> shown;
+    private final Map<String, Set<String>> needs = new HashMap<>();
     private final Map<String, Plugin> loaded = new LinkedHashMap<>();
     private final List<Toolbar> toolbars = new ArrayList<>();
     private final List<Command> commands = new ArrayList<>();
@@ -209,7 +222,12 @@ public final class Plugins {
     private Members ui;
 
     public Plugins(PluginRef editor) {
+        this(editor, new HashMap<>());
+    }
+
+    public Plugins(PluginRef editor, Map<String, Boolean> shown) {
         this.editor = editor;
+        this.shown = shown;
     }
 
     PluginRef editor() {
@@ -284,6 +302,47 @@ public final class Plugins {
         return host != null && host.ownership().current() instanceof Plugin plugin ? plugin.name : "";
     }
 
+    public String runningChunk() {
+        return host != null && host.ownership().current() instanceof Plugin plugin ? plugin.chunk : "";
+    }
+
+    public void show(Panel panel, boolean on) {
+        panel.visible = on;
+        shown.put(panel.key, on);
+    }
+
+    public void required(String from, String path) {
+        if (from != null) needs.computeIfAbsent(from, key -> new HashSet<>()).add(path);
+        if (host != null && host.ownership().current() instanceof Plugin plugin) plugin.requires.add(path);
+    }
+
+    public Set<String> modules() {
+        Set<String> all = new HashSet<>(needs.keySet());
+        for (Set<String> required : needs.values()) all.addAll(required);
+        for (Plugin plugin : loaded.values()) all.addAll(plugin.requires);
+        return all;
+    }
+
+    public List<String> changed(Collection<String> paths) {
+        Set<String> stale = new HashSet<>(paths);
+        boolean grew = true;
+        while (grew) {
+            grew = false;
+            for (Map.Entry<String, Set<String>> entry : needs.entrySet()) {
+                if (!stale.contains(entry.getKey()) && !Collections.disjoint(entry.getValue(), stale)) grew |= stale.add(entry.getKey());
+            }
+        }
+        for (String path : stale) {
+            needs.remove(path);
+            host.forgetModule(path);
+        }
+        List<String> reload = new ArrayList<>();
+        for (Plugin plugin : loaded.values()) {
+            if (!Collections.disjoint(plugin.requires, stale)) reload.add(plugin.name);
+        }
+        return reload;
+    }
+
     public void run(Command command) {
         call(command.plugin, command.handler, command.plugin.chunk + " " + command.name);
     }
@@ -348,6 +407,7 @@ public final class Plugins {
         String key = plugin.name + "/" + title;
         for (int n = 2; taken(key); n++) key = plugin.name + "/" + title + "/" + n;
         Panel made = new Panel(plugin, key, title, width, height, dock);
+        made.visible = shown.getOrDefault(key, true);
         panels.add(made);
         return made;
     }

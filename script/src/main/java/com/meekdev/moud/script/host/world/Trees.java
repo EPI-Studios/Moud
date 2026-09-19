@@ -78,6 +78,7 @@ public final class Trees {
         });
         shared.method("setOwner", "(to: Instance?) -> ()", a -> {
             Instance instance = a.self();
+            if (host.instances().edited(instance)) throw new HostError("a plugin cannot set the owner of %s, it is part of the scene", instance.name());
             if (host.client()) throw new HostError("setOwner is server-only");
             if (!(instance instanceof Spatial)) throw new HostError("%s cannot have an owner", instance.def().name());
             PropertyDef owner = instance.def().property("owner");

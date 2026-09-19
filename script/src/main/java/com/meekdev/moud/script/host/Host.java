@@ -121,6 +121,7 @@ public final class Host {
     private RosterRef roster;
     private EditsRef edits;
     private Plugins plugins;
+    private Consumer<String> forgetting = path -> { };
     private HostSignal windowClosing;
     private Instance camera;
     private Supplier<Instance> own = () -> null;
@@ -286,6 +287,8 @@ public final class Host {
     public Host devices(DevicesRef devices) { this.devices = devices; return this; }
     public Host edits(EditsRef edits) { this.edits = edits; return this; }
     public Host plugins(Plugins plugins) { this.plugins = plugins; return this; }
+    void forgetting(Consumer<String> forget) { forgetting = forget; }
+    public void forgetModule(String path) { forgetting.accept(path); }
     public void userInput(UserInput events) { userInput = events; }
     public Host studio(boolean studio) { this.studio = studio; return this; }
 

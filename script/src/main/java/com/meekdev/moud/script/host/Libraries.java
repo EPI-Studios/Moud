@@ -29,9 +29,8 @@ import com.meekdev.moud.script.host.world.WorldQueries;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 
 final class Libraries {
 
@@ -117,7 +116,7 @@ final class Libraries {
 
     private static void installRequire(Host host) {
         Map<Object, Object> cache = new HashMap<>();
-        Set<Object> loading = new HashSet<>();
+        LinkedHashSet<Object> loading = new LinkedHashSet<>();
         host.global("require", "(module: string | Instance) -> any", new Builtin("require", a -> {
             if (a.get(0) instanceof ModuleScript module) {
                 if (!module.isAlive()) throw new HostError("%s has been destroyed", module.name());
@@ -130,8 +129,12 @@ final class Libraries {
             }
             if (a.get(0) instanceof Instance other) throw new HostError("require expects a ModuleScript, got a %s", other.def().name());
             Host.Script found = find(host, a.string(0));
+            if (host.plugins() != null) host.plugins().required(!loading.isEmpty() && loading.getLast() instanceof String from ? from : null, found.path());
             return load(host, cache, loading, found.path(), found.path(), found.code(), null);
         }));
+        host.forgetting(path -> {
+            if (cache.remove(path) instanceof ScriptValue value) value.release();
+        });
         host.onClose(() -> {
             for (Object module : cache.values()) {
                 if (module instanceof ScriptValue value) value.release();
@@ -151,7 +154,7 @@ final class Libraries {
         return found;
     }
 
-    private static Object load(Host host, Map<Object, Object> cache, Set<Object> loading, Object key, String chunk, String code, Instance script) {
+    private static Object load(Host host, Map<Object, Object> cache, LinkedHashSet<Object> loading, Object key, String chunk, String code, Instance script) {
         Object cached = cache.get(key);
         if (cached != null) return cached;
         if (!loading.add(key)) throw new HostError("circular require of %s", key instanceof Instance module ? fullName(module) : "res://" + chunk);

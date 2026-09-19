@@ -137,6 +137,10 @@ public final class EditorShell {
         properties.viewTools(viewport);
         assets.onOpenScene(scenes::switchTo);
         viewport.plugins(plugins::renderToolbar, plugins::capturing, plugins::viewportClicked);
+        plugins.builtIn(shortcut -> {
+            EditorCommand command = commands.using(shortcut);
+            return command == null ? null : command.label();
+        });
     }
 
     private void addCommands() {

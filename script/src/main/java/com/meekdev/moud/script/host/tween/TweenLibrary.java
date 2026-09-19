@@ -71,6 +71,9 @@ public final class TweenLibrary {
 
         host.instances().shared().method("tween", "(goals: { [string]: any }, info: TweenInfo?) -> Tween", a -> {
             Instance instance = a.self();
+            if (host.instances().edited(instance)) {
+                throw new HostError("a plugin cannot tween %s, it is part of the scene. Set its properties instead", instance.name());
+            }
             List<Tween.Goal> goals = new ArrayList<>();
             for (Map.Entry<String, Object> entry : a.map(1).entrySet()) {
                 goals.add(goal(host, instance, entry.getKey(), entry.getValue()));

@@ -47,7 +47,7 @@ final class PanelWidgets implements PluginRef.Ui {
     public String input(String label, String value) {
         ImString buffer = buffers.computeIfAbsent(label, key -> new ImString(value, TEXT_CAPACITY));
         if (!typing.contains(label) && !buffer.get().equals(value)) buffer.set(value);
-        Rows.of(label, () -> {
+        row(label, () -> {
             ImGui.inputText("##value", buffer);
             if (ImGui.isItemActive()) typing.add(label);
             else typing.remove(label);
@@ -58,35 +58,38 @@ final class PanelWidgets implements PluginRef.Ui {
     @Override
     public double number(String label, double value, double step) {
         float[] out = {(float) value};
-        Rows.of(label, () -> out[0] = NumberFields.scalar("##value", (float) value, (float) step, ImGui.getContentRegionAvailX()));
-        return out[0] == (float) value ? value : out[0];
+        row(label, () -> out[0] = NumberFields.scalar("##value", (float) value, (float) step, ImGui.getContentRegionAvailX()));
+        return out[0] == (float) value ? value : typed(out[0]);
     }
 
     @Override
     public double slider(String label, double value, double minimum, double maximum) {
         float[] out = {(float) value};
         float step = (float) ((maximum - minimum) / SLIDER_STEPS);
-        Rows.of(label, () -> out[0] = NumberFields.ranged("##value", (float) value, step, ImGui.getContentRegionAvailX(), (float) minimum, (float) maximum));
-        return out[0] == (float) value ? value : Math.clamp(out[0], minimum, maximum);
+        row(label, () -> out[0] = NumberFields.ranged("##value", (float) value, step, ImGui.getContentRegionAvailX(), (float) minimum, (float) maximum));
+        return out[0] == (float) value ? value : Math.clamp(typed(out[0]), minimum, maximum);
     }
 
     @Override
     public boolean checkbox(String label, boolean value) {
-        return Rows.toggle(label, value);
+        ImGui.pushID(label);
+        boolean out = Rows.toggle(shown(label), value);
+        ImGui.popID();
+        return out;
     }
 
     @Override
     public Color color(String label, Color value) {
         float[] picked = {value.r(), value.g(), value.b(), value.a()};
         boolean[] changed = {false};
-        Rows.of(label, () -> changed[0] = ImGui.colorEdit4("##value", picked, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar));
+        row(label, () -> changed[0] = ImGui.colorEdit4("##value", picked, ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar));
         return changed[0] ? new Color(picked[0], picked[1], picked[2], picked[3]) : value;
     }
 
     @Override
     public String choice(String label, String value, List<String> options) {
         String[] out = {value};
-        Rows.of(label, () -> {
+        row(label, () -> {
             if (!ImGui.beginCombo("##value", value)) return;
             for (String option : options) {
                 if (ImGui.selectable(option, option.equals(value))) out[0] = option;
@@ -104,5 +107,20 @@ final class PanelWidgets implements PluginRef.Ui {
     @Override
     public void sameLine() {
         ImGui.sameLine();
+    }
+
+    static String shown(String label) {
+        int id = label.indexOf("##");
+        return id < 0 ? label : label.substring(0, id);
+    }
+
+    static double typed(float value) {
+        return Double.parseDouble(Float.toString(value));
+    }
+
+    private static void row(String label, Runnable control) {
+        ImGui.pushID(label);
+        Rows.of(shown(label), control);
+        ImGui.popID();
     }
 }
