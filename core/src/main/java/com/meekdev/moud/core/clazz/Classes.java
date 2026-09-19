@@ -30,6 +30,8 @@ import com.meekdev.moud.core.character.KeyframeMarker;
 import com.meekdev.moud.core.character.KeyframePose;
 import com.meekdev.moud.core.character.KeyframeSequence;
 import com.meekdev.moud.core.character.Humanoid;
+import com.meekdev.moud.core.character.IKControl;
+import com.meekdev.moud.core.character.JointSpring;
 import com.meekdev.moud.core.character.Limb;
 import com.meekdev.moud.core.character.Wings;
 import com.meekdev.moud.core.chat.BubbleChat;
@@ -398,6 +400,8 @@ public final class Classes {
     public static final ClassDef<StarterPack> STARTER_PACK = ClassDef.of("StarterPack", null, StarterPack.class, StarterPack::new);
     public static final ClassDef<AnimationController> ANIMATION_CONTROLLER =
             ClassDef.of("AnimationController", null, AnimationController.class, AnimationController::new);
+    public static final ClassDef<IKControl> IK_CONTROL = ClassDef.of("IKControl", null, IKControl.class, IKControl::new);
+    public static final ClassDef<JointSpring> JOINT_SPRING = ClassDef.of("JointSpring", null, JointSpring.class, JointSpring::new);
     public static final ClassDef<Animation> ANIMATION = ClassDef.of("Animation", null, Animation.class, Animation::new);
     public static final ClassDef<KeyframeSequence> KEYFRAME_SEQUENCE =
             ClassDef.of("KeyframeSequence", null, KeyframeSequence.class, KeyframeSequence::new);
@@ -578,6 +582,8 @@ public final class Classes {
         r.register(STARTER_PACK);
         r.register(ANIMATION);
         r.register(ANIMATION_CONTROLLER);
+        r.register(IK_CONTROL);
+        r.register(JOINT_SPRING);
         r.register(KEYFRAME_SEQUENCE);
         r.register(KEYFRAME);
         r.register(POSE);

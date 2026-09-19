@@ -22,6 +22,20 @@ public record Quat(double x, double y, double z, double w) {
                 cx * cy * cz + sx * sy * sz).normalize();
     }
 
+    public static Quat fromTo(Vector3 from, Vector3 to) {
+        Vector3 a = from.normalize();
+        Vector3 b = to.normalize();
+        double dot = a.dot(b);
+        if (dot > 1 - 1e-9) return IDENTITY;
+        if (dot < -1 + 1e-9) {
+            Vector3 axis = Vector3.RIGHT.cross(a);
+            if (axis.lengthSq() < 1e-9) axis = Vector3.UP.cross(a);
+            return axisAngle(axis.normalize(), Math.PI);
+        }
+        Vector3 axis = a.cross(b);
+        return new Quat(axis.x(), axis.y(), axis.z(), 1 + dot).normalize();
+    }
+
     public Quat mul(Quat o) {
         return new Quat(
                 w * o.x + x * o.w + y * o.z - z * o.y,
