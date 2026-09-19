@@ -56,6 +56,7 @@ public final class MoudClient implements ClientModInitializer {
         Controls.listen();
         Push.listen();
         ClientWorld.listen();
+        PlaceFiles.install();
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             Autopilot.clear();
             SeatInput.clear();

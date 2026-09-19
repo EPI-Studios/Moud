@@ -60,6 +60,12 @@ public final class ViewModels {
         TOLD.clear();
     }
 
+    public static void forget(String model) {
+        MODELS.remove(model);
+        BUILT.values().removeIf(built -> built.model().equals(model));
+        TOLD.removeIf(note -> note.startsWith(model + " "));
+    }
+
     public static ViewModel of(Character character) {
         return character != null && character.child(Rig.VIEW_MODEL) instanceof ViewModel view ? view : null;
     }

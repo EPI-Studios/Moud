@@ -6,8 +6,7 @@ import com.meekdev.moud.core.character.Clip;
 import com.meekdev.moud.core.scene.Json;
 import com.meekdev.moud.mod.MoudMod;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
@@ -25,9 +24,10 @@ public final class AnimationFiles {
             Output.add(Output.Level.ERROR, "animation", "animationId " + res + " must be a res:// path to a .anim file");
             return null;
         }
-        Path file = PlaceToml.root().resolve(Res.parse(res));
         try {
-            Object parsed = Json.parse(Files.readString(file));
+            byte[] bytes = SyncedFiles.read(PlaceToml.root(), res);
+            if (bytes == null) throw new IOException("the file is not in the place");
+            Object parsed = Json.parse(new String(bytes, StandardCharsets.UTF_8));
             if (!(parsed instanceof Map<?, ?> root)) throw new IllegalArgumentException("the file must hold a JSON object");
             return Clip.parse((Map<String, Object>) root);
         } catch (IOException | RuntimeException e) {

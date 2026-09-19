@@ -286,7 +286,7 @@ public final class Editing {
         status(player, why);
     }
 
-    private static void status(ServerPlayer player, String message) {
+    static void status(ServerPlayer player, String message) {
         Place place = MoudServer.place();
         if (place == null || !ServerPlayNetworking.canSend(player, SceneStatusPayload.TYPE)) return;
         ServerPlayNetworking.send(player, new SceneStatusPayload(dirty, place.sceneFile(), message, generation));
