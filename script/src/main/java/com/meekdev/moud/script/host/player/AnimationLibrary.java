@@ -4,7 +4,10 @@ import com.meekdev.moud.core.character.Animation;
 import com.meekdev.moud.core.character.AnimationTrack;
 import com.meekdev.moud.core.character.Animator;
 import com.meekdev.moud.core.character.Animators;
+import com.meekdev.moud.core.character.Clip;
 import com.meekdev.moud.core.character.KeyframeSequence;
+import com.meekdev.moud.core.character.ViewModel;
+import com.meekdev.moud.core.character.ViewModels;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
@@ -15,8 +18,11 @@ import com.meekdev.moud.script.host.HostSignal;
 import com.meekdev.moud.script.host.Members;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 final class AnimationLibrary {
@@ -33,6 +39,7 @@ final class AnimationLibrary {
         host.api().declare(HostSignal.decl("StringSignal", "(value: string) -> ()"));
         host.api().declare(HostSignal.decl("MarkerSignal", "(value: any) -> ()"));
         Map<AnimationTrack, Map<String, HostSignal>> reached = new WeakHashMap<>();
+        Set<String> warned = new HashSet<>();
 
         Members animators = host.instances().of(Classes.ANIMATOR);
         animators.method("loadAnimation", "(animation: Instance) -> AnimationTrack", a -> {
@@ -41,9 +48,14 @@ final class AnimationLibrary {
             if (!(animation instanceof Animation) && !(animation instanceof KeyframeSequence)) {
                 throw new HostError("loadAnimation expects an Animation or a KeyframeSequence, got %s", animation.def().name());
             }
+            Clip clip = Animators.clip(animation);
+            String refused = ViewModels.refusal(animator, animation, clip);
+            if (refused != null) throw new HostError("%s", refused);
+            String warning = ViewModels.warning(animator, animation, clip);
+            if (warning != null && warned.add(warning)) host.print(warning);
             AnimationTrack track = Instances.create(Classes.TRACK, animator, animation.name());
             Instances.setObj(track, ANIMATION, animation);
-            track.length = Animators.clip(animation).length();
+            track.length = clip.length();
             return track;
         });
         animators.method("getPlayingAnimationTracks", "() -> { AnimationTrack }", a -> {
@@ -53,6 +65,15 @@ final class AnimationLibrary {
             }
             return playing;
         });
+
+        Members views = host.instances().of(Classes.VIEW_MODEL);
+        views.declare("animator", "Animator");
+        views.bound("joints", "{ [string]: Bone }", self -> {
+            ViewModel view = (ViewModel) self;
+            if (host.client()) ViewModels.ensure(view);
+            return new LinkedHashMap<String, Object>(ViewModels.joints(view));
+        });
+        views.method("isActive", "() -> boolean", a -> ViewModels.active(a.self(ViewModel.class)));
 
         Members tracks = host.instances().of(Classes.TRACK);
         tracks.method("play", "(fadeTime: number?, weight: number?, speed: number?) -> ()", a -> {

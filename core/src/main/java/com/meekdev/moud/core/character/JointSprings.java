@@ -46,7 +46,7 @@ public final class JointSprings {
         List<JointSpring> springs = new ArrayList<>();
         for (Instance instance : tree.ofClass(Classes.JOINT_SPRING)) {
             if (!(instance instanceof JointSpring spring)) continue;
-            if (spring.enabled && spring.weight > 0 && joint(spring) != null) springs.add(spring);
+            if (spring.enabled && spring.weight > 0 && joint(spring) != null && !ViewModels.inside(joint(spring))) springs.add(spring);
             else STATES.remove(spring);
         }
         springs.sort(Comparator.comparingInt(spring -> depth(joint(spring))));

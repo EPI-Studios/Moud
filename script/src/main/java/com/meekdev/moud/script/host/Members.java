@@ -6,11 +6,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class Members implements HostObject {
 
     private record Field(Supplier<Object> getter, Consumer<Object> setter) {}
+
+    private record Bound(Function<Object, Object> getter) {}
 
     private final String type;
     private final Map<String, Object> entries = new LinkedHashMap<>();
@@ -47,6 +50,12 @@ public class Members implements HostObject {
         return this;
     }
 
+    public Members bound(String name, String fieldType, Function<Object, Object> getter) {
+        entries.put(name, new Bound(getter));
+        declared.add(new Api.Member(name, Api.Kind.FIELD, fieldType, true));
+        return this;
+    }
+
     public Members declareMethod(String name, String signature) {
         declared.add(new Api.Member(name, Api.Kind.METHOD, signature));
         return this;
@@ -73,7 +82,12 @@ public class Members implements HostObject {
     public Object get(String key) {
         Object entry = entries.get(key);
         if (entry == null) throw new HostError("%s has no member '%s'", type, key);
+        if (entry instanceof Bound) throw new HostError("%s.%s is read on an instance", type, key);
         return entry instanceof Field field ? field.getter().get() : entry;
+    }
+
+    public Object get(Object self, String key) {
+        return entries.get(key) instanceof Bound bound ? bound.getter().apply(self) : get(key);
     }
 
     @Override

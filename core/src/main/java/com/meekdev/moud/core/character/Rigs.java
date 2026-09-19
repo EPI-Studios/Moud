@@ -40,6 +40,7 @@ public final class Rigs {
             }
             return joints;
         }
+        if (holder instanceof ViewModel) gather(holder, joints);
         if (holder instanceof AnimationController && holder.parent() != null) gather(holder.parent(), joints);
         return joints;
     }
