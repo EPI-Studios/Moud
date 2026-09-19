@@ -11,6 +11,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.render.Environments;
+import com.meekdev.moud.core.render.Lighting;
 import com.meekdev.moud.core.render.Lightning;
 import com.meekdev.moud.core.render.Weather;
 import com.meekdev.moud.core.render.WeatherKind;
@@ -35,6 +36,8 @@ public final class WeatherView {
 
     private record Thunder(double at, Vector3 where, double distance) {}
 
+    private record Flash(double at, Vector3 where) {}
+
     public static final int ROOF_REACH = 24;
 
     private static final double LONGEST_FRAME = 0.1;
@@ -47,10 +50,12 @@ public final class WeatherView {
     private static final double CLOSE_STRIKE = 48;
     private static final double LOCAL_NEAREST = 24;
     private static final double LOCAL_FARTHEST = 80;
+    private static final double FLASH_SPACING = 0.12;
 
     private static final WeatherMix MIX = new WeatherMix();
     private static final CeilingGrid ROOFS = new CeilingGrid(ROOF_REACH);
     private static final List<Thunder> THUNDER = new ArrayList<>();
+    private static final List<Flash> FLASHES = new ArrayList<>();
     private static final Map<String, AudioRef.Voice> VOICES = new HashMap<>();
     private static final Random RANDOM = new Random();
 
@@ -64,6 +69,7 @@ public final class WeatherView {
     private static int roofX = Integer.MIN_VALUE;
     private static int roofZ = Integer.MIN_VALUE;
     private static Vector3 eye = Vector3.ZERO;
+    private static WeatherLevels falling = WeatherLevels.CLEAR;
     private static boolean sheltered;
 
     private WeatherView() {}
@@ -74,6 +80,10 @@ public final class WeatherView {
 
     public static WeatherLevels levels() {
         return MIX.levels();
+    }
+
+    public static WeatherLevels falling() {
+        return falling;
     }
 
     public static Vector3 wind() {
@@ -106,32 +116,51 @@ public final class WeatherView {
         clock += seconds;
         InstanceTree tree = ClientScene.tree();
         weather = tree == null ? null : Environments.weather(tree);
+        CameraSnapshot camera = CameraSnapshot.current();
+        if (camera != null) eye = new Vector3(camera.eye.x, camera.eye.y, camera.eye.z);
         if (weather == null) {
             MIX.step(WeatherKind.CLEAR, 1, SETTLE, seconds);
             tallied = null;
+            FLASHES.clear();
+            falling = MIX.levels();
         } else {
             MIX.step(weather, seconds);
-            strikes(weather);
+            strikes(weather, client.level);
+            Lighting lighting = Environments.lighting(tree);
+            falling = lighting == null ? MIX.levels() : Weathers.falling(MIX.levels(), lighting.rain, lighting.thunder);
         }
-        CameraSnapshot camera = CameraSnapshot.current();
-        if (camera != null) eye = new Vector3(camera.eye.x, camera.eye.y, camera.eye.z);
-        if (tree != null && client.level != null && !MIX.levels().calm()) roofs(tree, client.level);
+        if (tree != null && client.level != null && !falling.calm()) roofs(tree, client.level);
         sheltered = ROOFS.top(eye.x(), eye.z()) > eye.y() + 0.5;
+        flashes();
         thunder();
-        ambience(tree == null ? WeatherLevels.CLEAR : MIX.levels());
+        ambience(tree == null ? WeatherLevels.CLEAR : falling);
     }
 
-    private static void strikes(Weather at) {
+    private static void strikes(Weather at, @Nullable ClientLevel level) {
         if (at != tallied) {
             tallied = at;
             strikes = new Tally(at.strikes);
         }
-        if (strikes.take(at.strikes) > 0) struck(at.strikePosition);
+        double start = FLASHES.isEmpty() ? clock : FLASHES.getLast().at() + FLASH_SPACING;
+        int count = strikes.take(at.strikes);
+        for (int i = 0; i < count; i++) FLASHES.add(new Flash(start + i * FLASH_SPACING, at.strikePosition));
         for (Vector3 asked : at.takeStrikes()) struck(asked);
         for (int n = at.takeStrikesAnywhere(); n > 0; n--) {
             double angle = RANDOM.nextDouble() * Math.PI * 2;
             double reach = LOCAL_NEAREST + RANDOM.nextDouble() * (LOCAL_FARTHEST - LOCAL_NEAREST);
-            struck(eye.add(new Vector3(Math.cos(angle) * reach, 0, Math.sin(angle) * reach)));
+            double x = eye.x() + Math.cos(angle) * reach;
+            double z = eye.z() + Math.sin(angle) * reach;
+            double ground = level == null ? eye.y() : level.getHeight(Heightmap.Types.MOTION_BLOCKING, (int) Math.floor(x), (int) Math.floor(z));
+            struck(new Vector3(x, ground, z));
+        }
+    }
+
+    private static void flashes() {
+        for (Iterator<Flash> it = FLASHES.iterator(); it.hasNext(); ) {
+            Flash due = it.next();
+            if (due.at() > clock) continue;
+            it.remove();
+            struck(due.where());
         }
     }
 
@@ -148,9 +177,9 @@ public final class WeatherView {
             Thunder due = it.next();
             if (due.at() > clock) continue;
             it.remove();
-            double volume = Lightning.thunderVolume(due.distance());
+            double volume = Weathers.muffled(Lightning.thunderVolume(due.distance()), sheltered);
             ResonaAudio.INSTANCE.play(Weathers.THUNDER_SOUND, sound(volume, 0.8 + RANDOM.nextDouble() * 0.2, false, null));
-            if (due.distance() < CLOSE_STRIKE) ResonaAudio.INSTANCE.play(Weathers.IMPACT_SOUND, sound(1, 1, false, due.where()));
+            if (due.distance() < CLOSE_STRIKE) ResonaAudio.INSTANCE.play(Weathers.IMPACT_SOUND, sound(Weathers.muffled(1, sheltered), 1, false, due.where()));
         }
     }
 
@@ -181,7 +210,9 @@ public final class WeatherView {
         for (AudioRef.Voice voice : VOICES.values()) voice.stop();
         VOICES.clear();
         THUNDER.clear();
+        FLASHES.clear();
         MIX.reset();
+        falling = WeatherLevels.CLEAR;
         weather = null;
         tallied = null;
         last = 0;

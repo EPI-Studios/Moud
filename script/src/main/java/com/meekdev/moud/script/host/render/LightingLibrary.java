@@ -6,6 +6,7 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.render.Atmosphere;
+import com.meekdev.moud.core.render.Clouds;
 import com.meekdev.moud.core.render.Daylight;
 import com.meekdev.moud.core.render.Lighting;
 import com.meekdev.moud.core.render.Preset;
@@ -14,6 +15,7 @@ import com.meekdev.moud.core.render.Presets;
 import com.meekdev.moud.core.render.Weather;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
+import com.meekdev.moud.script.host.Literals;
 import com.meekdev.moud.script.host.Members;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,15 +56,17 @@ public final class LightingLibrary {
         };
         if (host.client()) host.onRenderStep(step); else host.onStep(step);
 
-        lighting.method("getPresetNames", "() -> { string }", a -> new ArrayList<Object>(Presets.names()));
-        lighting.method("applyPreset", "(name: string, seconds: number?) -> ()", a -> {
+        host.api().alias("PresetName", Literals.union(Presets.names()));
+        lighting.method("getPresetNames", "() -> { PresetName }", a -> new ArrayList<Object>(Presets.names()));
+        lighting.method("applyPreset", "(name: PresetName, seconds: number?) -> ()", a -> {
             Lighting self = a.self(Lighting.class);
             String name = a.string(1);
             double seconds = a.number(2, 0);
             Preset preset = Presets.find(name);
             if (preset == null) throw new HostError("no preset named '%s', expected one of %s", name, String.join(", ", Presets.names()));
             if (!Double.isFinite(seconds) || seconds < 0) throw new HostError("applyPreset takes 0 or more seconds, got %s", seconds);
-            blends.remove(self);
+            PresetBlend running = blends.remove(self);
+            if (running != null) running.cancel(PresetBlend.DIRECT);
             if (!host.client() || self.id() < 0) complete(self, preset, seconds);
             List<Instance> parts = Presets.parts(self);
             for (Instance part : parts) {
@@ -88,7 +92,9 @@ public final class LightingLibrary {
             Instance made = lighting.id() < 0 ? Instances.createLocal(def, lighting, def.name()) : Instances.create(def, lighting, def.name());
             if (made instanceof Weather) continue;
             PresetBlend.apply(preset, List.of(made), PresetBlend.DIRECT);
-            if (made instanceof Atmosphere && seconds > 0) Instances.setNum(made, Classes.ATMOSPHERE.property("density"), 0);
+            if (seconds <= 0) continue;
+            if (made instanceof Atmosphere) Instances.setNum(made, Classes.ATMOSPHERE.property("density"), 0);
+            if (made instanceof Clouds) Instances.setNum(made, Classes.CLOUDS.property("cover"), 0);
         }
     }
 }

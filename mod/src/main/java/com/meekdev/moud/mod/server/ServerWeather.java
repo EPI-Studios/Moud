@@ -54,7 +54,8 @@ public final class ServerWeather {
         WeatherLevels levels = MIX.step(weather, dt);
         for (Vector3 at : weather.takeStrikes()) strike(server, weather, at);
         for (int n = weather.takeStrikesAnywhere(); n > 0; n--) strike(server, weather, null);
-        if (playing && Lightning.due(levels.storm(), dt, RANDOM.nextDouble())) strike(server, weather, null);
+        if (!playing || server.getPlayerList().getPlayers().isEmpty()) return;
+        if (Lightning.due(levels.storm(), dt, RANDOM.nextDouble())) strike(server, weather, null);
     }
 
     private static void strike(MinecraftServer server, Weather at, @Nullable Vector3 asked) {

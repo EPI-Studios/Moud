@@ -42,13 +42,22 @@ public final class Weathers {
         return 1 - 0.45 * Math.clamp(levels.storm(), 0, 1) - 0.2 * Math.clamp(levels.overcast(), 0, 1);
     }
 
+    public static WeatherLevels falling(WeatherLevels levels, double rain, double thunder) {
+        double wet = Math.max(levels.rain(), Math.clamp(rain, 0, 1));
+        double storm = wet > 0 ? Math.max(levels.storm(), Math.clamp(thunder, 0, 1)) : levels.storm();
+        return new WeatherLevels(wet, levels.snow(), storm, levels.fog(), levels.overcast());
+    }
+
+    public static double muffled(double volume, boolean sheltered) {
+        return sheltered ? volume * INDOORS : volume;
+    }
+
     public static List<Ambience> ambience(WeatherLevels levels, boolean sheltered) {
-        double muffle = sheltered ? INDOORS : 1;
         List<Ambience> out = new ArrayList<>(2);
         double rain = Math.clamp(levels.rain(), 0, 1) * (0.55 + 0.35 * Math.clamp(levels.storm(), 0, 1));
-        out.add(new Ambience(RAIN_SOUND, rain * muffle, 1));
+        out.add(new Ambience(RAIN_SOUND, muffled(rain, sheltered), 1));
         double wind = Math.clamp(levels.snow() * 0.12 + levels.fog() * 0.06 + levels.storm() * 0.08, 0, 0.25);
-        out.add(new Ambience(WIND_SOUND, wind * muffle, 0.5));
+        out.add(new Ambience(WIND_SOUND, muffled(wind, sheltered), 0.5));
         return out;
     }
 }
