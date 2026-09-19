@@ -336,7 +336,7 @@ public final class Blocks {
 
     private static Object decode(Host host, String text, Instance parent, String from) {
         try {
-            return new ArrayList<Object>(Scene.load(text, parent, host.classes()));
+            return new ArrayList<Object>(Scene.paste(text, parent, host.classes()));
         } catch (IllegalArgumentException e) {
             throw new HostError("%s: %s", from, e.getMessage());
         }

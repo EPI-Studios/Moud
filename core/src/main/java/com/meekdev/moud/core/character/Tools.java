@@ -91,11 +91,11 @@ public final class Tools {
             for (Instance child : pack.children()) {
                 if (child instanceof Tool) tools.add(child);
             }
-            if (!tools.isEmpty()) Scene.load(Scene.save(tools), backpack, classes);
+            if (!tools.isEmpty()) Scene.paste(Scene.save(tools), backpack, classes);
         }
         for (StarterCharacterScripts scripts : tree.ofClass(Classes.STARTER_CHARACTER_SCRIPTS)) {
             List<Instance> copies = new ArrayList<>(scripts.children());
-            if (!copies.isEmpty()) Scene.load(Scene.save(copies), body, classes);
+            if (!copies.isEmpty()) Scene.paste(Scene.save(copies), body, classes);
         }
     }
 

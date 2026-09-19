@@ -215,7 +215,7 @@ public final class Trees {
             Instance copy = Instances.quietly(parent.tree(), () -> {
                 Instance holder = Instances.create(Classes.FOLDER, parent, "clone");
                 try {
-                    List<Instance> made = Scene.load(saved, holder, host.classes());
+                    List<Instance> made = Scene.paste(saved, holder, host.classes());
                     Instance first = made.isEmpty() ? null : made.getFirst();
                     if (first != null) Instances.reparent(first, parent);
                     return first;

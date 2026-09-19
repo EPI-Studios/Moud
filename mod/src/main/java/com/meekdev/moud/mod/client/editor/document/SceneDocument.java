@@ -495,7 +495,7 @@ public final class SceneDocument {
             if (lower.endsWith(".scene")) {
                 byte[] bytes = PlaceFiles.read(res);
                 if (bytes == null) throw new IllegalStateException(res + " is not there");
-                List<Instance> loaded = Scene.load(new String(bytes, StandardCharsets.UTF_8), holder, Addons.classes());
+                List<Instance> loaded = Scene.paste(new String(bytes, StandardCharsets.UTF_8), holder, Addons.classes());
                 if (at != null) shiftTo(loaded, parent, at);
                 text = snapshot(loaded);
             } else {
@@ -585,6 +585,11 @@ public final class SceneDocument {
 
     public void connect(ConstraintKind kind, Part part0, SurfacePoint at0, Part part1, SurfacePoint at1) {
         if (!editable(part0) || !editable(part1) || part0 == part1) return;
+        if (!kind.attached() && welded(part0, part1)) {
+            SceneLink.local("Those parts are welded already");
+            return;
+        }
+        if (part0.anchored && part1.anchored) SceneLink.local("Both parts are anchored, so the " + kind.label() + " will not move anything");
         String label = "Add " + kind.label();
         List<Edit> edits;
         try {
@@ -614,21 +619,21 @@ public final class SceneDocument {
     public void weldSelected() {
         List<Part> parts = new ArrayList<>();
         for (int id : selection.all()) {
-            if (find(id) instanceof Part part && editable(part)) parts.add(part);
+            if (find(id) instanceof Part part && pickable(part)) parts.add(part);
         }
         if (parts.size() < 2) {
             SceneLink.local("Select two parts or more to weld them");
             return;
         }
-        Part first = parts.getFirst();
+        Part first = primary() instanceof Part main && parts.contains(main) ? main : parts.getFirst();
         Set<String> taken = new HashSet<>();
         List<Edit> edits = new ArrayList<>();
         String label = parts.size() == 2 ? "Weld" : "Weld " + parts.size();
         try {
             InstanceTree scratch = new InstanceTree();
             Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
-            for (Part other : parts.subList(1, parts.size())) {
-                if (welded(first, other)) continue;
+            for (Part other : parts) {
+                if (other == first || welded(first, other)) continue;
                 Instance weld = Instances.create(Classes.WELD_CONSTRAINT, holder, Joining.freeName(first, "WeldConstraint", taken));
                 edits.addAll(Joining.weld(ref(first.id()), ref(other.id()), snapshot(List.of(weld)), false, label));
             }
@@ -662,7 +667,7 @@ public final class SceneDocument {
                 Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
                 CFrame parentWorld = Transforms.world(group.getKey());
                 for (Instance member : group.getValue()) {
-                    Instance copy = Scene.load(snapshot(List.of(member)), holder, Addons.classes()).getFirst();
+                    Instance copy = Scene.paste(snapshot(List.of(member)), holder, Addons.classes()).getFirst();
                     if (!(copy instanceof Spatial spatial)) continue;
                     CFrame local = parentWorld.inverse().mul(move.apply(Transforms.world(member)));
                     spatial.cframe = spatial.pivot.equals(Vector3.ZERO) ? local : local.mul(CFrame.at(spatial.pivot));
@@ -726,7 +731,7 @@ public final class SceneDocument {
     private void relocate(List<Instance> members, Instance parent, Instance into) {
         CFrame parentWorld = Transforms.world(parent);
         for (Instance member : members) {
-            Instance copy = Scene.load(snapshot(List.of(member)), into, Addons.classes()).getFirst();
+            Instance copy = Scene.paste(snapshot(List.of(member)), into, Addons.classes()).getFirst();
             if (!(copy instanceof Spatial spatial)) continue;
             CFrame local = parentWorld.inverse().mul(Transforms.world(member));
             spatial.cframe = spatial.pivot.equals(Vector3.ZERO) ? local : local.mul(CFrame.at(spatial.pivot));

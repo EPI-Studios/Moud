@@ -140,6 +140,14 @@ public final class Scene {
     }
 
     public static List<Instance> load(String text, Instance parent, ClassRegistry classes) {
+        return read(text, parent, classes, true);
+    }
+
+    public static List<Instance> paste(String text, Instance parent, ClassRegistry classes) {
+        return read(text, parent, classes, false);
+    }
+
+    private static List<Instance> read(String text, Instance parent, ClassRegistry classes, boolean merging) {
         if (!(Json.parse(text) instanceof Map<?, ?> document)) throw new IllegalArgumentException("scene must be a json object");
         Object format = document.get("format");
         if (!(format instanceof Double f) || f.intValue() != FORMAT) {
@@ -148,7 +156,7 @@ public final class Scene {
         if (!(document.get("instances") instanceof List<?> nodes)) {
             throw new IllegalArgumentException("scene has no \"instances\" list");
         }
-        Loading loading = new Loading(classes);
+        Loading loading = new Loading(classes, merging);
         List<Instance> roots = new ArrayList<>();
         for (Object node : nodes) roots.add(loading.build(node, parent, parent.name()));
         loading.resolve();
@@ -160,12 +168,14 @@ public final class Scene {
         private record Pending(Instance instance, PropertyDef property, int id, String where) {}
 
         private final ClassRegistry classes;
+        private final boolean merging;
         private final Map<Integer, Instance> byId = new LinkedHashMap<>();
         private final List<Pending> pending = new ArrayList<>();
         private final Set<Instance> made = Collections.newSetFromMap(new IdentityHashMap<>());
 
-        Loading(ClassRegistry classes) {
+        Loading(ClassRegistry classes, boolean merging) {
             this.classes = classes;
+            this.merging = merging;
         }
 
         Instance build(Object raw, Instance parent, String path) {
@@ -176,7 +186,7 @@ public final class Scene {
             ClassDef<?> def = classes.find(className);
             if (def == null) throw new IllegalArgumentException(where + ": unknown class " + className);
 
-            Instance existing = parent.child(name);
+            Instance existing = merging ? parent.child(name) : null;
             Instance instance = existing != null && existing.def() == def && !made.contains(existing)
                     ? existing : Instances.create(def, parent, name);
             made.add(instance);

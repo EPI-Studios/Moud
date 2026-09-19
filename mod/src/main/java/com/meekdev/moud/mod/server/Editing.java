@@ -181,7 +181,7 @@ public final class Editing {
         }
         List<Instance> roots;
         try {
-            roots = Scene.load(text, parent, Addons.classes());
+            roots = Scene.paste(text, parent, Addons.classes());
         } catch (RuntimeException e) {
             reject(player, "could not paste: " + e.getMessage());
             ServerPlayNetworking.send(player, new ScenePastedPayload(token, none, none));
