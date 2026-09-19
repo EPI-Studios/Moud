@@ -101,6 +101,7 @@ public final class OwnedBodies {
     }
 
     private static void joints(@Nullable InstanceTree tree, @Nullable LevelPhysics physics, boolean running) {
+        JOINTS.attach(physics);
         if (tree == null || physics == null || !running) {
             JOINTS.clear();
             return;

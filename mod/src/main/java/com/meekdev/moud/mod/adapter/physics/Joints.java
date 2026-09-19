@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.adapter.physics;
 
+import com.meekdev.bkun.box3d.LevelPhysics;
 import com.meekdev.box3d.B3Body;
 import com.meekdev.box3d.B3BodyType;
 import com.meekdev.box3d.B3DistanceJoint;
@@ -7,6 +8,7 @@ import com.meekdev.box3d.B3Joint;
 import com.meekdev.box3d.B3PrismaticJoint;
 import com.meekdev.box3d.B3RevoluteJoint;
 import com.meekdev.box3d.B3SphericalJoint;
+import com.meekdev.box3d.B3Transform;
 import com.meekdev.box3d.B3World;
 import com.meekdev.box3d.Vec3;
 import com.meekdev.moud.core.clazz.Classes;
@@ -44,7 +46,6 @@ public final class Joints {
     private static final Set<Integer> HELD = new HashSet<>();
     private static final double SERVO_GAIN = 8;
     private static final double TICK = 0.05;
-    private static final double TAUT = 0.02;
     private static final double WINCH_EASE = 0.1;
     private static final double EPSILON = 1.0e-4;
 
@@ -64,7 +65,10 @@ public final class Joints {
     }
 
     private final Map<Integer, Built> built = new HashMap<>();
-    private final Map<Integer, Double> stretch = new HashMap<>();
+    private final Map<Integer, Bouncy> bouncy = new HashMap<>();
+    private final LevelPhysics.PreSubStep before = this::beforeStep;
+    private final LevelPhysics.PostSubStep after = this::afterStep;
+    private @Nullable LevelPhysics stepping;
     private final boolean publishes;
 
     public Joints() {
@@ -91,6 +95,7 @@ public final class Joints {
         }
         Set<Integer> held = new HashSet<>();
         Set<Integer> seen = new HashSet<>();
+        bouncy.clear();
         for (WeldConstraint weld : tree.ofClass(Classes.WELD_CONSTRAINT)) {
             seen.add(weld.id());
             Ends ends = weld.enabled && weld.part0 instanceof Part a && weld.part1 instanceof Part b
@@ -107,7 +112,6 @@ public final class Joints {
             }
             settleOne(constraint, wanted(ends, wanted), constraint.collideConnected, bodies, world, held);
         }
-        stretch.keySet().retainAll(seen);
         Iterator<Map.Entry<Integer, Built>> stale = built.entrySet().iterator();
         while (stale.hasNext()) {
             Map.Entry<Integer, Built> entry = stale.next();
@@ -186,14 +190,20 @@ public final class Joints {
         Vec3 anchor1 = BoxFrames.vec(ends.frame1().position());
         Vec3 jointAxis = BoxFrames.vec(ends.frame0().rightVector());
         return switch (instance) {
-            case HingeConstraint ignored -> world.createRevoluteJoint(a, b, anchor0, jointAxis);
-            case PrismaticConstraint ignored -> world.createPrismaticJoint(a, b, anchor0, jointAxis);
-            case BallSocketConstraint ignored -> world.createSphericalJoint(a, b, anchor0);
+            case HingeConstraint ignored -> pinned(world.createRevoluteJoint(a, b, anchor0, jointAxis), b, ends);
+            case PrismaticConstraint ignored -> pinned(world.createPrismaticJoint(a, b, anchor0, jointAxis), b, ends);
+            case BallSocketConstraint ignored -> pinned(world.createSphericalJoint(a, b, anchor0), b, ends);
             case RopeConstraint rope -> world.createDistanceJoint(a, b, anchor0, anchor1, (float) rope.length);
             case SpringConstraint spring -> world.createDistanceJoint(a, b, anchor0, anchor1, (float) spring.freeLength);
             case RodConstraint rod -> world.createDistanceJoint(a, b, anchor0, anchor1, (float) rod.length);
             default -> world.createWeldJoint(a, b, anchor1);
         };
+    }
+
+    private static B3Joint pinned(B3Joint joint, B3Body b, Ends ends) {
+        Vec3 anchor = b.localPoint(BoxFrames.vec(ends.frame1().position()));
+        joint.setLocalFrameB(new B3Transform(anchor, joint.localFrameB().rotation()));
+        return joint;
     }
 
     private void drive(Instance instance, B3Joint joint, Ends ends, B3Body a, B3Body b) {
@@ -261,9 +271,8 @@ public final class Joints {
         distance.setSpring(0, 0);
         distance.enableLimit(true);
         distance.setLengthRange(0, (float) rope.length);
-        double apart = ends.frame0().position().distance(ends.frame1().position());
-        if (rope.restitution > 0) bounce(rope, ends, a, b, apart);
-        write(rope, "currentDistance", apart);
+        if (rope.restitution > 0) bouncy.put(rope.id(), new Bouncy(distance, a, b, rope.length, rope.restitution));
+        write(rope, "currentDistance", ends.frame0().position().distance(ends.frame1().position()));
     }
 
     private void rod(RodConstraint rod, B3DistanceJoint distance, Ends ends) {
@@ -288,27 +297,67 @@ public final class Joints {
         write(spring, "currentLength", distance.currentLength());
     }
 
-    private void bounce(RopeConstraint rope, Ends ends, B3Body a, B3Body b, double apart) {
-        Double before = stretch.put(rope.id(), apart);
-        if (before == null) return;
-        double taut = rope.length - TAUT;
-        if (before >= taut || apart < taut) return;
-        Vector3 along = ends.frame1().position().sub(ends.frame0().position());
-        if (along.lengthSq() < EPSILON) return;
-        Vector3 n = along.normalize();
-        Vec3 pointA = BoxFrames.vec(ends.frame0().position());
-        Vec3 pointB = BoxFrames.vec(ends.frame1().position());
-        Vector3 velocityA = BoxFrames.vector(a.velocityAtPoint(pointA));
-        Vector3 velocityB = BoxFrames.vector(b.velocityAtPoint(pointB));
-        double pulling = velocityB.sub(velocityA).dot(n);
-        double arriving = Math.max(pulling, (apart - before) / TICK);
-        if (arriving <= 0) return;
-        double inverseA = inverseMass(a);
-        double inverseB = inverseMass(b);
-        if (inverseA + inverseB <= 0) return;
-        Vector3 impulse = n.mul(rope.restitution * arriving / (inverseA + inverseB));
-        if (inverseA > 0) a.applyImpulseAt(BoxFrames.vec(impulse), pointA);
-        if (inverseB > 0) b.applyImpulseAt(BoxFrames.vec(impulse.mul(-1)), pointB);
+    private void beforeStep(float dt) {
+        for (Bouncy rope : bouncy.values()) rope.before(dt);
+    }
+
+    private void afterStep(float dt) {
+        for (Bouncy rope : bouncy.values()) rope.after();
+    }
+
+    private static final class Bouncy {
+
+        private static final double SLACK = 0.02;
+        private static final double SLOWEST = 0.5;
+
+        private final B3DistanceJoint joint;
+        private final B3Body a;
+        private final B3Body b;
+        private final double length;
+        private final double restitution;
+        private double arriving;
+
+        Bouncy(B3DistanceJoint joint, B3Body a, B3Body b, double length, double restitution) {
+            this.joint = joint;
+            this.a = a;
+            this.b = b;
+            this.length = length;
+            this.restitution = restitution;
+        }
+
+        void before(float dt) {
+            arriving = 0;
+            if (!joint.isValid() || !a.isValid() || !b.isValid()) return;
+            Vec3 pointA = a.worldPoint(joint.localFrameA().position());
+            Vec3 pointB = b.worldPoint(joint.localFrameB().position());
+            Vector3 along = BoxFrames.vector(pointB).sub(BoxFrames.vector(pointA));
+            double apart = along.length();
+            if (apart < EPSILON || apart >= length - SLACK) return;
+            double speed = separating(along.mul(1 / apart), pointA, pointB);
+            if (speed > SLOWEST && apart + speed * dt >= length - SLACK) arriving = speed;
+        }
+
+        void after() {
+            if (arriving <= 0 || !joint.isValid() || !a.isValid() || !b.isValid()) return;
+            Vec3 pointA = a.worldPoint(joint.localFrameA().position());
+            Vec3 pointB = b.worldPoint(joint.localFrameB().position());
+            Vector3 along = BoxFrames.vector(pointB).sub(BoxFrames.vector(pointA));
+            if (along.lengthSq() < EPSILON) return;
+            Vector3 n = along.normalize();
+            double change = -restitution * arriving - separating(n, pointA, pointB);
+            double inverseA = inverseMass(a);
+            double inverseB = inverseMass(b);
+            if (change >= 0 || inverseA + inverseB <= 0) return;
+            Vector3 impulse = n.mul(change / (inverseA + inverseB));
+            if (inverseB > 0) b.applyImpulseAt(BoxFrames.vec(impulse), pointB);
+            if (inverseA > 0) a.applyImpulseAt(BoxFrames.vec(impulse.mul(-1)), pointA);
+        }
+
+        private double separating(Vector3 n, Vec3 pointA, Vec3 pointB) {
+            Vector3 velocityA = BoxFrames.vector(a.velocityAtPoint(pointA));
+            Vector3 velocityB = BoxFrames.vector(b.velocityAtPoint(pointB));
+            return velocityB.sub(velocityA).dot(n);
+        }
     }
 
     private void winch(RopeConstraint rope, B3DistanceJoint distance) {
@@ -376,7 +425,20 @@ public final class Joints {
         return built.size();
     }
 
+    public void attach(@Nullable LevelPhysics physics) {
+        if (physics == stepping) return;
+        if (stepping != null) {
+            stepping.removePreSubStep(before);
+            stepping.removePostSubStep(after);
+        }
+        stepping = physics;
+        if (physics == null) return;
+        physics.addPreSubStep(before);
+        physics.addPostSubStep(after);
+    }
+
     public void clear() {
+        bouncy.clear();
         for (Built one : built.values()) destroy(one);
         built.clear();
         if (publishes) HELD.clear();

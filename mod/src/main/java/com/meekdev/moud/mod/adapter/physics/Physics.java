@@ -82,6 +82,7 @@ public final class Physics {
             if (physics != null) physics.invalidateProviders();
         }
         LevelPhysics physics = level == null ? null : Bkun.physics(level);
+        JOINTS.attach(physics);
         JOINTS.settle(simulating ? tree : null, SHAPES, physics == null ? null : physics.world());
         SHAPES.simulating(simulating);
         SHAPES.settle();
