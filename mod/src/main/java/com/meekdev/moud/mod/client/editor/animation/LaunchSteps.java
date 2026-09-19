@@ -79,6 +79,9 @@ final class LaunchSteps {
             case "edit" -> EditMode.request(true);
             case "log" -> log();
             case "frame" -> workspace.frameRig();
+            case "look" -> workspace.lookAtRig(vector(parts[1]));
+            case "close" -> workspace.closeImport();
+            case "open" -> workspace.openClip(session.library().folder().resolve(parts[1] + ClipLibrary.EXTENSION));
             case "view" -> session.create(parts[1], AnimClip.Space.VIEW, "view");
             case "bones" -> session.bones(!session.bones());
             case "probe" -> probe(parts[1], Double.parseDouble(parts[2]));

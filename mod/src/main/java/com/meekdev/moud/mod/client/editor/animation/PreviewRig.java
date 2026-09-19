@@ -122,6 +122,8 @@ final class PreviewRig {
     void borrow(Model chosen) {
         if (chosen == model) return;
         giveBack();
+        if (preview != null && preview.isAlive()) Instances.destroy(preview);
+        preview = null;
         model = chosen;
         for (Instance joint : Rigs.jointsIn(chosen).values()) {
             modelTransforms.put(joint, Rigs.transform(joint));

@@ -156,6 +156,10 @@ public final class AnimationWorkspace {
         importer.confirm();
     }
 
+    void closeImport() {
+        importer.close();
+    }
+
     public void steps() {
         steps.tick();
     }
@@ -391,6 +395,7 @@ public final class AnimationWorkspace {
             placed = false;
         }
         if (now == null) return;
+        if (placed && rig.body() == null && rig.model() == null) placed = false;
         if (!placed && ++settling > 3) place();
         double before = session.time();
         session.advance(ImGui.getIO().getDeltaTime());
@@ -437,6 +442,11 @@ public final class AnimationWorkspace {
         if (away.lengthSq() < 1e-6) away = rig.world().lookVector();
         viewport.lookAt(centre.add(away.normalize().mul(4 * size)).add(new Vector3(0, 0.6 * size, 0)), centre);
         viewport.frame(centre, 2.1 * size);
+    }
+
+    void lookAtRig(Vector3 from) {
+        Vector3 centre = rig.centre();
+        viewport.lookAt(centre.add(from), centre);
     }
 
     void restage() {

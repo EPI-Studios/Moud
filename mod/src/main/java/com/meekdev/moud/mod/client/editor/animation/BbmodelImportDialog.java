@@ -86,6 +86,12 @@ final class BbmodelImportDialog {
         opening = true;
     }
 
+    private boolean closing;
+
+    void close() {
+        closing = true;
+    }
+
     void confirm() {
         if (file != null && summary != null && outcome == null) run();
     }
@@ -103,6 +109,12 @@ final class BbmodelImportDialog {
         boolean open = ImGui.beginPopupModal(POPUP, POPUP_FLAGS);
         ImGui.popStyleVar();
         if (!open) return;
+        if (closing) {
+            closing = false;
+            ImGui.closeCurrentPopup();
+            ImGui.endPopup();
+            return;
+        }
         renderHeader(width);
         float body = height - EditorScale.of(HEADER) - EditorScale.of(FOOTER);
         if (summary != null) {
