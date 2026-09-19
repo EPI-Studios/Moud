@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.CFrame;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.Set;
 
 public final class Posing {
 
@@ -26,6 +27,12 @@ public final class Posing {
         IKControls.solve(tree, dt);
         JointSprings.step(tree, dt);
         remember();
+    }
+
+    public static void solve(InstanceTree tree, Set<Instance> joints, double dt) {
+        IKControls.solve(tree, dt, joints::contains);
+        JointSprings.step(tree, dt, joints::contains);
+        TOUCHED.keySet().removeAll(joints);
     }
 
     public static void forget() {

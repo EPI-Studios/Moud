@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Predicate;
 
 public final class JointSprings {
 
@@ -43,9 +44,15 @@ public final class JointSprings {
     }
 
     public static void step(InstanceTree tree, double dt) {
+        step(tree, dt, joint -> true);
+    }
+
+    public static void step(InstanceTree tree, double dt, Predicate<Instance> joints) {
         List<JointSpring> springs = new ArrayList<>();
         for (Instance instance : tree.ofClass(Classes.JOINT_SPRING)) {
             if (!(instance instanceof JointSpring spring)) continue;
+            Instance joint = joint(spring);
+            if (joint != null && !joints.test(joint)) continue;
             if (spring.enabled && spring.weight > 0 && joint(spring) != null) springs.add(spring);
             else STATES.remove(spring);
         }

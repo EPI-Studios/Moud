@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Predicate;
 
 public final class IKControls {
 
@@ -29,13 +30,18 @@ public final class IKControls {
     }
 
     public static void solve(InstanceTree tree, double dt) {
+        solve(tree, dt, joint -> true);
+    }
+
+    public static void solve(InstanceTree tree, double dt, Predicate<Instance> joints) {
         List<IKControl> controls = new ArrayList<>();
         for (Instance instance : tree.ofClass(Classes.IK_CONTROL)) {
-            if (instance instanceof IKControl control && control.enabled && control.weight > 0
-                    && Rigs.posable(control.endEffector) && control.endEffector.isAlive()) {
+            if (!(instance instanceof IKControl control)) continue;
+            if (control.endEffector != null && !joints.test(control.endEffector)) continue;
+            if (control.enabled && control.weight > 0 && Rigs.posable(control.endEffector) && control.endEffector.isAlive()) {
                 controls.add(control);
-            } else if (instance instanceof IKControl idle) {
-                SMOOTHED.remove(idle);
+            } else {
+                SMOOTHED.remove(control);
             }
         }
         controls.sort(Comparator.comparingDouble(control -> control.priority));

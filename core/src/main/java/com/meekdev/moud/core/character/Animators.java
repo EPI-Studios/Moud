@@ -46,6 +46,10 @@ public final class Animators {
         LOADED.clear();
     }
 
+    public static void forget(String animationId) {
+        LOADED.remove(animationId);
+    }
+
     public static Clip clip(Instance animation) {
         if (animation instanceof KeyframeSequence sequence) return Clip.of(sequence);
         if (!(animation instanceof Animation source)) return Clip.EMPTY;
@@ -61,16 +65,16 @@ public final class Animators {
         return result;
     }
 
-    public static void step(InstanceTree tree, double dt, boolean authoritative) {
+    public static void step(InstanceTree tree, double dt, boolean server) {
         for (Instance instance : tree.ofClass(Classes.TRACK)) {
-            if (instance instanceof AnimationTrack track && track.animation != null) advance(track, dt, authoritative);
+            if (instance instanceof AnimationTrack track && track.animation != null) advance(track, dt, server);
         }
     }
 
-    static void advance(AnimationTrack track, double dt, boolean authoritative) {
+    static void advance(AnimationTrack track, double dt, boolean server) {
         Clip clip = clip(track.animation);
         track.length = clip.length();
-        authoritative |= track.id() < 0;
+        boolean authoritative = server || track.id() < 0;
         if (track.playing && !track.wasPlaying()) {
             track.timePosition = track.speed < 0 ? clip.length() : 0;
             track.held(false);
@@ -88,16 +92,16 @@ public final class Animators {
         boolean holds = !loops && clip.loop() == Clip.Loop.HOLD;
         if (after >= clip.length() && track.speed > 0) {
             if (loops) {
-                markers(track, clip, before, clip.length() + 1e-9);
+                markers(track, clip, before, clip.length() + 1e-9, server);
                 after -= clip.length();
                 if (clip.length() > 0) after %= clip.length();
                 track.timePosition = after;
                 track.didLoop.fire(track);
-                markers(track, clip, -1e-9, after);
+                markers(track, clip, -1e-9, after, server);
                 return;
             }
             if (track.held()) return;
-            markers(track, clip, before, clip.length() + 1e-9);
+            markers(track, clip, before, clip.length() + 1e-9, server);
             track.timePosition = clip.length();
             if (holds) {
                 track.held(true);
@@ -118,13 +122,13 @@ public final class Animators {
                 return;
             }
         }
-        markers(track, clip, before, after);
+        markers(track, clip, before, after, server);
         track.timePosition = after;
     }
 
-    private static void markers(AnimationTrack track, Clip clip, double from, double to) {
+    private static void markers(AnimationTrack track, Clip clip, double from, double to, boolean server) {
         for (Clip.Marker marker : clip.markers()) {
-            if (marker.time() > from && marker.time() <= to) {
+            if (marker.time() > from && marker.time() <= to && marker.firesOn(server)) {
                 track.keyframeReached.fire(marker.name());
                 track.markers().fire(marker);
             }
@@ -193,8 +197,7 @@ public final class Animators {
         String channel = layer.clip().channelFor(joint, retarget);
         if (channel == null) return null;
         if (!layer.mask().isEmpty() && !layer.mask().contains(joint) && !layer.mask().contains(channel)) return null;
-        Clip.Sample sample = layer.composed().get(channel);
-        if (sample == null) sample = layer.clip().pose(channel, layer.track().timePosition);
+        Clip.Sample sample = layer.clip().sample(joint, layer.track().timePosition, retarget, layer.composed());
         if (sample == null) return null;
         double weight = layer.strength() * layer.clip().weight(channel);
         return weight <= 0 ? null : new Weighted(sample, weight);

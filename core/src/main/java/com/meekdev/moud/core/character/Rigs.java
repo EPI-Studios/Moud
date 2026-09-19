@@ -44,6 +44,12 @@ public final class Rigs {
         return joints;
     }
 
+    public static Map<String, Instance> jointsIn(Instance model) {
+        Map<String, Instance> joints = new LinkedHashMap<>();
+        gather(model, joints);
+        return joints;
+    }
+
     private static void gather(Instance under, Map<String, Instance> joints) {
         for (Instance child : under.children()) {
             if (child instanceof Character) continue;

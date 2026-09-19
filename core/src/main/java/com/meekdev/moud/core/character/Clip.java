@@ -19,7 +19,18 @@ public final class Clip {
 
     public enum Loop { LOOP, ONCE, HOLD }
 
-    public record Marker(double time, String name, Object value) {}
+    public enum Side { SERVER, CLIENT, BOTH }
+
+    public record Marker(double time, String name, Object value, Side on) {
+
+        public Marker(double time, String name, Object value) {
+            this(time, name, value, Side.BOTH);
+        }
+
+        public boolean firesOn(boolean server) {
+            return on == Side.BOTH || (on == Side.SERVER) == server;
+        }
+    }
 
     public record Channels(ClipCurve rotation, ClipCurve position, ClipCurve scale, double weight) {}
 
@@ -32,6 +43,7 @@ public final class Clip {
     public static final String EULER = "yxz";
 
     private static final int DEEPEST = 64;
+    private static final double GIMBAL = 0.9999999;
 
     public static final Clip EMPTY = new Clip(0, Loop.ONCE, 0, Map.of(), List.of(), Set.of(), AnimationBlend.NORMAL,
             AnimationSpace.BODY, "", EULER, Map.of());
@@ -47,11 +59,17 @@ public final class Clip {
     private final String rig;
     private final String euler;
     private final Map<String, Link> skeleton;
+    private final Map<String, String> retarget;
     private final Map<String, Quat> rests = new HashMap<>();
     private final Map<String, String> aliases = new HashMap<>();
 
     public Clip(double length, Loop loop, double priority, Map<String, Channels> joints, List<Marker> markers,
                 Set<String> mask, AnimationBlend blend, AnimationSpace space, String rig, String euler, Map<String, Link> skeleton) {
+        this(length, loop, priority, joints, markers, mask, blend, space, rig, euler, skeleton, Map.of());
+    }
+
+    public Clip(double length, Loop loop, double priority, Map<String, Channels> joints, List<Marker> markers, Set<String> mask,
+                AnimationBlend blend, AnimationSpace space, String rig, String euler, Map<String, Link> skeleton, Map<String, String> retarget) {
         this.length = length;
         this.loop = loop;
         this.priority = priority;
@@ -63,12 +81,16 @@ public final class Clip {
         this.rig = rig;
         this.euler = euler;
         this.skeleton = skeleton;
+        this.retarget = retarget;
         for (Map.Entry<String, Link> link : skeleton.entrySet()) {
             Vector3 r = link.getValue().rotation();
             if (!r.equals(Vector3.ZERO)) rests.put(link.getKey(), euler(r, euler));
         }
+        for (Map.Entry<String, String> chosen : retarget.entrySet()) {
+            if (joints.containsKey(chosen.getKey()) && !chosen.getValue().isEmpty()) aliases.putIfAbsent(chosen.getValue(), chosen.getKey());
+        }
         for (String name : joints.keySet()) {
-            String target = Retarget.joint(name);
+            String target = retarget.containsKey(name) ? null : Retarget.joint(name);
             if (target != null) aliases.putIfAbsent(target, name);
         }
     }
@@ -85,6 +107,7 @@ public final class Clip {
     public String rig() { return rig; }
     public String euler() { return euler; }
     public Map<String, Link> skeleton() { return skeleton; }
+    public Map<String, String> retarget() { return retarget; }
 
     public String channelFor(String joint, boolean retarget) {
         if (joints.containsKey(joint)) return joint;
@@ -134,6 +157,25 @@ public final class Clip {
         return new Sample(rotation, position, scale);
     }
 
+    public Sample sample(String joint, double time, boolean retarget, Map<String, Sample> composed) {
+        String channel = channelFor(joint, retarget);
+        if (channel == null) return null;
+        Sample sample = composed.get(channel);
+        return sample != null ? sample : pose(channel, time);
+    }
+
+    public Vector3 angles(String joint, Quat local, Vector3 near) {
+        Quat rest = rests.get(joint);
+        if (rest == null) return angles(local, euler, near);
+        Vector3 offset = skeleton.get(joint).rotation();
+        return angles(rest.mul(local).normalize(), euler, near.add(offset)).sub(offset);
+    }
+
+    public Vector3 offset(String joint, Vector3 local) {
+        Quat rest = rests.get(joint);
+        return rest == null ? local : rest.rotate(local);
+    }
+
     public Map<String, Sample> composed(double time) {
         Map<String, CFrame[]> frames = new HashMap<>();
         Map<String, Sample> out = new HashMap<>();
@@ -178,6 +220,59 @@ public final class Clip {
             });
         }
         return out.normalize();
+    }
+
+    public static Vector3 angles(Quat rotation, String order) {
+        Quat q = rotation.normalize();
+        double x = q.x();
+        double y = q.y();
+        double z = q.z();
+        double w = q.w();
+        double[][] m = {
+                {1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)},
+                {2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)},
+                {2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)}};
+        int i = order.charAt(0) - 'x';
+        int j = order.charAt(1) - 'x';
+        int k = order.charAt(2) - 'x';
+        double s = (j - i + 3) % 3 == 1 ? 1 : -1;
+        double middle = Math.asin(Math.clamp(s * m[i][k], -1, 1));
+        double first;
+        double last;
+        if (Math.abs(m[i][k]) < GIMBAL) {
+            first = Math.atan2(-s * m[j][k], m[k][k]);
+            last = Math.atan2(-s * m[i][j], m[i][i]);
+        } else {
+            first = Math.atan2(s * m[k][j], m[j][j]);
+            last = 0;
+        }
+        double[] out = new double[3];
+        out[i] = Math.toDegrees(first);
+        out[j] = Math.toDegrees(middle);
+        out[k] = Math.toDegrees(last);
+        return new Vector3(out[0], out[1], out[2]);
+    }
+
+    public static Vector3 angles(Quat rotation, String order, Vector3 near) {
+        Vector3 primary = angles(rotation, order);
+        double[] flipped = {primary.x(), primary.y(), primary.z()};
+        int i = order.charAt(0) - 'x';
+        int j = order.charAt(1) - 'x';
+        int k = order.charAt(2) - 'x';
+        flipped[i] += 180;
+        flipped[j] = 180 - flipped[j];
+        flipped[k] += 180;
+        Vector3 a = wrapNear(primary, near);
+        Vector3 b = wrapNear(new Vector3(flipped[0], flipped[1], flipped[2]), near);
+        return a.sub(near).lengthSq() <= b.sub(near).lengthSq() ? a : b;
+    }
+
+    private static Vector3 wrapNear(Vector3 value, Vector3 near) {
+        return new Vector3(wrap(value.x(), near.x()), wrap(value.y(), near.y()), wrap(value.z(), near.z()));
+    }
+
+    private static double wrap(double value, double near) {
+        return value + 360 * Math.round((near - value) / 360);
     }
 
     public static Set<String> maskOf(String text) {
@@ -288,7 +383,8 @@ public final class Clip {
         for (Marker marker : markers) length = Math.max(length, marker.time());
         if (root.get("length") != null) length = number(root.get("length"), "length");
         return new Clip(length, loop(root), priority(root.get("priority")), joints, markers, maskOf(root.get("mask")),
-                blend(root.get("blend")), space(root.get("space")), text(root.get("rig")), euler, skeleton(root.get("skeleton")));
+                blend(root.get("blend")), space(root.get("space")), text(root.get("rig")), euler, skeleton(root.get("skeleton")),
+                retarget(root.get("retarget")));
     }
 
     private static ClipCurve curve(Object value, String what, boolean rotation) {
@@ -348,6 +444,14 @@ public final class Clip {
         return links;
     }
 
+    private static Map<String, String> retarget(Object value) {
+        if (value == null) return Map.of();
+        if (!(value instanceof Map<?, ?> byName)) throw new IllegalArgumentException("retarget must be an object of joint names");
+        Map<String, String> names = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : byName.entrySet()) names.put(String.valueOf(entry.getKey()), text(entry.getValue()));
+        return names;
+    }
+
     private static Loop loop(Map<String, Object> root) {
         Object value = root.get("loop");
         if (value == null) return Boolean.TRUE.equals(root.get("looped")) ? Loop.LOOP : Loop.ONCE;
@@ -400,9 +504,20 @@ public final class Clip {
         }
         for (Object entry : list(root.get("events"))) {
             if (!(entry instanceof Map<?, ?> event)) throw new IllegalArgumentException("each event must be an object");
-            markers.add(new Marker(number(event.get("time"), "event time"), String.valueOf(event.get("name")), event.get("payload")));
+            markers.add(new Marker(number(event.get("time"), "event time"), String.valueOf(event.get("name")), event.get("payload"),
+                    side(event.get("on"))));
         }
         return sorted(markers);
+    }
+
+    public static Side side(Object value) {
+        if (value == null) return Side.BOTH;
+        return switch (String.valueOf(value)) {
+            case "server" -> Side.SERVER;
+            case "client" -> Side.CLIENT;
+            case "both" -> Side.BOTH;
+            default -> throw new IllegalArgumentException("an event fires on server, client or both, got " + value);
+        };
     }
 
     private static List<Marker> sorted(List<Marker> markers) {
