@@ -170,6 +170,9 @@ public final class EditorShell {
                 this::hasSelection, () -> Manipulate.lock(document, true)));
         commands.add(new EditorCommand("unlock", "Edit", "Unlock", Shortcut.ctrlShift(ImGuiKey.L, "L"),
                 this::hasSelection, () -> Manipulate.lock(document, false)));
+        commands.add(new EditorCommand("constraint-tool", "Edit", "Constraint Tool", null, this::hasWorld, viewport::useConstraintTool));
+        commands.add(new EditorCommand("weld-selected", "Edit", "Weld Selected", Shortcut.ctrl(ImGuiKey.W, "W"),
+                () -> document.selection().count() > 1, document::weldSelected));
         commands.add(new EditorCommand("select-all", "Select", "Select All", Shortcut.ctrl(ImGuiKey.A, "A"), this::hasWorld, document::selectAll));
         commands.add(new EditorCommand("select-parent", "Select", "Select Parent", Shortcut.alt(ImGuiKey.UpArrow, "Up"),
                 this::hasSelection, document::selectParent));

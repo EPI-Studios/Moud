@@ -19,6 +19,7 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.part.PartShape;
+import com.meekdev.moud.core.physics.WeldConstraint;
 import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
@@ -64,6 +65,7 @@ public final class SceneDocument {
     private final History history = new History(this);
     private final Map<Integer, InstanceRef> refs = new HashMap<>();
     private final Map<Integer, Paste> waiting = new HashMap<>();
+    private final Landing landing = new Landing();
     private Supplier<Vector3> spawnPoint = () -> Vector3.ZERO;
     private int generation;
     private Function<String, @Nullable Vector3> meshSize = id -> null;
@@ -182,8 +184,10 @@ public final class SceneDocument {
             history.clear();
             refs.clear();
             waiting.clear();
+            landing.clear();
         }
         for (ScenePastedPayload pasted = SceneLink.takePasted(); pasted != null; pasted = SceneLink.takePasted()) landed(pasted);
+        landing.landed(waiting.keySet(), e -> SceneLink.local("Could not connect: " + e.getMessage()));
         selection.keep(id -> find(id) != null);
         selection.record();
         history.settle(gestureHeld);
@@ -279,6 +283,10 @@ public final class SceneDocument {
     void paste(Paste paste) {
         int token = SceneLink.paste(paste.text(), paste.parent().id);
         waiting.put(token, paste);
+    }
+
+    void afterPastes(Runnable run) {
+        landing.after(waiting.keySet(), run);
     }
 
     private void landed(ScenePastedPayload pasted) {
@@ -531,6 +539,75 @@ public final class SceneDocument {
         for (Instance root : roots) {
             if (root instanceof Spatial spatial) spatial.cframe = spatial.cframe.withPosition(spatial.cframe.position().add(offset));
         }
+    }
+
+    public void connect(ConstraintKind kind, Part part0, SurfacePoint at0, Part part1, SurfacePoint at1) {
+        if (!editable(part0) || !editable(part1) || part0 == part1) return;
+        String label = "Add " + kind.label();
+        List<Edit> edits;
+        try {
+            InstanceTree scratch = new InstanceTree();
+            Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+            String name = Joining.freeName(part0, kind.label(), new HashSet<>());
+            if (!kind.attached()) {
+                edits = Joining.weld(ref(part0.id()), ref(part1.id()), snapshot(List.of(Instances.create(kind.def(), holder, name))), true, label);
+            } else {
+                CFrame world0 = Transforms.world(part0);
+                CFrame world1 = Transforms.world(part1);
+                CFrame frame0 = Joining.onSurface(world0, at0);
+                CFrame frame1 = kind.aligned() ? Joining.alongside(frame0, at1.at()) : Joining.onSurface(world1, at1);
+                Attachment first = Joining.attachment(holder, Joining.freeName(part0, "Attachment", new HashSet<>()), Joining.local(world0, frame0));
+                Attachment second = Joining.attachment(holder, Joining.freeName(part1, "Attachment", new HashSet<>()), Joining.local(world1, frame1));
+                Instance joint = Joining.constraint(kind, holder, name, at0.at().distance(at1.at()));
+                edits = Joining.attached(kind, ref(part0.id()), ref(part1.id()), snapshot(List.of(first)), snapshot(List.of(second)),
+                        snapshot(List.of(joint)), label);
+            }
+        } catch (RuntimeException e) {
+            SceneLink.local("Could not add " + kind.label() + ": " + e.getMessage());
+            return;
+        }
+        history.execute(new Batch(label, edits));
+    }
+
+    public void weldSelected() {
+        List<Part> parts = new ArrayList<>();
+        for (int id : selection.all()) {
+            if (find(id) instanceof Part part && editable(part)) parts.add(part);
+        }
+        if (parts.size() < 2) {
+            SceneLink.local("Select two parts or more to weld them");
+            return;
+        }
+        Part first = parts.getFirst();
+        Set<String> taken = new HashSet<>();
+        List<Edit> edits = new ArrayList<>();
+        String label = parts.size() == 2 ? "Weld" : "Weld " + parts.size();
+        try {
+            InstanceTree scratch = new InstanceTree();
+            Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+            for (Part other : parts.subList(1, parts.size())) {
+                if (welded(first, other)) continue;
+                Instance weld = Instances.create(Classes.WELD_CONSTRAINT, holder, Joining.freeName(first, "WeldConstraint", taken));
+                edits.addAll(Joining.weld(ref(first.id()), ref(other.id()), snapshot(List.of(weld)), false, label));
+            }
+        } catch (RuntimeException e) {
+            SceneLink.local("Could not weld: " + e.getMessage());
+            return;
+        }
+        if (edits.isEmpty()) {
+            SceneLink.local("Those parts are welded already");
+            return;
+        }
+        history.execute(new Batch(label, edits));
+    }
+
+    private boolean welded(Part a, Part b) {
+        InstanceTree tree = tree();
+        if (tree == null) return false;
+        for (WeldConstraint weld : tree.ofClass(Classes.WELD_CONSTRAINT)) {
+            if (weld.isAlive() && (weld.part0 == a && weld.part1 == b || weld.part0 == b && weld.part1 == a)) return true;
+        }
+        return false;
     }
 
     public void pasteTransformed(List<InstanceRef> roots, UnaryOperator<CFrame> move, String label, boolean select) {
