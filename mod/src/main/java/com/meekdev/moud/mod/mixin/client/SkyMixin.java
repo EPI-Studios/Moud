@@ -35,6 +35,7 @@ abstract class SkyMixin {
         if (!MoudMod.features().isOn(Feature.STARS) || (sky != null && !sky.celestialBodiesShown)) {
             state.starBrightness = 0.0f;
         }
+        state.skyColor = Environment.skyColor(state.skyColor);
     }
 
     @Inject(method = "renderSunMoonAndStars", at = @At("HEAD"), cancellable = true)

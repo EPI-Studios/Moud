@@ -77,6 +77,7 @@ public final class MoudServer {
         ServerHistory.INSTANCE.clear();
         Broadcast.stop();
         WorldTime.stopped();
+        ServerWeather.stopped();
         Explosions.stopped();
         place = null;
         ServerScene.stop();
@@ -102,6 +103,7 @@ public final class MoudServer {
             ServerHistory.INSTANCE.note(ServerScene.tree(), change);
         });
         if (place.reloadedFully()) Post.wired().sendReloaded(server);
+        ServerWeather.tick(server, !place.editing(), dt);
         WorldTime.tick(server);
         if (!place.editing()) Explosions.tick(server);
         Physics.settle(ServerScene.tree(), !place.editing());

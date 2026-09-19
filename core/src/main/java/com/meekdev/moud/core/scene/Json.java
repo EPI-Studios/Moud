@@ -1,5 +1,8 @@
 package com.meekdev.moud.core.scene;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +24,14 @@ public final class Json {
         json.skip();
         if (json.at != text.length()) throw json.error("unexpected text after the end");
         return value;
+    }
+
+    public static Object resource(Class<?> owner, String name) {
+        try (InputStream in = owner.getResourceAsStream(name)) {
+            return parse(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        } catch (IOException | NullPointerException e) {
+            throw new IllegalStateException(name + " is missing", e);
+        }
     }
 
     public static String write(Object value) {

@@ -23,7 +23,7 @@ abstract class FogMixin {
 
     @Inject(method = "getBuffer", at = @At("HEAD"))
     private void moud$suppress(FogRenderer.FogMode mode, CallbackInfoReturnable<GpuBufferSlice> cir) {
-        fogEnabled = MoudMod.features().isOn(Feature.FOG) || Environment.atmosphere() != null;
+        fogEnabled = MoudMod.features().isOn(Feature.FOG) || Environment.fogged();
     }
 
     @Inject(method = "setupFog", at = @At("RETURN"))

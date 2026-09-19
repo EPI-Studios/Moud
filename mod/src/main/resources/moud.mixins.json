@@ -39,6 +39,7 @@
     "client.ChatComponentMixin",
     "client.ChatScreenMixin",
     "client.CloudsMixin",
+    "client.WeatherEffectsMixin",
     "client.DebugScreenMixin",
     "client.EntityRenderMixin",
     "client.FogMixin",

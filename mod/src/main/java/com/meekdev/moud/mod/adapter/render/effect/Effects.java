@@ -48,6 +48,7 @@ public final class Effects {
         float partialTick = client.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         try {
             Emitters.step(tree, seconds, partialTick);
+            Precipitation.step(seconds);
             Trails.step(tree, clock, partialTick);
         } catch (RuntimeException e) {
             broken = true;
@@ -69,6 +70,7 @@ public final class Effects {
             BATCH.begin(camera.eye.x, camera.eye.y, camera.eye.z);
             SurfaceDecals.draw(BATCH, tree, partialTick);
             Emitters.draw(BATCH, seen);
+            Precipitation.draw(BATCH, seen);
             Beams.draw(BATCH, seen, tree, partialTick, clock);
             Trails.draw(BATCH, seen, clock);
             Selections.draw(BATCH, tree, partialTick);

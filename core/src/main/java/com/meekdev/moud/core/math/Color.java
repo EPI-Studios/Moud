@@ -21,4 +21,8 @@ public record Color(float r, float g, float b, float a) {
     public Color lerp(Color o, float t) {
         return new Color(r + (o.r - r) * t, g + (o.g - g) * t, b + (o.b - b) * t, a + (o.a - a) * t);
     }
+
+    public Color times(Color o) {
+        return new Color(r * o.r, g * o.g, b * o.b, a * o.a);
+    }
 }

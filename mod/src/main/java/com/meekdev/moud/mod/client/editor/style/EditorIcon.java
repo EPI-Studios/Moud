@@ -14,6 +14,7 @@ public enum EditorIcon {
     WORLD_ENVIRONMENT,
     LABEL_3D,
     FOG_VOLUME,
+    WEATHER,
     LIGHTMAP_PROBE,
     HINGE_JOINT_3D,
     AUDIO_LISTENER_3D,

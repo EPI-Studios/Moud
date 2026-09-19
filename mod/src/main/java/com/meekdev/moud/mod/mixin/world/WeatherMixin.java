@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.mixin.world;
 
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.features.Feature;
+import com.meekdev.moud.mod.server.ServerWeather;
 import com.meekdev.moud.mod.server.WorldTime;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -20,6 +21,6 @@ abstract class WeatherMixin {
 
     @Inject(method = "tickThunder", at = @At("HEAD"), cancellable = true)
     private void moud$suppressThunder(LevelChunk chunk, CallbackInfo ci) {
-        if (!MoudMod.features().isOn(Feature.WEATHER)) ci.cancel();
+        if (!MoudMod.features().isOn(Feature.WEATHER) || ServerWeather.weather() != null) ci.cancel();
     }
 }

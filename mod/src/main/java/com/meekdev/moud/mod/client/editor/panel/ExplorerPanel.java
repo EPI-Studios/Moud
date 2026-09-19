@@ -66,7 +66,7 @@ public final class ExplorerPanel implements Panel {
             "Folder", "Model", "Part", "MeshPart", "SpawnLocation", "Seat", "VehicleSeat", "Camera", "CameraPath", "Attachment", "PointLight", "SpotLight", "AreaLight", "Sound", "Zone", "ClickDetector", "ScreenGui");
     private static final List<String> EFFECT_CLASSES = List.of(
             "ParticleEmitter", "Beam", "Trail", "Highlight", "Decal", "Texture", "Fire", "Smoke", "Sparkles", "SelectionBox", "SelectionSphere", "Explosion");
-    private static final List<String> LIGHTING_CLASSES = List.of("Lighting", "Sky", "Atmosphere", "Clouds");
+    private static final List<String> LIGHTING_CLASSES = List.of("Lighting", "Sky", "Atmosphere", "Clouds", "Weather");
     private static final List<String> SOUND_EFFECT_CLASSES = List.of(
             "ReverbSoundEffect", "EqualizerSoundEffect", "DistortionSoundEffect", "EchoSoundEffect",
             "PitchShiftSoundEffect", "CompressorSoundEffect", "ChorusSoundEffect", "FlangeSoundEffect", "TremoloSoundEffect");
