@@ -11,6 +11,7 @@ import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.scene.Json;
+import com.meekdev.moud.mod.client.PlaceFiles;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import java.io.IOException;
@@ -74,6 +75,7 @@ final class BbmodelWriter implements ModelImport {
                 Files.writeString(target, clip(imported.files().get(from), retarget, onBody), StandardCharsets.UTF_8);
                 written.add(target);
                 Animators.forget(to);
+                PlaceFiles.upload(target);
             } catch (IOException | RuntimeException e) {
                 notes.add("could not write " + to + ": " + e.getMessage());
                 continue;

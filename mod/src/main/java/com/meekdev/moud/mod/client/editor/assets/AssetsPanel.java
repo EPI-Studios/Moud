@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client.editor.assets;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.mod.adapter.render.ModelSnapshots;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.client.PlaceFiles;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.ScriptTemplate;
 import com.meekdev.moud.mod.client.editor.files.CodeEditor;
@@ -161,6 +162,7 @@ public final class AssetsPanel implements Panel {
             for (Path file : copied) {
                 ImportSettings guessed = ImportSettings.guess(file);
                 if (!guessed.equals(ImportSettings.DEFAULT)) guessed.save(file);
+                PlaceFiles.upload(file);
             }
             selection.clear();
             selection.addAll(copied);
@@ -764,6 +766,7 @@ public final class AssetsPanel implements Panel {
     private void duplicate(Path path) {
         try {
             Path copy = AssetFiles.duplicate(path);
+            PlaceFiles.upload(copy);
             selection.clear();
             selection.add(copy);
             refresh();

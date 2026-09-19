@@ -49,6 +49,7 @@ public final class MoudServer {
     public static void install() {
         Walkers.pilot(ServerPilot.INSTANCE);
         Editing.install();
+        PlaceSync.install();
         ServerLifecycleEvents.SERVER_STARTED.register(MoudServer::started);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> stopped());
         ServerTickEvents.START_SERVER_TICK.register(MoudServer::tick);
@@ -68,11 +69,13 @@ public final class MoudServer {
         ServerScene.start(server);
         place = Place.server(ServerScene.world(), Addons.classes());
         place.start();
+        PlaceSync.start(place.root());
         MoudMod.LOG.info("place is running on the server");
     }
 
     private static void stopped() {
         if (place != null) place.close();
+        PlaceSync.stop();
         ServerChat.INSTANCE.stop();
         ServerHistory.INSTANCE.clear();
         Broadcast.stop();
@@ -86,6 +89,7 @@ public final class MoudServer {
     private static void tick(MinecraftServer server) {
         if (place == null) return;
         if (place.pollReload()) respawnAll(server);
+        PlaceSync.tick(server);
         double dt = TICK.tick();
         Host host = place.host();
         if (host != null) host.step(dt);

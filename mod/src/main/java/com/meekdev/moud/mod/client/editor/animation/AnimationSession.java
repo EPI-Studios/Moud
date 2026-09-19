@@ -4,6 +4,7 @@ import com.meekdev.moud.core.character.Animators;
 import com.meekdev.moud.core.character.Clip;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.client.PlaceFiles;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import java.io.IOException;
@@ -160,6 +161,7 @@ public final class AnimationSession {
         try {
             library.save(current);
             Animators.forget(res(current));
+            PlaceFiles.upload(current);
             say("saved " + library.folder().getParent().relativize(current).toString().replace('\\', '/'));
         } catch (IOException | RuntimeException e) {
             say("could not save: " + e.getMessage());

@@ -28,6 +28,7 @@ public final class Payloads {
         down.register(WorldPayload.TYPE, WorldPayload.CODEC.cast());
         down.register(SceneStatusPayload.TYPE, SceneStatusPayload.CODEC.cast());
         down.register(ScenePastedPayload.TYPE, ScenePastedPayload.CODEC.cast());
+        down.registerLarge(PlaceFilePayload.TYPE, PlaceFilePayload.CODEC.cast(), PlaceFilePayload.MAX_BYTES);
         PayloadTypeRegistry.serverboundPlay().register(RemoteUpPayload.TYPE, RemoteUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(CallUpPayload.TYPE, CallUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ChatUpPayload.TYPE, ChatUpPayload.CODEC.cast());
@@ -43,5 +44,6 @@ public final class Payloads {
         PayloadTypeRegistry.serverboundPlay().register(ScenePastePayload.TYPE, ScenePastePayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(SceneSavePayload.TYPE, SceneSavePayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(SceneFilePayload.TYPE, SceneFilePayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().registerLarge(PlaceFileUpPayload.TYPE, PlaceFileUpPayload.CODEC.cast(), PlaceFilePayload.MAX_BYTES);
     }
 }
