@@ -392,6 +392,12 @@ public final class SceneDocument {
         history.execute(Paste.fresh(text, ref(parent.id()), "Paste"));
     }
 
+    public void insertBuilt(List<Instance> roots, String label) {
+        Instance world = world();
+        if (world == null || roots.isEmpty()) return;
+        history.execute(Paste.fresh(snapshot(roots), ref(world.id()), label));
+    }
+
     public void insert(String className, int parentId) {
         insert(className, className, parentId, made -> {
             if (made instanceof Lighting lighting) lighting.dayCycle = true;

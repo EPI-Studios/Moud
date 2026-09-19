@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
+import com.meekdev.moud.core.character.ClipCurve;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.client.editor.kit.EmptyStates;
 import com.meekdev.moud.mod.client.editor.kit.SegmentedControl;
@@ -205,7 +206,7 @@ final class TimelinePanel implements Panel {
         List<Lane> lanes = new ArrayList<>();
         lanes.add(new Lane(Kind.MARKERS, "", null, 0, "Markers"));
         lanes.add(new Lane(Kind.EVENTS, "", null, 0, "Script events"));
-        for (Rigs.Joint joint : Rigs.of(clip)) {
+        for (Skeletons.Joint joint : workspace.skeleton()) {
             lanes.add(new Lane(Kind.JOINT, joint.name(), null, 0, joint.name()));
             if (!session.expanded().contains(joint.name())) continue;
             for (Channel channel : Channel.values()) lanes.add(new Lane(Kind.CHANNEL, joint.name(), channel, 1, channel.key()));
@@ -869,9 +870,10 @@ final class TimelinePanel implements Panel {
         double high = Double.NEGATIVE_INFINITY;
         for (Curve curve : shown) {
             List<AnimKey> keys = clip.keys(curve.joint(), curve.channel());
+            ClipCurve sampled = Curves.curve(keys);
             double span = Math.max(clip.length, clip.lastKeyTime());
             for (int n = 0; n <= 64; n++) {
-                double value = Curves.component(Curves.sample(keys, span * n / 64.0, curve.channel().rest()), curve.axis());
+                double value = Curves.component(Curves.sample(sampled, span * n / 64.0, curve.channel().rest()), curve.axis());
                 low = Math.min(low, value);
                 high = Math.max(high, value);
             }
@@ -930,9 +932,10 @@ final class TimelinePanel implements Panel {
         boolean focused = session.keys().stream().anyMatch(ref -> ref.joint().equals(curve.joint()) && ref.channel() == curve.channel());
         float step = EditorScale.of(3);
         float previousX = lanesLeft;
-        float previousY = y(Curves.component(Curves.sample(keys, time(lanesLeft), curve.channel().rest()), curve.axis()));
+        ClipCurve sampled = Curves.curve(keys);
+        float previousY = y(Curves.component(Curves.sample(sampled, time(lanesLeft), curve.channel().rest()), curve.axis()));
         for (float x = lanesLeft + step; x <= right + step; x += step) {
-            float y = y(Curves.component(Curves.sample(keys, time(x), curve.channel().rest()), curve.axis()));
+            float y = y(Curves.component(Curves.sample(sampled, time(x), curve.channel().rest()), curve.axis()));
             draw.addLine(previousX, previousY, x, y, focused || session.keys().isEmpty() ? color : EditorStyle.withAlpha(color, 0.55f), EditorScale.of(1.6f));
             previousX = x;
             previousY = y;

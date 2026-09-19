@@ -41,15 +41,15 @@ final class BbmodelImportDialog {
     private static final int UNMAPPED_FILL = EditorStyle.rgb(92, 92, 96);
     private static final int MAPPED_FILL = EditorStyle.rgb(136, 138, 146);
     private static final List<String> TABS = List.of("Bones", "Animations", "Options");
-    private static final List<String> JOINTS = List.of("", "root", "head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg", "cape");
+    private static final List<String> JOINTS = List.of("", "head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg", "cape", "rightWing", "leftWing");
 
-    private final BbmodelImport importer;
+    private final ModelImport importer;
     private final IconWidgets icons;
     private final AnimationWorkspace workspace;
     private @Nullable Path file;
-    private BbmodelImport.@Nullable Summary summary;
+    private ModelImport.@Nullable Summary summary;
     private @Nullable String error;
-    private BbmodelImport.@Nullable Outcome outcome;
+    private ModelImport.@Nullable Outcome outcome;
     private final Map<String, String> joints = new LinkedHashMap<>();
     private final Set<String> chosen = new LinkedHashSet<>();
     private final ImString folder = new ImString(128);
@@ -58,7 +58,7 @@ final class BbmodelImportDialog {
     private int tab;
     private float previewTime;
 
-    BbmodelImportDialog(BbmodelImport importer, IconWidgets icons, AnimationWorkspace workspace) {
+    BbmodelImportDialog(ModelImport importer, IconWidgets icons, AnimationWorkspace workspace) {
         this.importer = importer;
         this.icons = icons;
         this.workspace = workspace;
@@ -74,8 +74,8 @@ final class BbmodelImportDialog {
         tab = 0;
         try {
             summary = importer.inspect(path);
-            for (BbmodelImport.Group group : summary.groups()) joints.put(group.uuid(), group.joint());
-            for (BbmodelImport.Animation animation : summary.animations()) {
+            for (ModelImport.Group group : summary.groups()) joints.put(group.uuid(), group.joint());
+            for (ModelImport.Animation animation : summary.animations()) {
                 if (!animation.empty()) chosen.add(animation.name());
             }
         } catch (IOException | RuntimeException e) {
@@ -84,6 +84,10 @@ final class BbmodelImportDialog {
         String stem = path.getFileName().toString().replaceAll("(?i)\\.bbmodel$", "");
         folder.set(ClipLibrary.FOLDER + "/" + stem + "/");
         opening = true;
+    }
+
+    void confirm() {
+        if (file != null && summary != null && outcome == null) run();
     }
 
     void render() {
@@ -131,7 +135,7 @@ final class BbmodelImportDialog {
         float titleSize = EditorStyle.titleFontPixelHeight();
         float titleY = top + height * 0.5f - titleSize - EditorScale.of(1);
         draw.addText(EditorStyle.titleFont().orElse(ImGui.getFont()), Math.round(titleSize), x, titleY, EditorStyle.COLOR_TEXT_FOCUS, title);
-        BbmodelImport.Summary known = summary;
+        ModelImport.Summary known = summary;
         if (known != null) {
             String subtitle = known.format() + (known.playerRig() ? " · player template" : "") + " · " + known.groups().size() + " groups · "
                     + known.animations().size() + (known.animations().size() == 1 ? " animation" : " animations");
@@ -149,7 +153,7 @@ final class BbmodelImportDialog {
         ImGui.dummy(width, height);
     }
 
-    private static int badgeColor(BbmodelImport.Summary known) {
+    private static int badgeColor(ModelImport.Summary known) {
         if (known.playerRig()) return EditorStyle.COLOR_SUCCESS;
         if (known.matched() > 0) return EditorStyle.COLOR_WARNING;
         return EditorStyle.COLOR_TEXT_MUTED;
@@ -166,7 +170,7 @@ final class BbmodelImportDialog {
         drawModel(draw, left, top, width, height - footer);
         float y = top + height - footer;
         draw.addLine(left, y, left + width, y, EditorStyle.COLOR_OUTLINE);
-        BbmodelImport.Animation shown = firstChosen();
+        ModelImport.Animation shown = firstChosen();
         if (shown != null) {
             previewTime += ImGui.getIO().getDeltaTime();
             double length = Math.max(0.05, shown.length());
@@ -185,9 +189,9 @@ final class BbmodelImportDialog {
         ImGui.popStyleColor();
     }
 
-    private BbmodelImport.@Nullable Animation firstChosen() {
+    private ModelImport.@Nullable Animation firstChosen() {
         if (summary == null) return null;
-        for (BbmodelImport.Animation animation : summary.animations()) {
+        for (ModelImport.Animation animation : summary.animations()) {
             if (chosen.contains(animation.name())) return animation;
         }
         return summary.animations().isEmpty() ? null : summary.animations().getFirst();
@@ -198,8 +202,8 @@ final class BbmodelImportDialog {
         double minY = Double.POSITIVE_INFINITY;
         double maxX = Double.NEGATIVE_INFINITY;
         double maxY = Double.NEGATIVE_INFINITY;
-        for (BbmodelImport.Group group : summary.groups()) {
-            for (BbmodelImport.Cube cube : group.shape()) {
+        for (ModelImport.Group group : summary.groups()) {
+            for (ModelImport.Cube cube : group.shape()) {
                 minX = Math.min(minX, Math.min(cube.from().x(), cube.to().x()));
                 maxX = Math.max(maxX, Math.max(cube.from().x(), cube.to().x()));
                 minY = Math.min(minY, Math.min(cube.from().y(), cube.to().y()));
@@ -221,10 +225,10 @@ final class BbmodelImportDialog {
         float scale = (float) (Math.min(width * 0.6, height * 0.62) / Math.max(1, span));
         float originX = centre - (float) ((minX + maxX) * 0.5 * scale);
         float originY = floor + (float) (minY * scale);
-        for (BbmodelImport.Group group : summary.groups()) {
+        for (ModelImport.Group group : summary.groups()) {
             String joint = joints.getOrDefault(group.uuid(), "");
             int fill = joint.isEmpty() ? UNMAPPED_FILL : MAPPED_FILL;
-            for (BbmodelImport.Cube cube : group.shape()) {
+            for (ModelImport.Cube cube : group.shape()) {
                 float x0 = originX + (float) (Math.min(cube.from().x(), cube.to().x()) * scale);
                 float x1 = originX + (float) (Math.max(cube.from().x(), cube.to().x()) * scale);
                 float y0 = originY - (float) (Math.max(cube.from().y(), cube.to().y()) * scale);
@@ -233,7 +237,7 @@ final class BbmodelImportDialog {
                 draw.addRect(x0, y0, x1, y1, CUBE_EDGE);
             }
         }
-        for (BbmodelImport.Group group : summary.groups()) {
+        for (ModelImport.Group group : summary.groups()) {
             Vector3 pivot = group.pivot();
             float px = originX + (float) (pivot.x() * scale);
             float py = originY - (float) (pivot.y() * scale);
@@ -265,7 +269,8 @@ final class BbmodelImportDialog {
         ImGui.dummy(0, EditorScale.of(14));
         ImGui.indent(pad);
         ImGui.pushTextWrapPos(width - pad);
-        switch (tab) {
+        if (outcome != null) renderOutcome(outcome);
+        else switch (tab) {
             case 0 -> {
                 renderBones(width - pad * 2);
                 ImGui.dummy(0, EditorScale.of(10));
@@ -283,6 +288,21 @@ final class BbmodelImportDialog {
         ImGui.endChild();
     }
 
+    private void renderOutcome(ModelImport.Outcome done) {
+        Sections.caption(done.done() ? "IMPORTED" : "NOT IMPORTED");
+        ImGui.textUnformatted(done.message());
+        ImGui.dummy(0, EditorScale.of(8));
+        for (Path written : done.written()) {
+            Paint.pushMono();
+            Texts.muted(AnimationSession.res(written));
+            Paint.popMono();
+        }
+        if (done.notes().isEmpty()) return;
+        ImGui.dummy(0, EditorScale.of(10));
+        Sections.caption("NOTES");
+        for (String note : done.notes()) Texts.colored(EditorStyle.COLOR_WARNING, note);
+    }
+
     private void renderBones(float width) {
         float[] columns = {0, width * 0.32f, width * 0.64f, width * 0.88f};
         String[] titles = {"BLOCKBENCH GROUP", "MOUD JOINT", "PIVOT", "CUBES"};
@@ -292,7 +312,7 @@ final class BbmodelImportDialog {
             Sections.caption(titles[n]);
         }
         ImDrawList draw = ImGui.getWindowDrawList();
-        for (BbmodelImport.Group group : summary.groups()) {
+        for (ModelImport.Group group : summary.groups()) {
             ImGui.pushID(group.uuid());
             float rowTop = ImGui.getCursorScreenPosY();
             float rowLeft = ImGui.getCursorScreenPosX();
@@ -347,7 +367,7 @@ final class BbmodelImportDialog {
         Sections.caption("ANIMATIONS");
         float start = ImGui.getCursorPosX();
         if (summary.animations().isEmpty()) Texts.muted("This model has no animations");
-        for (BbmodelImport.Animation animation : summary.animations()) {
+        for (ModelImport.Animation animation : summary.animations()) {
             ImGui.setCursorPosX(start);
             boolean on = chosen.contains(animation.name());
             if (ImGui.checkbox("##anim-" + animation.name(), on)) {
@@ -420,7 +440,7 @@ final class BbmodelImportDialog {
         ImGui.pushStyleColor(ImGuiCol.Button, EditorStyle.COLOR_ACCENT);
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, EditorStyle.COLOR_ACCENT_HOVER);
         ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_ON_ACCENT);
-        boolean ready = summary != null && (clips > 0 || model);
+        boolean ready = summary != null && (clips > 0 || model) && (outcome == null || !outcome.done());
         ImGui.beginDisabled(!ready);
         boolean go = ImGui.button(action + "##bb-go", actionWidth, buttonHeight);
         ImGui.endDisabled();
@@ -439,7 +459,7 @@ final class BbmodelImportDialog {
     private int chosenClips() {
         if (summary == null) return 0;
         int clips = 0;
-        for (BbmodelImport.Animation animation : summary.animations()) {
+        for (ModelImport.Animation animation : summary.animations()) {
             if (chosen.contains(animation.name())) clips++;
         }
         return clips;
@@ -451,14 +471,14 @@ final class BbmodelImportDialog {
 
     private void run() {
         Map<String, String> mapping = new LinkedHashMap<>();
-        for (BbmodelImport.Group group : summary.groups()) mapping.put(group.name(), joints.getOrDefault(group.uuid(), ""));
+        for (ModelImport.Group group : summary.groups()) mapping.put(group.name(), joints.getOrDefault(group.uuid(), ""));
         String typed = folder.get().strip();
         String target = typed.toLowerCase(Locale.ROOT).startsWith("res://") ? typed.substring("res://".length()) : typed;
-        BbmodelImport.Choices choices = new BbmodelImport.Choices(mapping, Set.copyOf(chosen), target, model);
+        ModelImport.Choices choices = new ModelImport.Choices(mapping, Set.copyOf(chosen), target, model);
         try {
             outcome = importer.run(file, summary, choices);
         } catch (RuntimeException e) {
-            outcome = new BbmodelImport.Outcome(false, "import failed: " + e.getMessage(), List.of());
+            outcome = new ModelImport.Outcome(false, "import failed: " + e.getMessage(), List.of(), List.of());
         }
         workspace.importFinished(outcome);
     }

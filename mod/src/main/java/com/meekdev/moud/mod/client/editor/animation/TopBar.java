@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
 import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.instance.Model;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.SegmentedControl;
@@ -82,10 +83,11 @@ final class TopBar {
         crumb(place, false);
         crumb(ClipLibrary.FOLDER, false);
         crumb(session.hasClip() ? session.name() + ClipLibrary.EXTENSION : "no clip", true);
-        if (session.hasClip() && session.v1()) {
+        String older = session.hasClip() ? session.older() : null;
+        if (older != null) {
             ImGui.sameLine(0, EditorStyle.itemSpacingX() * 2);
             ImGui.alignTextToFramePadding();
-            Texts.colored(EditorStyle.COLOR_WARNING, "format 1, saving converts it");
+            Texts.colored(EditorStyle.COLOR_WARNING, older + ", saving converts it");
         }
     }
 
@@ -172,9 +174,10 @@ final class TopBar {
         tooltip("The clip's space: the whole body, or the first person view model");
         if (session.hasClip() && chosen != (clip.space == AnimClip.Space.VIEW ? 1 : 0)) {
             AnimClip.Space space = chosen == 1 ? AnimClip.Space.VIEW : AnimClip.Space.BODY;
+            String rigName = space == AnimClip.Space.VIEW ? "view" : rig.model() != null ? rig.model().name() : "player";
             session.edit(chosen == 1 ? "Use view space" : "Use body space", changed -> {
                 changed.space = space;
-                changed.rig = space == AnimClip.Space.VIEW ? "view" : "player";
+                changed.rig = rigName;
             });
             session.joint(null);
             session.selectKeys(Set.of());
@@ -214,16 +217,35 @@ final class TopBar {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player != null && ImGui.menuItem("Your skin", "", !rig.borrowing() && rig.ownSkin())) {
             rig.skin(null);
+            workspace.chose();
         }
         for (PreviewRig.Skin skin : PreviewRig.SKINS) {
-            if (ImGui.menuItem(skin.label() + (skin.slim() ? "  slim" : ""), "", !rig.borrowing() && !rig.ownSkin() && rig.skin() == skin)) rig.skin(skin);
+            if (ImGui.menuItem(skin.label() + (skin.slim() ? "  slim" : ""), "", !rig.borrowing() && !rig.ownSkin() && rig.skin() == skin)) {
+                rig.skin(skin);
+                workspace.chose();
+            }
         }
         List<Character> characters = workspace.sceneCharacters();
         if (!characters.isEmpty()) {
             ImGui.separator();
             Texts.muted("Characters in the scene");
             for (Character character : characters) {
-                if (ImGui.menuItem(character.name() + "##character-" + character.id(), "", rig.body() == character)) rig.borrow(character);
+                if (ImGui.menuItem(character.name() + "##character-" + character.id(), "", rig.body() == character)) {
+                    rig.borrow(character);
+                    workspace.chose();
+                }
+            }
+        }
+        List<Model> models = workspace.sceneModels();
+        if (!models.isEmpty()) {
+            ImGui.separator();
+            Texts.muted("Models in the scene");
+            for (Model model : models) {
+                if (ImGui.menuItem(model.name() + "##model-" + model.id(), "", rig.model() == model)) {
+                    rig.borrow(model);
+                    workspace.chose();
+                    workspace.frameRig();
+                }
             }
         }
         ImGui.separator();

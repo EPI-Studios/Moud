@@ -2,8 +2,9 @@ package com.meekdev.moud.mod.client.editor.animation;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
-public final class Rigs {
+public final class Skeletons {
 
     public record Joint(String name, String parent, int depth) {}
 
@@ -24,10 +25,10 @@ public final class Rigs {
             new Joint("leftArm", "camera", 1),
             new Joint("leftItem", "leftArm", 2));
 
-    private Rigs() {}
+    private Skeletons() {}
 
-    public static List<Joint> of(AnimClip clip) {
-        List<Joint> base = clip.space == AnimClip.Space.VIEW ? VIEW : PLAYER;
+    public static List<Joint> of(AnimClip clip, @Nullable List<Joint> model) {
+        List<Joint> base = model != null ? model : clip.space == AnimClip.Space.VIEW ? VIEW : PLAYER;
         List<Joint> joints = new ArrayList<>(base);
         for (String name : clip.channels.keySet()) {
             if (joints.stream().noneMatch(joint -> joint.name().equals(name))) joints.add(new Joint(name, "", 0));
@@ -35,9 +36,9 @@ public final class Rigs {
         return joints;
     }
 
-    public static List<String> names(AnimClip clip) {
+    public static List<String> names(List<Joint> joints) {
         List<String> names = new ArrayList<>();
-        for (Joint joint : of(clip)) names.add(joint.name());
+        for (Joint joint : joints) names.add(joint.name());
         return names;
     }
 }

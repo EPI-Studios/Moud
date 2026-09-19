@@ -47,7 +47,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
 
-final class PropertyRows {
+public final class PropertyRows {
 
     static final float DRAG_STEP = 0.05f;
     private static final float NUDGE_FAST = 10.0f;
@@ -91,20 +91,20 @@ final class PropertyRows {
     private static final Deque<Color> RECENT = new ArrayDeque<>();
     private static final int RECENT_KEEP = 12;
 
-    PropertyRows(SceneDocument document) {
+    public PropertyRows(SceneDocument document) {
         this.document = document;
     }
 
-    void beginFrame() {
+    public void beginFrame() {
         seen.clear();
     }
 
-    void pruneStaleKeys() {
+    public void pruneStaleKeys() {
         strings.keySet().retainAll(seen);
         eulers.keySet().retainAll(seen);
     }
 
-    void render(Instance instance, PropertyDef property, List<Instance> selected) {
+    public void render(Instance instance, PropertyDef property, List<Instance> selected) {
         render(instance, property, selected, null);
     }
 

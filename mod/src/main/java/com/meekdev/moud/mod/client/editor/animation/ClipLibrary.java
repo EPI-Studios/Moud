@@ -25,14 +25,14 @@ final class ClipLibrary {
     static final class Open {
         AnimClip clip;
         String saved;
-        final boolean v1;
+        final @Nullable String older;
         private @Nullable AnimClip measured;
         private boolean dirty;
 
-        Open(AnimClip clip, String saved, boolean v1) {
+        Open(AnimClip clip, String saved, @Nullable String older) {
             this.clip = clip;
             this.saved = saved;
-            this.v1 = v1;
+            this.older = older;
         }
 
         boolean dirty() {
@@ -118,15 +118,15 @@ final class ClipLibrary {
         Open known = open.get(path);
         if (known != null) return known;
         String text = Files.readString(path, StandardCharsets.UTF_8);
-        boolean v1 = ClipFile.isV1(text);
+        String older = ClipFile.older(text);
         AnimClip clip = ClipFile.read(text);
-        Open loaded = new Open(clip, ClipFile.write(clip), v1);
+        Open loaded = new Open(clip, ClipFile.write(clip), older);
         open.put(path, loaded);
         return loaded;
     }
 
     Open create(Path path, AnimClip clip) {
-        Open made = new Open(clip, "", false);
+        Open made = new Open(clip, "", null);
         open.put(path, made);
         return made;
     }

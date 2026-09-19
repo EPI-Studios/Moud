@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
+import com.meekdev.moud.core.character.Retarget;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.scene.Json;
 import java.io.IOException;
@@ -10,44 +11,23 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
-public final class BbmodelFiles implements BbmodelImport {
+public final class BbmodelFiles implements ModelImport {
 
     static final List<String> PLAYER = List.of("head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg");
-    private static final Map<String, String> ALIASES = aliases();
 
-    private static @Nullable BbmodelImport runtime;
+    private static @Nullable ModelImport runtime;
 
-    public static void runtime(@Nullable BbmodelImport converter) {
+    public static void runtime(@Nullable ModelImport converter) {
         runtime = converter;
     }
 
-    private static Map<String, String> aliases() {
-        Map<String, String> names = new HashMap<>();
-        names.put("head", "head");
-        names.put("body", "torso");
-        names.put("torso", "torso");
-        names.put("chest", "torso");
-        names.put("rightarm", "rightArm");
-        names.put("armright", "rightArm");
-        names.put("leftarm", "leftArm");
-        names.put("armleft", "leftArm");
-        names.put("rightleg", "rightLeg");
-        names.put("legright", "rightLeg");
-        names.put("leftleg", "leftLeg");
-        names.put("legleft", "leftLeg");
-        names.put("cape", "cape");
-        names.put("root", "root");
-        return names;
-    }
-
     static String joint(String group) {
-        String key = group.toLowerCase(Locale.ROOT).replaceAll("[^a-z]", "");
-        return ALIASES.getOrDefault(key, "");
+        String joint = Retarget.joint(group);
+        return joint == null ? "" : joint;
     }
 
     @Override
@@ -149,8 +129,8 @@ public final class BbmodelFiles implements BbmodelImport {
 
     @Override
     public Outcome run(Path file, Summary summary, Choices choices) {
-        BbmodelImport converter = runtime;
-        if (converter == null) return new Outcome(false, "import runtime not merged yet", List.of());
+        ModelImport converter = runtime;
+        if (converter == null) return new Outcome(false, "there is no importer to run", List.of(), List.of());
         return converter.run(file, summary, choices);
     }
 

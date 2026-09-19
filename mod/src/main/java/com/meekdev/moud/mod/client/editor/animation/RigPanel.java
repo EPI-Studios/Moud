@@ -1,8 +1,8 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
-import com.meekdev.moud.core.character.Character;
-import com.meekdev.moud.core.clazz.PropertyDef;
-import com.meekdev.moud.core.clazz.PropertyType;
+import com.meekdev.moud.core.character.IKControl;
+import com.meekdev.moud.core.character.JointSpring;
+import com.meekdev.moud.core.character.JointSprings;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.SearchField;
@@ -18,17 +18,13 @@ import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiMouseButton;
 import imgui.type.ImString;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import org.jspecify.annotations.Nullable;
 
 final class RigPanel implements Panel {
 
     static final String ID = "anim-rig";
     private static final String NEW_CLIP = "New clip##anim-new-clip";
-
-    private record Control(String name, String kind, String target, EditorIcon icon) {}
 
     private final AnimationWorkspace workspace;
     private final AnimationSession session;
@@ -69,11 +65,11 @@ final class RigPanel implements Panel {
         ImGui.separator();
         AnimClip clip = session.clip();
         String query = filter.get().strip().toLowerCase(Locale.ROOT);
-        String rigName = clip.space == AnimClip.Space.VIEW ? "View" : rig.borrowing() && rig.body() != null ? rig.body().name() : "Player";
+        String rigName = clip.space == AnimClip.Space.VIEW ? "View" : rig.borrowing() ? rig.label() : "Player";
         ListRow.draw(icons, "anim-rig-root", 0, EditorIcon.SKELETON_3D, rigName, "", false, true, EditorStyle.COLOR_TEXT_FAINT);
-        for (Rigs.Joint joint : Rigs.of(clip)) {
+        for (Skeletons.Joint joint : workspace.skeleton()) {
             if (!query.isEmpty() && !joint.name().toLowerCase(Locale.ROOT).contains(query)) continue;
-            int count = clip.keyCount(joint.name());
+            int count = clip.keyCount(session.channel(joint.name(), workspace.retargets()));
             boolean selected = joint.name().equals(session.joint());
             if (ListRow.draw(icons, "anim-joint-" + joint.name(), joint.depth() + 1, EditorIcon.BONE, joint.name(), count == 0 ? "" : String.valueOf(count),
                     selected, count > 0, selected ? EditorStyle.COLOR_TEXT : EditorStyle.COLOR_TEXT_FAINT)) {
@@ -88,50 +84,37 @@ final class RigPanel implements Panel {
 
     private void renderControls() {
         if (!Sections.header("Controls")) return;
-        List<Control> controls = controls();
+        List<Instance> controls = workspace.controls();
         if (controls.isEmpty()) {
             ImGui.indent(EditorScale.of(6));
             Texts.muted(session.clip().space == AnimClip.Space.VIEW ? "The view rig has no controls" : "No IK or spring controls on this rig");
             ImGui.unindent(EditorScale.of(6));
         }
-        for (Control control : controls) {
-            ListRow.draw(icons, "anim-control-" + control.name(), 0, control.icon(), control.name(),
-                    control.kind() + (control.target().isEmpty() ? "" : " · " + control.target()), false, true, EditorStyle.COLOR_TEXT_FAINT);
+        Instance selected = session.control();
+        for (Instance control : controls) {
+            boolean spring = control instanceof JointSpring;
+            if (ListRow.draw(icons, "anim-control-" + control.id(), 0, spring ? EditorIcon.SPRING_BONE_SIMULATOR_3D : EditorIcon.LOOK_AT_MODIFIER_3D,
+                    control.name(), describe(control), control == selected, true, control == selected ? EditorStyle.COLOR_TEXT : EditorStyle.COLOR_TEXT_FAINT)) {
+                session.joint(null);
+                session.control(control);
+            }
         }
         ImGui.dummy(0, EditorScale.of(4));
     }
 
-    private List<Control> controls() {
-        List<Control> found = new ArrayList<>();
-        Character body = rig.body();
-        if (body == null || session.clip().space == AnimClip.Space.VIEW) return found;
-        collect(body, found);
-        return found;
-    }
-
-    private static void collect(Instance under, List<Control> found) {
-        for (Instance child : under.children()) {
-            String kind = kind(child.def().name());
-            if (kind != null) found.add(new Control(child.name(), kind, target(child), kind.equals("spring") ? EditorIcon.SPRING_BONE_SIMULATOR_3D : EditorIcon.LOOK_AT_MODIFIER_3D));
-            collect(child, found);
+    private static String describe(Instance control) {
+        if (control instanceof IKControl ik) {
+            String type = switch (ik.type) {
+                case AIM -> "aim";
+                case LOOK_AT -> "look at";
+                case POSITION -> "reach";
+                case TRANSFORM -> "reach and turn";
+            };
+            return ik.endEffector == null ? type : type + " \u00b7 " + ik.endEffector.name();
         }
-    }
-
-    private static @Nullable String kind(String className) {
-        String lower = className.toLowerCase(Locale.ROOT);
-        if (lower.contains("spring")) return "spring";
-        if (lower.contains("ik") && lower.endsWith("control") || lower.contains("pointat") || lower.contains("lookat") || lower.contains("aim")) return "aim";
-        return null;
-    }
-
-    private static String target(Instance control) {
-        for (PropertyDef property : control.def().properties()) {
-            if (property == null) continue;
-            String name = property.name().toLowerCase(Locale.ROOT);
-            if (!name.contains("joint") && !name.equals("part1") && !name.equals("target") && !name.equals("chain")) continue;
-            Object value = property.getObj(control);
-            if (value instanceof Instance instance) return instance.name();
-            if (property.type() == PropertyType.STRING && value instanceof String text && !text.isEmpty()) return text;
+        if (control instanceof JointSpring spring) {
+            Instance joint = JointSprings.joint(spring);
+            return joint == null ? "spring" : "spring \u00b7 " + joint.name();
         }
         return "";
     }
@@ -161,7 +144,7 @@ final class RigPanel implements Panel {
             String meta = clip.error() != null ? "broken" : clip.space() == AnimClip.Space.VIEW ? "view" : Paint.number(clip.length()) + " s";
                         int metaColor = clip.error() != null ? EditorStyle.COLOR_DANGER : loaded != null && loaded.dirty() ? EditorStyle.COLOR_WARNING : EditorStyle.COLOR_TEXT_FAINT;
             if (ListRow.draw(icons, "anim-clip-" + clip.path(), 0, null, clip.name(), meta, current, true, metaColor)) {
-                if (clip.error() == null) session.open(clip.path());
+                if (clip.error() == null) workspace.openClip(clip.path());
             }
             if (clip.error() != null && ImGui.isItemHovered()) ImGui.setTooltip(clip.error());
         }
@@ -189,7 +172,8 @@ final class RigPanel implements Panel {
         ImGui.sameLine();
         boolean ready = !newName.get().isBlank();
         if (Dialogs.primaryButton("Create##anim-new-create", ready) || entered && ready) {
-            session.create(newName.get(), newSpace == 1 ? AnimClip.Space.VIEW : AnimClip.Space.BODY);
+            AnimClip.Space space = newSpace == 1 ? AnimClip.Space.VIEW : AnimClip.Space.BODY;
+            session.create(newName.get(), space, space == AnimClip.Space.VIEW ? "view" : rig.model() != null ? rig.model().name() : "player");
             ImGui.closeCurrentPopup();
         }
         Dialogs.end();

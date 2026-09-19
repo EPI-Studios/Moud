@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
+import com.meekdev.moud.core.character.Clip;
 import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
@@ -37,6 +38,7 @@ final class AnimationViewport implements ViewportTakeover {
     private final IconWidgets icons;
     private final ViewportPanel viewport;
     private final BoneGizmo gizmo = new BoneGizmo();
+    private final ControlHandles controls;
     private @Nullable AnimClip editStart;
     private String gesture = "";
     private Vector3 startValue = Vector3.ZERO;
@@ -49,6 +51,7 @@ final class AnimationViewport implements ViewportTakeover {
         this.rig = rig;
         this.icons = icons;
         this.viewport = viewport;
+        this.controls = new ControlHandles(workspace, session);
     }
 
     private boolean view() {
@@ -97,7 +100,8 @@ final class AnimationViewport implements ViewportTakeover {
 
     @Override
     public boolean holdsLeftDrag() {
-        return aiming || gizmo.dragging() || ImGui.getIO().getKeyAlt() && viewport.hovered() && aimable(session.joint());
+        return aiming || gizmo.dragging() || controls.dragging() || controls.hovering()
+                || ImGui.getIO().getKeyAlt() && viewport.hovered() && aimable(session.joint());
     }
 
     @Override
@@ -106,7 +110,7 @@ final class AnimationViewport implements ViewportTakeover {
     }
 
     private boolean aimable(@Nullable String joint) {
-        return !view() && ("rightArm".equals(joint) || "leftArm".equals(joint));
+        return !view() && rig.model() == null && ("rightArm".equals(joint) || "leftArm".equals(joint));
     }
 
     @Override
@@ -125,13 +129,15 @@ final class AnimationViewport implements ViewportTakeover {
         EditorOverlay.show(instance -> limbs.containsKey(instance.id()), selected, hoveredId);
         if (session.onion() && session.hasClip() && !view()) drawOnion(draw, sceneView, pose);
         if (view()) drawCameraBone(draw, sceneView, pose);
-        boolean busy = handleAim(draw, sceneView, pose, hovered);
+        String bone = rig.model() != null && !view() ? drawBones(draw, sceneView, pose, hovered && !gizmo.dragging() && !gizmo.hovering()) : null;
+        boolean busy = !view() && controls.draw(draw, sceneView, hovered && !gizmo.dragging());
+        if (!busy) busy = handleAim(draw, sceneView, pose, hovered);
         if (!busy && session.hasClip()) busy = renderGizmo(draw, sceneView, pose, hovered);
         if (hovered && !busy && ImGui.isMouseClicked(ImGuiMouseButton.Left) && !ImGui.getIO().getKeyAlt()) pressed = true;
         if (pressed && !ImGui.isMouseDown(ImGuiMouseButton.Left)) {
             pressed = false;
             if (hovered && !busy) {
-                String joint = limbs.get(hoveredId);
+                String joint = bone != null ? bone : limbs.get(hoveredId);
                 if (joint != null) session.joint(joint);
             }
         }
@@ -163,6 +169,8 @@ final class AnimationViewport implements ViewportTakeover {
         }
         JointPose current = pose.getOrDefault(joint, JointPose.REST);
         CFrame pivot = parent.mul(current.transform());
+        String channel = session.channel(joint, workspace.retargets());
+        Clip compiled = session.compiled();
         boolean rotating = session.tool() == AnimationSession.Tool.ROTATE;
         boolean wasDragging = gizmo.dragging();
         BoneGizmo.Result moved = gizmo.draw(draw, sceneView, viewport.view(), pivot, session.local(), rotating ? BoneGizmo.Mode.ROTATE : BoneGizmo.Mode.MOVE, hovered);
@@ -177,13 +185,13 @@ final class AnimationViewport implements ViewportTakeover {
         if (start == null) return true;
         if (rotating) {
             Quat local = parent.rotation().inverse().mul(moved.rotation());
-            Vector3 degrees = round(Euler.nearest(local, startValue), 1000);
-            session.editFrom(start, "Rotate " + joint, gesture, changed -> KeyEdits.set(changed, joint, Channel.ROTATION, at, degrees));
+            Vector3 degrees = round(compiled.angles(channel, local, startValue), 1000);
+            session.editFrom(start, "Rotate " + joint, gesture, changed -> KeyEdits.set(changed, channel, Channel.ROTATION, at, degrees));
         } else {
-            Vector3 local = round(parent.pointToObject(moved.position()), 1e5);
-            session.editFrom(start, "Move " + joint, gesture, changed -> KeyEdits.set(changed, joint, Channel.POSITION, at, local));
+            Vector3 local = round(compiled.offset(channel, parent.pointToObject(moved.position())), 1e5);
+            session.editFrom(start, "Move " + joint, gesture, changed -> KeyEdits.set(changed, channel, Channel.POSITION, at, local));
         }
-        selectKeyAt(joint, rotating ? Channel.ROTATION : Channel.POSITION, at);
+        selectKeyAt(channel, rotating ? Channel.ROTATION : Channel.POSITION, at);
         return true;
     }
 
@@ -223,10 +231,11 @@ final class AnimationViewport implements ViewportTakeover {
         Vector3 target = origin.add(direction.mul(pivot.sub(origin).dot(normal) / facing));
         Vector3 reach = parent.rotation().inverse().rotate(target.sub(pivot));
         if (reach.lengthSq() < 1e-8) return true;
-        Vector3 degrees = round(Euler.nearest(between(new Vector3(0, -1, 0), reach.normalize()), startValue), 1000);
+        String channel = session.channel(joint, workspace.retargets());
+        Vector3 degrees = round(session.compiled().angles(channel, between(new Vector3(0, -1, 0), reach.normalize()), startValue), 1000);
         double at = session.keyTime();
-        session.editFrom(editStart, "Aim " + joint, gesture, changed -> KeyEdits.set(changed, joint, Channel.ROTATION, at, degrees));
-        selectKeyAt(joint, Channel.ROTATION, at);
+        session.editFrom(editStart, "Aim " + joint, gesture, changed -> KeyEdits.set(changed, channel, Channel.ROTATION, at, degrees));
+        selectKeyAt(channel, Channel.ROTATION, at);
         float[] from = sceneView.toScreen(pivot);
         float[] to = sceneView.toScreen(target);
         if (from != null && to != null) {
@@ -258,24 +267,72 @@ final class AnimationViewport implements ViewportTakeover {
     private void drawOnion(ImDrawList draw, SceneView sceneView, Map<String, JointPose> pose) {
         List<Double> times = session.keyTimes();
         double now = session.time();
-        List<String> joints = Rigs.names(session.clip());
+        List<String> joints = Skeletons.names(workspace.skeleton());
+        Clip compiled = session.compiled();
+        boolean retarget = workspace.retargets();
         int before = 0;
         for (int n = times.size() - 1; n >= 0 && before < session.onionBefore(); n--) {
             if (times.get(n) >= now - 1e-6) continue;
             before++;
-            ghost(draw, sceneView, JointPose.all(session.clip(), joints, times.get(n)), pose, EditorStyle.COLOR_AXIS_Z, before);
+            ghost(draw, sceneView, JointPose.all(session.clip(), compiled, joints, times.get(n), retarget), pose, EditorStyle.COLOR_AXIS_Z, before);
         }
         int after = 0;
         for (double at : times) {
             if (after >= session.onionAfter()) break;
             if (at <= now + 1e-6) continue;
             after++;
-            ghost(draw, sceneView, JointPose.all(session.clip(), joints, at), pose, EditorStyle.COLOR_AXIS_Y, after);
+            ghost(draw, sceneView, JointPose.all(session.clip(), compiled, joints, at, retarget), pose, EditorStyle.COLOR_AXIS_Y, after);
         }
+    }
+
+    private @Nullable String drawBones(ImDrawList draw, SceneView sceneView, Map<String, JointPose> pose, boolean hover) {
+        String joint = session.joint();
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        String hoveredBone = null;
+        double closest = EditorScale.of(9);
+        List<Skeletons.Joint> bones = rig.skeleton();
+        for (Skeletons.Joint bone : bones) {
+            CFrame frame = rig.boneFrame(bone.name(), pose);
+            float[] at = frame == null ? null : sceneView.toScreen(frame.position());
+            if (at == null) continue;
+            if (!bone.parent().isEmpty()) {
+                CFrame above = rig.boneFrame(bone.parent(), pose);
+                float[] from = above == null ? null : sceneView.toScreen(above.position());
+                if (from != null) draw.addLine(from[0], from[1], at[0], at[1], EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.55f), EditorScale.of(1.4f));
+            }
+            double distance = Math.hypot(at[0] - mouseX, at[1] - mouseY);
+            if (hover && distance < closest) {
+                closest = distance;
+                hoveredBone = bone.name();
+            }
+        }
+        for (Skeletons.Joint bone : bones) {
+            CFrame frame = rig.boneFrame(bone.name(), pose);
+            float[] at = frame == null ? null : sceneView.toScreen(frame.position());
+            if (at == null) continue;
+            boolean lit = bone.name().equals(joint) || bone.name().equals(hoveredBone);
+            int color = lit ? Paint.SELECTED : EditorStyle.COLOR_TEXT_MUTED;
+            draw.addCircleFilled(at[0], at[1], EditorScale.of(lit ? 4.5f : 3.2f), color);
+            if (bone.name().equals(hoveredBone)) Paint.small(draw, at[0] + EditorScale.of(8), at[1] - Paint.smallSize() * 0.5f, color, bone.name());
+        }
+        return hoveredBone;
     }
 
     private void ghost(ImDrawList draw, SceneView sceneView, Map<String, JointPose> ghost, Map<String, JointPose> now, int tint, int distance) {
         float strength = 1.0f / distance;
+        if (rig.model() != null) {
+            int line = EditorStyle.withAlpha(tint, 0.5f * strength);
+            for (Skeletons.Joint bone : rig.skeleton()) {
+                if (bone.parent().isEmpty()) continue;
+                CFrame at = rig.boneFrame(bone.name(), ghost);
+                CFrame above = rig.boneFrame(bone.parent(), ghost);
+                float[] to = at == null ? null : sceneView.toScreen(at.position());
+                float[] from = above == null ? null : sceneView.toScreen(above.position());
+                if (to != null && from != null) draw.addLine(from[0], from[1], to[0], to[1], line, EditorScale.of(2.2f));
+            }
+            return;
+        }
         int fill = EditorStyle.withAlpha(tint, 0.16f * strength);
         int edge = EditorStyle.withAlpha(tint, 0.45f * strength);
         for (Map.Entry<String, Joint> entry : rig.joints().entrySet()) {

@@ -1,7 +1,10 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
 import com.meekdev.moud.core.character.Animators;
+import com.meekdev.moud.core.character.Clip;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -27,6 +30,9 @@ public final class AnimationSession {
     private boolean looping = true;
     private double lastTime;
     private @Nullable String joint;
+    private @Nullable Instance control;
+    private @Nullable AnimClip compiledFrom;
+    private Clip compiled = Clip.EMPTY;
     private final Set<KeyRef> keys = new LinkedHashSet<>();
     private int event = -1;
     private int marker = -1;
@@ -61,6 +67,24 @@ public final class AnimationSession {
         return loaded == null ? NOTHING : loaded.clip;
     }
 
+    public Clip compiled() {
+        AnimClip now = clip();
+        if (now != compiledFrom) {
+            compiled = ClipFile.compile(now);
+            compiledFrom = now;
+        }
+        return compiled;
+    }
+
+    public String channel(String joint, boolean retarget) {
+        String channel = compiled().channelFor(joint, retarget);
+        return channel == null ? joint : channel;
+    }
+
+    static String res(Path path) {
+        return "res://" + AssetFiles.root().relativize(path.toAbsolutePath().normalize()).toString().replace('\\', '/');
+    }
+
     @Nullable AnimClip clipAt(Path path) {
         ClipLibrary.Open loaded = library.get(path);
         return loaded == null ? null : loaded.clip;
@@ -84,10 +108,10 @@ public final class AnimationSession {
         return library.anyDirty();
     }
 
-    public boolean v1() {
-        if (current == null) return false;
+    public @Nullable String older() {
+        if (current == null) return null;
         ClipLibrary.Open loaded = library.get(current);
-        return loaded != null && loaded.v1;
+        return loaded == null ? null : loaded.older;
     }
 
     public boolean open(Path path) {
@@ -110,7 +134,7 @@ public final class AnimationSession {
         return true;
     }
 
-    public Path create(String name, AnimClip.Space space) {
+    public Path create(String name, AnimClip.Space space, String rigName) {
         String clean = name.strip().replaceAll("[\\\\/:*?\"<>|]", "_");
         if (clean.isEmpty()) clean = "clip";
         Path folder = library.folder();
@@ -118,7 +142,7 @@ public final class AnimationSession {
         for (int n = 2; Files.exists(path) || library.get(path) != null; n++) path = folder.resolve(clean + " " + n + ClipLibrary.EXTENSION);
         AnimClip clip = new AnimClip();
         clip.space = space;
-        clip.rig = space == AnimClip.Space.VIEW ? "view" : "player";
+        clip.rig = rigName;
         clip.loop = AnimClip.Loop.LOOP;
         library.create(path, clip);
         current = path;
@@ -134,7 +158,7 @@ public final class AnimationSession {
         if (current == null) return;
         try {
             library.save(current);
-            Animators.forget();
+            Animators.forget(res(current));
             say("saved " + library.folder().getParent().relativize(current).toString().replace('\\', '/'));
         } catch (IOException | RuntimeException e) {
             say("could not save: " + e.getMessage());
@@ -285,6 +309,20 @@ public final class AnimationSession {
 
     public void joint(@Nullable String name) {
         joint = name;
+        if (name != null) control = null;
+    }
+
+    public @Nullable Instance control() {
+        return control != null && control.isAlive() ? control : null;
+    }
+
+    public void control(@Nullable Instance chosen) {
+        control = chosen;
+        if (chosen != null) {
+            keys.clear();
+            event = -1;
+            marker = -1;
+        }
     }
 
     public Set<KeyRef> keys() {
@@ -297,6 +335,7 @@ public final class AnimationSession {
         if (!chosen.isEmpty()) {
             event = -1;
             marker = -1;
+            control = null;
         }
     }
 
@@ -309,6 +348,7 @@ public final class AnimationSession {
         if (index >= 0) {
             keys.clear();
             marker = -1;
+            control = null;
         }
     }
 
@@ -321,6 +361,7 @@ public final class AnimationSession {
         if (index >= 0) {
             keys.clear();
             event = -1;
+            control = null;
         }
     }
 

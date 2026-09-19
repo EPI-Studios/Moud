@@ -3,12 +3,16 @@ package com.meekdev.moud.mod.client.editor.animation;
 import com.meekdev.moud.core.character.Appearance;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.CharacterDisplay;
+import com.meekdev.moud.core.character.Clip;
 import com.meekdev.moud.core.character.Limb;
 import com.meekdev.moud.core.character.Rig;
+import com.meekdev.moud.core.character.Rigs;
 import com.meekdev.moud.core.clazz.Classes;
+import com.meekdev.moud.core.instance.Bone;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Joint;
+import com.meekdev.moud.core.instance.Model;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
@@ -54,6 +58,9 @@ final class PreviewRig {
     private boolean borrowedAnimate;
     private final Map<Joint, CFrame> borrowedTransforms = new HashMap<>();
     private final Map<Joint, Vector3> borrowedScales = new HashMap<>();
+    private @Nullable Model model;
+    private final Map<Instance, CFrame> modelTransforms = new HashMap<>();
+    private final Map<Instance, Vector3> modelScales = new HashMap<>();
     private final List<Instance> lived = new ArrayList<>();
     private Skin skin = SKINS.get(1);
     private boolean ownSkin = true;
@@ -61,12 +68,21 @@ final class PreviewRig {
     private boolean viewShown;
 
     @Nullable Character body() {
+        if (model() != null) return null;
         if (borrowed != null && borrowed.isAlive()) return borrowed;
         return preview != null && preview.isAlive() ? preview : null;
     }
 
     boolean borrowing() {
-        return borrowed != null && borrowed.isAlive();
+        return borrowed != null && borrowed.isAlive() || model() != null;
+    }
+
+    @Nullable Model model() {
+        return model != null && model.isAlive() ? model : null;
+    }
+
+    boolean retargets() {
+        return model() == null;
     }
 
     @Nullable Character preview() {
@@ -74,6 +90,7 @@ final class PreviewRig {
     }
 
     String label() {
+        if (model() != null) return model.name();
         if (borrowing()) return borrowed.name();
         return "Player rig · " + (ownSkin ? "you" : skin.label());
     }
@@ -102,6 +119,16 @@ final class PreviewRig {
         return heldItem;
     }
 
+    void borrow(Model chosen) {
+        if (chosen == model) return;
+        giveBack();
+        model = chosen;
+        for (Instance joint : Rigs.jointsIn(chosen).values()) {
+            modelTransforms.put(joint, Rigs.transform(joint));
+            modelScales.put(joint, Rigs.scale(joint));
+        }
+    }
+
     void borrow(Character character) {
         if (character == borrowed) return;
         giveBack();
@@ -120,6 +147,19 @@ final class PreviewRig {
 
     void giveBack() {
         unlive();
+        if (model != null) {
+            modelTransforms.forEach((joint, transform) -> {
+                if (joint instanceof Bone bone) bone.transform = transform;
+                else if (joint instanceof Joint hinge) hinge.transform = transform;
+            });
+            modelScales.forEach((joint, scale) -> {
+                if (joint instanceof Bone bone) bone.scale = scale;
+                else if (joint instanceof Joint hinge) hinge.scale = scale;
+            });
+            modelTransforms.clear();
+            modelScales.clear();
+            model = null;
+        }
         if (borrowed == null) return;
         Character character = borrowed;
         borrowed = null;
@@ -186,6 +226,24 @@ final class PreviewRig {
         lived.clear();
     }
 
+    Map<String, Instance> rigJoints() {
+        Model chosen = model();
+        if (chosen != null) return Rigs.jointsIn(chosen);
+        return new LinkedHashMap<>(joints());
+    }
+
+    List<Skeletons.Joint> skeleton() {
+        List<Skeletons.Joint> out = new ArrayList<>();
+        Map<String, Instance> joints = rigJoints();
+        for (Map.Entry<String, Instance> entry : joints.entrySet()) {
+            Instance above = Rigs.rigParent(entry.getValue());
+            int depth = 0;
+            for (Instance at = above; at != null && depth < 64; at = Rigs.rigParent(at)) depth++;
+            out.add(new Skeletons.Joint(entry.getKey(), above == null ? "" : above.name(), depth));
+        }
+        return out;
+    }
+
     Map<String, Joint> joints() {
         Map<String, Joint> found = new LinkedHashMap<>();
         Character character = body();
@@ -204,7 +262,14 @@ final class PreviewRig {
         return ids;
     }
 
-    void pose(Map<String, JointPose> pose) {
+    void pose(Map<String, JointPose> pose, Runnable controls) {
+        Model chosen = model();
+        if (chosen != null) {
+            poseModel(chosen, pose);
+            controls.run();
+            settleModel();
+            return;
+        }
         Character character = body();
         if (character == null) return;
         showBody(true);
@@ -213,9 +278,41 @@ final class PreviewRig {
             joint.transform = at.transform();
             joint.scale = at.scale();
         }
+        if (borrowing()) controls.run();
         Rig.apply(character);
         live(character);
         liveItems(pose, null);
+    }
+
+    private void poseModel(Model chosen, Map<String, JointPose> pose) {
+        for (Map.Entry<String, Instance> entry : Rigs.jointsIn(chosen).entrySet()) {
+            JointPose at = pose.getOrDefault(entry.getKey(), JointPose.REST);
+            boolean still = at == JointPose.REST;
+            CFrame transform = still ? modelTransforms.getOrDefault(entry.getValue(), CFrame.IDENTITY) : at.transform();
+            Vector3 scale = still ? modelScales.getOrDefault(entry.getValue(), Vector3.ONE) : at.scale();
+            if (entry.getValue() instanceof Bone bone) {
+                bone.transform = transform;
+                bone.scale = scale;
+            } else if (entry.getValue() instanceof Joint hinge) {
+                hinge.transform = transform;
+                hinge.scale = scale;
+            }
+        }
+    }
+
+    private void settleModel() {
+        Model chosen = model();
+        if (chosen == null) return;
+        Motion motion = ClientScene.motion();
+        for (Instance joint : Rigs.jointsIn(chosen).values()) {
+            if (joint instanceof Bone bone) {
+                motion.live(bone, Transforms.local(bone));
+                if (!lived.contains(bone)) lived.add(bone);
+            } else if (joint instanceof Joint hinge && hinge.part1 instanceof Spatial held && held.isAlive()) {
+                motion.live(held, Transforms.local(held));
+                if (!lived.contains(held)) lived.add(held);
+            }
+        }
     }
 
     void poseView(Map<String, JointPose> pose, CFrame camera, boolean ghost) {
@@ -292,11 +389,48 @@ final class PreviewRig {
     }
 
     CFrame world() {
+        Model chosen = model();
+        if (chosen != null) return Transforms.world(chosen);
         Character character = body();
         return character == null ? CFrame.IDENTITY : Transforms.world(character);
     }
 
+    double size() {
+        Model chosen = model();
+        if (chosen != null) return chosen.primaryPart instanceof Part part ? Math.max(0.5, part.size.length() * 0.5) : 1.0;
+        Character character = body();
+        return character == null ? 1.0 : character.scale;
+    }
+
+    Vector3 centre() {
+        Model chosen = model();
+        if (chosen != null && chosen.primaryPart instanceof Part part) return Transforms.world(part).position();
+        return world().position().add(new Vector3(0, size(), 0));
+    }
+
+    @Nullable CFrame boneFrame(String name, Map<String, JointPose> pose) {
+        Model chosen = model();
+        if (chosen == null) return null;
+        Instance joint = Rigs.jointsIn(chosen).get(name);
+        if (joint instanceof Bone bone) return posedBone(bone, pose, 0).mul(pose.getOrDefault(name, JointPose.REST).transform());
+        return joint == null ? null : Rigs.frame(joint);
+    }
+
+    private CFrame posedBone(Bone bone, Map<String, JointPose> pose, int depth) {
+        Instance above = bone.parent();
+        CFrame base = above instanceof Bone parentBone && depth < 64
+                ? posedBone(parentBone, pose, depth + 1).mul(pose.getOrDefault(parentBone.name(), JointPose.REST).transform())
+                : above == null ? CFrame.IDENTITY : Transforms.world(above);
+        return base.mul(bone.cframe);
+    }
+
     @Nullable CFrame parentFrame(String name, Map<String, JointPose> pose) {
+        Model chosen = model();
+        if (chosen != null) {
+            Instance joint = Rigs.jointsIn(chosen).get(name);
+            if (joint instanceof Bone bone) return posedBone(bone, pose, 0);
+            return joint == null ? null : Rigs.parentFrame(joint);
+        }
         Joint joint = joints().get(name);
         if (joint == null || !(joint.part1 instanceof Spatial held)) return null;
         Instance parent = held.parent();
@@ -347,7 +481,7 @@ final class PreviewRig {
 
     static CFrame viewRest(String arm) {
         double side = arm.startsWith("right") ? 1 : -1;
-        return new CFrame(new Vector3(side * 0.38, -0.5, 0.05), Euler.toQuat(new Vector3(78, side * 12, side * -6)));
+        return new CFrame(new Vector3(side * 0.38, -0.5, 0.05), Clip.euler(new Vector3(78, side * 12, side * -6), Clip.EULER));
     }
 
     @Nullable Box viewBox(String arm, Map<String, JointPose> pose, CFrame camera) {

@@ -31,10 +31,11 @@ final class EventSnippets {
 
     static String handler(String clip, String res, AnimClip.Event event) {
         StringBuilder payload = new StringBuilder();
-        for (Map.Entry<String, Object> field : event.payload().entrySet()) {
+        for (Map.Entry<String, Object> field : event.fields().entrySet()) {
             payload.append("    print(payload.").append(field.getKey()).append(") -- ").append(shown(field.getValue())).append('\n');
         }
-        if (event.payload().isEmpty()) payload.append("    print(\"").append(event.name()).append("\")\n");
+        if (!event.table()) payload.append("    print(payload) -- ").append(shown(event.payload())).append('\n');
+        else if (event.fields().isEmpty()) payload.append("    print(\"").append(event.name()).append("\")\n");
         return template().replace("{clip}", clip).replace("{res}", res).replace("{event}", event.name()).replace("{payload}", payload);
     }
 
@@ -66,8 +67,8 @@ final class EventSnippets {
     private static List<Listener> scan(String event) {
         Path root = AssetFiles.root();
         List<Listener> found = new ArrayList<>();
-        String doubled = "getEventSignal(\"" + event + "\")";
-        String single = "getEventSignal('" + event + "')";
+        String doubled = "getMarkerReachedSignal(\"" + event + "\")";
+        String single = "getMarkerReachedSignal('" + event + "')";
         try (Stream<Path> walk = Files.walk(root, 8)) {
             List<Path> scripts = walk.filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".luau"))
                     .filter(path -> !root.relativize(path).toString().startsWith(".")).limit(MAX_FILES).toList();

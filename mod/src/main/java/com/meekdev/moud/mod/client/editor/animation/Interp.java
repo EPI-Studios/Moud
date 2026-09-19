@@ -1,6 +1,6 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
-import java.util.Locale;
+import com.meekdev.moud.core.character.ClipCurve;
 
 public enum Interp {
     LINEAR("linear", "Linear"),
@@ -24,12 +24,12 @@ public enum Interp {
         return label;
     }
 
-    public static Interp named(String key) {
-        String lower = key.toLowerCase(Locale.ROOT);
-        for (Interp interp : values()) {
-            if (interp.key.equals(lower)) return interp;
-        }
-        if (lower.equals("smooth")) return SMOOTH;
-        throw new IllegalArgumentException("interpolation must be linear, catmullrom, bezier or step, got " + key);
+    public ClipCurve.Interp runtime() {
+        return switch (this) {
+            case LINEAR -> ClipCurve.Interp.LINEAR;
+            case SMOOTH -> ClipCurve.Interp.CATMULLROM;
+            case BEZIER -> ClipCurve.Interp.BEZIER;
+            case STEP -> ClipCurve.Interp.STEP;
+        };
     }
 }

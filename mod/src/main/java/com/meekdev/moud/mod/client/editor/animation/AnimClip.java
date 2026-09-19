@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
+import com.meekdev.moud.core.character.Clip;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -114,6 +115,14 @@ public final class AnimClip {
             }
             throw new IllegalArgumentException("an event fires on server, client or both, got " + key);
         }
+
+        public Clip.Side runtime() {
+            return switch (this) {
+                case SERVER -> Clip.Side.SERVER;
+                case CLIENT -> Clip.Side.CLIENT;
+                case BOTH -> Clip.Side.BOTH;
+            };
+        }
     }
 
     public record Marker(double time, String name, String value) {
@@ -122,10 +131,24 @@ public final class AnimClip {
         }
     }
 
-    public record Event(double time, String name, Side on, Map<String, Object> payload, String sound, String particle, boolean preview) {
+    public record Event(double time, String name, Side on, Object payload, String sound, String particle, boolean preview) {
 
         public Event {
-            payload = Collections.unmodifiableMap(new LinkedHashMap<>(payload));
+            if (payload == null) payload = Map.of();
+            if (payload instanceof Map<?, ?> fields) {
+                Map<String, Object> copy = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> field : fields.entrySet()) copy.put(String.valueOf(field.getKey()), field.getValue() == null ? "" : field.getValue());
+                payload = Collections.unmodifiableMap(copy);
+            }
+        }
+
+        public boolean table() {
+            return payload instanceof Map<?, ?>;
+        }
+
+        @SuppressWarnings("unchecked")
+        public Map<String, Object> fields() {
+            return payload instanceof Map<?, ?> fields ? (Map<String, Object>) fields : Map.of();
         }
 
         public Event at(double moved) {
@@ -140,7 +163,7 @@ public final class AnimClip {
             return new Event(time, name, changed, payload, sound, particle, preview);
         }
 
-        public Event carrying(Map<String, Object> changed) {
+        public Event carrying(Object changed) {
             return new Event(time, name, on, changed, sound, particle, preview);
         }
 
@@ -161,11 +184,14 @@ public final class AnimClip {
     public Space space = Space.BODY;
     public Blend blend = Blend.NORMAL;
     public List<String> mask = new ArrayList<>();
+    public String euler = Clip.EULER;
     public final Map<String, Map<Channel, List<AnimKey>>> channels = new LinkedHashMap<>();
+    public final Map<String, Double> weights = new LinkedHashMap<>();
+    public final Map<String, Clip.Link> skeleton = new LinkedHashMap<>();
+    public final Map<String, String> retarget = new LinkedHashMap<>();
     public final List<Marker> markers = new ArrayList<>();
     public final List<Event> events = new ArrayList<>();
     public ViewModel view = ViewModel.DEFAULT;
-    public int format = 2;
 
     public AnimClip copy() {
         AnimClip copy = new AnimClip();
@@ -177,6 +203,10 @@ public final class AnimClip {
         copy.space = space;
         copy.blend = blend;
         copy.mask = new ArrayList<>(mask);
+        copy.euler = euler;
+        copy.weights.putAll(weights);
+        copy.skeleton.putAll(skeleton);
+        copy.retarget.putAll(retarget);
         for (Map.Entry<String, Map<Channel, List<AnimKey>>> joint : channels.entrySet()) {
             Map<Channel, List<AnimKey>> tracks = new EnumMap<>(Channel.class);
             for (Map.Entry<Channel, List<AnimKey>> track : joint.getValue().entrySet()) tracks.put(track.getKey(), new ArrayList<>(track.getValue()));
@@ -185,7 +215,6 @@ public final class AnimClip {
         copy.markers.addAll(markers);
         copy.events.addAll(events);
         copy.view = view;
-        copy.format = format;
         return copy;
     }
 

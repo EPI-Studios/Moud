@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public interface BbmodelImport {
+public interface ModelImport {
 
     record Cube(Vector3 from, Vector3 to) {}
 
@@ -27,7 +27,7 @@ public interface BbmodelImport {
 
     record Choices(Map<String, String> joints, Set<String> animations, String folder, boolean model) {}
 
-    record Outcome(boolean done, String message, List<Path> written) {}
+    record Outcome(boolean done, String message, List<Path> written, List<String> notes) {}
 
     Summary inspect(Path file) throws IOException;
 

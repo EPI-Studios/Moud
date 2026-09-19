@@ -1,5 +1,8 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
+import com.meekdev.moud.core.character.ClipCurve;
+import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.client.editor.files.CodeEditor;
 import com.meekdev.moud.mod.client.editor.kit.EmptyStates;
@@ -11,6 +14,7 @@ import com.meekdev.moud.mod.client.editor.kit.Switches;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.kit.Toolbars;
 import com.meekdev.moud.mod.client.editor.panel.Panel;
+import com.meekdev.moud.mod.client.editor.panel.PropertyRows;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
@@ -41,8 +45,11 @@ final class InspectorPanel implements Panel {
     private static final String PREVIEW_HINT = "Scrubbing past this event plays its sound and particles in the viewport, "
             + "so timing can be judged without running the place.";
 
+    private final AnimationWorkspace workspace;
     private final AnimationSession session;
     private final PreviewRig rig;
+    private final PropertyRows rows;
+    private final ImString payloadValue = new ImString(256);
     private final ImString eventName = new ImString(64);
     private final ImString eventSound = new ImString(128);
     private final ImString eventParticle = new ImString(128);
@@ -56,8 +63,10 @@ final class InspectorPanel implements Panel {
     private String bound = "";
 
     InspectorPanel(AnimationWorkspace workspace, AnimationSession session, PreviewRig rig, IconWidgets icons) {
+        this.workspace = workspace;
         this.session = session;
         this.rig = rig;
+        this.rows = new PropertyRows(workspace.document());
     }
 
     @Override
@@ -78,7 +87,9 @@ final class InspectorPanel implements Panel {
         }
         AnimClip clip = session.clip();
         bind(clip);
-        if (session.event() >= 0 && session.event() < clip.events.size()) renderEvent(clip, session.event());
+        Instance control = session.control();
+        if (control != null) renderControl(control);
+        else if (session.event() >= 0 && session.event() < clip.events.size()) renderEvent(clip, session.event());
         else if (session.marker() >= 0 && session.marker() < clip.markers.size()) renderMarker(clip, session.marker());
         else if (!session.keys().isEmpty()) renderKeys(clip);
         else if (session.joint() != null) renderBone(clip, session.joint());
@@ -88,7 +99,7 @@ final class InspectorPanel implements Panel {
 
     private void bind(AnimClip clip) {
         String key = session.path() + "|" + session.event() + "|" + session.marker();
-        if (key.equals(bound) && !(session.event() >= 0 && fieldKeys.size() != eventOrEmpty(clip).payload().size())) return;
+        if (key.equals(bound) && !(session.event() >= 0 && fieldKeys.size() != eventOrEmpty(clip).fields().size())) return;
         bound = key;
         AnimClip.Event event = eventOrEmpty(clip);
         eventName.set(event.name());
@@ -96,10 +107,11 @@ final class InspectorPanel implements Panel {
         eventParticle.set(event.particle());
         fieldKeys.clear();
         fieldValues.clear();
-        for (Map.Entry<String, Object> field : event.payload().entrySet()) {
+        for (Map.Entry<String, Object> field : event.fields().entrySet()) {
             fieldKeys.add(buffer(field.getKey(), 64));
             fieldValues.add(buffer(EventSnippets.shown(field.getValue()), 128));
         }
+        payloadValue.set(event.table() ? "" : EventSnippets.shown(event.payload()));
         if (session.marker() >= 0 && session.marker() < clip.markers.size()) {
             markerName.set(clip.markers.get(session.marker()).name());
             markerValue.set(clip.markers.get(session.marker()).value());
@@ -259,13 +271,14 @@ final class InspectorPanel implements Panel {
         draw.addLine(left + width / 3, top, left + width / 3, top + height, Paint.GRID);
         draw.addLine(left + width * 2 / 3, top, left + width * 2 / 3, top + height, Paint.GRID);
         AnimKey key = keys.get(index);
+        ClipCurve sampled = Curves.curve(keys);
         double from = index > 0 ? keys.get(index - 1).time() : key.time() - 0.25;
         double to = index + 1 < keys.size() ? keys.get(index + 1).time() : key.time() + 0.25;
         int axis = dominantAxis(keys, index);
         double low = Double.POSITIVE_INFINITY;
         double high = Double.NEGATIVE_INFINITY;
         for (int n = 0; n <= 48; n++) {
-            double value = Curves.component(Curves.sample(keys, from + (to - from) * n / 48.0, ref.channel().rest()), axis);
+            double value = Curves.component(Curves.sample(sampled, from + (to - from) * n / 48.0, ref.channel().rest()), axis);
             low = Math.min(low, value);
             high = Math.max(high, value);
         }
@@ -284,7 +297,7 @@ final class InspectorPanel implements Panel {
         for (int n = 0; n <= 64; n++) {
             double time = from + (to - from) * n / 64.0;
             float px = (float) sx.applyAsDouble(time);
-            float py = (float) sy.applyAsDouble(Curves.component(Curves.sample(keys, time, ref.channel().rest()), axis));
+            float py = (float) sy.applyAsDouble(Curves.component(Curves.sample(sampled, time, ref.channel().rest()), axis));
             if (n > 0) draw.addLine(previousX, previousY, px, py, Paint.axis(axis), EditorScale.of(1.8f));
             previousX = px;
             previousY = py;
@@ -328,9 +341,24 @@ final class InspectorPanel implements Panel {
         return best;
     }
 
-    private void renderBone(AnimClip clip, String joint) {
+    private void renderControl(Instance control) {
+        if (!header(control.def().name(), "")) return;
+        readOnly("Name", control.name());
+        rows.beginFrame();
+        ImGui.beginDisabled(!workspace.document().editable(control));
+        for (PropertyDef property : control.def().properties()) {
+            if (property != null) rows.render(control, property, List.of(control));
+        }
+        ImGui.endDisabled();
+        rows.pruneStaleKeys();
+        Sections.caption("Drag the target and pole handles in the viewport to move them");
+        ImGui.dummy(0, EditorScale.of(6));
+    }
+
+    private void renderBone(AnimClip clip, String bone) {
         if (!header("Bone", Paint.seconds(session.keyTime()) + " s")) return;
-        readOnly("Bone", joint + "  \u00b7  " + clip.keyCount(joint) + " keys");
+        String joint = session.channel(bone, workspace.retargets());
+        readOnly("Bone", (joint.equals(bone) ? bone : bone + " \u2190 " + joint) + "  \u00b7  " + clip.keyCount(joint) + " keys");
         JointPose pose = JointPose.of(clip, joint, session.keyTime());
         for (Channel channel : Channel.values()) {
             label(channel.label());
@@ -398,7 +426,8 @@ final class InspectorPanel implements Panel {
             session.edit("Set event side", edited -> edited.events.set(index, edited.events.get(index).firing(chosen)));
         }
         Texts.plain("Payload");
-        renderPayload(event, index);
+        if (event.table()) renderPayload(event, index);
+        else renderValue(index);
         ImGui.dummy(0, EditorScale.of(4));
         renderPreviewCard(event, index);
         ImGui.dummy(0, EditorScale.of(4));
@@ -407,8 +436,24 @@ final class InspectorPanel implements Panel {
         ImGui.dummy(0, EditorScale.of(6));
     }
 
+    private void renderValue(int index) {
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - EditorScale.of(PAD));
+        Paint.pushMono();
+        if (ImGui.inputText("##anim-event-value", payloadValue)) {
+            String value = payloadValue.get();
+            session.edit("Edit payload", "anim-payload-value-" + index, edited -> edited.events.set(index, edited.events.get(index).carrying(value)));
+        }
+        Paint.popMono();
+        Toolbars.pushFlatButtons();
+        if (ImGui.button("Make it a table##anim-payload-table")) {
+            session.edit("Make payload a table", edited -> edited.events.set(index, edited.events.get(index).carrying(Map.of())));
+            bound = "";
+        }
+        Toolbars.popFlatButtons();
+    }
+
     private void renderPayload(AnimClip.Event event, int index) {
-        List<Map.Entry<String, Object>> fields = new ArrayList<>(event.payload().entrySet());
+        List<Map.Entry<String, Object>> fields = new ArrayList<>(event.fields().entrySet());
         float width = ImGui.getContentRegionAvailX() - EditorScale.of(PAD);
         float column = (width - ImGui.getFrameHeight()) / 3;
         int removed = -1;
@@ -446,7 +491,7 @@ final class InspectorPanel implements Panel {
         if (removed >= 0) {
             int gone = removed;
             session.edit("Remove payload field", edited -> {
-                Map<String, Object> payload = new LinkedHashMap<>(edited.events.get(index).payload());
+                Map<String, Object> payload = new LinkedHashMap<>(edited.events.get(index).fields());
                 payload.remove(fields.get(gone).getKey());
                 edited.events.set(index, edited.events.get(index).carrying(payload));
             });
@@ -455,7 +500,7 @@ final class InspectorPanel implements Panel {
         Toolbars.pushFlatButtons();
         if (ImGui.button("+ field##anim-add-field")) {
             session.edit("Add payload field", edited -> {
-                Map<String, Object> payload = new LinkedHashMap<>(edited.events.get(index).payload());
+                Map<String, Object> payload = new LinkedHashMap<>(edited.events.get(index).fields());
                 String name = "field";
                 for (int n = 2; payload.containsKey(name); n++) name = "field" + n;
                 payload.put(name, 0.0);
@@ -542,7 +587,7 @@ final class InspectorPanel implements Panel {
 
     private void renderHandler(AnimClip clip, AnimClip.Event event) {
         Path path = session.path();
-        String res = path == null ? "" : "res://" + session.library().folder().getParent().relativize(path).toString().replace('\\', '/');
+        String res = path == null ? "" : AnimationSession.res(path);
         String snippet = EventSnippets.handler(session.name(), res, event);
         Texts.muted("Handler");
         ImGui.sameLine(ImGui.getContentRegionMaxX() - ImGui.calcTextSizeX("Copy snippet") - EditorStyle.framePaddingX() * 2 - EditorScale.of(PAD));
@@ -714,7 +759,7 @@ final class InspectorPanel implements Panel {
         draw.addRect(left, top, left + width, top + height, hovered ? EditorStyle.COLOR_TEXT_MUTED : EditorStyle.COLOR_WIDGET_OUTLINE, height * 0.5f);
         draw.addText(left + EditorScale.of(10), top + (height - ImGui.getTextLineHeight()) * 0.5f, EditorStyle.COLOR_TEXT_MUTED, add);
         if (ImGui.beginPopup("##anim-mask-add")) {
-            for (String joint : Rigs.names(clip)) {
+            for (String joint : Skeletons.names(workspace.skeleton())) {
                 if (clip.mask.contains(joint)) continue;
                 if (ImGui.menuItem(joint)) session.edit("Mask " + joint, edited -> edited.mask.add(joint));
             }

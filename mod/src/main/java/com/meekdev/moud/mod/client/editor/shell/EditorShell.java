@@ -297,6 +297,7 @@ public final class EditorShell {
         boolean waiting = animation.launching() && !EditMode.editing() && EditMode.allowed();
         if (waiting && client.screen == null && client.level != null) EditMode.request(true);
         if (EditMode.editing()) animation.tick();
+        animation.steps();
     }
 
     public void render() {
