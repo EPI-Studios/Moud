@@ -872,6 +872,7 @@ final class TimelinePanel implements Panel {
     }
 
     private void fitValues(AnimClip clip, List<Curve> shown) {
+        if ((drag == Drag.CURVE_POINT || drag == Drag.CURVE_HANDLE) && valueMax > valueMin) return;
         double low = Double.POSITIVE_INFINITY;
         double high = Double.NEGATIVE_INFINITY;
         for (Curve curve : shown) {
@@ -891,10 +892,6 @@ final class TimelinePanel implements Panel {
         if (low == Double.POSITIVE_INFINITY) {
             low = -1;
             high = 1;
-        }
-        if (drag == Drag.CURVE_POINT || drag == Drag.CURVE_HANDLE) {
-            low = Math.min(low, valueMin);
-            high = Math.max(high, valueMax);
         }
         double pad = Math.max(1e-3, (high - low) * 0.12);
         if (high - low < 1e-3) pad = Math.max(1, Math.abs(high) * 0.2);
