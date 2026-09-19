@@ -26,5 +26,5 @@ public final class RopeConstraint extends Constraint {
 
     @Prop(min = 0, max = 200) public double winchResponsiveness = 45;
 
-    public double currentDistance;
+    @Prop(engineWritten = true) public double currentDistance;
 }

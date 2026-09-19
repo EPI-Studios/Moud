@@ -9,5 +9,5 @@ public final class WeldConstraint extends Instance {
     public Instance part1;
     public boolean enabled = true;
 
-    @Prop(driven = true) public boolean active;
+    @Prop(driven = true, engineWritten = true) public boolean active;
 }

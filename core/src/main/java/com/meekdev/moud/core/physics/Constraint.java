@@ -13,5 +13,5 @@ public class Constraint extends Instance {
     public boolean collideConnected;
     public Color color = new Color(0.64f, 0.64f, 0.64f);
 
-    @Prop(driven = true) public boolean active;
+    @Prop(driven = true, engineWritten = true) public boolean active;
 }

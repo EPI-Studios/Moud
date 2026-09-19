@@ -42,6 +42,8 @@ public final class SubLevels {
     private final Map<Integer, SubLevelEntity> entities = new HashMap<>();
     private final Map<Integer, Integer> square = new HashMap<>();
     private final Map<Integer, CFrame> written = new HashMap<>();
+    private final Map<Integer, Vector3> sped = new HashMap<>();
+    private final Map<Integer, Vector3> spun = new HashMap<>();
     private static boolean simulating = true;
     private final Map<Integer, B3Body> dressed = new HashMap<>();
     private final Map<Integer, List<Consumer<B3Body>>> pending = new HashMap<>();
@@ -101,7 +103,10 @@ public final class SubLevels {
             }
             if (part.anchored || !simulating) drive(subLevel, part);
             else if (owned(part)) chase(subLevel, part);
-            else follow(subLevel, part);
+            else {
+                launch(part, body);
+                follow(subLevel, part);
+            }
         }
         if (letGo != null) {
             for (int id : letGo) release(id);
@@ -119,8 +124,14 @@ public final class SubLevels {
         }
         Vector3 speed = BoxFrames.vector(body.linearVelocity());
         Vector3 spin = BoxFrames.vector(body.angularVelocity());
-        if (speed.sub(part.velocity).lengthSq() > STILL) Instances.setObj(part, VELOCITY, speed);
-        if (spin.sub(part.angularVelocity).lengthSq() > STILL) Instances.setObj(part, ANGULAR_VELOCITY, spin);
+        if (speed.sub(part.velocity).lengthSq() > STILL) {
+            sped.put(part.id(), speed);
+            Instances.setObj(part, VELOCITY, speed);
+        }
+        if (spin.sub(part.angularVelocity).lengthSq() > STILL) {
+            spun.put(part.id(), spin);
+            Instances.setObj(part, ANGULAR_VELOCITY, spin);
+        }
     }
 
     private static boolean same(CFrame a, @Nullable CFrame b) {
@@ -368,9 +379,25 @@ public final class SubLevels {
         return subLevel;
     }
 
+    private void launch(Part part, @Nullable B3Body body) {
+        Vector3 speed = sped.put(part.id(), part.velocity);
+        Vector3 spin = spun.put(part.id(), part.angularVelocity);
+        if (body == null || body.type() != B3BodyType.DYNAMIC) return;
+        if (speed != null && !speed.equals(part.velocity)) {
+            body.setLinearVelocity(BoxFrames.vec(part.velocity));
+            body.setAwake(true);
+        }
+        if (spin != null && !spin.equals(part.angularVelocity)) {
+            body.setAngularVelocity(BoxFrames.vec(part.angularVelocity));
+            body.setAwake(true);
+        }
+    }
+
     private void release(int id) {
         square.remove(id);
         written.remove(id);
+        sped.remove(id);
+        spun.remove(id);
         dressed.remove(id);
         pending.remove(id);
         SubLevelEntity entity = entities.remove(id);
@@ -388,6 +415,8 @@ public final class SubLevels {
         byInstance.clear();
         square.clear();
         written.clear();
+        sped.clear();
+        spun.clear();
         dressed.clear();
         pending.clear();
         warned = false;

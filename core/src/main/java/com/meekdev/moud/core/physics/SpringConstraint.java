@@ -11,7 +11,7 @@ public final class SpringConstraint extends Constraint {
     @Prop(min = 0) public double minLength;
     @Prop(min = 0) public double maxLength = 5;
 
-    public double currentLength;
+    @Prop(engineWritten = true) public double currentLength;
 
     @Prop(min = 0, max = 50) public double coils = 5;
 

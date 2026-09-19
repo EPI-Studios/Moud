@@ -108,7 +108,8 @@ public final class NetworkOwners {
         boolean held = false;
         Part chosen = null;
         for (Part part : group) {
-            if (part.ownerSilence() > (part.simulatedRemotely() ? QUIET_TICKS : FIRST_REPORT_TICKS)) silent = true;
+            boolean reports = Physics.shapes().body(part.id()) != null;
+            if (reports && part.ownerSilence() > (part.simulatedRemotely() ? QUIET_TICKS : FIRST_REPORT_TICKS)) silent = true;
             if (part.heldForServer()) held = true;
             if (chosen == null && part.ownershipSet()) chosen = part;
         }

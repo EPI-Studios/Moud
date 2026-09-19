@@ -10,6 +10,7 @@ import com.meekdev.box3d.B3RevoluteJoint;
 import com.meekdev.box3d.B3SphericalJoint;
 import com.meekdev.box3d.B3Transform;
 import com.meekdev.box3d.B3World;
+import com.meekdev.box3d.Quat;
 import com.meekdev.box3d.Vec3;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
@@ -48,6 +49,7 @@ public final class Joints {
     private static final double TICK = 0.05;
     private static final double WINCH_EASE = 0.1;
     private static final double EPSILON = 1.0e-4;
+    private static final Quat X_ALONG_Z = new Quat(0, (float) Math.sqrt(0.5), 0, (float) Math.sqrt(0.5));
 
     private record Built(B3Joint joint, int shape) {}
 
@@ -190,9 +192,9 @@ public final class Joints {
         Vec3 anchor1 = BoxFrames.vec(ends.frame1().position());
         Vec3 jointAxis = BoxFrames.vec(ends.frame0().rightVector());
         return switch (instance) {
-            case HingeConstraint ignored -> pinned(world.createRevoluteJoint(a, b, anchor0, jointAxis), b, ends);
-            case PrismaticConstraint ignored -> pinned(world.createPrismaticJoint(a, b, anchor0, jointAxis), b, ends);
-            case BallSocketConstraint ignored -> pinned(world.createSphericalJoint(a, b, anchor0), b, ends);
+            case HingeConstraint ignored -> pinned(world.createRevoluteJoint(a, b, anchor0, jointAxis), a, b, ends);
+            case PrismaticConstraint ignored -> pinned(world.createPrismaticJoint(a, b, anchor0, jointAxis), a, b, ends);
+            case BallSocketConstraint ignored -> pinned(world.createSphericalJoint(a, b, anchor0), a, b, ends);
             case RopeConstraint rope -> world.createDistanceJoint(a, b, anchor0, anchor1, (float) rope.length);
             case SpringConstraint spring -> world.createDistanceJoint(a, b, anchor0, anchor1, (float) spring.freeLength);
             case RodConstraint rod -> world.createDistanceJoint(a, b, anchor0, anchor1, (float) rod.length);
@@ -200,10 +202,20 @@ public final class Joints {
         };
     }
 
-    private static B3Joint pinned(B3Joint joint, B3Body b, Ends ends) {
-        Vec3 anchor = b.localPoint(BoxFrames.vec(ends.frame1().position()));
-        joint.setLocalFrameB(new B3Transform(anchor, joint.localFrameB().rotation()));
+    private static B3Joint pinned(B3Joint joint, B3Body a, B3Body b, Ends ends) {
+        joint.setLocalFrameA(localFrame(a, ends.frame0()));
+        joint.setLocalFrameB(localFrame(b, ends.frame1()));
         return joint;
+    }
+
+    private static B3Transform localFrame(B3Body body, CFrame frame) {
+        Vec3 anchor = body.localPoint(BoxFrames.vec(frame.position()));
+        Quat rotation = body.rotation().conjugate().mul(axis(frame));
+        return new B3Transform(anchor, rotation);
+    }
+
+    private static Quat axis(CFrame frame) {
+        return BoxFrames.quat(frame.rotation()).mul(X_ALONG_Z);
     }
 
     private void drive(Instance instance, B3Joint joint, Ends ends, B3Body a, B3Body b) {

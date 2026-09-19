@@ -33,7 +33,7 @@ public class Part extends Spatial {
     @Prop(driven = true) public Vector3 velocity = Vector3.ZERO;
     @Prop(driven = true) public Vector3 angularVelocity = Vector3.ZERO;
 
-    public String networkOwner = "";
+    @Prop(engineWritten = true) public String networkOwner = "";
 
     private boolean ownershipSet;
 

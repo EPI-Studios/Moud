@@ -145,6 +145,7 @@ public final class ClassDef<T extends Instance> {
         boolean replicated = !readOnly && (opts == null || opts.replicated());
         boolean driven = opts != null && opts.driven();
         boolean asset = opts != null && opts.asset();
+        boolean engineWritten = opts != null && opts.engineWritten();
         if (asset && kind != PropertyType.STRING && kind != PropertyType.ASSET) {
             throw new IllegalStateException(owner + "." + field.getName() + ": asset properties must be strings");
         }
@@ -154,7 +155,7 @@ public final class ClassDef<T extends Instance> {
         double min = opts == null ? Double.NEGATIVE_INFINITY : opts.min();
         double max = opts == null ? Double.POSITIVE_INFINITY : opts.max();
 
-        return new PropertyDef(field.getName(), kind, index, replicated, driven, asset, readOnly,
+        return new PropertyDef(field.getName(), kind, index, replicated, driven, asset, readOnly, engineWritten,
                 handle.get(prototype), min, max, handle);
     }
 
