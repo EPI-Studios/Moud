@@ -12,3 +12,7 @@ docs/
 .zig-cache/
 zig-out/
 zig-pkg/
+
+website/*
+!website/dist/
+__pycache__/

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moud Docs</title>
+<link rel="icon" href="art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="style.css?v=e2d4cbc6">
+</head>
+<body class="home-body" data-search-base="docs/">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="" class="brand"><img src="art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab" href="docs/index.html">Guides</a>
+    <a class="tab" href="docs/reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="docs/index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="docs/getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="docs/place.html"><img class="engine-icon" src="art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="docs/containers.html"><img class="engine-icon" src="art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="docs/instances.html"><img class="engine-icon" src="art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="docs/tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="docs/character.html"><img class="engine-icon" src="art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="docs/animation.html"><img class="engine-icon" src="art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="docs/players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="docs/tools.html"><img class="engine-icon" src="art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="docs/movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="docs/editor.html"><img class="engine-icon" src="art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="docs/plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="docs/physics.html"><img class="engine-icon" src="art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="docs/camera-and-input.html"><img class="engine-icon" src="art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="docs/game-and-screens.html"><img class="engine-icon" src="art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="docs/window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="docs/queries.html"><img class="engine-icon" src="art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="docs/blocks.html"><img class="engine-icon" src="art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="docs/zones-and-triggers.html"><img class="engine-icon" src="art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="docs/interface.html"><img class="engine-icon" src="art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="docs/chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="docs/rich-text.html"><img class="engine-icon" src="art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="docs/images.html"><img class="engine-icon" src="art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="docs/sound.html"><img class="engine-icon" src="art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="docs/rendering.html"><img class="engine-icon" src="art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="docs/lighting.html"><img class="engine-icon" src="art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="docs/effects.html"><img class="engine-icon" src="art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="docs/mixins.html"><img class="engine-icon" src="art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="docs/languages.html"><img class="engine-icon" src="art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="docs/tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="docs/math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="docs/saving.html"><img class="engine-icon" src="art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="docs/memory.html"><img class="engine-icon" src="art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="docs/http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="docs/talking.html"><img class="engine-icon" src="art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="docs/debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="docs/reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><span>Home</span></nav>
+    <article class="doc home-doc">
+      <h1 id="moud">Moud</h1>
+      <p>Moud runs games written in Luau inside Minecraft. A game is a place: a folder of Luau that builds a tree of
+      instances, which the engine draws, collides and sends to every player. These pages cover that tree, every class
+      in it, and how the server and each client share it.</p>
+      <button type="button" class="search-button home-search"><i class="ph-bold ph-magnifying-glass"></i><span>Search classes, properties and guides</span><kbd>Ctrl K</kbd></button>
+
+      <h2 id="first-place">Your first place</h2>
+      <p>This is enough for a floor to stand on: the server builds the world and puts every player who joins on it.</p>
+      <div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+<span class="syn-keyword">local</span> world = game.world
+
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;floor&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">40</span>, <span class="syn-num">1</span>, <span class="syn-num">40</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">64</span>, <span class="syn-num">0</span>),
+    anchored = <span class="syn-const">true</span>,
+})
+
+game.players.joined:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    player:<span class="syn-func">spawn</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">66</span>, <span class="syn-num">0</span>))
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+      <p><a href="docs/getting-started.html">Getting started</a> walks through it line by line.</p>
+
+      <h2 id="guides">Guides</h2>
+      <div class="tiles"><a class="tile" href="docs/getting-started.html"><span class="tile-art"><i class="ph-fill ph-rocket-launch"></i></span><span class="tile-title">Your first place</span><span class="tile-text">The smallest place that does something</span></a><a class="tile" href="docs/physics.html"><span class="tile-art"><i class="ph-fill ph-cube"></i></span><span class="tile-title">Physics</span><span class="tile-text">Falling parts, shapes, pushing, who simulates a part, models, welds, hinges, ropes, winches, springs and rods</span></a><a class="tile" href="docs/zones-and-triggers.html"><span class="tile-art"><i class="ph-fill ph-target"></i></span><span class="tile-title">Zones</span><span class="tile-text">Regions, triggers, &quot;press E&quot;, clickable parts</span></a><a class="tile" href="docs/animation.html"><span class="tile-art"><i class="ph-fill ph-film-strip"></i></span><span class="tile-title">Animation</span><span class="tile-text">.anim files, keyframe sequences, tracks, fades and markers</span></a><a class="tile" href="docs/players.html"><span class="tile-art"><i class="ph-fill ph-users-three"></i></span><span class="tile-title">Players</span><span class="tile-text">Finding players, asking a body, teams, leaderstats, paths and following</span></a><a class="tile" href="docs/interface.html"><span class="tile-art"><i class="ph-fill ph-layout"></i></span><span class="tile-title">Interface</span><span class="tile-text">Screen, billboard and surface guis, layouts, text boxes, scrolling, mouse events</span></a><a class="tile" href="docs/lighting.html"><span class="tile-art"><i class="ph-fill ph-sun"></i></span><span class="tile-title">Lighting</span><span class="tile-text">The day clock, the sun, skyboxes, distance fog, clouds, rain, snow, storms and lightning, and presets that set a whole look at once</span></a><a class="tile" href="docs/effects.html"><span class="tile-art"><i class="ph-fill ph-sparkle"></i></span><span class="tile-title">Effects</span><span class="tile-text">Emitters, fire, smoke, bursts, selection boxes, explosions</span></a></div>
+
+      <h2 id="every-page">Every page</h2>
+      <div class="browse"><div class="browse-col"><h3>Start</h3><ul><li><a href="docs/index.html"><i class="ph-fill ph-house"></i>Overview</a></li><li><a href="docs/getting-started.html"><i class="ph-fill ph-rocket-launch"></i>Getting started</a></li><li><a href="docs/place.html"><img class="engine-icon" src="art/icons/PackedScene.png" alt="" width="16" height="16">Places, modules, scenes and scripts</a></li><li><a href="docs/containers.html"><img class="engine-icon" src="art/icons/Folder.png" alt="" width="16" height="16">Containers</a></li></ul></div><div class="browse-col"><h3>The world</h3><ul><li><a href="docs/instances.html"><img class="engine-icon" src="art/icons/Node3D.png" alt="" width="16" height="16">Instances</a></li><li><a href="docs/tree.html"><i class="ph-fill ph-tree-structure"></i>Working with the tree</a></li><li><a href="docs/character.html"><img class="engine-icon" src="art/icons/CharacterBody3D.png" alt="" width="16" height="16">Characters</a></li><li><a href="docs/animation.html"><img class="engine-icon" src="art/icons/Animation.png" alt="" width="16" height="16">Animations</a></li><li><a href="docs/players.html"><i class="ph-fill ph-users-three"></i>Players and bodies</a></li><li><a href="docs/tools.html"><img class="engine-icon" src="art/icons/ToolSelect.png" alt="" width="16" height="16">Tools</a></li><li><a href="docs/movement.html"><i class="ph-fill ph-person-simple-run"></i>Movement, collision and input</a></li><li><a href="docs/editor.html"><img class="engine-icon" src="art/icons/ToolMove.png" alt="" width="16" height="16">Building in the editor</a></li><li><a href="docs/plugins.html"><i class="ph-fill ph-puzzle-piece"></i>Editor plugins</a></li><li><a href="docs/physics.html"><img class="engine-icon" src="art/icons/RigidBody3D.png" alt="" width="16" height="16">Physics</a></li><li><a href="docs/camera-and-input.html"><img class="engine-icon" src="art/icons/Camera3D.png" alt="" width="16" height="16">Camera and input</a></li><li><a href="docs/game-and-screens.html"><img class="engine-icon" src="art/icons/Pause.png" alt="" width="16" height="16">Pausing, quitting, settings and screens</a></li><li><a href="docs/window.html"><i class="ph-fill ph-browser"></i>Windows</a></li><li><a href="docs/queries.html"><img class="engine-icon" src="art/icons/Search.png" alt="" width="16" height="16">Queries</a></li><li><a href="docs/blocks.html"><img class="engine-icon" src="art/icons/Grid.png" alt="" width="16" height="16">Blocks</a></li><li><a href="docs/zones-and-triggers.html"><img class="engine-icon" src="art/icons/CollisionShape3D.png" alt="" width="16" height="16">Zones, touches, tags, prompts and clicks</a></li></ul></div><div class="browse-col"><h3>Screen and sound</h3><ul><li><a href="docs/interface.html"><img class="engine-icon" src="art/icons/Control.png" alt="" width="16" height="16">Interface</a></li><li><a href="docs/chat.html"><i class="ph-fill ph-chat-circle-text"></i>Chat</a></li><li><a href="docs/rich-text.html"><img class="engine-icon" src="art/icons/Label3D.png" alt="" width="16" height="16">Rich text</a></li><li><a href="docs/images.html"><img class="engine-icon" src="art/icons/Texture2D.png" alt="" width="16" height="16">Images</a></li><li><a href="docs/sound.html"><img class="engine-icon" src="art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16">Sound</a></li><li><a href="docs/rendering.html"><img class="engine-icon" src="art/icons/MeshInstance3D.png" alt="" width="16" height="16">Models, lights, post effects and held items</a></li><li><a href="docs/lighting.html"><img class="engine-icon" src="art/icons/DirectionalLight3D.png" alt="" width="16" height="16">Lighting, sky, weather and presets</a></li><li><a href="docs/effects.html"><img class="engine-icon" src="art/icons/GPUParticles3D.png" alt="" width="16" height="16">Particles, beams, trails, highlights and decals</a></li></ul></div><div class="browse-col"><h3>Scripting</h3><ul><li><a href="docs/mixins.html"><img class="engine-icon" src="art/icons/Shader.png" alt="" width="16" height="16">Mixins, Java and shader patches</a></li><li><a href="docs/languages.html"><img class="engine-icon" src="art/icons/Script.png" alt="" width="16" height="16">Other languages</a></li><li><a href="docs/tweens-and-timing.html"><i class="ph-fill ph-timer"></i>Tweens and timing</a></li><li><a href="docs/math.html"><i class="ph-fill ph-function"></i>Math</a></li><li><a href="docs/saving.html"><img class="engine-icon" src="art/icons/Save.png" alt="" width="16" height="16">Saving</a></li><li><a href="docs/memory.html"><img class="engine-icon" src="art/icons/KeyValue.png" alt="" width="16" height="16">Memory stores</a></li><li><a href="docs/http.html"><i class="ph-fill ph-globe"></i>Reaching websites</a></li><li><a href="docs/talking.html"><img class="engine-icon" src="art/icons/GraphEdit.png" alt="" width="16" height="16">Talking across the boundary</a></li><li><a href="docs/debug.html"><i class="ph-fill ph-bug"></i>Debugging</a></li></ul></div><div class="browse-col"><h3>Reference</h3><ul><li><a href="docs/reference.html"><i class="ph-fill ph-book-bookmark"></i>Reference</a></li></ul></div></div>
+    </article>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios. Moud is not affiliated with Mojang or Microsoft.</span>
+      <a href="https://github.com/EPI-Studios/Moud">GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul>
+    <li><a href="#first-place">Your first place</a></li>
+    <li><a href="#guides">Guides</a></li>
+    <li><a href="#every-page">Every page</a></li>
+  </ul></aside>
+</div>
+
+<script src="docs/search.js"></script>
+<script src="docs.js?v=d6406e02"></script>
+</body>
+</html>
