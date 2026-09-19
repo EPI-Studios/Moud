@@ -149,8 +149,8 @@ public final class AnimClip {
         }
     }
 
-    public record ViewModel(String model, double sway, double bob, double recoil, double inspect) {
-        public static final ViewModel DEFAULT = new ViewModel("", 0.6, 0.35, 1.0, 0.2);
+    public record ViewModel(String model) {
+        public static final ViewModel DEFAULT = new ViewModel("");
     }
 
     public double length = 1.0;

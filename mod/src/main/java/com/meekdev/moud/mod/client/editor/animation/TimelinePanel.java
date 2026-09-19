@@ -359,17 +359,9 @@ final class TimelinePanel implements Panel {
             boolean selected = lane.kind() == Kind.JOINT && lane.joint().equals(session.joint());
             if (selected) draw.addRectFilled(left, top, lanesLeft, top + row, EditorStyle.withAlpha(EditorStyle.COLOR_ACCENT, 0.1f));
             float x = left + EditorScale.of(12) + lane.depth() * EditorScale.of(14);
-            float dot = EditorScale.of(7);
-            int dotColor = switch (lane.kind()) {
-                case MARKERS -> EditorStyle.COLOR_TEXT_MUTED;
-                case EVENTS -> Paint.EVENT;
-                case JOINT -> clip.keyCount(lane.joint()) > 0 ? EditorStyle.COLOR_TEXT_MUTED : EditorStyle.COLOR_TEXT_FAINT;
-                case CHANNEL -> Paint.channel(lane.channel());
-            };
             float middle = top + row * 0.5f;
-            draw.addRectFilled(x, middle - dot * 0.5f, x + dot, middle + dot * 0.5f, dotColor, EditorScale.of(2));
             int text = nameColor(clip, lane, selected);
-            draw.addText(x + dot + EditorScale.of(7), middle - ImGui.getTextLineHeight() * 0.5f, text, lane.label());
+            draw.addText(x, middle - ImGui.getTextLineHeight() * 0.5f, text, lane.label());
             if (lane.kind() == Kind.JOINT) {
                 boolean open = session.expanded().contains(lane.joint());
                 float arrowX = lanesLeft - EditorScale.of(16);

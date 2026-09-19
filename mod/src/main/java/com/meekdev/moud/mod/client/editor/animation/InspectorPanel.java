@@ -603,10 +603,7 @@ final class InspectorPanel implements Panel {
         Paint.popMono();
         if (changed) {
             String path = model.get().strip();
-            session.edit("Set view model", "anim-view-model-path", edited -> {
-                AnimClip.ViewModel old = edited.view;
-                edited.view = new AnimClip.ViewModel(path, old.sway(), old.bob(), old.recoil(), old.inspect());
-            });
+            session.edit("Set view model", "anim-view-model-path", edited -> edited.view = new AnimClip.ViewModel(path));
         }
         Sections.caption("Empty uses the player's own skin arms.");
         ImGui.dummy(0, EditorScale.of(2));
@@ -614,31 +611,8 @@ final class InspectorPanel implements Panel {
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - EditorScale.of(PAD));
         if (ImGui.inputTextWithHint("##anim-view-held", "minecraft:lantern", held)) rig.heldItem(held.get().strip());
         ImGui.dummy(0, EditorScale.of(4));
-        Sections.caption("PROCEDURAL LAYERS");
-        AnimClip.ViewModel view = clip.view;
-        double sway = slider("Sway", "anim-view-sway", view.sway());
-        double bob = slider("Bob", "anim-view-bob", view.bob());
-        double recoil = slider("Recoil on camera bone", "anim-view-recoil", view.recoil());
-        double inspect = slider("Inspect idle", "anim-view-inspect", view.inspect());
-        if (sway != view.sway() || bob != view.bob() || recoil != view.recoil() || inspect != view.inspect()) {
-            session.edit("Set view layers", "anim-view-layers", edited -> {
-                edited.view = new AnimClip.ViewModel(edited.view.model(), sway, bob, recoil, inspect);
-            });
-        }
-        ImGui.dummy(0, EditorScale.of(4));
-        Notices.info("View clips play on body.viewModel. Other players see the body clip with the same name.");
+        Notices.info("View clips play on body.viewModel.");
         ImGui.dummy(0, EditorScale.of(6));
-    }
-
-    private static double slider(String text, String id, double value) {
-        float width = ImGui.getContentRegionAvailX() - EditorScale.of(PAD);
-        Texts.plain(text);
-        ImGui.sameLine(ImGui.getContentRegionMaxX() - Paint.monoWidth("0.00") - EditorScale.of(PAD));
-        Paint.pushMono();
-        Texts.muted(String.format(Locale.ROOT, "%.2f", value));
-        Paint.popMono();
-        float updated = NumberFields.ranged("##" + id, (float) value, 0.01f, width, 0, 1);
-        return Math.clamp(Math.round(updated * 100) / 100.0, 0, 1);
     }
 
     private void renderClip(AnimClip clip) {

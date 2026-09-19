@@ -82,14 +82,6 @@ final class TopBar {
         crumb(place, false);
         crumb(ClipLibrary.FOLDER, false);
         crumb(session.hasClip() ? session.name() + ClipLibrary.EXTENSION : "no clip", true);
-        if (session.dirty()) {
-            ImGui.sameLine(0, EditorStyle.itemSpacingX() * 2);
-            float x = ImGui.getCursorScreenPosX();
-            float y = ImGui.getCursorScreenPosY() + ImGui.getFrameHeight() * 0.5f;
-            draw.addCircleFilled(x + EditorScale.of(3), y, EditorScale.of(3), EditorStyle.COLOR_WARNING);
-            ImGui.dummy(EditorScale.of(6), ImGui.getFrameHeight());
-            tooltip("Unsaved changes");
-        }
         if (session.hasClip() && session.v1()) {
             ImGui.sameLine(0, EditorStyle.itemSpacingX() * 2);
             ImGui.alignTextToFramePadding();

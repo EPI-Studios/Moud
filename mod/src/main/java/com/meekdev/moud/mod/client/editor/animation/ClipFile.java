@@ -52,13 +52,7 @@ public final class ClipFile {
         }
         readTimed(root, clip);
         if (root.get("viewModel") instanceof Map<?, ?> view) {
-            AnimClip.ViewModel base = AnimClip.ViewModel.DEFAULT;
-            clip.view = new AnimClip.ViewModel(
-                    view.get("model") == null ? "" : String.valueOf(view.get("model")),
-                    view.get("sway") == null ? base.sway() : number(view.get("sway"), "sway"),
-                    view.get("bob") == null ? base.bob() : number(view.get("bob"), "bob"),
-                    view.get("recoil") == null ? base.recoil() : number(view.get("recoil"), "recoil"),
-                    view.get("inspect") == null ? base.inspect() : number(view.get("inspect"), "inspect"));
+            clip.view = new AnimClip.ViewModel(view.get("model") == null ? "" : String.valueOf(view.get("model")));
         }
         clip.length = root.get("length") == null ? clip.lastKeyTime() : number(root.get("length"), "length");
         return clip;
@@ -191,10 +185,6 @@ public final class ClipFile {
         if (clip.space == AnimClip.Space.VIEW) {
             Map<String, Object> view = new LinkedHashMap<>();
             view.put("model", clip.view.model());
-            view.put("sway", clip.view.sway());
-            view.put("bob", clip.view.bob());
-            view.put("recoil", clip.view.recoil());
-            view.put("inspect", clip.view.inspect());
             root.put("viewModel", view);
         }
         return Json.write(plain(root));
