@@ -124,7 +124,8 @@ public final class Meshes {
         if (boned != null) {
             BONED.put(part.id(), boned);
             ANIMATORS.remove(part.id());
-            model.renderPosed(frame(world.position(), world.rotation(), WORLD), boned);
+            float grown = grown(part);
+            model.renderPosed(frame(world.position(), world.rotation(), WORLD).scale(grown), boned);
             return;
         }
         BONED.remove(part.id());
@@ -167,6 +168,7 @@ public final class Meshes {
         Vector3f min = model.boundsMin();
         Vector3f max = model.boundsMax();
         Map<String, Integer> seen = new HashMap<>();
+        float grown = grown(part);
         for (int n = 0; n < pose.length; n++) {
             Bone bone = null;
             if (n > 0 && rest.names()[n] != null) {
@@ -176,7 +178,7 @@ public final class Meshes {
             }
             int above = rest.parents()[n];
             if (bone != null) {
-                pose[n] = matrix(bone, inverse, partialTick, done);
+                pose[n] = unscaled(matrix(bone, inverse, partialTick, done), grown);
             } else if (above >= 0 && above < n) {
                 pose[n] = new Matrix4f(pose[above]).mul(new Matrix4f(rest.world()[above]).invert()).mul(rest.world()[n]);
             } else {
@@ -184,6 +186,16 @@ public final class Meshes {
             }
         }
         return pose;
+    }
+
+    private static float grown(MeshPart part) {
+        Instance above = part.parent();
+        return above != null && above.def().isA(Classes.MODEL) ? (float) Classes.MODEL.property("scale").getNum(above) : 1f;
+    }
+
+    private static Matrix4f unscaled(Matrix4f bone, float grown) {
+        if (grown == 1f) return bone;
+        return new Matrix4f().scaling(1f / grown).mul(bone).scale(grown);
     }
 
     private static void collect(Instance under, Map<String, Bone> byName) {
@@ -284,7 +296,7 @@ public final class Meshes {
                 .translate(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -(min.z + max.z) / 2);
         Matrix4f[] boned = BONED.get(part.id());
         if (boned != null && boned.length == rest(model).world().length) {
-            model.fillMask(projectionView, frame(at, turn, matrix), boned, r, g, b, a);
+            model.fillMask(projectionView, frame(at, turn, matrix).scale(grown(part)), boned, r, g, b, a);
             return;
         }
         Playing playing = ANIMATORS.get(part.id());
