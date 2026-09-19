@@ -142,7 +142,7 @@ public final class ClassDef<T extends Instance> {
 
         Prop opts = field.getAnnotation(Prop.class);
         boolean readOnly = opts != null && opts.readOnly();
-        boolean replicated = !readOnly && (opts == null || opts.replicated());
+        boolean replicated = opts == null || opts.replicated();
         boolean driven = opts != null && opts.driven();
         boolean asset = opts != null && opts.asset();
         boolean engineWritten = opts != null && opts.engineWritten();

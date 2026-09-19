@@ -20,8 +20,8 @@ public final class ScrollingFrame extends GuiObject {
     public ScrollingDirection scrollingDirection = ScrollingDirection.XY;
     public boolean scrollingEnabled = true;
 
-    @Prop(readOnly = true) public Vector3 absoluteCanvasSize = Vector3.ZERO;
-    @Prop(readOnly = true) public Vector3 absoluteWindowSize = Vector3.ZERO;
+    @Prop(readOnly = true, replicated = false) public Vector3 absoluteCanvasSize = Vector3.ZERO;
+    @Prop(readOnly = true, replicated = false) public Vector3 absoluteWindowSize = Vector3.ZERO;
 
     private double canvasW = -1;
     private double canvasH = -1;

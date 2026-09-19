@@ -31,7 +31,7 @@ final class Precipitation {
             FLAKES.clear();
             return;
         }
-        WeatherLevels levels = WeatherView.levels();
+        WeatherLevels levels = WeatherView.falling();
         Vector3 eye = WeatherView.eye();
         Vector3 wind = WeatherView.wind();
         double stormy = 1 + 0.5 * levels.storm();

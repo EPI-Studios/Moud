@@ -24,7 +24,7 @@ public final class PresetBlend {
         }
     };
 
-    private enum When { START, END, ALONG }
+    private enum When { START, END, ALONG, RESTORE }
 
     private record Track(Instance target, PropertyDef property, Object from, Object to, When when) {}
 
@@ -44,9 +44,9 @@ public final class PresetBlend {
         for (Instance target : targets) {
             if (target == null) continue;
             boolean weather = target instanceof Weather;
-            if (weather) {
+            if (weather && span > 0) {
                 PropertyDef transition = target.def().property("transition");
-                tracks.add(new Track(target, transition, transition.getNum(target), span, When.START));
+                tracks.add(new Track(target, transition, transition.getNum(target), span, When.RESTORE));
             }
             for (Map.Entry<String, Object> entry : preset.of(target.def()).entrySet()) {
                 PropertyDef property = target.def().property(entry.getKey());
@@ -74,10 +74,17 @@ public final class PresetBlend {
                 case START -> track.to();
                 case END -> t >= 1 ? track.to() : track.from();
                 case ALONG -> between(track.property(), track.from(), track.to(), eased);
+                case RESTORE -> t >= 1 ? track.from() : track.to();
             };
             writer.write(track.target(), track.property(), value);
         }
         return t >= 1;
+    }
+
+    public void cancel(Writer writer) {
+        for (Track track : tracks) {
+            if (track.when() == When.RESTORE && track.target().isAlive()) writer.write(track.target(), track.property(), track.from());
+        }
     }
 
     public boolean finished() {

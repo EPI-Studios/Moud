@@ -22,11 +22,11 @@ public final class Sound extends Instance {
 
     @Prop(min = 0) public double timePosition;
 
-    @Prop(readOnly = true, min = 0) public double timeLength;
+    @Prop(readOnly = true, replicated = false, min = 0) public double timeLength;
 
-    @Prop(readOnly = true) public boolean isLoaded;
+    @Prop(readOnly = true, replicated = false) public boolean isLoaded;
 
-    @Prop(readOnly = true, min = 0, max = 1000) public double playbackLoudness;
+    @Prop(readOnly = true, replicated = false, min = 0, max = 1000) public double playbackLoudness;
 
     public String bus = "sfx";
     public int priority;

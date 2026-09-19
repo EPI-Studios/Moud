@@ -24,7 +24,6 @@ import com.meekdev.moud.core.render.Lighting;
 import com.meekdev.moud.core.render.Preset;
 import com.meekdev.moud.core.render.PresetBlend;
 import com.meekdev.moud.core.render.Presets;
-import com.meekdev.moud.core.render.Weather;
 import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
@@ -390,7 +389,6 @@ public final class SceneDocument {
         for (Instance part : Presets.parts(lighting)) {
             if (!editable(part)) continue;
             PresetBlend.apply(preset, List.of(part), (target, property, value) -> {
-                if (target instanceof Weather && property.name().equals("transition")) return;
                 Object wired = value instanceof Number number
                         ? (property.type() == PropertyType.INT ? (Object) number.intValue() : (Object) number.doubleValue()) : value;
                 if (!Objects.equals(wired, wire(target, property))) edits.add(new SetProperty(ref(target.id()), property.index(), wired, label));
@@ -403,10 +401,7 @@ public final class SceneDocument {
                 InstanceTree scratch = new InstanceTree();
                 Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
                 for (ClassDef<?> def : missing) {
-                    Instance made = Instances.create(def, holder, def.name());
-                    double transition = made instanceof Weather weather ? weather.transition : 0;
-                    PresetBlend.apply(preset, List.of(made), PresetBlend.DIRECT);
-                    if (made instanceof Weather weather) weather.transition = transition;
+                    PresetBlend.apply(preset, List.of(Instances.create(def, holder, def.name())), PresetBlend.DIRECT);
                 }
                 text = snapshot(new ArrayList<>(holder.children()));
             } catch (RuntimeException e) {

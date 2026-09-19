@@ -17,9 +17,9 @@ public final class Weather extends Instance {
 
     @Prop(min = 0, max = 600) public double transition = 5;
 
-    @Prop(min = 0) public int strikes;
+    @Prop(readOnly = true, min = 0) public int strikes;
 
-    public Vector3 strikePosition = Vector3.ZERO;
+    @Prop(readOnly = true) public Vector3 strikePosition = Vector3.ZERO;
 
     public final Signal<Vector3> struck = new Signal<>();
 

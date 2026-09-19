@@ -23,5 +23,5 @@ public class TextLabel extends GuiObject {
 
     public boolean richText;
 
-    @Prop(readOnly = true) public Vector3 textBounds = Vector3.ZERO;
+    @Prop(readOnly = true, replicated = false) public Vector3 textBounds = Vector3.ZERO;
 }

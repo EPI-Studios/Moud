@@ -140,6 +140,7 @@ final class PropertyRows {
 
     private static String lockedReason(PropertyDef property) {
         if (!property.readOnly()) return "Driven by the engine";
+        if (property.replicated()) return "Set by the server";
         return "Worked out while the interface is laid out";
     }
 

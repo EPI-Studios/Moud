@@ -32,8 +32,8 @@ public class GuiObject extends Instance {
 
     public boolean clipsDescendants;
 
-    @Prop(readOnly = true) public Vector3 absolutePosition = Vector3.ZERO;
-    @Prop(readOnly = true) public Vector3 absoluteSize = Vector3.ZERO;
+    @Prop(readOnly = true, replicated = false) public Vector3 absolutePosition = Vector3.ZERO;
+    @Prop(readOnly = true, replicated = false) public Vector3 absoluteSize = Vector3.ZERO;
 
     public final Signal<Instance> mouseEnter = new Signal<>();
     public final Signal<Instance> mouseLeave = new Signal<>();
