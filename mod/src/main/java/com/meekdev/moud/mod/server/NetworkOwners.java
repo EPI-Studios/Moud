@@ -93,6 +93,7 @@ public final class NetworkOwners {
     private static void decide(List<Part> group, Map<String, Vector3> players, Set<String> connected) {
         boolean ownable = true;
         for (Part part : group) {
+            if (!part.collides && !part.anchored) continue;
             if (!ownable(part) || Physics.shapes().body(part.id()) == null) ownable = false;
         }
         if (!ownable) {

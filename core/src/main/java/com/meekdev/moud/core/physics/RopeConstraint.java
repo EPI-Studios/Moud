@@ -8,6 +8,8 @@ public final class RopeConstraint extends Constraint {
 
     @Prop(min = 0.01) public double thickness = 0.1;
 
+    @Prop(min = 0, max = 1) public double restitution;
+
     @Prop(asset = true) public String mesh = "";
 
     @Prop(min = 0) public double meshLength;

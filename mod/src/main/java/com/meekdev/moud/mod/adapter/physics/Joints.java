@@ -17,6 +17,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.physics.BallSocketConstraint;
 import com.meekdev.moud.core.physics.Constraint;
@@ -43,6 +44,7 @@ public final class Joints {
     private static final Set<Integer> HELD = new HashSet<>();
     private static final double SERVO_GAIN = 8;
     private static final double TICK = 0.05;
+    private static final double TAUT = 0.02;
     private static final double WINCH_EASE = 0.1;
     private static final double EPSILON = 1.0e-4;
 
@@ -62,6 +64,7 @@ public final class Joints {
     }
 
     private final Map<Integer, Built> built = new HashMap<>();
+    private final Map<Integer, Double> stretch = new HashMap<>();
     private final boolean publishes;
 
     public Joints() {
@@ -104,6 +107,7 @@ public final class Joints {
             }
             settleOne(constraint, wanted(ends, wanted), constraint.collideConnected, bodies, world, held);
         }
+        stretch.keySet().retainAll(seen);
         Iterator<Map.Entry<Integer, Built>> stale = built.entrySet().iterator();
         while (stale.hasNext()) {
             Map.Entry<Integer, Built> entry = stale.next();
@@ -139,6 +143,7 @@ public final class Joints {
                 Built current = built.remove(instance.id());
                 if (current != null) destroy(current);
                 active(instance, true);
+                if (instance instanceof RopeConstraint rope && rope.winchEnabled) reel(rope);
                 return;
             }
             a = bodies.apply(ends.part0().id());
@@ -196,7 +201,7 @@ public final class Joints {
             case HingeConstraint hinge when joint instanceof B3RevoluteJoint revolute -> hinge(hinge, revolute);
             case PrismaticConstraint slide when joint instanceof B3PrismaticJoint prismatic -> slide(slide, prismatic);
             case BallSocketConstraint ball when joint instanceof B3SphericalJoint spherical -> ball(ball, spherical);
-            case RopeConstraint rope when joint instanceof B3DistanceJoint distance -> rope(rope, distance, ends);
+            case RopeConstraint rope when joint instanceof B3DistanceJoint distance -> rope(rope, distance, ends, a, b);
             case RodConstraint rod when joint instanceof B3DistanceJoint distance -> rod(rod, distance, ends);
             case SpringConstraint spring when joint instanceof B3DistanceJoint distance -> spring(spring, distance, a, b);
             default -> { }
@@ -250,13 +255,15 @@ public final class Joints {
         }
     }
 
-    private void rope(RopeConstraint rope, B3DistanceJoint distance, Ends ends) {
+    private void rope(RopeConstraint rope, B3DistanceJoint distance, Ends ends, B3Body a, B3Body b) {
         if (rope.winchEnabled) winch(rope, distance);
         distance.enableSpring(true);
         distance.setSpring(0, 0);
         distance.enableLimit(true);
         distance.setLengthRange(0, (float) rope.length);
-        write(rope, "currentDistance", ends.frame0().position().distance(ends.frame1().position()));
+        double apart = ends.frame0().position().distance(ends.frame1().position());
+        if (rope.restitution > 0) bounce(rope, ends, a, b, apart);
+        write(rope, "currentDistance", apart);
     }
 
     private void rod(RodConstraint rod, B3DistanceJoint distance, Ends ends) {
@@ -281,19 +288,46 @@ public final class Joints {
         write(spring, "currentLength", distance.currentLength());
     }
 
+    private void bounce(RopeConstraint rope, Ends ends, B3Body a, B3Body b, double apart) {
+        Double before = stretch.put(rope.id(), apart);
+        if (before == null) return;
+        double taut = rope.length - TAUT;
+        if (before >= taut || apart < taut) return;
+        Vector3 along = ends.frame1().position().sub(ends.frame0().position());
+        if (along.lengthSq() < EPSILON) return;
+        Vector3 n = along.normalize();
+        Vec3 pointA = BoxFrames.vec(ends.frame0().position());
+        Vec3 pointB = BoxFrames.vec(ends.frame1().position());
+        Vector3 velocityA = BoxFrames.vector(a.velocityAtPoint(pointA));
+        Vector3 velocityB = BoxFrames.vector(b.velocityAtPoint(pointB));
+        double pulling = velocityB.sub(velocityA).dot(n);
+        double arriving = Math.max(pulling, (apart - before) / TICK);
+        if (arriving <= 0) return;
+        double inverseA = inverseMass(a);
+        double inverseB = inverseMass(b);
+        if (inverseA + inverseB <= 0) return;
+        Vector3 impulse = n.mul(rope.restitution * arriving / (inverseA + inverseB));
+        if (inverseA > 0) a.applyImpulseAt(BoxFrames.vec(impulse), pointA);
+        if (inverseB > 0) b.applyImpulseAt(BoxFrames.vec(impulse.mul(-1)), pointB);
+    }
+
     private void winch(RopeConstraint rope, B3DistanceJoint distance) {
-        double gap = rope.winchTarget - rope.length;
-        if (Math.abs(gap) <= EPSILON) return;
-        double eased = Math.min(rope.winchSpeed, Math.abs(gap) * rope.winchResponsiveness * WINCH_EASE);
-        double rate = rope.winchResponsiveness <= 0 ? rope.winchSpeed : eased;
-        if (gap < 0) {
+        if (rope.winchTarget < rope.length) {
             var pull = distance.constraintForce();
             double load = Math.sqrt(pull.x() * pull.x() + pull.y() * pull.y() + pull.z() * pull.z());
             if (load > rope.winchForce) return;
         }
+        if (reel(rope)) distance.wakeBodies();
+    }
+
+    private boolean reel(RopeConstraint rope) {
+        double gap = rope.winchTarget - rope.length;
+        if (Math.abs(gap) <= EPSILON) return false;
+        double eased = Math.min(rope.winchSpeed, Math.abs(gap) * rope.winchResponsiveness * WINCH_EASE);
+        double rate = rope.winchResponsiveness <= 0 ? rope.winchSpeed : eased;
         double next = rope.length + Math.signum(gap) * Math.min(Math.abs(gap), rate * TICK);
         write(rope, "length", Math.max(0, next));
-        distance.wakeBodies();
+        return true;
     }
 
     private static double effectiveMass(B3Body a, B3Body b) {
@@ -302,6 +336,10 @@ public final class Joints {
         if (ma <= 0) return Math.max(mb, EPSILON);
         if (mb <= 0) return Math.max(ma, EPSILON);
         return ma * mb / (ma + mb);
+    }
+
+    private static double inverseMass(B3Body body) {
+        return body.type() == B3BodyType.DYNAMIC && body.mass() > 0 ? 1 / body.mass() : 0;
     }
 
     private static void motor(B3RevoluteJoint joint, double speed, double torque) {
