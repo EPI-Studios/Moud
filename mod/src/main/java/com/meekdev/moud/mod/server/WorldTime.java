@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.render.Daylight;
 import com.meekdev.moud.core.render.Environments;
 import com.meekdev.moud.core.render.Lighting;
+import com.meekdev.moud.core.render.WeatherLevels;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.features.Feature;
 import java.util.Optional;
@@ -20,6 +21,7 @@ import net.minecraft.world.level.saveddata.WeatherData;
 public final class WorldTime {
 
     private static final double STEP = 1.0e-4;
+    private static final double LEVEL_STEP = 0.01;
 
     private static boolean driven;
     private static double clockTime = Double.NaN;
@@ -84,9 +86,10 @@ public final class WorldTime {
     }
 
     private static void weather(MinecraftServer server, ServerLevel level, Lighting lighting) {
-        double wet = Math.clamp(lighting.rain, 0, 1);
-        double storm = Math.clamp(lighting.thunder, 0, 1);
-        if (Math.abs(wet - rain) <= STEP && Math.abs(storm - thunder) <= STEP) return;
+        WeatherLevels levels = ServerWeather.levels();
+        double wet = Math.clamp(Math.max(lighting.rain, levels.wet()), 0, 1);
+        double storm = Math.clamp(Math.max(lighting.thunder, levels.storm()), 0, 1);
+        if (!moved(wet, rain) && !moved(storm, thunder)) return;
         boolean wasWet = rain > 0;
         rain = wet;
         thunder = storm;
@@ -101,6 +104,12 @@ public final class WorldTime {
         }
         server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.RAIN_LEVEL_CHANGE, (float) wet));
         server.getPlayerList().broadcastAll(new ClientboundGameEventPacket(ClientboundGameEventPacket.THUNDER_LEVEL_CHANGE, (float) storm));
+    }
+
+    private static boolean moved(double now, double sent) {
+        if (Double.isNaN(sent)) return true;
+        if (now == sent) return false;
+        return Math.abs(now - sent) > LEVEL_STEP || now == 0 || now == 1;
     }
 
     private static Holder<WorldClock> clockOf(ServerLevel level) {

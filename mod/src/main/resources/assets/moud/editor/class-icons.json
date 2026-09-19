@@ -92,6 +92,7 @@
     "Sky": "WORLD_ENVIRONMENT",
     "Atmosphere": "FOG_VOLUME",
     "Clouds": "LIGHTMAP_PROBE",
+    "Weather": "WEATHER",
     "Explosion": "PARTICLES_3D",
     "Spatial": "NODE_3D"
 }

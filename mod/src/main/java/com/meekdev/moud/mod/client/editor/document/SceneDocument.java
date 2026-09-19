@@ -20,6 +20,11 @@ import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.part.PartShape;
 import com.meekdev.moud.core.physics.WeldConstraint;
+import com.meekdev.moud.core.render.Lighting;
+import com.meekdev.moud.core.render.Preset;
+import com.meekdev.moud.core.render.PresetBlend;
+import com.meekdev.moud.core.render.Presets;
+import com.meekdev.moud.core.render.Weather;
 import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
@@ -48,6 +53,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -373,7 +379,43 @@ public final class SceneDocument {
     }
 
     public void insert(String className, int parentId) {
-        insert(className, className, parentId, made -> { });
+        insert(className, className, parentId, made -> {
+            if (made instanceof Lighting lighting) lighting.dayCycle = true;
+        });
+    }
+
+    public void applyPreset(Lighting lighting, Preset preset) {
+        String label = "Apply " + preset.name();
+        List<Edit> edits = new ArrayList<>();
+        for (Instance part : Presets.parts(lighting)) {
+            if (!editable(part)) continue;
+            PresetBlend.apply(preset, List.of(part), (target, property, value) -> {
+                if (target instanceof Weather && property.name().equals("transition")) return;
+                Object wired = value instanceof Number number
+                        ? (property.type() == PropertyType.INT ? (Object) number.intValue() : (Object) number.doubleValue()) : value;
+                if (!Objects.equals(wired, wire(target, property))) edits.add(new SetProperty(ref(target.id()), property.index(), wired, label));
+            });
+        }
+        List<ClassDef<?>> missing = Presets.missing(lighting);
+        if (!missing.isEmpty()) {
+            String text;
+            try {
+                InstanceTree scratch = new InstanceTree();
+                Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+                for (ClassDef<?> def : missing) {
+                    Instance made = Instances.create(def, holder, def.name());
+                    double transition = made instanceof Weather weather ? weather.transition : 0;
+                    PresetBlend.apply(preset, List.of(made), PresetBlend.DIRECT);
+                    if (made instanceof Weather weather) weather.transition = transition;
+                }
+                text = snapshot(new ArrayList<>(holder.children()));
+            } catch (RuntimeException e) {
+                SceneLink.local("Could not apply " + preset.name() + ": " + e.getMessage());
+                return;
+            }
+            edits.add(new Paste(text, ref(lighting.id()), new ArrayList<>(), new ArrayList<>(), false, label));
+        }
+        if (!edits.isEmpty()) history.execute(new Batch(label, edits));
     }
 
     public void insertShape(PartShape shape, int parentId) {

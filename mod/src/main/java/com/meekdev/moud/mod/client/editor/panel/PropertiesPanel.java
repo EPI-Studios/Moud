@@ -9,6 +9,9 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.render.Camera;
 import com.meekdev.moud.core.render.CameraPath;
+import com.meekdev.moud.core.render.Lighting;
+import com.meekdev.moud.core.render.Preset;
+import com.meekdev.moud.core.render.Presets;
 import com.meekdev.moud.core.value.Value;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
@@ -103,6 +106,7 @@ public final class PropertiesPanel implements Panel {
         if (!editable) Notices.info("Made by the engine, it is not part of the scene file.");
         renderToolbar(instance, targets);
         if (count == 1 && editable) renderCameraActions(instance);
+        if (count == 1 && editable && instance instanceof Lighting lighting) renderPresets(lighting);
         ImGui.separator();
         ImGui.beginDisabled(!editable);
         if (count == 1) renderName(instance);
@@ -182,6 +186,17 @@ public final class PropertiesPanel implements Panel {
             }
             if (ImGui.isItemHovered()) ImGui.setTooltip("Adds an Attachment inside the path where the editor camera is. Points are passed through in Explorer order.");
         }
+    }
+
+    private void renderPresets(Lighting lighting) {
+        if (ImGui.button("Apply a preset")) ImGui.openPopup("##lighting-presets");
+        if (ImGui.isItemHovered()) ImGui.setTooltip("Sets the time, the lighting, the atmosphere, the clouds and the weather in one go. Whatever is missing is added under the Lighting.");
+        if (!ImGui.beginPopup("##lighting-presets")) return;
+        for (Preset preset : Presets.ALL) {
+            String name = preset.name();
+            if (ImGui.menuItem(Character.toUpperCase(name.charAt(0)) + name.substring(1))) document.applyPreset(lighting, preset);
+        }
+        ImGui.endPopup();
     }
 
     private void pasteAll(List<Instance> targets) {

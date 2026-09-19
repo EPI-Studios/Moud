@@ -87,6 +87,7 @@ import com.meekdev.moud.core.render.PointLight;
 import com.meekdev.moud.core.render.Sky;
 import com.meekdev.moud.core.render.SpotLight;
 import com.meekdev.moud.core.render.TubeLight;
+import com.meekdev.moud.core.render.Weather;
 import com.meekdev.moud.core.render.post.AmbientOcclusionEffect;
 import com.meekdev.moud.core.render.post.AntiAliasingEffect;
 import com.meekdev.moud.core.render.post.BloomEffect;
@@ -250,6 +251,7 @@ public final class Classes {
     public static final ClassDef<Atmosphere> ATMOSPHERE =
             ClassDef.of("Atmosphere", null, Atmosphere.class, Atmosphere::new);
     public static final ClassDef<Clouds> CLOUDS = ClassDef.of("Clouds", null, Clouds.class, Clouds::new);
+    public static final ClassDef<Weather> WEATHER = ClassDef.of("Weather", null, Weather.class, Weather::new);
     public static final ClassDef<Cape> CAPE = ClassDef.of("Cape", LIMB, Cape.class, Cape::new);
     public static final ClassDef<Humanoid> HUMANOID =
             ClassDef.of("Humanoid", null, Humanoid.class, Humanoid::new);
@@ -488,6 +490,7 @@ public final class Classes {
         r.register(SKY);
         r.register(ATMOSPHERE);
         r.register(CLOUDS);
+        r.register(WEATHER);
         r.register(CAPE);
         r.register(HUMANOID);
         r.register(WINGS);

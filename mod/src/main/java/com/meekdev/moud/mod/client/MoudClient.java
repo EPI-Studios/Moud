@@ -20,6 +20,7 @@ import com.meekdev.moud.mod.adapter.render.SceneLights;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.adapter.render.SkyBox;
 import com.meekdev.moud.mod.adapter.render.Skins;
+import com.meekdev.moud.mod.adapter.render.WeatherView;
 import com.meekdev.moud.mod.adapter.physics.OwnedBodies;
 import com.meekdev.moud.mod.adapter.image.ClientImageSources;
 import com.meekdev.moud.mod.adapter.image.ImageSources;
@@ -100,6 +101,7 @@ public final class MoudClient implements ClientModInitializer {
             Ui.frame(partialTick);
             Sounds.frame(partialTick);
             SceneLights.frame(partialTick);
+            WeatherView.frame();
             Effects.frame();
             EditableTextures.sweep();
             ClientImageSources.INSTANCE.frame();

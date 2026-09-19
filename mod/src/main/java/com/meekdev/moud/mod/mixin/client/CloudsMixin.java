@@ -18,7 +18,7 @@ abstract class CloudsMixin {
     private void moud$suppress(CallbackInfo ci) {
         Clouds clouds = Environment.clouds();
         if (clouds != null) {
-            if (!clouds.enabled || clouds.cover <= 0 || clouds.density <= 0) ci.cancel();
+            if (!clouds.enabled || Environment.cloudCover() <= 0 || clouds.density <= 0) ci.cancel();
             return;
         }
         if (!MoudMod.features().isOn(Feature.CLOUDS)) ci.cancel();

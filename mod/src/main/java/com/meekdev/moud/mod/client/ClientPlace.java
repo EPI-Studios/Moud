@@ -13,6 +13,7 @@ import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
+import com.meekdev.moud.mod.adapter.render.WeatherView;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
 import com.meekdev.moud.mod.adapter.image.ClientImageSources;
@@ -118,6 +119,7 @@ public final class ClientPlace {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
             ResonaAudio.INSTANCE.reset();
             Sounds.stopAll();
+            WeatherView.stop();
             host.clientSide(camera, LENS, INPUT, ClientScene::own)
                     .post(Post.CLIENT)
                     .blocks(new BlockRays(() -> Minecraft.getInstance().level, false))

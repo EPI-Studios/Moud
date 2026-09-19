@@ -29,10 +29,17 @@ public final class Environments {
         return under(tree, Classes.CLOUDS);
     }
 
+    public static Weather weather(InstanceTree tree) {
+        return under(tree, Classes.WEATHER);
+    }
+
     private static <T extends Instance> T under(InstanceTree tree, ClassDef<T> def) {
-        Lighting lighting = lighting(tree);
-        if (lighting == null) return null;
-        for (T found : tree.ofClass(def)) {
+        return under(lighting(tree), def);
+    }
+
+    public static <T extends Instance> T under(Lighting lighting, ClassDef<T> def) {
+        if (lighting == null || lighting.tree() == null) return null;
+        for (T found : lighting.tree().ofClass(def)) {
             for (Instance at = found.parent(); at != null; at = at.parent()) {
                 if (at == lighting) return found;
             }

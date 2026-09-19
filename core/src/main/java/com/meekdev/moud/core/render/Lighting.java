@@ -10,6 +10,8 @@ public final class Lighting extends Instance {
 
     @Prop(min = 0, max = 60) public double timeScale = 1;
 
+    public boolean dayCycle;
+
     @Prop(min = -90, max = 90) public double geographicLatitude = 41.733;
 
     @Prop(min = 0, max = 10) public double brightness = 2;
