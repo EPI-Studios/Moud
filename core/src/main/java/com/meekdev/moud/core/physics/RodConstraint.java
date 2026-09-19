@@ -8,5 +8,5 @@ public final class RodConstraint extends Constraint {
 
     @Prop(min = 0.01) public double thickness = 0.1;
 
-    @Prop(engineWritten = true) public double currentDistance;
+    @Prop(readOnly = true) public double currentDistance;
 }

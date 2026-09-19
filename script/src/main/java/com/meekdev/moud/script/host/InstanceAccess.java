@@ -172,7 +172,7 @@ public final class InstanceAccess {
     }
 
     public void write(Instance instance, PropertyDef property, Object value) {
-        if (property.readOnly() || property.engineWritten()) throw new HostError("%s.%s is read-only", instance.def().name(), property.name());
+        if (property.readOnly()) throw new HostError("%s.%s is read-only", instance.def().name(), property.name());
         if (edited(instance)) {
             host.edits().write(instance, property, parse(property, value));
             return;

@@ -14,5 +14,5 @@ public final class PrismaticConstraint extends Constraint {
     public double lowerLimit = -5;
     public double upperLimit = 5;
 
-    @Prop(driven = true, engineWritten = true) public double currentPosition;
+    @Prop(driven = true, readOnly = true) public double currentPosition;
 }

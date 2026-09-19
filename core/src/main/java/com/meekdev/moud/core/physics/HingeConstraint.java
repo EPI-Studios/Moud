@@ -14,5 +14,5 @@ public final class HingeConstraint extends Constraint {
     @Prop(min = -180, max = 180) public double lowerAngle = -45;
     @Prop(min = -180, max = 180) public double upperAngle = 45;
 
-    @Prop(driven = true, engineWritten = true) public double currentAngle;
+    @Prop(driven = true, readOnly = true) public double currentAngle;
 }
