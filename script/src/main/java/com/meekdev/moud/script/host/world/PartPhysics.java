@@ -19,7 +19,6 @@ import com.meekdev.moud.script.host.Results;
 
 public final class PartPhysics {
 
-    private static final PropertyDef NETWORK_OWNER = Classes.PART.property("networkOwner");
 
     private PartPhysics() {}
 
@@ -63,14 +62,12 @@ public final class PartPhysics {
                 owner = Players.idOf(a.get(1));
                 if (owner == null) throw new HostError("setNetworkOwner expects a Player, a body with a player, or nil");
             }
-            part.ownershipSet(true);
-            if (!owner.equals(part.networkOwner)) part.ownerChanged();
-            host.instances().write(part, NETWORK_OWNER, owner);
+            host.physics().owner(part, owner);
             return null;
         });
         parts.method("setNetworkOwnershipAuto", "() -> ()", a -> {
             if (host.physics() == null) throw new HostError("network ownership is set from a server Script");
-            a.self(Part.class).ownershipSet(false);
+            host.physics().automatic(a.self(Part.class));
             return null;
         });
         parts.method("isNetworkOwnershipAuto", "() -> boolean", a -> !a.self(Part.class).ownershipSet());

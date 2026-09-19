@@ -32,6 +32,9 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelData;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import org.jspecify.annotations.Nullable;
 
@@ -134,6 +137,17 @@ public final class Spawning {
         player.teleportTo(player.level(), point.position().x(), point.position().y(), point.position().z(), Set.of(), (float) point.yawDegrees(), player.getXRot(), true);
         waiting.add(player.getUUID());
         send(player);
+    }
+
+    static void worldSpawn(ServerLevel level, @Nullable InstanceTree tree) {
+        if (tree == null) return;
+        for (SpawnLocation location : tree.ofClass(Classes.SPAWN_LOCATION)) {
+            if (!location.enabled || !location.isAlive() || Instance.outOfWorld(location)) continue;
+            Vector3 at = Transforms.world(location).position();
+            BlockPos pos = BlockPos.containing(at.x(), at.y() + location.size.y() / 2, at.z());
+            if (!pos.equals(level.getRespawnData().pos())) level.setRespawnData(LevelData.RespawnData.of(level.dimension(), pos, 0, 0));
+            return;
+        }
     }
 
     static void tick(MinecraftServer server, double dt) {

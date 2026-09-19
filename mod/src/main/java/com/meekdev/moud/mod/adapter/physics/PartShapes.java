@@ -27,6 +27,7 @@ public final class PartShapes {
 
     private static final int STEPS = 8;
     private static final int MOST_POINTS = 60;
+    private static final int CYLINDER_SIDES = 16;
 
     private static final Map<String, SubLevelModel> BY_SIZE = new ConcurrentHashMap<>();
 
@@ -58,6 +59,23 @@ public final class PartShapes {
     }
 
     private static B3Hull hull(Vector3 size, PartShape shape) {
+        if (shape == PartShape.CYLINDER) {
+            double radius = Shapes.across(shape, size);
+            double half = size.x() * 0.5;
+            float[] cloud = new float[CYLINDER_SIDES * 6];
+            int at = 0;
+            for (int side = 0; side < CYLINDER_SIDES; side++) {
+                double turn = Math.PI * (2 * side + 1) / CYLINDER_SIDES;
+                float y = (float) (radius * Math.cos(turn));
+                float z = (float) (radius * Math.sin(turn));
+                for (double end : new double[] {-half, half}) {
+                    cloud[at++] = (float) end;
+                    cloud[at++] = y;
+                    cloud[at++] = z;
+                }
+            }
+            return B3Hull.bake(cloud, CYLINDER_SIDES * 2);
+        }
         if (shape != PartShape.BLOCK) {
             List<Vector3> corners = Shapes.corners(shape, size, Shapes.COLLIDING_SIDES, Shapes.COLLIDING_RINGS);
             float[] cloud = new float[corners.size() * 3];

@@ -80,7 +80,7 @@ public final class ClientScene {
         }
         Stages.run(tree, Stage.COMPOSE, 0);
         OwnedBodies.tick(tree, Minecraft.getInstance().level, me == null ? "" : me.getUUID().toString(), !EditMode.editing(),
-                GameState.INSTANCE.gravity());
+                GameState.INSTANCE.gravity(), own);
         if (EditMode.editing()) ClientTools.idle();
         else ClientTools.tick(tree, own);
         Touches.step(tree);

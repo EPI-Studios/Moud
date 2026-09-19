@@ -17,6 +17,16 @@ public interface PartPhysicsRef {
 
     double mass(Part part);
 
+    default void owner(Part part, String owner) {
+        part.ownershipSet(true);
+        if (!owner.equals(part.networkOwner)) part.ownerChanged();
+        part.networkOwner = owner;
+    }
+
+    default void automatic(Part part) {
+        part.ownershipSet(false);
+    }
+
     default String whyNotOwnable(Part part) {
         return part.anchored ? "an anchored part is always the server's" : "";
     }

@@ -19,6 +19,10 @@ final class BoxFrames {
         return new Vector3(v.x(), v.y(), v.z());
     }
 
+    static com.meekdev.box3d.Quat quat(Quat q) {
+        return new com.meekdev.box3d.Quat((float) q.x(), (float) q.y(), (float) q.z(), (float) q.w());
+    }
+
     static Vec3 vec(Vector3 v) {
         return new Vec3(v.x(), v.y(), v.z());
     }

@@ -11,6 +11,7 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.script.api.PartPhysicsRef;
 import com.meekdev.moud.script.host.HostError;
+import java.util.List;
 import java.util.function.Consumer;
 
 public final class PartBodies implements PartPhysicsRef {
@@ -43,10 +44,28 @@ public final class PartBodies implements PartPhysicsRef {
     }
 
     @Override
+    public void owner(Part part, String owner) {
+        for (Part joined : Assemblies.of(part)) {
+            joined.ownershipSet(true);
+            if (!owner.equals(joined.networkOwner)) {
+                joined.ownerChanged();
+                Instances.setObj(joined, OWNER, owner);
+            }
+        }
+    }
+
+    @Override
+    public void automatic(Part part) {
+        for (Part joined : Assemblies.of(part)) joined.ownershipSet(false);
+    }
+
+    @Override
     public String whyNotOwnable(Part part) {
         if (part.anchored) return "an anchored part is always the server's";
         if (!part.collides) return "a part that does not collide is not simulated";
-        if (Joints.holds(part.id())) return "a part held by a constraint stays with the server";
+        for (Part joined : Assemblies.of(part)) {
+            if (joined != part && joined.anchored) return "it is joined to an anchored part, which keeps the whole assembly on the server";
+        }
         if (Instance.outOfWorld(part)) return "a part kept in storage is not simulated";
         for (Instance up = part.parent(); up != null; up = up.parent()) {
             if (up instanceof Character) return "a part of a body moves with the body";
@@ -71,15 +90,20 @@ public final class PartBodies implements PartPhysicsRef {
     private static void push(Part part, Consumer<B3Body> action) {
         if (part.anchored) throw new HostError("%s is anchored, physics does not move it", part.name());
         if (!part.collides) throw new HostError("%s does not collide, so it has no physics body", part.name());
-        if (!part.networkOwner.isEmpty()) {
-            if (part.ownershipSet()) {
+        List<Part> group = Assemblies.of(part);
+        for (Part joined : group) {
+            if (joined.ownershipSet() && !joined.networkOwner.isEmpty()) {
                 throw new HostError("%s is simulated by its network owner, give it back with setNetworkOwner(nil) or setNetworkOwnershipAuto() first", part.name());
             }
-            part.ownerChanged();
-            Instances.setObj(part, OWNER, "");
-            Physics.shapes().retype(part);
         }
-        if (!part.ownershipSet()) part.holdForServer(SERVER_HOLD_TICKS);
+        for (Part joined : group) {
+            if (!joined.networkOwner.isEmpty()) {
+                joined.ownerChanged();
+                Instances.setObj(joined, OWNER, "");
+                Physics.shapes().retype(joined);
+            }
+            if (!joined.ownershipSet()) joined.holdForServer(SERVER_HOLD_TICKS);
+        }
         Physics.shapes().withBody(part, body -> {
             if (!body.isValid()) return;
             action.accept(body);

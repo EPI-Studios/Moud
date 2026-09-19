@@ -6,6 +6,8 @@ import com.meekdev.bkun.sublevel.SubLevelIndex;
 import com.meekdev.box3d.B3Body;
 import com.meekdev.box3d.B3BodyType;
 import com.meekdev.box3d.Vec3;
+import com.meekdev.moud.core.character.Character;
+import com.meekdev.moud.core.character.Humanoid;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.interp.Motion;
@@ -16,6 +18,8 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.Seat;
+import com.meekdev.moud.core.part.Seats;
 import com.meekdev.moud.mod.transport.payload.OwnedPosePayload;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,7 +30,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import org.joml.Quaternionf;
 import org.jspecify.annotations.Nullable;
 
@@ -37,6 +43,8 @@ public final class OwnedBodies {
     private static final PropertyDef ANGULAR_VELOCITY = Classes.PART.property("angularVelocity");
 
     private static final Map<Integer, SubLevelEntity> SIMULATING = new HashMap<>();
+    private static final Joints JOINTS = new Joints(false);
+    private static final double TICKS = 20;
     private static final Set<Part> LIVE = Collections.newSetFromMap(new WeakHashMap<>());
     private static final Set<B3Body> DRESSED = Collections.newSetFromMap(new WeakHashMap<>());
 
@@ -45,7 +53,8 @@ public final class OwnedBodies {
     private static double gravity = Double.NaN;
     private static @Nullable LevelPhysics gravityIn;
 
-    public static void tick(@Nullable InstanceTree tree, @Nullable ClientLevel level, String me, boolean running, double wanted) {
+    public static void tick(@Nullable InstanceTree tree, @Nullable ClientLevel level, String me, boolean running, double wanted,
+                            @Nullable Character own) {
         LevelPhysics physics = level == null ? null : LevelPhysics.peek(level);
         if (physics != null && (wanted != gravity || physics != gravityIn)) {
             gravity = wanted;
@@ -63,9 +72,14 @@ public final class OwnedBodies {
                 SubLevelEntity deck = decks.get(part.id());
                 if (deck == null) continue;
                 SIMULATING.put(part.id(), deck);
-                if (!deck.simulatedHere()) deck.simulateHere(true);
+                boolean starting = !deck.simulatedHere();
+                if (starting) deck.simulateHere(true);
                 B3Body body = deck.body();
                 if (body == null || !body.isValid() || body.type() != B3BodyType.DYNAMIC) continue;
+                if (starting) {
+                    CFrame start = Transforms.world(part);
+                    body.setTransform(BoxFrames.vec(start.position()), BoxFrames.quat(start.rotation()));
+                }
                 if (DRESSED.add(body)) SubLevels.dressBody(body, part);
                 poses.add(read(part, deck, body));
             }
@@ -79,8 +93,35 @@ public final class OwnedBodies {
             if (deck.isAlive() && deck.simulatedHere()) deck.simulateHere(false);
             it.remove();
         }
+        joints(tree, physics, running);
+        if (tree != null && running) seat(tree, me, own);
         if (!poses.isEmpty() && ClientPlayNetworking.canSend(OwnedPosePayload.TYPE)) {
             ClientPlayNetworking.send(new OwnedPosePayload(poses));
+        }
+    }
+
+    private static void joints(@Nullable InstanceTree tree, @Nullable LevelPhysics physics, boolean running) {
+        if (tree == null || physics == null || !running) {
+            JOINTS.clear();
+            return;
+        }
+        Map<Integer, B3Body> mine = new HashMap<>();
+        for (Map.Entry<Integer, SubLevelEntity> entry : SIMULATING.entrySet()) {
+            B3Body body = entry.getValue().body();
+            if (body != null && body.isValid() && body.type() == B3BodyType.DYNAMIC) mine.put(entry.getKey(), body);
+        }
+        JOINTS.settle(tree, mine::get, null, physics.world(), part -> mine.containsKey(part.id()));
+    }
+
+    private static void seat(InstanceTree tree, String me, @Nullable Character own) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (own == null || player == null) return;
+        for (Seat seat : tree.ofClass(Classes.SEAT)) {
+            if (!seat.simulatedBy(me) || !(seat.occupant instanceof Humanoid living) || living.parent() != own) continue;
+            Vector3 at = Seats.frame(seat).position();
+            player.setPos(at.x(), at.y(), at.z());
+            player.setDeltaMovement(seat.velocity.x() / TICKS, seat.velocity.y() / TICKS, seat.velocity.z() / TICKS);
+            return;
         }
     }
 

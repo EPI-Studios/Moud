@@ -11,13 +11,18 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.character.Humanoid;
+import com.meekdev.moud.core.part.Seat;
+import com.meekdev.moud.mod.adapter.physics.Assemblies;
 import com.meekdev.moud.mod.adapter.physics.PartBodies;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.transport.payload.OwnedPosePayload;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
@@ -64,11 +69,20 @@ public final class NetworkOwners {
             return;
         }
         Map<String, Vector3> players = new HashMap<>();
+        Set<String> connected = new HashSet<>();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            connected.add(player.getUUID().toString());
             Character body = Physics.bodies().of(player, tree);
             if (body != null && body.isAlive()) players.put(player.getUUID().toString(), Transforms.world(body).position());
         }
-        for (Part part : List.copyOf(tree.ofClass(Classes.PART))) decide(part, players);
+        Assemblies.build(tree);
+        Set<Part> done = new HashSet<>();
+        for (Part part : List.copyOf(tree.ofClass(Classes.PART))) {
+            if (done.contains(part)) continue;
+            List<Part> group = Assemblies.of(part);
+            done.addAll(group);
+            decide(group, players, connected);
+        }
         for (Report report = REPORTS.poll(); report != null; report = REPORTS.poll()) take(tree, report, players);
     }
 
@@ -76,44 +90,88 @@ public final class NetworkOwners {
         return part.isAlive() && PartBodies.INSTANCE.whyNotOwnable(part).isEmpty();
     }
 
-    private static void decide(Part part, Map<String, Vector3> players) {
-        String owner = part.networkOwner;
-        if (!ownable(part) || Physics.shapes().body(part.id()) == null) {
-            if (!owner.isEmpty()) write(part, "");
-            if (part.anchored || !part.isAlive()) part.ownershipSet(false);
+    private static void decide(List<Part> group, Map<String, Vector3> players, Set<String> connected) {
+        boolean ownable = true;
+        for (Part part : group) {
+            if (!ownable(part) || Physics.shapes().body(part.id()) == null) ownable = false;
+        }
+        if (!ownable) {
+            for (Part part : group) {
+                write(part, "");
+                if (part.anchored || !part.isAlive()) part.ownershipSet(false);
+            }
             return;
         }
-        boolean silent = part.ownerSilence() > (part.simulatedRemotely() ? QUIET_TICKS : FIRST_REPORT_TICKS);
-        if (part.ownershipSet()) {
-            if (silent) part.ownerChanged();
-            if (!owner.isEmpty() && !players.containsKey(owner)) {
-                part.ownershipSet(false);
-                write(part, "");
+        String owner = group.getFirst().networkOwner;
+        boolean silent = false;
+        boolean held = false;
+        Part chosen = null;
+        for (Part part : group) {
+            if (part.ownerSilence() > (part.simulatedRemotely() ? QUIET_TICKS : FIRST_REPORT_TICKS)) silent = true;
+            if (part.heldForServer()) held = true;
+            if (chosen == null && part.ownershipSet()) chosen = part;
+        }
+        if (chosen != null) {
+            String wanted = chosen.networkOwner;
+            if (!wanted.isEmpty() && !connected.contains(wanted)) {
+                for (Part part : group) part.ownershipSet(false);
+                wanted = "";
+            }
+            for (Part part : group) {
+                part.ownershipSet(chosen.ownershipSet());
+                if (silent) part.ownerChanged();
+                write(part, wanted);
             }
             return;
         }
         if (silent) {
-            part.holdForServer(TAKEN_BACK_TICKS);
-            write(part, "");
+            for (Part part : group) {
+                part.holdForServer(TAKEN_BACK_TICKS);
+                write(part, "");
+            }
             return;
         }
-        if (part.heldForServer()) {
-            if (!owner.isEmpty()) write(part, "");
+        if (held) {
+            for (Part part : group) write(part, "");
             return;
         }
-        Vector3 at = Transforms.world(part).position();
+        String driver = driver(group);
+        String next;
+        if (driver != null && connected.contains(driver)) next = driver;
+        else if (!owner.isEmpty() && connected.contains(owner) && !players.containsKey(owner)) next = owner;
+        else next = nearest(group, owner, players);
+        for (Part part : group) write(part, next);
+    }
+
+    private static @Nullable String driver(List<Part> group) {
+        for (Part part : group) {
+            if (part instanceof Seat seat && seat.occupant instanceof Humanoid living
+                    && living.parent() instanceof Character body && body.hasPlayer()) {
+                return body.owner;
+            }
+        }
+        return null;
+    }
+
+    private static String nearest(List<Part> group, String owner, Map<String, Vector3> players) {
         Vector3 holder = players.get(owner);
-        if (holder != null && holder.sub(at).lengthSq() <= KEEP * KEEP) return;
+        if (holder != null && closest(group, holder) <= KEEP * KEEP) return owner;
         String nearest = "";
         double best = TAKE * TAKE;
         for (Map.Entry<String, Vector3> player : players.entrySet()) {
-            double away = player.getValue().sub(at).lengthSq();
+            double away = closest(group, player.getValue());
             if (away <= best) {
                 best = away;
                 nearest = player.getKey();
             }
         }
-        if (!nearest.equals(owner)) write(part, nearest);
+        return nearest;
+    }
+
+    private static double closest(List<Part> group, Vector3 at) {
+        double best = Double.MAX_VALUE;
+        for (Part part : group) best = Math.min(best, Transforms.world(part).position().sub(at).lengthSq());
+        return best;
     }
 
     public static void write(Part part, String owner) {

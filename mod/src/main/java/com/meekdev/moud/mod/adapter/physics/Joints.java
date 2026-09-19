@@ -34,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.IntFunction;
+import java.util.function.Predicate;
 import org.jspecify.annotations.Nullable;
 
 public final class Joints {
@@ -60,12 +62,26 @@ public final class Joints {
     }
 
     private final Map<Integer, Built> built = new HashMap<>();
+    private final boolean publishes;
+
+    public Joints() {
+        this(true);
+    }
+
+    public Joints(boolean publishes) {
+        this.publishes = publishes;
+    }
 
     public static boolean holds(int partId) {
         return HELD.contains(partId);
     }
 
     public void settle(@Nullable InstanceTree tree, SubLevels shapes, @Nullable B3World world) {
+        settle(tree, shapes::body, shapes, world, part -> true);
+    }
+
+    public void settle(@Nullable InstanceTree tree, IntFunction<@Nullable B3Body> bodies, @Nullable SubLevels shapes,
+                       @Nullable B3World world, Predicate<Part> wanted) {
         if (tree == null || world == null) {
             clear();
             return;
@@ -76,7 +92,7 @@ public final class Joints {
             seen.add(weld.id());
             Ends ends = weld.enabled && weld.part0 instanceof Part a && weld.part1 instanceof Part b
                     ? ends(a, b, Transforms.world(b), Transforms.world(b)) : null;
-            settleOne(weld, ends, false, shapes, world, held);
+            settleOne(weld, wanted(ends, wanted), false, bodies, world, held);
         }
         for (Constraint constraint : tree.ofClass(Classes.CONSTRAINT)) {
             seen.add(constraint.id());
@@ -86,7 +102,7 @@ public final class Joints {
                     && a0.parent() instanceof Part p0 && a1.parent() instanceof Part p1) {
                 ends = ends(p0, p1, Transforms.world(a0), Transforms.world(a1));
             }
-            settleOne(constraint, ends, constraint.collideConnected, shapes, world, held);
+            settleOne(constraint, wanted(ends, wanted), constraint.collideConnected, bodies, world, held);
         }
         Iterator<Map.Entry<Integer, Built>> stale = built.entrySet().iterator();
         while (stale.hasNext()) {
@@ -95,11 +111,16 @@ public final class Joints {
             destroy(entry.getValue());
             stale.remove();
         }
+        if (!publishes || shapes == null) return;
         Set<Integer> added = new HashSet<>(held);
         added.removeAll(HELD);
         HELD.clear();
         HELD.addAll(held);
         for (int id : added) shapes.refresh(id);
+    }
+
+    private static @Nullable Ends wanted(@Nullable Ends ends, Predicate<Part> wanted) {
+        return ends != null && wanted.test(ends.part0()) && wanted.test(ends.part1()) ? ends : null;
     }
 
     private static @Nullable Ends ends(Part a, Part b, CFrame frame0, CFrame frame1) {
@@ -108,14 +129,20 @@ public final class Joints {
     }
 
     private void settleOne(Instance instance, @Nullable Ends ends, boolean collide,
-                           SubLevels shapes, B3World world, Set<Integer> held) {
+                           IntFunction<@Nullable B3Body> bodies, B3World world, Set<Integer> held) {
         B3Body a = null;
         B3Body b = null;
         if (ends != null) {
             held.add(ends.part0().id());
             held.add(ends.part1().id());
-            a = shapes.body(ends.part0().id());
-            b = shapes.body(ends.part1().id());
+            if (publishes && ends.part0().simulatedRemotely() && ends.part1().simulatedRemotely()) {
+                Built current = built.remove(instance.id());
+                if (current != null) destroy(current);
+                active(instance, true);
+                return;
+            }
+            a = bodies.apply(ends.part0().id());
+            b = bodies.apply(ends.part1().id());
         }
         Built current = built.get(instance.id());
         boolean usable = a != null && b != null && a.isValid() && b.isValid()
@@ -164,7 +191,7 @@ public final class Joints {
         };
     }
 
-    private static void drive(Instance instance, B3Joint joint, Ends ends, B3Body a, B3Body b) {
+    private void drive(Instance instance, B3Joint joint, Ends ends, B3Body a, B3Body b) {
         switch (instance) {
             case HingeConstraint hinge when joint instanceof B3RevoluteJoint revolute -> hinge(hinge, revolute);
             case PrismaticConstraint slide when joint instanceof B3PrismaticJoint prismatic -> slide(slide, prismatic);
@@ -176,7 +203,7 @@ public final class Joints {
         }
     }
 
-    private static void hinge(HingeConstraint hinge, B3RevoluteJoint revolute) {
+    private void hinge(HingeConstraint hinge, B3RevoluteJoint revolute) {
         revolute.enableLimit(hinge.limitsEnabled);
         if (hinge.limitsEnabled) {
             Range limits = Range.degrees(hinge.lowerAngle, hinge.upperAngle);
@@ -195,7 +222,7 @@ public final class Joints {
         write(hinge, "currentAngle", angle);
     }
 
-    private static void slide(PrismaticConstraint slide, B3PrismaticJoint prismatic) {
+    private void slide(PrismaticConstraint slide, B3PrismaticJoint prismatic) {
         prismatic.enableLimit(slide.limitsEnabled);
         if (slide.limitsEnabled) {
             Range limits = Range.of(slide.lowerLimit, slide.upperLimit);
@@ -223,7 +250,7 @@ public final class Joints {
         }
     }
 
-    private static void rope(RopeConstraint rope, B3DistanceJoint distance, Ends ends) {
+    private void rope(RopeConstraint rope, B3DistanceJoint distance, Ends ends) {
         if (rope.winchEnabled) winch(rope, distance);
         distance.enableSpring(true);
         distance.setSpring(0, 0);
@@ -232,14 +259,14 @@ public final class Joints {
         write(rope, "currentDistance", ends.frame0().position().distance(ends.frame1().position()));
     }
 
-    private static void rod(RodConstraint rod, B3DistanceJoint distance, Ends ends) {
+    private void rod(RodConstraint rod, B3DistanceJoint distance, Ends ends) {
         distance.enableSpring(false);
         distance.enableLimit(false);
         distance.setLength((float) rod.length);
         write(rod, "currentDistance", ends.frame0().position().distance(ends.frame1().position()));
     }
 
-    private static void spring(SpringConstraint spring, B3DistanceJoint distance, B3Body a, B3Body b) {
+    private void spring(SpringConstraint spring, B3DistanceJoint distance, B3Body a, B3Body b) {
         double mass = effectiveMass(a, b);
         double omega = Math.sqrt(spring.stiffness / mass);
         double ratio = spring.stiffness > 0 ? spring.damping / (2 * Math.sqrt(spring.stiffness * mass)) : 0;
@@ -254,7 +281,7 @@ public final class Joints {
         write(spring, "currentLength", distance.currentLength());
     }
 
-    private static void winch(RopeConstraint rope, B3DistanceJoint distance) {
+    private void winch(RopeConstraint rope, B3DistanceJoint distance) {
         double gap = rope.winchTarget - rope.length;
         if (Math.abs(gap) <= EPSILON) return;
         double eased = Math.min(rope.winchSpeed, Math.abs(gap) * rope.winchResponsiveness * WINCH_EASE);
@@ -291,12 +318,14 @@ public final class Joints {
         joint.wakeBodies();
     }
 
-    private static void write(Instance instance, String name, double value) {
+    private void write(Instance instance, String name, double value) {
+        if (!publishes) return;
         PropertyDef property = instance.def().property(name);
         if (Math.abs(property.getNum(instance) - value) > EPSILON) Instances.setNum(instance, property, value);
     }
 
-    private static void active(Instance instance, boolean on) {
+    private void active(Instance instance, boolean on) {
+        if (!publishes) return;
         PropertyDef property = instance.def().property("active");
         if (property.getBool(instance) != on) Instances.setBool(instance, property, on);
     }
@@ -305,9 +334,13 @@ public final class Joints {
         if (one.joint().isValid()) one.joint().destroy();
     }
 
+    public int size() {
+        return built.size();
+    }
+
     public void clear() {
         for (Built one : built.values()) destroy(one);
         built.clear();
-        HELD.clear();
+        if (publishes) HELD.clear();
     }
 }

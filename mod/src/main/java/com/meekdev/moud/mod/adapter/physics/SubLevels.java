@@ -5,6 +5,7 @@ import com.meekdev.bkun.sublevel.SubLevelContainer;
 import com.meekdev.bkun.sublevel.SubLevelEntity;
 import com.meekdev.bkun.sublevel.SubLevelModel;
 import com.meekdev.box3d.B3Body;
+import com.meekdev.box3d.B3Hull;
 import com.meekdev.box3d.B3BodyType;
 import com.meekdev.box3d.B3Shape;
 import com.meekdev.box3d.B3ShapeType;
@@ -25,9 +26,12 @@ import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.net.replicate.Change;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import net.minecraft.server.level.ServerLevel;
 import org.jspecify.annotations.Nullable;
@@ -159,7 +163,14 @@ public final class SubLevels {
         body.recomputeMass();
     }
 
+    private static final Set<B3Body> REHULLED = Collections.newSetFromMap(new WeakHashMap<>());
+
     private static void round(B3Body body, Part part) {
+        if (part.shape != PartShape.BLOCK && part.shape != PartShape.BALL && REHULLED.add(body)) {
+            for (B3Shape shape : body.shapes()) shape.destroy();
+            for (B3Hull hull : PartShapes.of(part.size, part.shape).hulls()) body.addHull(hull);
+            return;
+        }
         if (part.shape != PartShape.BALL) return;
         float radius = (float) Shapes.across(PartShape.BALL, part.size);
         List<B3Shape> shapes = body.shapes();
@@ -213,7 +224,7 @@ public final class SubLevels {
             case Change.Created created -> refresh(created.id());
             case Change.Wrote wrote -> {
                 if (wrote.property() == CFRAME.index() || wrote.property() == PIVOT.index()) refreshBranch(wrote.id());
-                else refresh(wrote.id());
+                else refresh(wrote.id(), false);
             }
             case Change.Moved moved -> refreshBranch(moved.id());
             case Change.Tagged ignored -> { }
@@ -243,9 +254,13 @@ public final class SubLevels {
     }
 
     void refresh(int id) {
+        refresh(id, true);
+    }
+
+    private void refresh(int id, boolean moved) {
         if (!available) return;
         try {
-            refreshOrThrow(id);
+            refreshOrThrow(id, moved);
         } catch (Throwable e) {
             available = false;
             clear();
@@ -253,7 +268,7 @@ public final class SubLevels {
         }
     }
 
-    private void refreshOrThrow(int id) {
+    private void refreshOrThrow(int id, boolean moved) {
         Instance instance = tree == null ? null : tree.byId(id);
         if (!(instance instanceof Part part)) return;
         CFrame world = Transforms.world(part);
@@ -269,7 +284,7 @@ public final class SubLevels {
             subLevel.recentreOrigin();
             dressed.remove(id);
         }
-        if (subLevel != null && !part.anchored && simulating && (owned(part) || same(world, written.get(id)))) {
+        if (subLevel != null && !part.anchored && simulating && (!moved || owned(part) || same(world, written.get(id)))) {
             type(subLevel, part);
             B3Body body = subLevel.body();
             if (body != null) dress(body, part);

@@ -90,6 +90,7 @@ public final class Seating {
             Seats.stand(seat);
             return;
         }
+        if (seat.simulatedRemotely() && seat.networkOwner.equals(player.getUUID().toString())) return;
         Vector3 at = Seats.frame(seat).position();
         double dx = player.getX() - at.x();
         double dy = player.getY() - at.y();
