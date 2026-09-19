@@ -16,8 +16,9 @@ public final class Transforms {
 
     public static CFrame local(Instance i) {
         if (!(i instanceof Spatial s)) return CFrame.IDENTITY;
-        if (s.pivot.equals(Vector3.ZERO)) return s.cframe;
-        return s.cframe.mul(CFrame.at(s.pivot.neg()));
+        CFrame frame = s instanceof Bone bone && !bone.transform.equals(CFrame.IDENTITY) ? s.cframe.mul(bone.transform) : s.cframe;
+        if (s.pivot.equals(Vector3.ZERO)) return frame;
+        return frame.mul(CFrame.at(s.pivot.neg()));
     }
 
     public static CFrame localFor(Instance i, CFrame worldTarget) {

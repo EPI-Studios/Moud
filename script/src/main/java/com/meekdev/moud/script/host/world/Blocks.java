@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.host.world;
 
+import com.meekdev.moud.core.asset.BbmodelImport;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.math.Vector3;
@@ -329,7 +330,23 @@ public final class Blocks {
                     }
                     return null;
                 })
-                .function("encode", "(instances: any) -> string", a -> Scene.save(roots(a.get(0))));
+                .function("encode", "(instances: any) -> string", a -> Scene.save(roots(a.get(0))))
+                .function("importBbmodel", "(path: string, parent: Instance?) -> (Model, { string })", a -> {
+                    String path = a.string(0);
+                    if (!path.endsWith(".bbmodel")) throw new HostError("importBbmodel expects a .bbmodel path, got %s", path);
+                    String text = files.read(path);
+                    if (text == null) throw new HostError("there is no model at %s", path);
+                    Instance parent = a.instance(1, host.world());
+                    BbmodelImport.Imported imported;
+                    try {
+                        imported = BbmodelImport.build(text, path, parent);
+                        for (Map.Entry<String, String> file : imported.files().entrySet()) files.write(file.getKey(), file.getValue());
+                    } catch (IllegalArgumentException | IllegalStateException e) {
+                        throw new HostError("%s: %s", path, e.getMessage());
+                    }
+                    if (host.instances().edited(parent)) host.edits().added(imported.model());
+                    return Results.of(imported.model(), new ArrayList<Object>(imported.notes()));
+                });
         host.global("scene", "SceneService", scene);
         host.declare(scene);
     }

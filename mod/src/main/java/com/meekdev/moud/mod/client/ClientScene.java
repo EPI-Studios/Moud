@@ -4,6 +4,7 @@ import com.meekdev.moud.core.character.Animators;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Limb;
 import com.meekdev.moud.core.character.Pose;
+import com.meekdev.moud.core.character.Posing;
 import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
@@ -78,6 +79,8 @@ public final class ClientScene {
                 Animators.apply(character);
             }
         }
+        Animators.controllers(tree);
+        if (!EditMode.editing()) Posing.step(tree, TICK_SECONDS);
         Stages.run(tree, Stage.COMPOSE, 0);
         OwnedBodies.tick(tree, Minecraft.getInstance().level, me == null ? "" : me.getUUID().toString(), !EditMode.editing(),
                 GameState.INSTANCE.gravity(), own);

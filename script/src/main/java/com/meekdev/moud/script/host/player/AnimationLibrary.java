@@ -31,6 +31,7 @@ final class AnimationLibrary {
 
     static void install(Host host) {
         host.api().declare(HostSignal.decl("StringSignal", "(value: string) -> ()"));
+        host.api().declare(HostSignal.decl("MarkerSignal", "(value: any) -> ()"));
         Map<AnimationTrack, Map<String, HostSignal>> reached = new WeakHashMap<>();
 
         Members animators = host.instances().of(Classes.ANIMATOR);
@@ -81,13 +82,13 @@ final class AnimationLibrary {
             else host.instances().write(track, WEIGHT, target);
             return null;
         });
-        tracks.method("getMarkerReachedSignal", "(name: string) -> StringSignal", a -> {
+        tracks.method("getMarkerReachedSignal", "(name: string) -> MarkerSignal", a -> {
             AnimationTrack track = a.self(AnimationTrack.class);
             String name = a.string(1);
             Map<String, HostSignal> byName = reached.computeIfAbsent(track, key -> new HashMap<>());
             HostSignal known = byName.get(name);
             if (known != null) return known;
-            HostSignal signal = new HostSignal(host, "StringSignal", "markerReached");
+            HostSignal signal = new HostSignal(host, "MarkerSignal", "markerReached");
             track.markers().connect(marker -> {
                 if (marker.name().equals(name)) signal.fire(marker.value());
             });
