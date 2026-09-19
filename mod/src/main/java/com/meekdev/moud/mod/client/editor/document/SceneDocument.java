@@ -12,6 +12,7 @@ import com.meekdev.moud.core.instance.Attributes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Model;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
@@ -55,6 +56,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -74,6 +76,7 @@ public final class SceneDocument {
     private Supplier<Vector3> spawnPoint = () -> Vector3.ZERO;
     private int generation;
     private Function<String, @Nullable Vector3> meshSize = id -> null;
+    private BiFunction<String, Instance, @Nullable Instance> rigs = (res, holder) -> null;
     private @Nullable InstanceTree seen;
     private boolean gathering;
 
@@ -87,6 +90,10 @@ public final class SceneDocument {
 
     public void meshSizes(Function<String, @Nullable Vector3> source) {
         meshSize = source;
+    }
+
+    public void rigs(BiFunction<String, Instance, @Nullable Instance> source) {
+        rigs = source;
     }
 
     public void spawnPoint(Supplier<Vector3> source) {
@@ -515,12 +522,16 @@ public final class SceneDocument {
                 if (at != null) shiftTo(loaded, parent, at);
                 text = snapshot(loaded);
             } else {
-                Instance made = vanilla ? vanillaSound(res, name, holder) : madeFor(lower, res, name, holder);
+                Instance made = vanilla ? vanillaSound(res, name, holder) : lower.endsWith(".bbmodel") ? rigs.apply(res, holder) : null;
+                if (made == null) made = madeFor(lower, res, name, holder);
                 if (made == null) return false;
                 settle(made, res);
                 if (made instanceof Spatial spatial && !inViewport(parent)) {
                     Vector3 point = at != null ? at : spawnPoint.get();
                     if (made instanceof Part part) point = point.add(new Vector3(0, part.size.y() * 0.5, 0));
+                    if (made instanceof Model model && model.primaryPart instanceof Part part) {
+                        point = point.add(new Vector3(0, part.size.y() * 0.5 - part.cframe.position().y(), 0));
+                    }
                     spatial.cframe = Transforms.world(parent).inverse().mul(CFrame.at(point));
                 }
                 text = snapshot(List.of(made));

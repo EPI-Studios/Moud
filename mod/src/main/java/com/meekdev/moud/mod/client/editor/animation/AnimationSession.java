@@ -137,9 +137,12 @@ public final class AnimationSession {
     }
 
     public Path create(String name, AnimClip.Space space, String rigName) {
+        return create(name, space, rigName, library.folder());
+    }
+
+    public Path create(String name, AnimClip.Space space, String rigName, Path folder) {
         String clean = name.strip().replaceAll("[\\\\/:*?\"<>|]", "_");
         if (clean.isEmpty()) clean = "clip";
-        Path folder = library.folder();
         Path path = folder.resolve(clean + ClipLibrary.EXTENSION);
         for (int n = 2; Files.exists(path) || library.get(path) != null; n++) path = folder.resolve(clean + " " + n + ClipLibrary.EXTENSION);
         AnimClip clip = new AnimClip();

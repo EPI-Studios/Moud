@@ -4,6 +4,7 @@ import com.meekdev.moud.core.character.IKControl;
 import com.meekdev.moud.core.character.JointSpring;
 import com.meekdev.moud.core.character.JointSprings;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.SearchField;
 import com.meekdev.moud.mod.client.editor.kit.Sections;
@@ -18,6 +19,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.type.ImString;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 
@@ -131,10 +133,11 @@ final class RigPanel implements Panel {
             askNew = true;
         }
         if (!open) return;
-        List<ClipLibrary.Listed> clips = session.library().clips();
+        Path folder = workspace.clipFolder(session.clip().space);
+        List<ClipLibrary.Listed> clips = session.library().clips().stream().filter(clip -> clip.path().startsWith(folder)).toList();
         if (clips.isEmpty()) {
             ImGui.indent(EditorScale.of(6));
-            Texts.muted("No clips in animations/ yet");
+            Texts.muted("No clips in " + shown(folder) + " yet");
             if (ImGui.button("New clip##anim-first-clip")) askNew = true;
             ImGui.unindent(EditorScale.of(6));
         }
@@ -159,7 +162,9 @@ final class RigPanel implements Panel {
         }
         if (!Dialogs.begin(NEW_CLIP, 360)) return;
         Dialogs.title("New clip");
-        Texts.muted("Saved as animations/<name>.anim");
+        AnimClip.Space chosen = newSpace == 1 ? AnimClip.Space.VIEW : AnimClip.Space.BODY;
+        Path folder = workspace.clipFolder(chosen);
+        Texts.muted("Saved as " + shown(folder) + "<name>.anim");
         Dialogs.gap();
         if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
@@ -174,9 +179,14 @@ final class RigPanel implements Panel {
         boolean ready = !newName.get().isBlank();
         if (Dialogs.primaryButton("Create##anim-new-create", ready) || entered && ready) {
             AnimClip.Space space = newSpace == 1 ? AnimClip.Space.VIEW : AnimClip.Space.BODY;
-            session.create(newName.get(), space, space == AnimClip.Space.VIEW ? "view" : rig.model() != null ? rig.model().name() : "player");
+            session.create(newName.get(), space, space == AnimClip.Space.VIEW ? "view" : rig.model() != null ? rig.model().name() : "player",
+                    workspace.clipFolder(space));
             ImGui.closeCurrentPopup();
         }
         Dialogs.end();
+    }
+
+    private static String shown(Path folder) {
+        return AssetFiles.root().relativize(folder).toString().replace('\\', '/') + "/";
     }
 }

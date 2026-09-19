@@ -1,5 +1,7 @@
 package com.meekdev.moud.mod.client.editor.animation;
 
+import com.meekdev.moud.core.asset.Res;
+import com.meekdev.moud.core.character.Animation;
 import com.meekdev.moud.core.character.AnimationController;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.IKControl;
@@ -10,16 +12,26 @@ import com.meekdev.moud.core.character.Rigs;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Model;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.MeshPart;
+import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.client.PlaceFiles;
+import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
+import com.meekdev.moud.mod.client.editor.document.Batch;
+import com.meekdev.moud.mod.client.editor.document.Paste;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.panel.Panel;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
 import com.meekdev.moud.mod.client.editor.viewport.ViewportPanel;
+import com.meekdev.moud.mod.place.ImportSettings;
+import com.meekdev.moud.mod.place.Output;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -45,6 +57,7 @@ public final class AnimationWorkspace {
     private final InspectorPanel inspector;
     private final TimelinePanel timeline;
     private final BbmodelImportDialog importer;
+    private final RigDialog rigDialog;
     private final LaunchSteps steps;
     private final Panel viewportWindow;
     private boolean active;
@@ -55,6 +68,8 @@ public final class AnimationWorkspace {
     private Map<String, JointPose> pose = Map.of();
     private boolean launched;
     private String wanted = "";
+    private @Nullable Paste converting;
+    private @Nullable Path convertedClip;
 
     public AnimationWorkspace(SceneDocument document, IconWidgets icons, ViewportPanel viewport) {
         this.document = document;
@@ -67,6 +82,8 @@ public final class AnimationWorkspace {
         this.timeline = new TimelinePanel(this, session, icons);
         BbmodelFiles.runtime(new BbmodelWriter(document, viewport::spawnPoint));
         this.importer = new BbmodelImportDialog(new BbmodelFiles(), icons, this);
+        this.rigDialog = new RigDialog(this);
+        document.rigs(this::rigAsset);
         this.steps = new LaunchSteps(this, session);
         this.viewportWindow = new Panel() {
             @Override
@@ -146,6 +163,7 @@ public final class AnimationWorkspace {
 
     public void renderDialogs() {
         importer.render();
+        rigDialog.render();
     }
 
     public void importModel(Path file) {
@@ -158,6 +176,118 @@ public final class AnimationWorkspace {
 
     void closeImport() {
         importer.close();
+    }
+
+    void askRig(MeshPart mesh) {
+        rigDialog.ask(mesh);
+    }
+
+    void confirmRig() {
+        rigDialog.confirm();
+    }
+
+    void makeAnimatable(MeshPart mesh) {
+        if (!mesh.isAlive() || mesh.parent() == null || !document.editable(mesh)) return;
+        byte[] bytes = PlaceFiles.read(mesh.meshId);
+        if (bytes == null) {
+            session.say("could not read " + mesh.meshId);
+            return;
+        }
+        Instance holder = Instances.createRoot(new InstanceTree(), Classes.FOLDER, "Scratch");
+        Rigging.Made made;
+        try {
+            made = Rigging.from(mesh, new String(bytes, StandardCharsets.UTF_8), holder);
+        } catch (RuntimeException e) {
+            session.say("could not make " + mesh.name() + " animatable: " + e.getMessage());
+            return;
+        }
+        if (made == null) {
+            session.say(mesh.name() + " has no groups to turn into bones");
+            return;
+        }
+        List<Path> written = written(made);
+        Batch edit = Rigging.edit(document, mesh, made.model());
+        if (document.history().execute(edit).isPresent()) return;
+        converting = (Paste) edit.edits().getFirst();
+        convertedClip = written.isEmpty() ? firstClip(made) : written.getFirst();
+        session.library().rescan();
+        session.say(made.model().name() + " is animatable" + (written.isEmpty() ? "" : ", " + written.size() + (written.size() == 1 ? " clip" : " clips")
+                + " written to " + Rigging.directory(made.model().name())));
+    }
+
+    private List<Path> written(Rigging.Made made) {
+        List<String> notes = new ArrayList<>(made.notes());
+        List<Path> written = Rigging.write(AssetFiles.root(), made.files(), PlaceFiles::upload, notes);
+        for (String note : notes) Output.add(Output.Level.WARN, "editor", made.model().name() + ": " + note);
+        return written;
+    }
+
+    private @Nullable Path firstClip(Rigging.Made made) {
+        for (String file : made.files().keySet()) {
+            Path path = AssetFiles.root().resolve(Res.parse(file));
+            if (Files.isRegularFile(path)) return path;
+        }
+        return null;
+    }
+
+    private @Nullable Instance rigAsset(String res, Instance holder) {
+        byte[] bytes = PlaceFiles.read(res);
+        if (bytes == null) return null;
+        String file = res.substring(res.lastIndexOf('/') + 1);
+        Rigging.Made made;
+        try {
+            made = Rigging.build(new String(bytes, StandardCharsets.UTF_8), res, file.substring(0, file.lastIndexOf('.')), holder);
+        } catch (RuntimeException e) {
+            MoudMod.LOG.warn("{} could not be rigged: {}", res, e.getMessage());
+            return null;
+        }
+        if (made == null) return null;
+        double scale = ImportSettings.of(AssetFiles.root().resolve(Res.parse(res))).scale();
+        if (scale > 0 && scale != 1) Rigging.grow(made.model(), scale);
+        written(made);
+        session.library().rescan();
+        return made.model();
+    }
+
+    private void landConversion() {
+        Paste paste = converting;
+        if (paste == null || paste.roots().isEmpty()) return;
+        converting = null;
+        if (!(document.find(paste.roots().getFirst()) instanceof Model model)) return;
+        Path clip = convertedClip;
+        convertedClip = null;
+        if (!active) enter();
+        if (clip != null && Files.isRegularFile(clip)) openClip(clip);
+        chose();
+        rig.borrow(model);
+        frameRig();
+    }
+
+    Path clipFolder(AnimClip.Space space) {
+        Model model = rig.model();
+        if (model == null || space == AnimClip.Space.VIEW) return session.library().folder();
+        if (model.child("animations") instanceof Instance animations) {
+            for (Instance child : animations.children()) {
+                if (!(child instanceof Animation animation) || !animation.animationId.startsWith(Res.SCHEME)) continue;
+                try {
+                    Path folder = AssetFiles.root().resolve(Res.parse(animation.animationId)).getParent();
+                    if (folder != null && folder.startsWith(session.library().folder())) return folder;
+                } catch (IllegalArgumentException ignored) {
+                    continue;
+                }
+            }
+        }
+        return AssetFiles.root().resolve(Rigging.directory(model.name()));
+    }
+
+    List<MeshPart> sceneMeshes() {
+        List<MeshPart> found = new ArrayList<>();
+        InstanceTree now = ClientScene.tree();
+        if (now == null) return found;
+        for (Instance instance : now.ofClass(Classes.MESH_PART)) {
+            if (instance instanceof MeshPart mesh && mesh.id() > 0 && mesh.isAlive() && Rigging.animatable(mesh) && document.editable(mesh)) found.add(mesh);
+        }
+        return found;
     }
 
     public void steps() {
@@ -403,6 +533,7 @@ public final class AnimationWorkspace {
         double after = session.time();
         if (after > before) EventPreview.crossed(clip, before, after, rig.world().position().add(new Vector3(0, 1.2, 0)));
         else if (session.playing() && after < before) EventPreview.crossed(clip, -1e-9, after, rig.world().position().add(new Vector3(0, 1.2, 0)));
+        landConversion();
         adoptWanted();
         List<String> joints = Skeletons.names(skeleton());
         pose = JointPose.all(clip, session.compiled(), joints, after, retargets());

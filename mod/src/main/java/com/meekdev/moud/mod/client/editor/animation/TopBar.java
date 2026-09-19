@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.editor.animation;
 
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Model;
+import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.SegmentedControl;
@@ -19,6 +20,7 @@ import imgui.flag.ImGuiChildFlags;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
@@ -81,7 +83,8 @@ final class TopBar {
         EditorStyle.titleFont().ifPresent(font -> ImGui.popFont());
         String place = AssetFiles.root().getFileName() == null ? "place" : AssetFiles.root().getFileName().toString();
         crumb(place, false);
-        crumb(ClipLibrary.FOLDER, false);
+        Path folder = session.path() == null ? null : session.path().getParent();
+        crumb(folder == null || !folder.startsWith(AssetFiles.root()) ? ClipLibrary.FOLDER : AssetFiles.root().relativize(folder).toString().replace('\\', '/'), false);
         crumb(session.hasClip() ? session.name() + ClipLibrary.EXTENSION : "no clip", true);
         String older = session.hasClip() ? session.older() : null;
         if (older != null) {
@@ -246,6 +249,14 @@ final class TopBar {
                     workspace.chose();
                     workspace.frameRig();
                 }
+            }
+        }
+        List<MeshPart> meshes = workspace.sceneMeshes();
+        if (!meshes.isEmpty()) {
+            ImGui.separator();
+            Texts.muted("Blockbench meshes, rigged when picked");
+            for (MeshPart mesh : meshes) {
+                if (ImGui.menuItem(mesh.name() + "##mesh-" + mesh.id())) workspace.askRig(mesh);
             }
         }
         ImGui.separator();

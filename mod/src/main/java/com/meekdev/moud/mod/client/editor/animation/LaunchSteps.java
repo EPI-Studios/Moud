@@ -9,6 +9,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.EditMode;
 import java.util.ArrayDeque;
@@ -52,6 +53,16 @@ final class LaunchSteps {
         switch (parts[0]) {
             case "wait" -> waiting = Integer.parseInt(parts[1]);
             case "import" -> workspace.confirmImport();
+            case "rig" -> {
+                for (MeshPart mesh : workspace.sceneMeshes()) {
+                    if (mesh.name().equals(parts[1])) workspace.askRig(mesh);
+                }
+            }
+            case "convert" -> workspace.confirmRig();
+            case "place" -> {
+                Instance world = workspace.document().world();
+                if (world != null) workspace.document().placeAsset(parts[1] + ":" + parts[2], world.id(), null);
+            }
             case "select" -> session.joint(parts[1]);
             case "seek" -> session.seekFree(Double.parseDouble(parts[1]));
             case "turn" -> {
