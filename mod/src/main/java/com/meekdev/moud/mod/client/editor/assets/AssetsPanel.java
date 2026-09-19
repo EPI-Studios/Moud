@@ -25,7 +25,6 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiDir;
 import imgui.flag.ImGuiFocusedFlags;
-import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiPopupFlags;
@@ -794,7 +793,8 @@ public final class AssetsPanel implements Panel {
         Dialogs.title(nameTitle);
         if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
         ImGui.setNextItemWidth(-1.0f);
-        boolean submitted = ImGui.inputText("##asset-name-input", nameInput, ImGuiInputTextFlags.EnterReturnsTrue);
+        ImGui.inputText("##asset-name-input", nameInput);
+        boolean submitted = ImGui.isItemDeactivated() && ImGui.isKeyPressed(ImGuiKey.Enter);
         Dialogs.gap();
         Dialogs.alignFooter(2);
         if (Dialogs.button("Cancel##asset-name-cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();

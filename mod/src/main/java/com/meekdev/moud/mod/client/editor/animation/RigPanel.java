@@ -15,7 +15,7 @@ import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
 import imgui.ImGui;
-import imgui.flag.ImGuiInputTextFlags;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.type.ImString;
 import java.util.List;
@@ -163,7 +163,8 @@ final class RigPanel implements Panel {
         Dialogs.gap();
         if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
-        boolean entered = ImGui.inputTextWithHint("##anim-new-name", "wave", newName, ImGuiInputTextFlags.EnterReturnsTrue);
+        ImGui.inputTextWithHint("##anim-new-name", "wave", newName);
+        boolean entered = ImGui.isItemDeactivated() && ImGui.isKeyPressed(ImGuiKey.Enter);
         Dialogs.gap();
         newSpace = SegmentedControl.render("anim-new-space", List.of("Body", "View"), newSpace);
         Dialogs.gap();
