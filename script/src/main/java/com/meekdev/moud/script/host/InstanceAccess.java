@@ -102,7 +102,7 @@ public final class InstanceAccess {
 
         for (ClassDef<?> def = instance.def(); def != null; def = def.parent()) {
             Members members = byClass.get(def);
-            if (members != null && members.has(key)) return members.get(key);
+            if (members != null && members.has(key)) return members.get(instance, key);
         }
         if (shared.has(key)) return shared.get(key);
         throw new HostError("%s has no member '%s'", instance.def().name(), key);

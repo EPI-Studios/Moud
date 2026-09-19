@@ -12,6 +12,7 @@ import com.meekdev.moud.mod.adapter.chat.ClientChat;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
+import com.meekdev.moud.mod.adapter.render.FirstPersonView;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.adapter.render.WeatherView;
 import com.meekdev.moud.mod.addon.Addons;
@@ -109,8 +110,11 @@ public final class ClientPlace {
         ClickDetectors.frame();
         Actions.frame();
         Host host = place.host();
-        if (host != null) host.renderStep(FRAME.tick());
+        double dt = FRAME.tick();
+        FirstPersonView.begin(dt);
+        if (host != null) host.renderStep(dt);
         Cameras.frame(camera, partialTick);
+        FirstPersonView.end(camera, dt);
         if (host != null) host.cameraUpdated();
     }
 

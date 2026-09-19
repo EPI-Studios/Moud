@@ -67,7 +67,9 @@ public final class Animators {
 
     public static void step(InstanceTree tree, double dt, boolean server) {
         for (Instance instance : tree.ofClass(Classes.TRACK)) {
-            if (instance instanceof AnimationTrack track && track.animation != null) advance(track, dt, server);
+            if (instance instanceof AnimationTrack track && track.animation != null && (server || !ViewModels.inside(track))) {
+                advance(track, dt, server);
+            }
         }
     }
 
@@ -175,6 +177,13 @@ public final class Animators {
         for (Map.Entry<String, Instance> joint : Rigs.joints(animator).entrySet()) {
             blend(joint.getKey(), joint.getValue(), layers, fresh, retarget);
         }
+    }
+
+    static boolean moving(Animator animator) {
+        for (Instance child : animator.children()) {
+            if (child instanceof AnimationTrack track && strength(track) > 0) return true;
+        }
+        return false;
     }
 
     private static double strength(AnimationTrack track) {

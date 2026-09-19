@@ -328,6 +328,7 @@ public final class Players {
         Members bodies = host.instances().of(Classes.CHARACTER);
         bodies.declare("humanoid", "Humanoid");
         bodies.declare("animator", "Animator");
+        bodies.declare("viewModel", "ViewModel");
         bodies.declare("backpack", "Backpack");
         bodies.declare("appearance", "Appearance");
         bodies.declare("armour", "Armour");

@@ -161,7 +161,7 @@ public final class Skins {
         return Identifier.tryParse(asked);
     }
 
-    private static Identifier bodySheet(Appearance look, @Nullable AbstractClientPlayer wearer) {
+    static Identifier bodySheet(Appearance look, @Nullable AbstractClientPlayer wearer) {
         if (!look.skin.isEmpty()) {
             Identifier asked = Identifier.tryParse(look.skin);
             if (asked != null) return asked;

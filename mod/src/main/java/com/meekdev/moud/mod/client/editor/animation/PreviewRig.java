@@ -3,10 +3,10 @@ package com.meekdev.moud.mod.client.editor.animation;
 import com.meekdev.moud.core.character.Appearance;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.CharacterDisplay;
-import com.meekdev.moud.core.character.Clip;
 import com.meekdev.moud.core.character.Limb;
 import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.character.Rigs;
+import com.meekdev.moud.core.character.ViewModels;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Bone;
 import com.meekdev.moud.core.instance.Instance;
@@ -375,8 +375,14 @@ final class PreviewRig {
         for (String side : new String[] {"right", "left"}) {
             if (!(character.child(side + "Arm") instanceof Part arm) || !(arm.child(Rig.GRIP) instanceof Spatial grip)) continue;
             JointPose item = pose.get(side + "Item");
-            CFrame rest = Transforms.local(grip);
-            CFrame local = item == null ? rest : rest.mul(item.transform());
+            CFrame local;
+            Box held = camera == null ? null : viewBox(side + "Arm", pose, camera);
+            if (held != null) {
+                local = held.frame().inverse().mul(viewPivot(side + "Item", pose, camera));
+            } else {
+                CFrame rest = Transforms.local(grip);
+                local = item == null ? rest : rest.mul(item.transform());
+            }
             ClientScene.motion().live(grip, local);
             if (!lived.contains(grip)) lived.add(grip);
         }
@@ -479,11 +485,6 @@ final class PreviewRig {
         return null;
     }
 
-    static CFrame viewRest(String arm) {
-        double side = arm.startsWith("right") ? 1 : -1;
-        return new CFrame(new Vector3(side * 0.38, -0.5, 0.05), Clip.euler(new Vector3(78, side * 12, side * -6), Clip.EULER));
-    }
-
     @Nullable Box viewBox(String arm, Map<String, JointPose> pose, CFrame camera) {
         Character character = preview();
         if (character == null || !(character.child(arm) instanceof Part part)) return null;
@@ -492,13 +493,13 @@ final class PreviewRig {
     }
 
     CFrame viewParent(String joint, Map<String, JointPose> pose, CFrame camera) {
-        if (joint.equals("camera")) return camera;
-        CFrame head = camera.mul(pose.getOrDefault("camera", JointPose.REST).transform());
+        if (joint.equals(ViewModels.CAMERA)) return camera;
         if (joint.endsWith("Item")) {
-            String arm = joint.substring(0, joint.length() - "Item".length()) + "Arm";
-            return viewPivot(arm, pose, camera);
+            String side = joint.substring(0, joint.length() - "Item".length());
+            return viewPivot(side + "Arm", pose, camera).mul(ViewModels.itemRest(side.equals("right")));
         }
-        return head.mul(viewRest(joint));
+        CFrame eye = camera.mul(pose.getOrDefault(ViewModels.CAMERA, JointPose.REST).transform());
+        return eye.mul(ViewModels.armRest(joint.startsWith("right")));
     }
 
     CFrame viewPivot(String joint, Map<String, JointPose> pose, CFrame camera) {

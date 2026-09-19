@@ -38,7 +38,8 @@ public final class IKControls {
         for (Instance instance : tree.ofClass(Classes.IK_CONTROL)) {
             if (!(instance instanceof IKControl control)) continue;
             if (control.endEffector != null && !joints.test(control.endEffector)) continue;
-            if (control.enabled && control.weight > 0 && Rigs.posable(control.endEffector) && control.endEffector.isAlive()) {
+            if (control.enabled && control.weight > 0 && Rigs.posable(control.endEffector) && control.endEffector.isAlive()
+                    && !ViewModels.inside(control.endEffector)) {
                 controls.add(control);
             } else {
                 SMOOTHED.remove(control);
@@ -49,6 +50,10 @@ public final class IKControls {
     }
 
     public static void solve(IKControl control, double dt) {
+        solve(control, dt, true);
+    }
+
+    static void solve(IKControl control, double dt, boolean touch) {
         CFrame goal = goal(control);
         if (goal == null) return;
         goal = smooth(control, goal, dt);
@@ -64,7 +69,7 @@ public final class IKControls {
         };
         Map<Instance, CFrame> before = new LinkedHashMap<>();
         for (Instance joint : moving) {
-            Posing.touch(joint);
+            if (touch) Posing.touch(joint);
             before.put(joint, Rigs.transform(joint));
         }
 

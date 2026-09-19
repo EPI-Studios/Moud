@@ -53,7 +53,7 @@ public final class JointSprings {
             if (!(instance instanceof JointSpring spring)) continue;
             Instance joint = joint(spring);
             if (joint != null && !joints.test(joint)) continue;
-            if (spring.enabled && spring.weight > 0 && joint(spring) != null) springs.add(spring);
+            if (spring.enabled && spring.weight > 0 && joint != null && !ViewModels.inside(joint)) springs.add(spring);
             else STATES.remove(spring);
         }
         springs.sort(Comparator.comparingInt(spring -> depth(joint(spring))));

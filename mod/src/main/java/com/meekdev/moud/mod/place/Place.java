@@ -8,6 +8,7 @@ import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.core.character.Animators;
 import com.meekdev.moud.core.character.Posing;
+import com.meekdev.moud.core.character.ViewModels;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.chat.ServerChat;
 import com.meekdev.moud.mod.adapter.physics.BlockRays;
@@ -295,6 +296,7 @@ public final class Place {
         MoudMod.LOG.info("reloading the place");
         Animators.forget();
         Posing.forget();
+        ViewModels.forget();
         if (!client) Output.add(Output.Level.SYSTEM, "server", "reloaded the scripts");
 
         Map<String, Object> carried = host == null ? Map.of() : host.persist();

@@ -44,6 +44,8 @@ public final class Rig {
 
     public static final String ANIMATOR = "animator";
 
+    public static final String VIEW_MODEL = "viewModel";
+
     public static final String BACKPACK = "backpack";
 
     public static final String ARMOUR = "armour";
@@ -282,6 +284,8 @@ public final class Rig {
         }
         Instances.create(Classes.WINGS, character, WING_SET);
         Instances.create(Classes.APPEARANCE, character, APPEARANCE);
+        ViewModel view = Instances.create(Classes.VIEW_MODEL, character, VIEW_MODEL);
+        Instances.create(Classes.ANIMATOR, view, ANIMATOR);
 
         Instance frame = Instances.create(Classes.ATTACHMENT, character, ROOT);
         Instance joints = Instances.create(Classes.FOLDER, character, JOINTS);
@@ -466,12 +470,14 @@ public final class Rig {
 
     private static CFrame hold(Shape limb, Character character) {
         double side = "rightArm".equals(limb.name()) ? 1 : -1;
-        Vector3 back = limb.box().neg().mul(character.scale);
+        return CFrame.at(limb.box().neg().mul(character.scale)).mul(grip(side, character.scale));
+    }
 
+    static CFrame grip(double side, double scale) {
         Quat turn = Quat.axisAngle(new Vector3(1, 0, 0), Math.PI / 2)
                 .mul(Quat.axisAngle(Vector3.UP, Math.PI));
-        Vector3 out = new Vector3(-side * PX, -2 * PX, -10 * PX).mul(character.scale);
-        return new CFrame(back, turn).mul(CFrame.at(out));
+        Vector3 out = new Vector3(-side * PX, -2 * PX, -10 * PX).mul(scale);
+        return new CFrame(Vector3.ZERO, turn).mul(CFrame.at(out));
     }
 
     private static void attach(Character character, Shape limb, String name, Vector3 from) {

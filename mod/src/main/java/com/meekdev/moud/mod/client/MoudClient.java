@@ -7,6 +7,7 @@ import com.meekdev.moud.mod.adapter.chat.Bubbles;
 import com.meekdev.moud.mod.adapter.chat.ChatView;
 import com.meekdev.moud.mod.adapter.chat.ClientChat;
 import com.meekdev.moud.mod.adapter.java.GameTypes;
+import com.meekdev.moud.mod.adapter.render.FirstPersonView;
 import com.meekdev.moud.mod.adapter.render.Meshes;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
@@ -70,6 +71,7 @@ public final class MoudClient implements ClientModInitializer {
         GameTypes.install(ClientScene::tree, id -> Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getPlayerByUUID(id));
         Parts.register();
         Meshes.register();
+        FirstPersonView.install();
         PostStack.register();
         SkyBox.register();
         Viewports.register();

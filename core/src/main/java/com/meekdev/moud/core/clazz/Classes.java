@@ -24,6 +24,7 @@ import com.meekdev.moud.core.character.Animation;
 import com.meekdev.moud.core.character.Backpack;
 import com.meekdev.moud.core.character.StarterPack;
 import com.meekdev.moud.core.character.Tool;
+import com.meekdev.moud.core.character.ViewModel;
 import com.meekdev.moud.core.character.ForceField;
 import com.meekdev.moud.core.character.Keyframe;
 import com.meekdev.moud.core.character.KeyframeMarker;
@@ -402,6 +403,7 @@ public final class Classes {
             ClassDef.of("AnimationController", null, AnimationController.class, AnimationController::new);
     public static final ClassDef<IKControl> IK_CONTROL = ClassDef.of("IKControl", null, IKControl.class, IKControl::new);
     public static final ClassDef<JointSpring> JOINT_SPRING = ClassDef.of("JointSpring", null, JointSpring.class, JointSpring::new);
+    public static final ClassDef<ViewModel> VIEW_MODEL = ClassDef.of("ViewModel", SPATIAL, ViewModel.class, ViewModel::new);
     public static final ClassDef<Animation> ANIMATION = ClassDef.of("Animation", null, Animation.class, Animation::new);
     public static final ClassDef<KeyframeSequence> KEYFRAME_SEQUENCE =
             ClassDef.of("KeyframeSequence", null, KeyframeSequence.class, KeyframeSequence::new);
@@ -584,6 +586,7 @@ public final class Classes {
         r.register(ANIMATION_CONTROLLER);
         r.register(IK_CONTROL);
         r.register(JOINT_SPRING);
+        r.register(VIEW_MODEL);
         r.register(KEYFRAME_SEQUENCE);
         r.register(KEYFRAME);
         r.register(POSE);
