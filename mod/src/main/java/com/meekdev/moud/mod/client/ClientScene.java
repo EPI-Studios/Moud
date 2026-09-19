@@ -78,6 +78,7 @@ public final class ClientScene {
                 Animators.apply(character);
             }
         }
+        Animators.controllers(tree);
         Stages.run(tree, Stage.COMPOSE, 0);
         OwnedBodies.tick(tree, Minecraft.getInstance().level, me == null ? "" : me.getUUID().toString(), !EditMode.editing(),
                 GameState.INSTANCE.gravity(), own);

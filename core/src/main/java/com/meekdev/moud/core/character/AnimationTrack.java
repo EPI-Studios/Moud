@@ -20,6 +20,10 @@ public final class AnimationTrack extends Instance {
 
     @Prop(min = 0) public double fadeTime = 0.1;
 
+    public String mask = "";
+
+    public AnimationBlend blend = AnimationBlend.NORMAL;
+
     @Prop(replicated = false) public double timePosition;
 
     @Prop(replicated = false) public double length;
@@ -63,6 +67,8 @@ public final class AnimationTrack extends Instance {
 
     private boolean wasPlaying;
 
+    private boolean held;
+
     public Signal<Clip.Marker> markers() {
         return markers;
     }
@@ -81,5 +87,13 @@ public final class AnimationTrack extends Instance {
 
     void wasPlaying(boolean value) {
         wasPlaying = value;
+    }
+
+    boolean held() {
+        return held;
+    }
+
+    void held(boolean value) {
+        held = value;
     }
 }

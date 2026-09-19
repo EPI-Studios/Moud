@@ -13,6 +13,7 @@ import com.meekdev.moud.core.audio.Sound;
 import com.meekdev.moud.core.audio.SoundBus;
 import com.meekdev.moud.core.audio.SoundEffect;
 import com.meekdev.moud.core.audio.TremoloSoundEffect;
+import com.meekdev.moud.core.character.AnimationController;
 import com.meekdev.moud.core.character.AnimationTrack;
 import com.meekdev.moud.core.character.Animator;
 import com.meekdev.moud.core.character.Appearance;
@@ -54,6 +55,7 @@ import com.meekdev.moud.core.effect.Trail;
 import com.meekdev.moud.core.input.ClickDetector;
 import com.meekdev.moud.core.input.InputAction;
 import com.meekdev.moud.core.instance.Attachment;
+import com.meekdev.moud.core.instance.Bone;
 import com.meekdev.moud.core.instance.Folder;
 import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.instance.Model;
@@ -178,6 +180,7 @@ public final class Classes {
             ClassDef.of("Armour", null, Armour.class, Armour::new);
     public static final ClassDef<Attachment> ATTACHMENT =
             ClassDef.of("Attachment", SPATIAL, Attachment.class, Attachment::new);
+    public static final ClassDef<Bone> BONE = ClassDef.of("Bone", ATTACHMENT, Bone.class, Bone::new);
     public static final ClassDef<Limb> LIMB = ClassDef.of("Limb", PART, Limb.class, Limb::new);
     public static final ClassDef<MeshPart> MESH_PART = ClassDef.of("MeshPart", PART, MeshPart.class, MeshPart::new);
     public static final ClassDef<SpawnLocation> SPAWN_LOCATION = ClassDef.of("SpawnLocation", PART, SpawnLocation.class, SpawnLocation::new);
@@ -393,6 +396,8 @@ public final class Classes {
     public static final ClassDef<StarterCharacterScripts> STARTER_CHARACTER_SCRIPTS = ClassDef.of("StarterCharacterScripts", null, StarterCharacterScripts.class, StarterCharacterScripts::new);
     public static final ClassDef<Backpack> BACKPACK = ClassDef.of("Backpack", null, Backpack.class, Backpack::new);
     public static final ClassDef<StarterPack> STARTER_PACK = ClassDef.of("StarterPack", null, StarterPack.class, StarterPack::new);
+    public static final ClassDef<AnimationController> ANIMATION_CONTROLLER =
+            ClassDef.of("AnimationController", null, AnimationController.class, AnimationController::new);
     public static final ClassDef<Animation> ANIMATION = ClassDef.of("Animation", null, Animation.class, Animation::new);
     public static final ClassDef<KeyframeSequence> KEYFRAME_SEQUENCE =
             ClassDef.of("KeyframeSequence", null, KeyframeSequence.class, KeyframeSequence::new);
@@ -450,6 +455,7 @@ public final class Classes {
         r.register(APPEARANCE);
         r.register(ARMOUR);
         r.register(ATTACHMENT);
+        r.register(BONE);
         r.register(LIMB);
         r.register(MESH_PART);
         r.register(SPAWN_LOCATION);
@@ -571,6 +577,7 @@ public final class Classes {
         r.register(BACKPACK);
         r.register(STARTER_PACK);
         r.register(ANIMATION);
+        r.register(ANIMATION_CONTROLLER);
         r.register(KEYFRAME_SEQUENCE);
         r.register(KEYFRAME);
         r.register(POSE);

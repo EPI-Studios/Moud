@@ -8,6 +8,7 @@ import com.meekdev.amnetic.client.model.internal.ammesh.AmmeshConverter;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Attachment;
+import com.meekdev.moud.core.instance.Bone;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.CFrame;
@@ -23,9 +24,11 @@ import com.meekdev.moud.mod.client.PlaceFiles;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
@@ -43,6 +46,8 @@ public final class Meshes {
     private static final Map<String, Loaded> MODELS = new HashMap<>();
     private static final Map<Integer, Playing> ANIMATORS = new HashMap<>();
     private static final Set<String> MISSING = new HashSet<>();
+    private static final Map<Integer, Matrix4f[]> BONED = new HashMap<>();
+    private static final Map<Model, Rest> RESTS = new WeakHashMap<>();
 
     private static final Matrix4f WORLD = new Matrix4f();
     private static final int ROPE_SEGMENTS = 24;
@@ -68,6 +73,7 @@ public final class Meshes {
             draw(part, model, partialTick, dt);
         }
         ANIMATORS.keySet().removeIf(id -> !(tree.byId(id) instanceof MeshPart));
+        BONED.keySet().removeIf(id -> !(tree.byId(id) instanceof MeshPart));
         for (Instance instance : tree.ofClass(Classes.ROPE_CONSTRAINT)) {
             if (instance instanceof RopeConstraint rope) links(rope, partialTick);
         }
@@ -112,10 +118,102 @@ public final class Meshes {
 
     private static void draw(MeshPart part, Model model, float partialTick, float dt) {
         CFrame world = ClientScene.motion().sample(part, partialTick);
+        Matrix4f[] boned = bones(part, model, world, partialTick);
+        if (boned != null) {
+            BONED.put(part.id(), boned);
+            ANIMATORS.remove(part.id());
+            model.renderPosed(frame(world.position(), world.rotation(), WORLD), boned);
+            return;
+        }
+        BONED.remove(part.id());
         placement(world, part.size, model, WORLD);
         Matrix4f[] pose = pose(part, model, dt);
         if (pose == null) model.render(WORLD);
         else model.renderPosed(WORLD, pose);
+    }
+
+    private record Rest(Matrix4f[] world, String[] names, int[] parents) {}
+
+    private static Rest rest(Model model) {
+        Rest known = RESTS.get(model);
+        if (known != null) return known;
+        Animator animator = model.createAnimator();
+        int count = animator.boneCount();
+        Matrix4f[] pose = animator.pose();
+        Matrix4f[] world = new Matrix4f[count];
+        String[] names = new String[count];
+        int[] parents = new int[count];
+        for (int n = 0; n < count; n++) {
+            world[n] = new Matrix4f(pose[n]);
+            names[n] = animator.boneName(n);
+            parents[n] = animator.boneParent(n);
+        }
+        Rest made = new Rest(world, names, parents);
+        RESTS.put(model, made);
+        return made;
+    }
+
+    static Matrix4f @Nullable [] bones(MeshPart part, Model model, CFrame world, float partialTick) {
+        if (!model.hasBones()) return null;
+        Map<String, Bone> byName = new HashMap<>();
+        collect(part, byName);
+        if (byName.isEmpty()) return null;
+        Rest rest = rest(model);
+        CFrame inverse = world.inverse();
+        Map<Bone, Matrix4f> done = new IdentityHashMap<>();
+        Matrix4f[] pose = new Matrix4f[rest.world().length];
+        Vector3f min = model.boundsMin();
+        Vector3f max = model.boundsMax();
+        Map<String, Integer> seen = new HashMap<>();
+        for (int n = 0; n < pose.length; n++) {
+            Bone bone = null;
+            if (n > 0 && rest.names()[n] != null) {
+                String name = rest.names()[n];
+                int count = seen.merge(name, 1, Integer::sum);
+                bone = count > 1 && byName.containsKey(name + count) ? byName.get(name + count) : byName.get(name);
+            }
+            int above = rest.parents()[n];
+            if (bone != null) {
+                pose[n] = matrix(bone, inverse, partialTick, done);
+            } else if (above >= 0 && above < n) {
+                pose[n] = new Matrix4f(pose[above]).mul(new Matrix4f(rest.world()[above]).invert()).mul(rest.world()[n]);
+            } else {
+                pose[n] = new Matrix4f().translation(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -(min.z + max.z) / 2);
+            }
+        }
+        return pose;
+    }
+
+    private static void collect(Instance under, Map<String, Bone> byName) {
+        for (Instance child : under.children()) {
+            if (child instanceof Bone bone) byName.putIfAbsent(bone.name(), bone);
+            if (child instanceof Bone || child instanceof Attachment) collect(child, byName);
+        }
+    }
+
+    private static Matrix4f matrix(Bone bone, CFrame inverse, float partialTick, Map<Bone, Matrix4f> done) {
+        Matrix4f known = done.get(bone);
+        if (known != null) return known;
+        CFrame at = inverse.mul(ClientScene.motion().sample(bone, partialTick));
+        Matrix4f made;
+        if (bone.parent() instanceof Bone above) {
+            CFrame aboveAt = inverse.mul(ClientScene.motion().sample(above, partialTick));
+            made = new Matrix4f(matrix(above, inverse, partialTick, done)).mul(frame(aboveAt.inverse().mul(at), new Matrix4f()));
+        } else {
+            made = frame(at.position(), at.rotation(), new Matrix4f());
+        }
+        if (!bone.scale.equals(Vector3.ONE)) made.scale((float) bone.scale.x(), (float) bone.scale.y(), (float) bone.scale.z());
+        done.put(bone, made);
+        return made;
+    }
+
+    private static Matrix4f frame(CFrame at, Matrix4f into) {
+        return frame(at.position(), at.rotation(), into);
+    }
+
+    private static Matrix4f frame(Vector3 at, Quat turn, Matrix4f into) {
+        return into.translationRotate((float) at.x(), (float) at.y(), (float) at.z(),
+                new Quaternionf((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()));
     }
 
     static Matrix4f placement(CFrame world, Vector3 size, Model model, Matrix4f into) {
@@ -182,6 +280,11 @@ public final class Meshes {
                 .rotate(new Quaternionf((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()))
                 .scale(stretch(part.size.x(), max.x - min.x), stretch(part.size.y(), max.y - min.y), stretch(part.size.z(), max.z - min.z))
                 .translate(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -(min.z + max.z) / 2);
+        Matrix4f[] boned = BONED.get(part.id());
+        if (boned != null && boned.length == rest(model).world().length) {
+            model.fillMask(projectionView, frame(at, turn, matrix), boned, r, g, b, a);
+            return;
+        }
         Playing playing = ANIMATORS.get(part.id());
         Matrix4f[] pose = playing != null && playing.animator().model() == model ? playing.animator().pose() : null;
         model.fillMask(projectionView, matrix, pose, r, g, b, a);

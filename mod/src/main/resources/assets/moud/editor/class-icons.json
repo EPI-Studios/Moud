@@ -19,6 +19,8 @@
     "Keyframe": "ANIMATION",
     "Pose": "REMOTE_TRANSFORM_3D",
     "KeyframeMarker": "LINE",
+    "AnimationController": "ANIMATION_PLAYER",
+    "Bone": "TOOL_PIVOT",
     "ForceField": "FOG_VOLUME",
     "Tool": "TOOL_SELECT",
     "Team": "CHARACTER_BODY_3D",
