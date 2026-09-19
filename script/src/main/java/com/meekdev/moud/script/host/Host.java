@@ -373,6 +373,10 @@ public final class Host {
         api.global(name, type);
     }
 
+    public void undeclaredGlobal(String name, Object value) {
+        globals.put(name, value);
+    }
+
     public void extend(String name, Members members) {
         extensions.put(name, members);
         api.extension(name, members.typeName());

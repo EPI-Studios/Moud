@@ -105,7 +105,7 @@ final class PluginLibrary {
                     return null;
                 })
                 .field("active", "boolean", () -> plugins.current().active());
-        host.global("plugin", "Plugin", plugin);
+        host.undeclaredGlobal("plugin", plugin);
         host.declare(plugin);
         return ui;
     }

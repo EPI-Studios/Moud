@@ -9,7 +9,9 @@ import java.util.List;
 final class LuauProject {
 
     private static final String LUAURC = LuauResource.text("project/luaurc.json");
-    private static final List<String> OUTDATED_LUAURCS = List.of(LuauResource.text("project/luaurc-without-plugins.json"));
+    private static final List<String> OUTDATED_LUAURCS = List.of(
+            LuauResource.text("project/luaurc-without-plugins.json"),
+            LuauResource.text("project/luaurc-with-plugins.json"));
     private static final String ZED_SETTINGS = LuauResource.text("project/zed-settings.json");
     private static final String MARK = ZED_SETTINGS.substring(0, ZED_SETTINGS.indexOf('\n'));
 

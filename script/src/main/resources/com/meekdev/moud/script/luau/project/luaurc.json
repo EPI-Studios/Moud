@@ -4,6 +4,7 @@
         "server": "./server",
         "client": "./client",
         "shared": "./shared",
-        "plugins": "./plugins"
+        "plugins": "./plugins",
+        "moud": "./.moud"
     }
 }

@@ -128,6 +128,10 @@ final class Libraries {
                 return load(host, cache, loading, module, found.path(), found.code(), module);
             }
             if (a.get(0) instanceof Instance other) throw new HostError("require expects a ModuleScript, got a %s", other.def().name());
+            if (a.string(0).equals(PLUGIN)) {
+                if (host.plugins() == null) throw new HostError("%s can only be required by a plugin script", PLUGIN);
+                return host.globals().get("plugin");
+            }
             Host.Script found = find(host, a.string(0));
             if (host.plugins() != null) host.plugins().required(!loading.isEmpty() && loading.getLast() instanceof String from ? from : null, found.path());
             return load(host, cache, loading, found.path(), found.path(), found.code(), null);
@@ -141,6 +145,8 @@ final class Libraries {
             }
         });
     }
+
+    private static final String PLUGIN = "@moud/plugin";
 
     private static Host.Script find(Host host, String text) {
         String path;

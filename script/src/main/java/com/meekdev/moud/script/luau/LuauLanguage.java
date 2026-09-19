@@ -33,6 +33,7 @@ public final class LuauLanguage implements ScriptLanguage {
         Files.createDirectories(directory);
         Path types = directory.resolve("types.d.luau");
         Files.writeString(types, LuauTypes.declare(api, classes));
+        Files.writeString(directory.resolve("plugin.luau"), LuauResource.text("project/plugin.luau"));
         LuauProject.write(place, types);
     }
 }
