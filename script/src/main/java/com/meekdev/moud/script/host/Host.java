@@ -18,6 +18,7 @@ import com.meekdev.moud.script.api.ControlsRef;
 import com.meekdev.moud.script.api.CoreGuiRef;
 import com.meekdev.moud.script.api.DebugRef;
 import com.meekdev.moud.script.api.DevicesRef;
+import com.meekdev.moud.script.api.EditsRef;
 import com.meekdev.moud.script.api.FileRef;
 import com.meekdev.moud.script.api.GameRef;
 import com.meekdev.moud.script.api.HistoryRef;
@@ -27,6 +28,7 @@ import com.meekdev.moud.script.api.MemoryRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.PartPhysicsRef;
+import com.meekdev.moud.script.api.PluginRef;
 import com.meekdev.moud.script.api.PostRef;
 import com.meekdev.moud.script.api.HttpRef;
 import com.meekdev.moud.script.api.ImagesRef;
@@ -44,6 +46,7 @@ import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.host.chat.ChatLibrary;
 import com.meekdev.moud.script.host.player.Players;
 import com.meekdev.moud.script.host.player.UserInput;
+import com.meekdev.moud.script.host.plugin.Plugins;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -116,6 +119,8 @@ public final class Host {
     private WindowRef window;
     private CoreGuiRef coreGui;
     private RosterRef roster;
+    private EditsRef edits;
+    private Plugins plugins;
     private HostSignal windowClosing;
     private Instance camera;
     private Supplier<Instance> own = () -> null;
@@ -130,7 +135,8 @@ public final class Host {
 
     public static Api describe(ClassRegistry classes) {
         Api api = new Api();
-        for (boolean client : new boolean[] {false, true}) {
+        for (int side = 0; side < 3; side++) {
+            boolean client = side > 0;
             Instance world = Instances.createRoot(new InstanceTree(), Classes.SPATIAL, "World");
             Host host = new Host(world, classes, client)
                     .post(inert(PostRef.class))
@@ -160,6 +166,10 @@ public final class Host {
                         .physics(inert(PartPhysicsRef.class))
                         .spawns(inert(SpawnRef.class))
                         .roster(inert(RosterRef.class));
+            }
+            if (side == 2) {
+                host.plugins(new Plugins(inert(PluginRef.class)))
+                        .edits(inert(EditsRef.class));
             }
             try {
                 Libraries.install(host);
@@ -240,6 +250,8 @@ public final class Host {
     public WindowRef window() { return window; }
     public CoreGuiRef coreGui() { return coreGui; }
     public RosterRef roster() { return roster; }
+    public EditsRef edits() { return edits; }
+    public Plugins plugins() { return plugins; }
     public HostSignal windowClosingSignal() { return windowClosing; }
     void windowClosing(HostSignal signal) { windowClosing = signal; }
     public Instance camera() { return camera; }
@@ -272,6 +284,8 @@ public final class Host {
     public Host coreGui(CoreGuiRef coreGui) { this.coreGui = coreGui; return this; }
     public Host roster(RosterRef roster) { this.roster = roster; return this; }
     public Host devices(DevicesRef devices) { this.devices = devices; return this; }
+    public Host edits(EditsRef edits) { this.edits = edits; return this; }
+    public Host plugins(Plugins plugins) { this.plugins = plugins; return this; }
     public void userInput(UserInput events) { userInput = events; }
     public Host studio(boolean studio) { this.studio = studio; return this; }
 

@@ -34,6 +34,7 @@ import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
 import com.meekdev.moud.script.api.BlockRef;
+import com.meekdev.moud.script.api.PluginRef;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
@@ -55,6 +56,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -98,6 +100,9 @@ public final class ViewportPanel implements Panel, ViewTools {
     private final float[] arrayTurn = {0};
     private final SurfaceDrag surfaceDrag = new SurfaceDrag();
     private Runnable header = () -> {};
+    private Runnable extraTools = () -> {};
+    private BooleanSupplier clicksTaken = () -> false;
+    private Consumer<PluginRef.Mouse> clicked = mouse -> {};
     private @Nullable CameraPath previewPath;
     private @Nullable PathCurve previewCurve;
     private double previewElapsed;
@@ -137,6 +142,28 @@ public final class ViewportPanel implements Panel, ViewTools {
 
     public void header(Runnable drawn) {
         header = drawn;
+    }
+
+    public void plugins(Runnable tools, BooleanSupplier taken, Consumer<PluginRef.Mouse> click) {
+        extraTools = tools;
+        clicksTaken = taken;
+        clicked = click;
+    }
+
+    public PluginRef.@Nullable Mouse mouse() {
+        if (view.width() <= 0) return null;
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        Vector3 from = view.rayOrigin(mouseX, mouseY);
+        Vector3 direction = view.rayDirection(mouseX, mouseY);
+        Instance world = document.world();
+        Queries.Cast part = world == null ? null : Queries.raycast(world, from, direction, SPAWN_REACH, document::editable);
+        BlockRef.Hit block = BLOCKS.raycast(from, direction, part == null ? SPAWN_REACH : part.distance());
+        if (block != null && (part == null || block.distance() < part.distance())) {
+            return new PluginRef.Mouse(from, direction, block.at(), block.normal(), null, hovered);
+        }
+        if (part != null) return new PluginRef.Mouse(from, direction, part.at(), part.normal(), part.part(), hovered);
+        return new PluginRef.Mouse(from, direction, null, null, null, hovered);
     }
 
     @Override
@@ -273,6 +300,7 @@ public final class ViewportPanel implements Panel, ViewTools {
         renderStepPopup("##grid-steps", GRID_STEPS, gizmoState.gridStep(), " m", gizmoState::gridStep);
         renderStepPopup("##angle-steps", ANGLE_STEPS, gizmoState.angleStep(), "\u00b0", gizmoState::angleStep);
         renderArrangePopup();
+        extraTools.run();
         Toolbars.popFlatButtons();
         ImGui.endChild();
         ImGui.popStyleVar(2);
@@ -615,6 +643,8 @@ public final class ViewportPanel implements Panel, ViewTools {
             }
         }
         if (hovered && !gizmoBusy && !lookGesture && !ImGui.getIO().getKeyAlt() && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+            clicked.accept(mouse());
+            if (clicksTaken.getAsBoolean()) return;
             boxing = true;
             pressX = mouseX;
             pressY = mouseY;

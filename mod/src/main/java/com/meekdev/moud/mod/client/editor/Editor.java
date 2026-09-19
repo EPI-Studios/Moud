@@ -89,6 +89,7 @@ public final class Editor {
 
     private static void tick(Minecraft client) {
         if (hub != null) hub.tick();
+        if (shell != null) shell.tick();
         if (reopen != null && !reopening) {
             reopening = true;
             client.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);

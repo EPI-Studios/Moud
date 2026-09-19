@@ -93,6 +93,7 @@ final class Libraries {
         CoreGuiLibrary.install(host);
         InterfaceLibrary.install(host);
         if (host.chat() != null) host.chatLibrary(ChatLibrary.install(host, game));
+        if (host.plugins() != null) host.plugins().install(host);
 
         host.global("game", "Game", game);
         host.declare(game);

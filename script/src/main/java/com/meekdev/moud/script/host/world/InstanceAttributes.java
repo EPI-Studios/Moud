@@ -17,6 +17,10 @@ public final class InstanceAttributes {
         Members shared = host.instances().shared();
         shared.method("setAttribute", "(name: string, value: any) -> ()", a -> {
             Instance instance = a.self();
+            if (host.instances().edited(instance)) {
+                host.edits().attribute(instance, a.string(1), a.get(2));
+                return null;
+            }
             host.instances().checkAttribute(instance);
             try {
                 Instances.setAttribute(instance, a.string(1), a.get(2));

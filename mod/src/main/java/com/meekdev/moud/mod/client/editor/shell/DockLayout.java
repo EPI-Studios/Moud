@@ -24,9 +24,21 @@ final class DockLayout {
     private boolean requested = true;
     private float builtWidth;
     private float builtHeight;
+    private int leftNode;
+    private int rightNode;
+    private int bottomNode;
 
     void requestDefault() {
         requested = true;
+    }
+
+    int node(String side) {
+        return switch (side) {
+            case "left" -> leftNode;
+            case "right" -> rightNode;
+            case "bottom" -> bottomNode;
+            default -> 0;
+        };
     }
 
     int dockspaceId() {
@@ -60,5 +72,8 @@ final class DockLayout {
         ImGui.dockBuilderDockWindow("###" + AssetsPanel.ID, bottom.get());
         ImGui.dockBuilderDockWindow("###" + ViewportPanel.ID, center.get());
         ImGui.dockBuilderFinish(root);
+        leftNode = left.get();
+        rightNode = right.get();
+        bottomNode = bottom.get();
     }
 }

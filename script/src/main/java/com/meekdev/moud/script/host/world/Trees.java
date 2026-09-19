@@ -51,6 +51,7 @@ public final class Trees {
             for (Map.Entry<String, Object> entry : a.map(2, Map.of()).entrySet()) {
                 host.instances().set(created, entry.getKey(), entry.getValue());
             }
+            if (host.instances().edited(parent)) host.edits().added(created);
             return created;
         });
         shared.method("addAll", "(className: string, properties: { { [string]: any } }) -> number", a -> {
@@ -59,6 +60,7 @@ public final class Trees {
             List<Object> entries = a.list(2);
             for (Object entry : entries) {
                 Instance created = Instances.create(def, parent, def.name());
+                if (host.instances().edited(parent)) host.edits().added(created);
                 if (!(entry instanceof Map<?, ?> properties)) continue;
                 for (Map.Entry<?, ?> property : properties.entrySet()) {
                     host.instances().set(created, String.valueOf(property.getKey()), property.getValue());
@@ -70,7 +72,8 @@ public final class Trees {
         shared.method("find", "(name: string) -> Instance?", a -> a.self().child(a.string(1)));
         shared.method("isA", "(className: string) -> boolean", a -> a.self().isA(type(host, a.string(1))));
         shared.method("destroy", "() -> ()", a -> {
-            Instances.destroy(a.self());
+            if (host.instances().edited(a.self())) host.edits().destroy(a.self());
+            else Instances.destroy(a.self());
             return null;
         });
         shared.method("setOwner", "(to: Instance?) -> ()", a -> {
@@ -87,11 +90,19 @@ public final class Trees {
             return null;
         });
         shared.method("addTag", "(tag: string) -> ()", a -> {
+            if (host.instances().edited(a.self())) {
+                host.edits().tag(a.self(), a.string(1), true);
+                return null;
+            }
             host.instances().checkTag(a.self());
             Instances.addTag(a.self(), a.string(1));
             return null;
         });
         shared.method("removeTag", "(tag: string) -> ()", a -> {
+            if (host.instances().edited(a.self())) {
+                host.edits().tag(a.self(), a.string(1), false);
+                return null;
+            }
             host.instances().checkTag(a.self());
             Instances.removeTag(a.self(), a.string(1));
             return null;
@@ -167,7 +178,10 @@ public final class Trees {
             return path.toString();
         });
         shared.method("clearAllChildren", "() -> ()", a -> {
-            for (Instance child : List.copyOf(a.self().children())) Instances.destroy(child);
+            for (Instance child : List.copyOf(a.self().children())) {
+                if (host.instances().edited(child)) host.edits().destroy(child);
+                else Instances.destroy(child);
+            }
             return null;
         });
         shared.method("byTag", "(tag: string) -> { Instance }", a -> {
@@ -210,6 +224,7 @@ public final class Trees {
                 }
             });
             if (copy != null) Instances.announce(copy);
+            if (copy != null && host.instances().edited(parent)) host.edits().added(copy);
             return copy;
         });
         shared.method("query", "(selector: string) -> { Instance }", a -> new ArrayList<Object>(select(host, a)));
