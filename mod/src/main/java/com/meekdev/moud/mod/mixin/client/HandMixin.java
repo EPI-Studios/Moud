@@ -5,7 +5,6 @@ import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.FirstPerson;
 import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.mod.MoudMod;
-import com.meekdev.moud.mod.adapter.render.Hands;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.features.Feature;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -24,22 +23,8 @@ abstract class HandMixin {
     private void moud$suppress(float tickDelta, PoseStack pose, SubmitNodeCollector collector, LocalPlayer player, int light, CallbackInfo ci) {
         Character mine = ClientScene.own();
         Appearance look = mine == null ? null : Rig.appearance(mine);
-
-        if (look == null) {
-            if (MoudMod.features().isOn(Feature.HAND)) return;
-            ci.cancel();
-            return;
-        }
-
-        if (look.firstPerson == FirstPerson.HAND) return;
-
-        if (look.firstPerson == FirstPerson.ARM
-                && (!player.getMainHandItem().isEmpty() || !player.getOffhandItem().isEmpty())) {
-            return;
-        }
-
-        if (look.firstPerson == FirstPerson.ARM) Hands.draw(tickDelta);
-
-        ci.cancel();
+        boolean forced = MoudMod.features().isOn(Feature.HAND);
+        FirstPerson wanted = look == null ? FirstPerson.NONE : look.firstPerson;
+        if (wanted == FirstPerson.BODY || !forced && wanted == FirstPerson.NONE) ci.cancel();
     }
 }
