@@ -21,6 +21,7 @@ import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.editor.assets.AssetKind;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.document.Batch;
+import com.meekdev.moud.mod.client.editor.document.ConstraintKind;
 import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.ReferencePick;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
@@ -97,6 +98,8 @@ public final class ViewportPanel implements Panel, ViewTools {
     private final float[] arrayOffset = {4, 0, 0};
     private final float[] arrayTurn = {0};
     private final SurfaceDrag surfaceDrag = new SurfaceDrag();
+    private final ConstraintTool constraints = new ConstraintTool();
+    private boolean showConstraints;
     private Runnable header = () -> {};
     private @Nullable CameraPath previewPath;
     private @Nullable PathCurve previewCurve;
@@ -165,11 +168,14 @@ public final class ViewportPanel implements Panel, ViewTools {
             updateCamera(deltaSeconds);
             if (hovered && !lookGesture) EditorOverlay.requestPick((mouseX - view.originX()) / view.width(), (mouseY - view.originY()) / view.height());
             hoveredInstance = hovered && !lookGesture ? pickAt(mouseX, mouseY) : null;
-            EditorOverlay.show(document::pickable, Set.copyOf(document.selection().all()),
-                    hoveredInstance instanceof Part part && !document.selection().isSelected(part.id()) ? part.id() : 0);
+            boolean joining = gizmoState.tool() == GizmoState.Tool.CONSTRAINT;
+            if (joining) constraints.hover(document, view, hovered && !lookGesture, mouseX, mouseY, snapActive(), gizmoState.gridStep());
+            else constraints.cancel();
+            EditorOverlay.show(document::pickable, Set.copyOf(document.selection().all()), joining ? constraints.hoveredId()
+                    : hoveredInstance instanceof Part part && !document.selection().isSelected(part.id()) ? part.id() : 0);
             previews.draw(drawList, left, top, right, bottom);
             drawBillboards(drawList);
-            if (EditorView.ghosts()) HelperShapes.draw(drawList, view, document);
+            if (EditorView.ghosts() || showConstraints || joining) HelperShapes.draw(drawList, view, document, EditorView.ghosts());
             boolean cubeBusy = cube.render(drawList, right, top, camera);
             boolean gizmoBusy = renderGizmo() || cubeBusy;
             handlePicking(gizmoBusy, drawList);
@@ -234,6 +240,8 @@ public final class ViewportPanel implements Panel, ViewTools {
         tooltip("Move a part's pivot, the point it turns about (P)");
         ImGui.sameLine();
         renderPaintButton();
+        ImGui.sameLine();
+        renderConstraintButton();
         Toolbars.groupSeparator();
         String space = switch (gizmoState.space()) {
             case WORLD -> "World";
@@ -263,6 +271,9 @@ public final class ViewportPanel implements Panel, ViewTools {
         viewToggle("Wireframe##toolbar-wire", EditorView.wireframe(), () -> EditorView.wireframe(!EditorView.wireframe()), "Draw the world as lines (Z)");
         ImGui.sameLine();
         viewToggle("Helpers##toolbar-helpers", EditorView.ghosts(), () -> EditorView.ghosts(!EditorView.ghosts()), "Show invisible parts, zones, light and sound ranges (H)");
+        ImGui.sameLine();
+        viewToggle("Constraints##toolbar-constraints", showConstraints, () -> showConstraints = !showConstraints,
+                "Show constraints and attachments even with helpers off, they always show while the constraint tool is on");
         ImGui.sameLine();
         if (Toolbars.textButton("Screens##toolbar-screens")) ImGui.openPopup("##screens");
         tooltip("Show or hide each ScreenGui while editing, and preview the loading, pause and disconnected screens");
@@ -407,6 +418,26 @@ public final class ViewportPanel implements Panel, ViewTools {
         ImGui.sameLine();
         ImGui.colorEdit4("##brush", gizmoState.brush(), ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar);
         tooltip("Brush colour");
+    }
+
+    private void renderConstraintButton() {
+        boolean active = gizmoState.tool() == GizmoState.Tool.CONSTRAINT;
+        if (icons.toggleButton("tool-constraint", EditorIcon.HINGE_JOINT_3D, EditorStyle.iconSizeToolbar(), active)) useConstraintTool();
+        tooltip("Join two parts with a constraint: click the first part, then the second (J)");
+        if (!active) return;
+        ImGui.sameLine();
+        if (Toolbars.textButton(constraints.kind().label() + "##constraint-kind")) ImGui.openPopup("##constraint-kinds");
+        tooltip(constraints.kind().hint());
+        if (!ImGui.beginPopup("##constraint-kinds")) return;
+        for (ConstraintKind kind : ConstraintKind.values()) {
+            if (ImGui.menuItem(kind.label(), "", kind == constraints.kind())) constraints.kind(kind);
+            tooltip(kind.hint());
+        }
+        ImGui.endPopup();
+    }
+
+    public void useConstraintTool() {
+        gizmoState.setTool(GizmoState.Tool.CONSTRAINT);
     }
 
     private void renderToolButton(String id, EditorIcon icon, GizmoState.Tool tool, String tip) {
@@ -584,6 +615,7 @@ public final class ViewportPanel implements Panel, ViewTools {
         if (ImGui.isKeyPressed(ImGuiKey.Space, false)) gizmoState.toggleAlternateTool();
         if (ImGui.isKeyPressed(ImGuiKey.P, false)) gizmoState.setTool(GizmoState.Tool.PIVOT);
         if (ImGui.isKeyPressed(ImGuiKey.B, false)) gizmoState.setTool(GizmoState.Tool.PAINT);
+        if (ImGui.isKeyPressed(ImGuiKey.J, false)) useConstraintTool();
         if (ImGui.isKeyPressed(ImGuiKey.L, false)) gizmoState.toggleLasso();
         if (ImGui.isKeyPressed(ImGuiKey.Z, false)) EditorView.wireframe(!EditorView.wireframe());
         if (ImGui.isKeyPressed(ImGuiKey.H, false)) EditorView.ghosts(!EditorView.ghosts());
@@ -613,6 +645,10 @@ public final class ViewportPanel implements Panel, ViewTools {
                 else ReferencePick.cancel();
                 return;
             }
+        }
+        if (gizmoState.tool() == GizmoState.Tool.CONSTRAINT) {
+            joinParts(gizmoBusy, drawList, mouseX, mouseY);
+            return;
         }
         if (hovered && !gizmoBusy && !lookGesture && !ImGui.getIO().getKeyAlt() && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
             boxing = true;
@@ -668,6 +704,18 @@ public final class ViewportPanel implements Panel, ViewTools {
         if (dragged && gizmoState.lasso()) lassoSelect(lassoPoints);
         else if (dragged) boxSelect(Math.min(pressX, mouseX), Math.min(pressY, mouseY), Math.max(pressX, mouseX), Math.max(pressY, mouseY));
         else applyPick(pickAt(mouseX, mouseY));
+    }
+
+    private void joinParts(boolean gizmoBusy, ImDrawList drawList, float mouseX, float mouseY) {
+        boxing = false;
+        surfaceDrag.cancel();
+        if ((hovered || ImGui.isWindowFocused()) && ImGui.isKeyPressed(ImGuiKey.Escape, false)) {
+            if (constraints.waiting()) constraints.cancel();
+            else gizmoState.setTool(GizmoState.Tool.TRANSLATE);
+            return;
+        }
+        if (hovered && !gizmoBusy && !lookGesture && !ImGui.getIO().getKeyAlt() && ImGui.isMouseClicked(ImGuiMouseButton.Left)) constraints.click(document);
+        if (constraints.waiting() || hovered && !lookGesture) constraints.draw(drawList, view, mouseX, mouseY);
     }
 
     private void armSurfaceDrag(float mouseX, float mouseY) {

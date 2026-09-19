@@ -41,6 +41,7 @@ final class HelperShapes {
     private static final int JOINT = EditorStyle.rgba(240, 150, 255, 170);
     private static final int JOINT_SELECTED = EditorStyle.rgba(250, 200, 255, 240);
     private static final double AXIS_LENGTH = 1.2;
+    private static final double ATTACHMENT_AXIS = 0.6;
     private static final float END_RADIUS = 4f;
     private static final double CONE_DEPTH = 1.6;
     private static final double ASPECT = 16.0 / 9.0;
@@ -48,7 +49,7 @@ final class HelperShapes {
 
     private HelperShapes() {}
 
-    static void draw(ImDrawList draw, SceneView view, SceneDocument document) {
+    static void draw(ImDrawList draw, SceneView view, SceneDocument document, boolean everything) {
         Instance world = document.world();
         if (world == null) return;
         List<Instance> all = new ArrayList<>();
@@ -57,17 +58,26 @@ final class HelperShapes {
             if (!document.editable(instance)) continue;
             boolean selected = document.selection().isSelected(instance.id());
             switch (instance) {
-                case Zone zone -> zone(draw, view, zone, selected ? ZONE_SELECTED : ZONE);
-                case SpotLight spot -> spot(draw, view, spot, colour(spot, selected));
-                case LightSource light -> sphere(draw, view, Transforms.world(light), light.range, colour(light, selected));
-                case Sound sound when selected -> sound(draw, view, sound);
-                case Camera shot -> camera(draw, view, shot, selected ? CAMERA_SELECTED : CAMERA);
-                case CameraPath path -> path(draw, view, path, selected ? CAMERA_SELECTED : CAMERA);
-                case SpawnLocation spawn -> spawn(draw, view, spawn, selected ? SPAWN_SELECTED : SPAWN);
                 case WeldConstraint weld -> weld(draw, view, weld, selected ? JOINT_SELECTED : JOINT);
                 case Constraint constraint -> constraint(draw, view, constraint, selected ? JOINT_SELECTED : JOINT);
-                default -> { }
+                case Attachment attachment when attachment.parent() instanceof Part -> attachment(draw, view, attachment, selected ? JOINT_SELECTED : JOINT);
+                default -> {
+                    if (everything) helper(draw, view, instance, selected);
+                }
             }
+        }
+    }
+
+    private static void helper(ImDrawList draw, SceneView view, Instance instance, boolean selected) {
+        switch (instance) {
+            case Zone zone -> zone(draw, view, zone, selected ? ZONE_SELECTED : ZONE);
+            case SpotLight spot -> spot(draw, view, spot, colour(spot, selected));
+            case LightSource light -> sphere(draw, view, Transforms.world(light), light.range, colour(light, selected));
+            case Sound sound when selected -> sound(draw, view, sound);
+            case Camera shot -> camera(draw, view, shot, selected ? CAMERA_SELECTED : CAMERA);
+            case CameraPath path -> path(draw, view, path, selected ? CAMERA_SELECTED : CAMERA);
+            case SpawnLocation spawn -> spawn(draw, view, spawn, selected ? SPAWN_SELECTED : SPAWN);
+            default -> { }
         }
     }
 
@@ -159,6 +169,12 @@ final class HelperShapes {
             Vector3 axis = at0.rightVector().mul(AXIS_LENGTH);
             line(draw, view, at0.position().sub(axis), at0.position().add(axis), colour);
         }
+    }
+
+    private static void attachment(ImDrawList draw, SceneView view, Attachment attachment, int colour) {
+        CFrame frame = Transforms.world(attachment);
+        line(draw, view, frame.position(), frame.position().add(frame.rightVector().mul(ATTACHMENT_AXIS)), colour);
+        line(draw, view, frame.position(), frame.position().add(frame.upVector().mul(ATTACHMENT_AXIS * 0.5)), EditorStyle.withAlpha(colour, 0.5f));
     }
 
     private static void dot(ImDrawList draw, SceneView view, Vector3 at, int colour) {

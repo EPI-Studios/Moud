@@ -6,7 +6,7 @@ import java.util.Optional;
 
 public final class GizmoState {
 
-    public enum Tool { SELECT, TRANSLATE, ROTATE, SCALE, PIVOT, PAINT }
+    public enum Tool { SELECT, TRANSLATE, ROTATE, SCALE, PIVOT, PAINT, CONSTRAINT }
 
     public enum Space { WORLD, LOCAL, PARENT }
 
@@ -36,7 +36,7 @@ public final class GizmoState {
             case TRANSLATE -> tool = Tool.SCALE;
             case SCALE -> tool = Tool.TRANSLATE;
             case ROTATE -> toggleSpace();
-            case SELECT, PIVOT, PAINT -> tool = Tool.TRANSLATE;
+            case SELECT, PIVOT, PAINT, CONSTRAINT -> tool = Tool.TRANSLATE;
         }
     }
 
@@ -82,7 +82,7 @@ public final class GizmoState {
 
     public Optional<Integer> operation() {
         return switch (tool) {
-            case SELECT, PAINT -> Optional.empty();
+            case SELECT, PAINT, CONSTRAINT -> Optional.empty();
             case PIVOT -> Optional.of(Operation.TRANSLATE);
             case TRANSLATE -> Optional.of(Operation.TRANSLATE);
             case ROTATE -> Optional.of(Operation.ROTATE);
