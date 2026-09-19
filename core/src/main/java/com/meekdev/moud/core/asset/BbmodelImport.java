@@ -204,7 +204,7 @@ public final class BbmodelImport {
     private static List<Vector3> points(Map<?, ?> element, String type) {
         List<Vector3> points = new ArrayList<>();
         Vector3 origin = vector(element.get("origin"), Vector3.ZERO);
-        Quat turn = Clip.euler(vector(element.get("rotation"), Vector3.ZERO), "xyz");
+        Quat turn = Clip.euler(vector(element.get("rotation"), Vector3.ZERO), EULER);
         if (type.equals("cube")) {
             double grow = element.get("inflate") instanceof Number n ? n.doubleValue() : 0;
             Vector3 from = vector(element.get("from"), Vector3.ZERO).sub(new Vector3(grow, grow, grow));
@@ -224,7 +224,7 @@ public final class BbmodelImport {
         int guard = 0;
         for (Group group = owner == null ? null : byUuid.get(owner); group != null && guard++ < 256;
              group = group.parent() == null ? null : byUuid.get(group.parent())) {
-            Quat turn = Clip.euler(group.rotation(), "xyz");
+            Quat turn = Clip.euler(group.rotation(), EULER);
             point = group.origin().add(turn.rotate(point.sub(group.origin())));
         }
         return point;
