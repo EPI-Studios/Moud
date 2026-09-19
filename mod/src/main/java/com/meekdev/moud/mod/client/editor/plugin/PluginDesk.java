@@ -35,11 +35,14 @@ final class PluginDesk implements PluginRef {
     @Override
     public void select(List<Instance> chosen) {
         List<Integer> ids = new ArrayList<>();
+        List<Instance> fresh = new ArrayList<>();
         for (Instance instance : chosen) {
-            if (edits.pending(instance)) edits.select(instance);
+            if (edits.pending(instance)) fresh.add(instance);
             else if (instance != document.world() && document.editable(instance)) ids.add(instance.id());
             else throw new HostError("cannot select %s, it is not part of the scene", instance.name());
         }
+        edits.unselect();
+        fresh.forEach(edits::select);
         document.selection().set(ids);
     }
 

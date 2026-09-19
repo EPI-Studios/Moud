@@ -76,6 +76,7 @@ public final class SceneDocument {
     private int generation;
     private Function<String, @Nullable Vector3> meshSize = id -> null;
     private @Nullable InstanceTree seen;
+    private boolean gathering;
 
     public Selection selection() {
         return selection;
@@ -191,6 +192,7 @@ public final class SceneDocument {
             refs.clear();
             waiting.clear();
             landing.clear();
+            gathering = false;
         }
         for (ScenePastedPayload pasted = SceneLink.takePasted(); pasted != null; pasted = SceneLink.takePasted()) landed(pasted);
         landing.landed(waiting.keySet(), e -> SceneLink.local("Could not connect: " + e.getMessage()));
@@ -295,8 +297,20 @@ public final class SceneDocument {
         landing.after(waiting.keySet(), run);
     }
 
+    public void gatherPastedSelection() {
+        if (waiting.values().stream().anyMatch(Paste::select)) gathering = true;
+    }
+
     private void landed(ScenePastedPayload pasted) {
         Paste paste = waiting.remove(pasted.token());
+        try {
+            place(paste, pasted);
+        } finally {
+            if (waiting.values().stream().noneMatch(Paste::select)) gathering = false;
+        }
+    }
+
+    private void place(@Nullable Paste paste, ScenePastedPayload pasted) {
         if (paste == null || pasted.roots().length == 0) return;
         if (paste.roots().isEmpty()) {
             for (int id : pasted.roots()) paste.roots().add(ref(id));
@@ -306,7 +320,8 @@ public final class SceneDocument {
             remap(paste.all(), pasted.all());
         }
         if (paste.select()) {
-            selection.clear();
+            if (!gathering) selection.clear();
+            gathering = true;
             for (int id : pasted.roots()) selection.add(id);
         }
     }
