@@ -20,6 +20,7 @@ import com.meekdev.moud.mod.client.editor.panel.ExplorerPanel;
 import com.meekdev.moud.mod.client.editor.panel.OutputPanel;
 import com.meekdev.moud.mod.client.editor.panel.Panels;
 import com.meekdev.moud.mod.client.editor.panel.PropertiesPanel;
+import com.meekdev.moud.mod.client.editor.plugin.EditorPlugins;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
@@ -72,6 +73,7 @@ public final class EditorShell {
             .add(properties)
             .add(new OutputPanel())
             .add(assets);
+    private final EditorPlugins plugins = new EditorPlugins(document, icons, viewport);
     private final SceneTabs scenes = new SceneTabs(document);
     private final WorldImportDialog worldImport = new WorldImportDialog();
     private final ProjectSettingsDialog settings = new ProjectSettingsDialog(document);
@@ -134,6 +136,7 @@ public final class EditorShell {
         viewport.header(scenes::renderTabs);
         properties.viewTools(viewport);
         assets.onOpenScene(scenes::switchTo);
+        viewport.plugins(plugins::renderToolbar, plugins::capturing, plugins::viewportClicked);
     }
 
     private void addCommands() {
@@ -226,6 +229,10 @@ public final class EditorShell {
         document.selectWhere(instance -> instance.def().name().equals(name));
     }
 
+    public void tick() {
+        plugins.tick();
+    }
+
     public void render() {
         if (!EditMode.editing() || !(Minecraft.getInstance().screen instanceof EditorScreen)) return;
         ImGui.getIO().addConfigFlags(ImGuiConfigFlags.DockingEnable);
@@ -236,10 +243,15 @@ public final class EditorShell {
         if (body != null) ImGui.pushFont(body, EditorScale.of(EditorFonts.BODY));
         try {
             ImGuizmo.beginFrame();
+            plugins.frame();
             renderMainMenuBar();
             renderHostWindow();
             panels.render();
-            if (!viewport.flying()) commands.handleShortcuts();
+            plugins.renderPanels(dockLayout::node);
+            if (!viewport.flying()) {
+                commands.handleShortcuts();
+                plugins.handleShortcuts();
+            }
             renderClosePrompt();
             scenes.frame();
             scenes.renderDialogs();
@@ -260,6 +272,7 @@ public final class EditorShell {
         if (!ImGui.beginMainMenuBar()) return;
         renderBrandMark();
         commands.renderMenus();
+        plugins.renderMenu();
         Toolbars.pushFlatButtons();
         renderPlayControls();
         Toolbars.popFlatButtons();

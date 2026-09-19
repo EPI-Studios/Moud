@@ -56,6 +56,17 @@ public final class History {
         return Optional.empty();
     }
 
+    public void record(Edit edit, Edit inverse) {
+        Entry top = undoStack.peek();
+        if (top != null && top.open && edit.gesture() != null && Objects.equals(edit.gesture(), top.gesture)) {
+            top.forward = edit;
+        } else {
+            undoStack.push(new Entry(edit, inverse, edit.gesture()));
+            while (undoStack.size() > MAX_ENTRIES) undoStack.pollLast();
+        }
+        redoStack.clear();
+    }
+
     public void settle(boolean gestureHeld) {
         if (gestureHeld) return;
         Entry top = undoStack.peek();

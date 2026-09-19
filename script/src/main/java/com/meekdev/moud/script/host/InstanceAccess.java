@@ -117,19 +117,25 @@ public final class InstanceAccess {
         }
         if (key.equals("name")) {
             if (!(value instanceof String name)) throw new HostError("name must be a string");
-            Instances.rename(instance, name);
+            if (edited(instance)) host.edits().rename(instance, name);
+            else Instances.rename(instance, name);
             return;
         }
         if (key.equals("parent")) {
             if (!(value instanceof Instance parent)) throw new HostError("parent must be an instance, use destroy() to remove");
+            if (edited(instance)) {
+                host.edits().reparent(instance, parent);
+                return;
+            }
             Instances.reparent(instance, parent);
+            if (edited(parent)) host.edits().added(instance);
             return;
         }
         if (instance instanceof Spatial spatial) {
             PropertyDef frame = instance.def().property("cframe");
             switch (key) {
                 case "position" -> {
-                    Instances.setObj(instance, frame, Transforms.localFor(instance,
+                    frame(instance, frame, Transforms.localFor(instance,
                             Transforms.world(instance).withPosition(expect(value, Vector3.class, "position", "a vec3")))
                             .mul(CFrame.at(spatial.pivot)));
                     return;
@@ -141,11 +147,11 @@ public final class InstanceAccess {
                         default -> throw new HostError("rotation expects a cframe or a quat");
                     };
                     Quat local = Transforms.localFor(instance, new CFrame(Vector3.ZERO, rotation)).rotation();
-                    Instances.setObj(instance, frame, spatial.cframe.withRotation(local));
+                    frame(instance, frame, spatial.cframe.withRotation(local));
                     return;
                 }
                 case "worldCframe" -> {
-                    Instances.setObj(instance, frame, Transforms.localFor(instance, expect(value, CFrame.class, "worldCframe", "a cframe")));
+                    frame(instance, frame, Transforms.localFor(instance, expect(value, CFrame.class, "worldCframe", "a cframe")));
                     return;
                 }
                 default -> { }
@@ -156,8 +162,21 @@ public final class InstanceAccess {
         write(instance, property, value);
     }
 
+    private void frame(Instance instance, PropertyDef frame, CFrame local) {
+        if (edited(instance)) host.edits().write(instance, frame, local);
+        else Instances.setObj(instance, frame, local);
+    }
+
+    public boolean edited(Instance instance) {
+        return host.edits() != null && host.edits().owns(instance);
+    }
+
     public void write(Instance instance, PropertyDef property, Object value) {
         if (property.readOnly()) throw new HostError("%s.%s is read-only", instance.def().name(), property.name());
+        if (edited(instance)) {
+            host.edits().write(instance, property, parse(property, value));
+            return;
+        }
         checkWrite(instance, property);
         Object parsed = parse(property, value);
         switch (property.type()) {

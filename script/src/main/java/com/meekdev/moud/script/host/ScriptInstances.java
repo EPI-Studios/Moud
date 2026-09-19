@@ -22,7 +22,7 @@ final class ScriptInstances {
     }
 
     void poll(InstanceTree tree) {
-        if (host.engine() == null || tree == null) return;
+        if (host.engine() == null || tree == null || host.plugins() != null) return;
         for (Instance instance : new ArrayList<>(running)) {
             if (!instance.isAlive() || instance.tree() != tree || !enabled(instance)) {
                 running.remove(instance);

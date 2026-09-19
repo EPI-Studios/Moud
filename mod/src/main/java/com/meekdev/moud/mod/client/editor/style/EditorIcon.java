@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.style;
 
 import java.util.Locale;
+import org.jspecify.annotations.Nullable;
 
 public enum EditorIcon {
     PARTICLES_3D("GPUParticles3D"),
@@ -110,6 +111,13 @@ public enum EditorIcon {
             else out.append(word.charAt(0)).append(word.substring(1).toLowerCase(Locale.ROOT));
         }
         return out.toString();
+    }
+
+    public static @Nullable EditorIcon named(String name) {
+        for (EditorIcon icon : values()) {
+            if (icon.fileName.equalsIgnoreCase(name)) return icon;
+        }
+        return null;
     }
 
     public String resourcePath() {
