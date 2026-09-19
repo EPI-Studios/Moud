@@ -178,7 +178,7 @@ public final class BbmodelImport {
         for (Object entry : list(root.get("animations"))) {
             if (!(entry instanceof Map<?, ?> animation)) continue;
             String clipName = unique(safe(String.valueOf(animation.get("name") == null ? "animation" : animation.get("name"))), clipNames);
-            clips.put(clipName, clip(animation, clipName, groups, byUuid, player ? "player" : name, notes));
+            clips.put(clipName, clip(animation, clipName, groups, byUuid, player ? "player" : name, legacy(root), notes));
         }
         return new Rig(List.copyOf(groups), min, max, clips, player, notes);
     }
@@ -241,8 +241,19 @@ public final class BbmodelImport {
 
     private record Frame(double time, List<double[]> points, String interp, Map<?, ?> source) {}
 
+    static boolean legacy(Map<?, ?> root) {
+        if (!(root.get("meta") instanceof Map<?, ?> meta) || meta.get("format_version") == null) return true;
+        String version = String.valueOf(meta.get("format_version")).strip();
+        int dot = version.indexOf('.');
+        try {
+            return Integer.parseInt(dot < 0 ? version : version.substring(0, dot)) < 5;
+        } catch (NumberFormatException e) {
+            return true;
+        }
+    }
+
     private static Map<String, Object> clip(Map<?, ?> animation, String clipName, List<Group> groups, Map<String, Group> byUuid,
-                                            String rigName, List<String> notes) {
+                                            String rigName, boolean legacy, List<String> notes) {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("version", 2.0);
         double length = animation.get("length") instanceof Number n ? n.doubleValue() : 0;
@@ -278,7 +289,7 @@ public final class BbmodelImport {
                     }
                     continue;
                 }
-                Map<String, Object> channels = channels(animator, clipName + ": " + group.name(), notes);
+                Map<String, Object> channels = channels(animator, clipName + ": " + group.name(), legacy, notes);
                 if (!channels.isEmpty()) joints.put(group.name(), channels);
             }
         }
@@ -307,7 +318,7 @@ public final class BbmodelImport {
         return null;
     }
 
-    private static Map<String, Object> channels(Map<?, ?> animator, String where, List<String> notes) {
+    private static Map<String, Object> channels(Map<?, ?> animator, String where, boolean legacy, List<String> notes) {
         Map<String, List<Frame>> byChannel = new LinkedHashMap<>();
         for (Object entry : list(animator.get("keyframes"))) {
             if (!(entry instanceof Map<?, ?> keyframe) || !(keyframe.get("time") instanceof Number time)) continue;
@@ -337,11 +348,11 @@ public final class BbmodelImport {
                 Frame frame = frames.get(n);
                 Frame next = n + 1 < frames.size() ? frames.get(n + 1) : null;
                 String leaving = next == null ? "linear" : segment(frame.interp(), next.interp());
-                double[] pre = convert(channel, frame.points().getFirst());
-                double[] post = frame.points().size() > 1 ? convert(channel, frame.points().get(1)) : pre;
+                double[] pre = convert(channel, frame.points().getFirst(), legacy);
+                double[] post = frame.points().size() > 1 ? convert(channel, frame.points().get(1), legacy) : pre;
                 if (post != pre) keys.add(List.of(frame.time(), numbers(pre), "linear"));
                 List<Object> key = new ArrayList<>(List.of(frame.time(), numbers(post), leaving));
-                if (bezier) key.add(handles(channel, frame.source()));
+                if (bezier) key.add(handles(channel, frame.source(), legacy));
                 keys.add(key);
             }
             channels.put(channel, keys);
@@ -356,27 +367,27 @@ public final class BbmodelImport {
         return "linear";
     }
 
-    private static double[] convert(String channel, double[] v) {
+    private static double[] convert(String channel, double[] v, boolean legacy) {
         return switch (channel) {
-            case "rotation" -> new double[] {-v[0], -v[1], v[2]};
-            case "position" -> new double[] {-v[0] * PX, v[1] * PX, v[2] * PX};
+            case "rotation" -> legacy ? new double[] {-v[0], -v[1], v[2]} : v.clone();
+            case "position" -> new double[] {(legacy ? -v[0] : v[0]) * PX, v[1] * PX, v[2] * PX};
             default -> v;
         };
     }
 
-    private static Map<String, Object> handles(String channel, Map<?, ?> keyframe) {
+    private static Map<String, Object> handles(String channel, Map<?, ?> keyframe, boolean legacy) {
         Map<String, Object> handles = new LinkedHashMap<>();
-        handles.put("in", handle(channel, keyframe.get("bezier_left_time"), keyframe.get("bezier_left_value"), -HANDLE));
-        handles.put("out", handle(channel, keyframe.get("bezier_right_time"), keyframe.get("bezier_right_value"), HANDLE));
+        handles.put("in", handle(channel, keyframe.get("bezier_left_time"), keyframe.get("bezier_left_value"), -HANDLE, legacy));
+        handles.put("out", handle(channel, keyframe.get("bezier_right_time"), keyframe.get("bezier_right_value"), HANDLE, legacy));
         return handles;
     }
 
-    private static List<Object> handle(String channel, Object times, Object values, double fallback) {
+    private static List<Object> handle(String channel, Object times, Object values, double fallback, boolean legacy) {
         double time = list(times).isEmpty() || !(list(times).getFirst() instanceof Number n) ? fallback : n.doubleValue();
         double[] value = new double[3];
         List<?> given = list(values);
         for (int c = 0; c < 3 && c < given.size(); c++) value[c] = given.get(c) instanceof Number n ? n.doubleValue() : 0;
-        double[] turned = channel.equals("scale") ? value : convert(channel, value);
+        double[] turned = channel.equals("scale") ? value : convert(channel, value, legacy);
         return List.of(time, numbers(turned));
     }
 
