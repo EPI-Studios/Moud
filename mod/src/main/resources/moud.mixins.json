@@ -5,6 +5,7 @@
   "mixins": [
     "player.ChatMixin",
     "player.DropMixin",
+    "player.FloatingMixin",
     "player.EditorEntityMixin",
     "player.EditorLivingMixin",
     "player.EditorPlayerMixin",
@@ -28,6 +29,7 @@
     "world.MobSpawnMixin",
     "world.MoveSweepMixin",
     "world.RandomTickMixin",
+    "world.VoidServerMixin",
     "world.WeatherMixin"
   ],
   "client": [

@@ -28,6 +28,16 @@ loom {
             vmArg '-XX:+EnableDynamicAgentLoading'
             vmArg '-Djdk.attach.allowAttachSelf=true'
             if (findProperty('place')) vmArg "-Dmoud.place=${file(findProperty('place')).absolutePath}"
+            if (findProperty('join')) programArgs '--quickPlayMultiplayer', findProperty('join')
+            if (findProperty('player')) programArgs '--username', findProperty('player')
+        }
+        server {
+            runDir devRunRelative
+            vmArg '--enable-native-access=ALL-UNNAMED'
+            vmArg '-XX:+EnableDynamicAgentLoading'
+            vmArg '-Djdk.attach.allowAttachSelf=true'
+            if (findProperty('place')) vmArg "-Dmoud.place=${file(findProperty('place')).absolutePath}"
+            programArgs '--nogui'
         }
     }
 }
