@@ -179,7 +179,7 @@ final class RigPanel implements Panel {
         boolean ready = !newName.get().isBlank();
         if (Dialogs.primaryButton("Create##anim-new-create", ready) || entered && ready) {
             AnimClip.Space space = newSpace == 1 ? AnimClip.Space.VIEW : AnimClip.Space.BODY;
-            session.create(newName.get(), space, space == AnimClip.Space.VIEW ? "view" : rig.model() != null ? rig.model().name() : "player",
+            session.create(newName.get(), space, space == AnimClip.Space.VIEW ? "view" : rig.model() != null ? Rigging.rigOf(rig.model()) : "player",
                     workspace.clipFolder(space));
             ImGui.closeCurrentPopup();
         }

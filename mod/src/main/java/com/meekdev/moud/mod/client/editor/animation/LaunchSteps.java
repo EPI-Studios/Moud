@@ -82,6 +82,8 @@ final class LaunchSteps {
                 if (session.control() instanceof IKControl control) ControlHandles.nudge(workspace.document(), control, vector(parts[1]));
             }
             case "undo" -> workspace.document().history().undo();
+            case "redo" -> workspace.document().history().redo();
+            case "state" -> MoudMod.LOG.info("animate state clip {} rig {}", session.path() == null ? "none" : AnimationSession.res(session.path()), workspace.rigName());
             case "shot" -> {
                 Minecraft minecraft = Minecraft.getInstance();
                 minecraft.execute(() -> Screenshot.grab(minecraft.gameDirectory, parts[1] + ".png", minecraft.getMainRenderTarget(), 1, message -> { }));

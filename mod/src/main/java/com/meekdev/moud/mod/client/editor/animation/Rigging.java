@@ -3,7 +3,6 @@ package com.meekdev.moud.mod.client.editor.animation;
 import com.meekdev.moud.core.asset.BbmodelImport;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.character.Animation;
-import com.meekdev.moud.core.character.Animators;
 import com.meekdev.moud.core.character.Rigs;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Bone;
@@ -21,18 +20,17 @@ import com.meekdev.moud.core.scene.Scene;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Destroy;
+import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.Paste;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.Consumer;
 import org.jspecify.annotations.Nullable;
 
 public final class Rigging {
@@ -51,13 +49,29 @@ public final class Rigging {
         return true;
     }
 
-    public static String directory(String name) {
+    public static String directory(String rig) {
+        String name = rig;
+        if (rig.startsWith(Res.SCHEME)) {
+            String file = rig.substring(rig.lastIndexOf('/') + 1);
+            int dot = file.lastIndexOf('.');
+            name = dot > 0 ? file.substring(0, dot) : file;
+        }
         String clean = name.strip().replaceAll("[\\\\/:*?\"<>|]", "_");
         return ClipLibrary.FOLDER + "/" + (clean.isEmpty() || clean.chars().allMatch(c -> c == '.') ? "model" : clean) + "/";
     }
 
-    public static String folder(String name) {
-        return Res.SCHEME + directory(name);
+    public static String folder(String rig) {
+        return Res.SCHEME + directory(rig);
+    }
+
+    public static String rigOf(Model model) {
+        if (model.primaryPart instanceof MeshPart mesh && mesh.meshId.toLowerCase(Locale.ROOT).endsWith(".bbmodel")) return mesh.meshId;
+        return model.name();
+    }
+
+    public static boolean rigs(Model model, String rig) {
+        if (rig.startsWith(Res.SCHEME)) return rigOf(model).equalsIgnoreCase(rig);
+        return model.name().equals(rig);
     }
 
     public static @Nullable Made build(String text, String res, String name, Instance holder) {
@@ -68,13 +82,13 @@ public final class Rigging {
             return null;
         }
         if (!model.name().equals(name)) Instances.rename(model, name);
-        String folder = folder(name);
+        String folder = folder(res);
         Map<String, String> files = new LinkedHashMap<>();
         if (model.child("animations") instanceof Instance animations) {
             for (Instance child : animations.children()) {
                 if (!(child instanceof Animation animation) || !(imported.files().get(animation.animationId) instanceof String clip)) continue;
                 String to = folder + child.name() + ClipLibrary.EXTENSION;
-                files.put(to, rigged(clip, name));
+                files.put(to, rigged(clip, res));
                 Instances.setObj(animation, Classes.ANIMATION.property("animationId"), to);
             }
         }
@@ -135,41 +149,28 @@ public final class Rigging {
     }
 
     @SuppressWarnings("unchecked")
-    static String rigged(String clip, String name) {
+    static String rigged(String clip, String rig) {
         if (!(Json.parse(clip) instanceof Map<?, ?> parsed)) return clip;
         Map<String, Object> root = new LinkedHashMap<>((Map<String, Object>) parsed);
-        root.put("rig", name);
+        root.put("rig", rig);
         return BbmodelImport.write(root);
     }
 
-    public static List<Path> write(Path root, Map<String, String> files, Consumer<Path> upload, List<String> notes) {
-        List<Path> written = new ArrayList<>();
+    public static Map<String, String> fresh(Path root, Map<String, String> files, List<String> notes) {
+        Map<String, String> fresh = new LinkedHashMap<>();
         for (Map.Entry<String, String> file : files.entrySet()) {
-            Path target = root.resolve(Res.parse(file.getKey()));
-            if (Files.exists(target)) {
-                notes.add(Res.parse(file.getKey()) + " is already there and was kept");
-                continue;
-            }
-            try {
-                Files.createDirectories(target.getParent());
-                Files.writeString(target, file.getValue(), StandardCharsets.UTF_8);
-            } catch (IOException e) {
-                notes.add("could not write " + Res.parse(file.getKey()) + ": " + e.getMessage());
-                continue;
-            }
-            written.add(target);
-            Animators.forget(file.getKey());
-            upload.accept(target);
+            if (Files.exists(root.resolve(Res.parse(file.getKey())), LinkOption.NOFOLLOW_LINKS)) notes.add(Res.parse(file.getKey()) + " is already there and was kept");
+            else fresh.put(file.getKey(), file.getValue());
         }
-        return written;
+        return fresh;
     }
 
-    public static Batch edit(SceneDocument document, MeshPart mesh, Model model) {
+    public static Batch edit(SceneDocument document, MeshPart mesh, Model model, Edit files) {
         Paste paste = Paste.fresh(Scene.save(List.of(model)), document.ref(mesh.parent().id()), label(mesh));
-        return new Batch(label(mesh), List.of(paste, new Destroy(List.of(document.ref(mesh.id())), label(mesh))));
+        return new Batch(label(mesh), List.of(paste, new Destroy(List.of(document.ref(mesh.id())), label(mesh)), files));
     }
 
-    private static String label(MeshPart mesh) {
+    static String label(MeshPart mesh) {
         return "Make " + mesh.name() + " animatable";
     }
 }

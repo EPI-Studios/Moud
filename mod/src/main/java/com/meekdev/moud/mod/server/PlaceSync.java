@@ -29,7 +29,10 @@ public final class PlaceSync {
 
     public static void install() {
         ServerPlayNetworking.registerGlobalReceiver(PlaceFileUpPayload.TYPE, (payload, context) ->
-                context.server().execute(() -> upload(context.player(), payload.res(), payload.bytes())));
+                context.server().execute(() -> {
+                    if (payload.exists()) upload(context.player(), payload.res(), payload.bytes());
+                    else remove(context.player(), payload.res(), payload.bytes());
+                }));
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> server.execute(() -> joined(handler.getPlayer())));
     }
 
@@ -112,5 +115,25 @@ public final class PlaceSync {
         Output.add(Output.Level.SYSTEM, "server", name + " saved " + res);
         changed(player.level().getServer(), res, bytes);
         Editing.status(player, "saved " + res + " on the server");
+    }
+
+    private static void remove(ServerPlayer player, String res, byte[] expected) {
+        String name = player.getGameProfile().name();
+        if (!Editing.allowed(player)) {
+            MoudMod.LOG.warn("{} tried to remove {} without edit rights", name, res);
+            Editing.status(player, "only operators can remove " + res + " on this server");
+            return;
+        }
+        if (root == null) return;
+        try {
+            if (!SyncedFiles.remove(root, res, expected)) return;
+        } catch (IOException | RuntimeException e) {
+            Editing.status(player, "could not remove " + res + " on the server: " + e.getMessage());
+            return;
+        }
+        MoudMod.LOG.info("{} removed {} on the server", name, res);
+        Output.add(Output.Level.SYSTEM, "server", name + " removed " + res);
+        changed(player.level().getServer(), res, null);
+        Editing.status(player, "removed " + res + " on the server");
     }
 }

@@ -177,7 +177,7 @@ final class TopBar {
         tooltip("The clip's space: the whole body, or the first person view model");
         if (session.hasClip() && chosen != (clip.space == AnimClip.Space.VIEW ? 1 : 0)) {
             AnimClip.Space space = chosen == 1 ? AnimClip.Space.VIEW : AnimClip.Space.BODY;
-            String rigName = space == AnimClip.Space.VIEW ? "view" : rig.model() != null ? rig.model().name() : "player";
+            String rigName = space == AnimClip.Space.VIEW ? "view" : rig.model() != null ? Rigging.rigOf(rig.model()) : "player";
             session.edit(chosen == 1 ? "Use view space" : "Use body space", changed -> {
                 changed.space = space;
                 changed.rig = rigName;

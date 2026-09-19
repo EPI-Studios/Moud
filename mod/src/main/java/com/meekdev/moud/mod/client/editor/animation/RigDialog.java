@@ -44,7 +44,7 @@ final class RigDialog {
         }
         Dialogs.title("Make " + asked.name() + " animatable?");
         ImGui.pushTextWrapPos(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX());
-        Texts.muted("Its groups become bones and its clips are written to " + Rigging.directory(asked.name()));
+        Texts.muted("Its groups become bones and its clips are written to " + Rigging.directory(asked.meshId));
         ImGui.popTextWrapPos();
         Dialogs.gap();
         Dialogs.alignFooter(2);

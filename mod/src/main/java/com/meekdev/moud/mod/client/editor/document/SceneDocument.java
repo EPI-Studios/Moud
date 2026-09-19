@@ -76,7 +76,7 @@ public final class SceneDocument {
     private Supplier<Vector3> spawnPoint = () -> Vector3.ZERO;
     private int generation;
     private Function<String, @Nullable Vector3> meshSize = id -> null;
-    private BiFunction<String, Instance, @Nullable Instance> rigs = (res, holder) -> null;
+    private BiFunction<String, Instance, @Nullable Rigged> rigs = (res, holder) -> null;
     private @Nullable InstanceTree seen;
     private boolean gathering;
 
@@ -92,7 +92,9 @@ public final class SceneDocument {
         meshSize = source;
     }
 
-    public void rigs(BiFunction<String, Instance, @Nullable Instance> source) {
+    public record Rigged(Instance model, Edit files) {}
+
+    public void rigs(BiFunction<String, Instance, @Nullable Rigged> source) {
         rigs = source;
     }
 
@@ -512,6 +514,7 @@ public final class SceneDocument {
         if (vanilla) name = res.substring(res.lastIndexOf('.') + 1);
         String lower = file.toLowerCase(Locale.ROOT);
         String text;
+        Edit files = null;
         try {
             InstanceTree scratch = new InstanceTree();
             Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
@@ -522,8 +525,9 @@ public final class SceneDocument {
                 if (at != null) shiftTo(loaded, parent, at);
                 text = snapshot(loaded);
             } else {
-                Instance made = vanilla ? vanillaSound(res, name, holder) : lower.endsWith(".bbmodel") ? rigs.apply(res, holder) : null;
-                if (made == null) made = madeFor(lower, res, name, holder);
+                Rigged rigged = !vanilla && lower.endsWith(".bbmodel") ? rigs.apply(res, holder) : null;
+                if (rigged != null) files = rigged.files();
+                Instance made = vanilla ? vanillaSound(res, name, holder) : rigged != null ? rigged.model() : madeFor(lower, res, name, holder);
                 if (made == null) return false;
                 settle(made, res);
                 if (made instanceof Spatial spatial && !inViewport(parent)) {
@@ -540,7 +544,8 @@ public final class SceneDocument {
             SceneLink.local("Could not place " + file + ": " + e.getMessage());
             return false;
         }
-        history.execute(Paste.fresh(text, ref(parentId), "Place " + name));
+        Paste paste = Paste.fresh(text, ref(parentId), "Place " + name);
+        history.execute(files == null ? paste : new Batch(paste.label(), List.of(paste, files)));
         return true;
     }
 

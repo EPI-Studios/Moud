@@ -207,11 +207,14 @@ public final class AnimationSession {
         return "anim-" + kind + "-" + (++gestures);
     }
 
-    void replace(Path path, AnimClip clip) {
+    void replace(Path path, AnimClip clip, String label) {
         ClipLibrary.Open loaded = library.get(path);
         if (loaded == null) throw new IllegalStateException(path.getFileName() + " is not open");
         loaded.clip = clip;
-        if (!path.equals(current)) open(path);
+        if (!path.equals(current)) {
+            say(label + " in " + ClipLibrary.name(path));
+            return;
+        }
         keys.removeIf(ref -> clip.keyAt(ref.joint(), ref.channel(), ref.time()) == null);
         if (event >= clip.events.size()) event = -1;
         if (marker >= clip.markers.size()) marker = -1;

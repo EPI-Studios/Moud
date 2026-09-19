@@ -60,7 +60,13 @@ public final class PlaceFiles {
             MoudMod.LOG.warn("{} is over {} bytes and stays on this machine", res, SyncedFiles.MAX_BYTES);
             return;
         }
-        ClientPlayNetworking.send(new PlaceFileUpPayload(res, bytes));
+        ClientPlayNetworking.send(PlaceFileUpPayload.write(res, bytes));
+    }
+
+    public static void remove(String res, byte[] expected) {
+        if (!SyncedFiles.synced(res) || Minecraft.getInstance().hasSingleplayerServer()) return;
+        if (!ClientPlayNetworking.canSend(PlaceFileUpPayload.TYPE)) return;
+        ClientPlayNetworking.send(PlaceFileUpPayload.remove(res, expected));
     }
 
     private static void arrived(String res, byte @Nullable [] bytes) {

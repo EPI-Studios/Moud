@@ -9,7 +9,7 @@ record ClipEdit(AnimationSession session, Path path, AnimClip target, String lab
 
     @Override
     public void apply(SceneDocument document) {
-        session.replace(path, target.copy());
+        session.replace(path, target.copy(), label);
     }
 
     @Override

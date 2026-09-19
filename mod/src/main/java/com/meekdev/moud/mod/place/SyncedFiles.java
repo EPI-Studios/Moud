@@ -73,6 +73,17 @@ public final class SyncedFiles {
         }
     }
 
+    public static boolean remove(Path root, String res, byte[] expected) throws IOException {
+        Path file = file(root, res);
+        Path parent = file.getParent();
+        if (!Files.exists(file, LinkOption.NOFOLLOW_LINKS)) return false;
+        if (!parent.toRealPath().startsWith(root.toRealPath())) throw new IOException(res + " leads out of the place");
+        if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) throw new IOException(res + " is not a plain file");
+        if (!Arrays.equals(Files.readAllBytes(file), expected)) throw new IOException(res + " was edited since it was written and was kept");
+        Files.delete(file);
+        return true;
+    }
+
     public boolean note(String res, byte @Nullable [] bytes) {
         if (changed.containsKey(res) && Arrays.equals(changed.get(res), bytes)) return false;
         changed.put(res, bytes);
