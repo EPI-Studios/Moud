@@ -47,6 +47,7 @@
     "client.FogMixin",
     "client.GameRenderMixin",
     "client.HandMixin",
+    "client.ViewCameraMixin",
     "client.HeldItemsMixin",
     "client.HudMixin",
     "client.InstanceShaderMixin",

@@ -101,7 +101,7 @@ public final class HeldItems {
         poses.popPose();
     }
 
-    private static ItemStack stack(AbstractClientPlayer wearer, boolean left, String id) {
+    static ItemStack stack(AbstractClientPlayer wearer, boolean left, String id) {
         if (wearer != null) {
             ItemStack held = PlayerMirror.handOf(wearer, left ? HumanoidArm.LEFT : HumanoidArm.RIGHT);
             if (!held.isEmpty() && BuiltInRegistries.ITEM.getKey(held.getItem()).toString().equals(id)) return held;
