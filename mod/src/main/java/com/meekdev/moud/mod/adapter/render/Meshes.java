@@ -5,6 +5,7 @@ import com.meekdev.amnetic.client.model.Model;
 import com.meekdev.amnetic.client.model.ModelFormat;
 import com.meekdev.amnetic.client.model.Models;
 import com.meekdev.amnetic.client.model.internal.ammesh.AmmeshConverter;
+import com.meekdev.moud.core.asset.BbmodelImport;
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Attachment;
@@ -21,6 +22,7 @@ import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.PlaceFiles;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -325,6 +327,9 @@ public final class Meshes {
         ModelFormat format = ModelFormat.fromPath(meshId);
         if (format == null) return missing(meshId, "is not a model file");
         try {
+            if (format == ModelFormat.BBMODEL) {
+                bytes = BbmodelImport.modernize(new String(bytes, StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8);
+            }
             Model model = format == ModelFormat.GLTF
                     ? Models.load(AmmeshConverter.convert(bytes, PlaceFiles.idOf(meshId)), ModelFormat.AMMESH)
                     : Models.load(bytes, format);

@@ -7,8 +7,11 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 public final class Json {
+
+    private static final int ROW = 4;
 
     private final String text;
     private int at;
@@ -35,38 +38,64 @@ public final class Json {
     }
 
     public static String write(Object value) {
+        return write(value, Json::numberRow);
+    }
+
+    public static String write(Object value, Predicate<Object> oneLine) {
         StringBuilder out = new StringBuilder();
-        write(out, value, 0);
+        write(out, value, 0, oneLine);
         return out.append('\n').toString();
     }
 
-    private static void write(StringBuilder out, Object value, int depth) {
+    private static boolean numberRow(Object value) {
+        return value instanceof List<?> list && list.size() <= ROW && list.stream().allMatch(v -> v instanceof Number);
+    }
+
+    private static void write(StringBuilder out, Object value, int depth, Predicate<Object> oneLine) {
+        if (oneLine.test(value)) {
+            line(out, value);
+            return;
+        }
+        switch (value) {
+            case List<?> list when !list.isEmpty() -> {
+                out.append("[\n");
+                for (int i = 0; i < list.size(); i++) {
+                    indent(out, depth + 1);
+                    write(out, list.get(i), depth + 1, oneLine);
+                    out.append(i + 1 < list.size() ? ",\n" : "\n");
+                }
+                indent(out, depth);
+                out.append(']');
+            }
+            case Map<?, ?> map when !map.isEmpty() -> {
+                out.append("{\n");
+                int i = 0;
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    indent(out, depth + 1);
+                    string(out, String.valueOf(entry.getKey()));
+                    out.append(": ");
+                    write(out, entry.getValue(), depth + 1, oneLine);
+                    out.append(++i < map.size() ? ",\n" : "\n");
+                }
+                indent(out, depth);
+                out.append('}');
+            }
+            case null, default -> line(out, value);
+        }
+    }
+
+    private static void line(StringBuilder out, Object value) {
         switch (value) {
             case null -> out.append("null");
             case Boolean b -> out.append(b);
             case Number n -> number(out, n.doubleValue());
             case String s -> string(out, s);
             case List<?> list -> {
-                if (list.stream().allMatch(v -> v instanceof Number) && list.size() <= 4) {
-                    out.append('[');
-                    for (int i = 0; i < list.size(); i++) {
-                        if (i > 0) out.append(", ");
-                        number(out, ((Number) list.get(i)).doubleValue());
-                    }
-                    out.append(']');
-                    return;
-                }
-                if (list.isEmpty()) {
-                    out.append("[]");
-                    return;
-                }
-                out.append("[\n");
+                out.append('[');
                 for (int i = 0; i < list.size(); i++) {
-                    indent(out, depth + 1);
-                    write(out, list.get(i), depth + 1);
-                    out.append(i + 1 < list.size() ? ",\n" : "\n");
+                    if (i > 0) out.append(", ");
+                    line(out, list.get(i));
                 }
-                indent(out, depth);
                 out.append(']');
             }
             case Map<?, ?> map -> {
@@ -74,17 +103,15 @@ public final class Json {
                     out.append("{}");
                     return;
                 }
-                out.append("{\n");
+                out.append("{ ");
                 int i = 0;
                 for (Map.Entry<?, ?> entry : map.entrySet()) {
-                    indent(out, depth + 1);
+                    if (i++ > 0) out.append(", ");
                     string(out, String.valueOf(entry.getKey()));
                     out.append(": ");
-                    write(out, entry.getValue(), depth + 1);
-                    out.append(++i < map.size() ? ",\n" : "\n");
+                    line(out, entry.getValue());
                 }
-                indent(out, depth);
-                out.append('}');
+                out.append(" }");
             }
             default -> throw new IllegalArgumentException(value.getClass().getSimpleName() + " is not json");
         }
