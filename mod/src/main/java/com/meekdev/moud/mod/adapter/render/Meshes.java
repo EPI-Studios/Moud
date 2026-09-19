@@ -296,6 +296,11 @@ public final class Meshes {
         return own < 1e-5f ? 1f : (float) (size / own);
     }
 
+    public static List<String> clipNames(String meshId) {
+        Model model = meshId.isEmpty() ? null : model(meshId);
+        return model == null || !model.isAnimated() ? List.of() : List.copyOf(model.clipNames());
+    }
+
     private static @Nullable Model model(String meshId) {
         if (meshId.startsWith(Res.SCHEME)) return fromPlace(meshId);
         Loaded known = MODELS.get(meshId);

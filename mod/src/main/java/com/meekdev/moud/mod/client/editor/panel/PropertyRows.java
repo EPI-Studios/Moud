@@ -9,6 +9,9 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.part.MeshPart;
+import com.meekdev.moud.mod.adapter.render.Meshes;
+import com.meekdev.moud.mod.client.PendingEdits;
 import com.meekdev.moud.mod.client.editor.assets.AssetEntry;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.assets.AssetKind;
@@ -16,7 +19,6 @@ import com.meekdev.moud.mod.client.editor.assets.AssetScanner;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
-import com.meekdev.moud.mod.client.PendingEdits;
 import com.meekdev.moud.mod.client.editor.document.ReferencePick;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.SetProperty;
@@ -124,7 +126,10 @@ public final class PropertyRows {
             case BOOL -> renderBoolean(instance, property);
             case INT -> renderInt(instance, property);
             case NUM -> renderNumber(instance, property);
-            case STRING, ASSET -> renderString(instance, property, key);
+            case STRING, ASSET -> {
+                boolean clip = instance instanceof MeshPart part && property.name().equals("animation") && renderClip(part, property);
+                if (!clip) renderString(instance, property, key);
+            }
             case VEC3 -> renderVector3(instance, property);
             case QUAT -> renderQuaternion(instance, property, key);
             case CFRAME -> renderCFrame(instance, property, key);
@@ -358,6 +363,20 @@ public final class PropertyRows {
                 ? NumberFields.ranged("##" + instance.id() + ":" + property.index(), current, DRAG_STEP, width, (float) property.min(), (float) property.max())
                 : NumberFields.scalar("##" + instance.id() + ":" + property.index(), current, DRAG_STEP, width);
         if (Float.compare(updated, current) != 0) commit(instance, property, property.clamp(updated));
+    }
+
+    private boolean renderClip(MeshPart part, PropertyDef property) {
+        List<String> clips = Meshes.clipNames(part.meshId);
+        if (clips.isEmpty()) return false;
+        beginLabelled(label(property));
+        ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
+        if (!ImGui.beginCombo("##value", part.animation.isEmpty() ? "None" : part.animation)) return true;
+        if (ImGui.selectable("None", part.animation.isEmpty()) && !part.animation.isEmpty()) commit(part, property, "");
+        for (String clip : clips) {
+            if (ImGui.selectable(clip, clip.equals(part.animation)) && !clip.equals(part.animation)) commit(part, property, clip);
+        }
+        ImGui.endCombo();
+        return true;
     }
 
     private void renderString(Instance instance, PropertyDef property, String key) {
