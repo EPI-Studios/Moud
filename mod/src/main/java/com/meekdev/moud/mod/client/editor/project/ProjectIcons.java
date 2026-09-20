@@ -18,29 +18,43 @@ public final class ProjectIcons {
 
     public static final List<String> CANDIDATE_FILENAMES = List.of("icon.png", ".moud/icon.png");
 
-    private final Map<Path, Optional<DynamicTexture>> textures = new HashMap<>();
+    public record Image(long textureId, int width, int height) {
 
-    public Optional<Long> of(Path projectRoot) {
-        return textures.computeIfAbsent(projectRoot.toAbsolutePath(), ProjectIcons::load)
-                .map(texture -> ImGuiMCImpl.handler.getRenderer().getImGuiId((ImGuiTextureProvider) ImGuiMC.getTexture(texture), null));
+        public float aspect() {
+            return height == 0 ? 1.0f : width / (float) height;
+        }
+    }
+
+    private record Loaded(DynamicTexture texture, int width, int height) {}
+
+    private final Map<Path, Optional<Loaded>> images = new HashMap<>();
+
+    public Optional<Image> of(Path projectRoot) {
+        return images.computeIfAbsent(projectRoot.toAbsolutePath(), ProjectIcons::load)
+                .map(loaded -> new Image(textureId(loaded.texture()), loaded.width(), loaded.height()));
     }
 
     public void forget(Path projectRoot) {
-        Optional<DynamicTexture> texture = textures.remove(projectRoot.toAbsolutePath());
-        if (texture != null) texture.ifPresent(DynamicTexture::close);
+        Optional<Loaded> loaded = images.remove(projectRoot.toAbsolutePath());
+        if (loaded != null) loaded.ifPresent(one -> one.texture().close());
     }
 
     public void dispose() {
-        textures.values().forEach(texture -> texture.ifPresent(DynamicTexture::close));
-        textures.clear();
+        images.values().forEach(loaded -> loaded.ifPresent(one -> one.texture().close()));
+        images.clear();
     }
 
-    private static Optional<DynamicTexture> load(Path root) {
+    private static long textureId(DynamicTexture texture) {
+        return ImGuiMCImpl.handler.getRenderer().getImGuiId((ImGuiTextureProvider) ImGuiMC.getTexture(texture), null);
+    }
+
+    private static Optional<Loaded> load(Path root) {
         for (String candidate : CANDIDATE_FILENAMES) {
             Path file = root.resolve(candidate);
             if (!Files.isRegularFile(file)) continue;
             try (InputStream in = Files.newInputStream(file)) {
-                return Optional.of(new DynamicTexture(() -> "moud project icon " + root, NativeImage.read(in)));
+                NativeImage image = NativeImage.read(in);
+                return Optional.of(new Loaded(new DynamicTexture(() -> "moud project icon " + root, image), image.getWidth(), image.getHeight()));
             } catch (IOException e) {
                 return Optional.empty();
             }

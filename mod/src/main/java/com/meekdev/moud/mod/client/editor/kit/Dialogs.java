@@ -12,6 +12,7 @@ import imgui.flag.ImGuiWindowFlags;
 public final class Dialogs {
 
     private static final float PADDING = 14.0f;
+    private static final float VIEWPORT_MARGIN = 24.0f;
     private static final float GAP = 8.0f;
     private static final float BUTTON_WIDTH = 96.0f;
     private static final int ACCENT_COLOR_COUNT = 3;
@@ -76,7 +77,9 @@ public final class Dialogs {
         ImGuiViewport viewport = ImGui.getMainViewport();
         ImGui.setNextWindowPos(viewport.getCenterX(), viewport.getCenterY(), ImGuiCond.Appearing,
                 0.5f, 0.5f);
-        ImGui.setNextWindowSize(EditorScale.of(width), EditorScale.of(height), ImGuiCond.Appearing);
+        float room = EditorScale.of(VIEWPORT_MARGIN) * 2.0f;
+        ImGui.setNextWindowSize(Math.min(EditorScale.of(width), viewport.getWorkSizeX() - room),
+                height <= 0.0f ? 0.0f : Math.min(EditorScale.of(height), viewport.getWorkSizeY() - room), ImGuiCond.Appearing);
     }
 
     private static void pushAccent() {

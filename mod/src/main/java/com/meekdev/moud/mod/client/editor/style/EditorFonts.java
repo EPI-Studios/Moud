@@ -29,6 +29,11 @@ public final class EditorFonts {
     private static @Nullable ImFont display;
     private static @Nullable ImFont title;
     private static @Nullable ImFont monospace;
+    private static final float[] PAGE_SIZES = {14.0f, 15.0f};
+    private static final float[] PAGE_BOLD_SIZES = {12.0f, 15.0f, 17.0f, 20.0f, 24.0f, 30.0f};
+
+    private static final ImFont[] page = new ImFont[PAGE_SIZES.length];
+    private static final ImFont[] pageBold = new ImFont[PAGE_BOLD_SIZES.length];
 
     private EditorFonts() {}
 
@@ -54,6 +59,14 @@ public final class EditorFonts {
             heading = atlas.addFontFromMemoryTTF(semibold, Math.round(HEADING * factor), config);
             display = atlas.addFontFromMemoryTTF(semibold, Math.round(DISPLAY * factor), config);
             monospace = atlas.addFontFromMemoryTTF(read("noto-sans-mono.ttf"), Math.round(MONOSPACE * factor), config);
+            byte[] gabarito = read("gabarito-regular.ttf");
+            byte[] gabaritoBold = read("gabarito-bold.ttf");
+            for (int index = 0; index < PAGE_SIZES.length; index++) {
+                page[index] = atlas.addFontFromMemoryTTF(gabarito, Math.round(PAGE_SIZES[index] * factor), config);
+            }
+            for (int index = 0; index < PAGE_BOLD_SIZES.length; index++) {
+                pageBold[index] = atlas.addFontFromMemoryTTF(gabaritoBold, Math.round(PAGE_BOLD_SIZES[index] * factor), config);
+            }
             EditorStyle.setTitleFont(title);
             EditorStyle.setSmallFont(small);
             EditorStyle.setMonospaceFont(monospace);
@@ -86,6 +99,25 @@ public final class EditorFonts {
 
     public static @Nullable ImFont monospace() {
         return monospace;
+    }
+
+    public static @Nullable ImFont page(float size, boolean bold) {
+        ImFont[] baked = bold ? pageBold : page;
+        return baked[nearest(size, bold)];
+    }
+
+    public static float pageSize(float size, boolean bold) {
+        float[] sizes = bold ? PAGE_BOLD_SIZES : PAGE_SIZES;
+        return sizes[nearest(size, bold)];
+    }
+
+    private static int nearest(float size, boolean bold) {
+        float[] sizes = bold ? PAGE_BOLD_SIZES : PAGE_SIZES;
+        int closest = 0;
+        for (int index = 1; index < sizes.length; index++) {
+            if (Math.abs(sizes[index] - size) < Math.abs(sizes[closest] - size)) closest = index;
+        }
+        return closest;
     }
 
     private static short[] ranges(ImFontAtlas atlas) {

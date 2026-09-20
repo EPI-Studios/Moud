@@ -6,7 +6,6 @@ import com.meekdev.moud.mod.client.editor.notify.ToastCenter;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorScaling;
-import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconAtlas;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
 import imgui.ImFont;
@@ -38,9 +37,9 @@ public final class ProjectHub {
             return;
         }
         float fontScale = EditorScaling.begin();
-        EditorStyle.apply();
-        ImFont body = EditorFonts.body();
-        if (body != null) ImGui.pushFont(body, EditorScale.of(EditorFonts.BODY));
+        HubStyle.apply();
+        ImFont body = EditorFonts.page(HubStyle.BODY, false);
+        if (body != null) ImGui.pushFont(body, EditorScale.of(HubStyle.BODY));
         try {
             if (view == null) {
                 view = new ProjectHubView(new ProjectStore(ProjectStore.defaultRecentsFile()), toasts, icons, project -> pending = project);

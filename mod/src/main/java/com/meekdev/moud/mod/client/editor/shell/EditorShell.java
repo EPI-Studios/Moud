@@ -82,7 +82,7 @@ public final class EditorShell {
     private final EditorPlugins plugins = new EditorPlugins(document, icons, viewport);
     private final SceneTabs scenes = new SceneTabs(document);
     private final WorldImportDialog worldImport = new WorldImportDialog();
-    private final ProjectSettingsDialog settings = new ProjectSettingsDialog(document);
+    private final ProjectSettingsDialog settings = new ProjectSettingsDialog(document, icons);
     private final ExportDialog export = new ExportDialog(document);
     private final Commands commands = new Commands();
 

@@ -32,6 +32,10 @@ public final class IconWidgets {
         ImGui.sameLine();
     }
 
+    public long imageId(String resourcePath) {
+        return atlas.imageId(resourcePath);
+    }
+
     public long logoTextureId() {
         return atlas.logoTextureId();
     }

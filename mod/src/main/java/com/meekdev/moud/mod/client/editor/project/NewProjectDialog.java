@@ -28,26 +28,29 @@ public final class NewProjectDialog {
 
     private static final String POPUP_ID = "##new-project";
     private static final String INVALID_NAME_CHARS = "/\\:*?\"<>|";
-    private static final float WIDTH = 560.0f;
-    private static final float PADDING = 24.0f;
-    private static final float TITLE_SIZE = 20.0f;
-    private static final float TEMPLATE_HEIGHT = 96.0f;
-    private static final float BUTTON_WIDTH = 120.0f;
-    private static final float BUTTON_HEIGHT = 34.0f;
-    private static final float CORNER = 2.0f;
+    private static final float WIDTH = 600.0f;
+    private static final float PADDING = 28.0f;
+    private static final float ROW_HEIGHT = 96.0f;
+    private static final float ROW_MARK = 38.0f;
+    private static final float BUTTON_WIDTH = 124.0f;
+    private static final float BUTTON_HEIGHT = 36.0f;
+    private static final float CORNER = 6.0f;
+    private static final float CORNER_MARK = 10.0f;
+    private static final float CORNER_BOX = 12.0f;
     private static final int NAME_CAPACITY = 128;
     private static final int PATH_CAPACITY = 512;
 
-    private record TemplateCard(ProjectStore.Template template, String title, String description) {}
+    private record TemplateCard(ProjectStore.Template template, HubIcon mark, String title, String description) {}
 
     private static final TemplateCard[] TEMPLATES = {
-            new TemplateCard(ProjectStore.Template.BASEPLATE, "Baseplate", "A 128 m floor to stand on, ready to build"),
-            new TemplateCard(ProjectStore.Template.MENU, "Main menu", "A menu over a flying camera, Play spawns you, Escape pauses"),
-            new TemplateCard(ProjectStore.Template.EMPTY, "Empty", "Nothing in the scene, just the scripts")};
+            new TemplateCard(ProjectStore.Template.BASEPLATE, HubIcon.CUBE, "Baseplate", "A 128 m floor to stand on, ready to build"),
+            new TemplateCard(ProjectStore.Template.MENU, HubIcon.LAYOUT, "Main menu", "A menu over a flying camera, Play spawns you, Escape pauses"),
+            new TemplateCard(ProjectStore.Template.EMPTY, HubIcon.RECTANGLE_DASHED, "Empty", "Nothing in the scene, just the scripts")};
 
     private final FileBrowser browser;
     private final ProjectStore store;
     private final Notifier notifier;
+    private final IconWidgets icons;
     private final Consumer<Project> onCreated;
     private final ImString nameInput = new ImString(NAME_CAPACITY);
     private final ImString parentInput = new ImString(ProjectStore.defaultProjectsFolder().toString(), PATH_CAPACITY);
@@ -59,6 +62,7 @@ public final class NewProjectDialog {
         this.browser = new FileBrowser(icons);
         this.store = store;
         this.notifier = notifier;
+        this.icons = icons;
         this.onCreated = onCreated;
     }
 
@@ -79,161 +83,156 @@ public final class NewProjectDialog {
         ImGui.setNextWindowSize(EditorScale.of(WIDTH), 0.0f, ImGuiCond.Always);
         float padding = EditorScale.of(PADDING);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, padding, padding);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, EditorScale.of(CORNER));
-        ImGui.pushStyleColor(ImGuiCol.PopupBg, EditorStyle.COLOR_ELEVATED_BACKGROUND);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, EditorScale.of(CORNER_BOX));
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, HubStyle.hairline());
+        ImGui.pushStyleColor(ImGuiCol.PopupBg, HubStyle.SURFACE);
+        ImGui.pushStyleColor(ImGuiCol.Border, HubStyle.LINE_STRONG);
         boolean open = ImGui.beginPopupModal(POPUP_ID, ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize
                 | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.AlwaysAutoResize);
-        ImGui.popStyleColor();
-        ImGui.popStyleVar(2);
+        ImGui.popStyleColor(2);
+        ImGui.popStyleVar(3);
         if (!open) return;
         renderContents();
-        browser.render();
+        HubStyle.asEditor(browser::render);
         ImGui.endPopup();
     }
 
     private void renderContents() {
         float width = ImGui.getContentRegionAvailX();
-        font(EditorFonts.heading(), EditorFonts.HEADING, () -> ImGui.textUnformatted("New project"));
-        muted("Pick a name and a starting point. You can change everything later.");
-        ImGui.dummy(0.0f, EditorScale.of(16.0f));
-        caption("NAME");
+        write(HubStyle.HEADING, true, HubStyle.TEXT_BRIGHT, "New project");
+        ImGui.dummy(0.0f, EditorScale.of(8.0f));
+        write(HubStyle.SMALL, false, HubStyle.TEXT_MUTED, "Pick a name and a starting point. You can change everything later.");
+        ImGui.dummy(0.0f, EditorScale.of(22.0f));
+        label("Name");
         ImGui.setNextItemWidth(width);
         if (focusName) {
             ImGui.setKeyboardFocusHere();
             focusName = false;
         }
-        ImGui.inputTextWithHint("##new-project-name", "My place", nameInput);
-        ImGui.dummy(0.0f, EditorScale.of(10.0f));
-        caption("LOCATION");
-        float browseWidth = EditorScale.of(80.0f);
-        ImGui.setNextItemWidth(width - browseWidth - EditorStyle.itemSpacingX());
-        ImGui.inputText("##new-project-parent", parentInput);
-        ImGui.sameLine();
-        if (ImGui.button("Browse##new-project-browse", browseWidth, 0.0f)) browseParent();
+        field(() -> ImGui.inputTextWithHint("##new-project-name", "My place", nameInput));
         ImGui.dummy(0.0f, EditorScale.of(14.0f));
-        caption("START FROM");
+        label("Location");
+        float browseWidth = EditorScale.of(96.0f);
+        float gap = EditorScale.of(8.0f);
+        ImGui.setNextItemWidth(width - browseWidth - gap);
+        field(() -> ImGui.inputText("##new-project-parent", parentInput));
+        ImGui.sameLine(0.0f, gap);
+        if (action("new-project-browse", "Browse", browseWidth, false, true)) browseParent();
+        ImGui.dummy(0.0f, EditorScale.of(18.0f));
+        label("Start from");
         renderTemplates(width);
-        ImGui.dummy(0.0f, EditorScale.of(14.0f));
+        ImGui.dummy(0.0f, EditorScale.of(16.0f));
         Optional<String> error = validationError();
-        if (error.isPresent()) {
-            ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_WARNING);
-            ImGui.textUnformatted(error.get());
-            ImGui.popStyleColor();
-        } else {
-            muted("Creates " + previewPath());
-        }
-        ImGui.dummy(0.0f, EditorScale.of(14.0f));
-        float buttons = EditorScale.of(BUTTON_WIDTH) * 2.0f + EditorStyle.itemSpacingX();
+        write(HubStyle.SMALL, false, error.isPresent() ? HubStyle.TEXT_MAIN : HubStyle.TEXT_LIGHT,
+                error.orElseGet(() -> "Creates " + previewPath()));
+        ImGui.dummy(0.0f, EditorScale.of(18.0f));
+        float buttons = EditorScale.of(BUTTON_WIDTH) * 2.0f + EditorScale.of(8.0f);
         ImGui.setCursorPosX(ImGui.getCursorPosX() + width - buttons);
-        if (action("new-project-cancel", "Cancel", false, true)) ImGui.closeCurrentPopup();
-        ImGui.sameLine();
-        if (action("new-project-create", "Create", true, error.isEmpty()) && error.isEmpty()) attemptCreate();
+        if (action("new-project-cancel", "Cancel", EditorScale.of(BUTTON_WIDTH), false, true)) ImGui.closeCurrentPopup();
+        ImGui.sameLine(0.0f, EditorScale.of(8.0f));
+        if (action("new-project-create", "Create", EditorScale.of(BUTTON_WIDTH), true, error.isEmpty())) attemptCreate();
     }
 
     private void renderTemplates(float width) {
-        float gap = EditorScale.of(12.0f);
+        float gap = EditorScale.of(10.0f);
         float cardWidth = (width - gap) * 0.5f;
-        float height = EditorScale.of(TEMPLATE_HEIGHT);
+        float height = EditorScale.of(ROW_HEIGHT);
         for (int index = 0; index < TEMPLATES.length; index++) {
             TemplateCard card = TEMPLATES[index];
             if (index % 2 != 0) ImGui.sameLine(0.0f, gap);
+            String id = "new-project-template-" + index;
             float x = ImGui.getCursorScreenPosX();
             float y = ImGui.getCursorScreenPosY();
-            String id = "new-project-template-" + index;
             if (ImGui.invisibleButton("##" + id, cardWidth, height)) template = card.template();
             boolean chosen = template == card.template();
-            float emphasis = (ImGui.isItemHovered() || chosen) ? 1.0f : 0.0f;
-            if (ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
+            float emphasis = EditorMotion.towards(id, ImGui.isItemHovered());
             ImDrawList draw = ImGui.getWindowDrawList();
             float rounding = EditorScale.of(CORNER);
-            draw.addRectFilled(x, y, x + cardWidth, y + height, EditorMotion.blend(EditorStyle.COLOR_SUNKEN_BACKGROUND, EditorStyle.COLOR_WIDGET_BACKGROUND, emphasis * 0.6f), rounding);
-            draw.addRect(x, y, x + cardWidth, y + height, chosen ? EditorStyle.COLOR_ACCENT : EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.08f), rounding, 0, chosen ? 1.5f : 1.0f);
-            drawPreview(draw, card.template(), x + EditorScale.of(14.0f), y + EditorScale.of(14.0f), height - EditorScale.of(28.0f), chosen);
-            float textX = x + height;
-            float textY = y + EditorScale.of(22.0f);
-            draw.addText(textX, textY, EditorStyle.COLOR_TEXT_FOCUS, card.title());
-            float right = x + cardWidth - EditorScale.of(10.0f);
-            draw.addText(ImGui.getFont(), (int) ImGui.getFontSize(), textX, textY + ImGui.getTextLineHeight() + EditorScale.of(6.0f),
-                    EditorStyle.COLOR_TEXT_MUTED, card.description(), right - textX, textX, y, right, y + height);
+            draw.addRectFilled(x, y, x + cardWidth, y + height,
+                    EditorMotion.blend(HubStyle.BACKGROUND, HubStyle.SURFACE_HOVER, chosen ? 1.0f : emphasis * 0.6f), rounding);
+            draw.addRect(x, y, x + cardWidth, y + height, chosen ? HubStyle.ACCENT : HubStyle.LINE_STRONG, rounding, 0,
+                    chosen ? EditorScale.ofAtLeastOne(1.5f) : HubStyle.hairline());
+            float mark = EditorScale.of(ROW_MARK);
+            float markX = x + EditorScale.of(14.0f);
+            float markY = y + EditorScale.of(14.0f);
+            draw.addRectFilled(markX, markY, markX + mark, markY + mark,
+                    chosen ? HubStyle.SURFACE_ACTIVE : HubStyle.SURFACE, EditorScale.of(CORNER_MARK));
+            float glyph = mark * 0.52f;
+            draw.addImage(icons.imageId(card.mark().resourcePath()), markX + (mark - glyph) * 0.5f, markY + (mark - glyph) * 0.5f,
+                    markX + (mark + glyph) * 0.5f, markY + (mark + glyph) * 0.5f, 0.0f, 0.0f, 1.0f, 1.0f,
+                    chosen ? HubStyle.TEXT_MAIN : HubStyle.TEXT_MUTED);
+            float textX = markX + mark + EditorScale.of(14.0f);
+            float right = x + cardWidth - EditorScale.of(12.0f);
+            paint(draw, HubStyle.TILE_TITLE, true, textX, markY + EditorScale.of(1.0f),
+                    chosen ? HubStyle.TEXT_BRIGHT : HubStyle.TEXT_MAIN, card.title());
+            ImFont body = EditorFonts.page(HubStyle.SMALL, false);
+            if (body != null) {
+                draw.addText(body, EditorScale.ofInteger(EditorFonts.pageSize(HubStyle.SMALL, false)), textX, markY + EditorScale.of(HubStyle.TILE_TITLE + 8.0f),
+                        HubStyle.TEXT_MUTED, card.description(), right - textX, textX, y, right, y + height);
+            }
+            if (ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
         }
     }
 
-    private static void drawPreview(ImDrawList draw, ProjectStore.Template template, float x, float y, float size, boolean chosen) {
-        draw.addRectFilled(x, y, x + size, y + size, EditorStyle.COLOR_WINDOW_BACKGROUND, EditorScale.of(CORNER));
-        float cx = x + size * 0.5f;
-        float cy = y + size * 0.58f;
-        float w = size * 0.4f;
-        float h = size * 0.2f;
-        int color = chosen ? EditorStyle.COLOR_TEXT_FOCUS : EditorStyle.COLOR_TEXT_MUTED;
-        if (template == ProjectStore.Template.BASEPLATE) {
-            draw.addQuadFilled(cx, cy - h, cx + w, cy, cx, cy + h, cx - w, cy, EditorStyle.withAlpha(color, 0.55f));
-            draw.addQuad(cx, cy - h, cx + w, cy, cx, cy + h, cx - w, cy, color, 1.0f);
-        } else if (template == ProjectStore.Template.MENU) {
-            draw.addQuadFilled(cx, cy - h, cx + w, cy, cx, cy + h, cx - w, cy, EditorStyle.withAlpha(color, 0.25f));
-            float panelLeft = x + size * 0.14f;
-            float panelTop = y + size * 0.18f;
-            draw.addRectFilled(panelLeft, panelTop, panelLeft + size * 0.34f, panelTop + size * 0.5f, EditorStyle.withAlpha(color, 0.35f), EditorScale.of(3.0f));
-            for (int n = 0; n < 3; n++) {
-                float top = panelTop + size * (0.1f + n * 0.12f);
-                draw.addRectFilled(panelLeft + size * 0.05f, top, panelLeft + size * 0.29f, top + size * 0.07f, EditorStyle.withAlpha(color, 0.8f), EditorScale.of(2.0f));
-            }
-        } else {
-            float dash = EditorScale.of(4.0f);
-            float[][] corners = {{cx, cy - h}, {cx + w, cy}, {cx, cy + h}, {cx - w, cy}};
-            for (int n = 0; n < 4; n++) {
-                float[] a = corners[n];
-                float[] b = corners[(n + 1) % 4];
-                float length = (float) Math.hypot(b[0] - a[0], b[1] - a[1]);
-                for (float t = 0.0f; t < length; t += dash * 2.0f) {
-                    float t0 = t / length;
-                    float t1 = Math.min(1.0f, (t + dash) / length);
-                    draw.addLine(a[0] + (b[0] - a[0]) * t0, a[1] + (b[1] - a[1]) * t0, a[0] + (b[0] - a[0]) * t1, a[1] + (b[1] - a[1]) * t1,
-                            EditorStyle.withAlpha(color, 0.7f));
-                }
-            }
-        }
-    }
-
-    private static boolean action(String id, String label, boolean primary, boolean enabled) {
-        float width = EditorScale.of(BUTTON_WIDTH);
+    private static boolean action(String id, String label, float width, boolean primary, boolean enabled) {
         float height = EditorScale.of(BUTTON_HEIGHT);
         float x = ImGui.getCursorScreenPosX();
         float y = ImGui.getCursorScreenPosY();
         boolean clicked = ImGui.invisibleButton("##" + id, width, height);
-        float emphasis = (enabled && ImGui.isItemHovered()) ? 1.0f : 0.0f;
+        float emphasis = enabled ? EditorMotion.towards(id, ImGui.isItemHovered()) : 0.0f;
         ImDrawList draw = ImGui.getWindowDrawList();
+        float rounding = EditorScale.of(CORNER);
         int fill = primary
-                ? (enabled ? EditorStyle.lighten(EditorStyle.COLOR_ACCENT, emphasis * 0.12f) : EditorStyle.withAlpha(EditorStyle.COLOR_ACCENT, 0.35f))
-                : EditorMotion.blend(EditorStyle.COLOR_WIDGET_BACKGROUND, EditorStyle.COLOR_WIDGET_HOVER, emphasis);
-        draw.addRectFilled(x, y, x + width, y + height, fill, EditorScale.of(CORNER));
-        int text = primary ? EditorStyle.COLOR_TEXT_ON_ACCENT : EditorStyle.COLOR_TEXT;
-        draw.addText(x + (width - ImGui.calcTextSizeX(label)) * 0.5f, y + (height - ImGui.getTextLineHeight()) * 0.5f, text, label);
+                ? EditorMotion.blend(HubStyle.TEXT_MAIN, HubStyle.TEXT_BRIGHT, emphasis)
+                : EditorMotion.blend(HubStyle.SURFACE_HOVER, HubStyle.SURFACE_ACTIVE, emphasis);
+        if (!enabled) fill = EditorStyle.withAlpha(fill, 0.35f);
+        draw.addRectFilled(x, y, x + width, y + height, fill, rounding);
+        if (!primary) draw.addRect(x, y, x + width, y + height, HubStyle.LINE_STRONG, rounding, 0, HubStyle.hairline());
+        int ink = primary ? HubStyle.TOP_BAR : HubStyle.TEXT_MAIN;
+        if (!enabled) ink = EditorStyle.withAlpha(ink, 0.6f);
+        paint(draw, HubStyle.ITEM, true, x + (width - widthOf(HubStyle.ITEM, true, label)) * 0.5f,
+                y + (height - EditorScale.of(HubStyle.ITEM)) * 0.5f, ink, label);
         if (enabled && ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
         return clicked && enabled;
     }
 
-    private static void caption(String text) {
-        font(EditorFonts.small(), EditorFonts.SMALL, () -> {
-            ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_FAINT);
-            ImGui.textUnformatted(text);
-            ImGui.popStyleColor();
-        });
-    }
-
-    private static void muted(String text) {
-        ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_MUTED);
-        ImGui.textUnformatted(text);
-        ImGui.popStyleColor();
-    }
-
-    private static void font(ImFont font, float size, Runnable body) {
-        if (font == null) {
-            body.run();
-            return;
-        }
-        ImGui.pushFont(font, EditorScale.of(size));
+    private static void field(Runnable body) {
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, HubStyle.BACKGROUND);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, HubStyle.BACKGROUND);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, HubStyle.BACKGROUND);
+        ImGui.pushStyleColor(ImGuiCol.Border, HubStyle.LINE_STRONG);
+        ImGui.pushStyleColor(ImGuiCol.Text, HubStyle.TEXT_MAIN);
+        ImFont font = EditorFonts.page(HubStyle.BODY, false);
+        if (font != null) ImGui.pushFont(font, EditorScale.of(HubStyle.BODY));
         body.run();
-        ImGui.popFont();
+        if (font != null) ImGui.popFont();
+        ImGui.popStyleColor(5);
+    }
+
+    private static void label(String text) {
+        write(HubStyle.ITEM, true, HubStyle.TEXT_MUTED, text);
+        ImGui.dummy(0.0f, EditorScale.of(4.0f));
+    }
+
+    private static void write(float size, boolean bold, int color, String value) {
+        ImFont font = EditorFonts.page(size, bold);
+        if (font != null) ImGui.pushFont(font, EditorScale.of(EditorFonts.pageSize(size, bold)));
+        ImGui.pushStyleColor(ImGuiCol.Text, color);
+        ImGui.textUnformatted(value);
+        ImGui.popStyleColor();
+        if (font != null) ImGui.popFont();
+    }
+
+    private static void paint(ImDrawList draw, float size, boolean bold, float x, float y, int color, String value) {
+        ImFont font = EditorFonts.page(size, bold);
+        if (font == null) draw.addText(x, y, color, value);
+        else draw.addText(font, EditorScale.ofInteger(EditorFonts.pageSize(size, bold)), x, y, color, value);
+    }
+
+    private static float widthOf(float size, boolean bold, String value) {
+        ImFont font = EditorFonts.page(size, bold);
+        if (font == null) return ImGui.calcTextSizeX(value);
+        return font.calcTextSizeAX(EditorScale.of(EditorFonts.pageSize(size, bold)), Float.MAX_VALUE, 0.0f, value);
     }
 
     private void browseParent() {

@@ -10,6 +10,7 @@ import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
+import com.meekdev.moud.mod.client.editor.files.FileBrowser;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.SearchField;
 import com.meekdev.moud.mod.client.editor.kit.Sections;
@@ -17,6 +18,8 @@ import com.meekdev.moud.mod.client.editor.kit.Switches;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
+import com.meekdev.moud.mod.client.editor.style.IconWidgets;
+import com.meekdev.moud.mod.client.editor.project.ProjectIcons;
 import com.meekdev.moud.mod.features.Feature;
 import com.meekdev.moud.mod.features.Features;
 import com.meekdev.moud.mod.place.Languages;
@@ -34,12 +37,15 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -51,6 +57,8 @@ final class ProjectSettingsDialog {
     private static final float WIDTH = 640.0f;
     private static final float BODY_HEIGHT = 470.0f;
     private static final float LABEL_WIDTH = 130.0f;
+    private static final float IMAGE_PREVIEW = 72.0f;
+    private static final Set<String> IMAGE_EXTENSIONS = Set.of("png");
     private static final Pattern ID = Pattern.compile("[a-z0-9][a-z0-9-]*");
     private static final Pattern VERSION = Pattern.compile("\\d+\\.\\d+\\.\\d+([-+][A-Za-z0-9.-]+)?");
 
@@ -64,6 +72,8 @@ final class ProjectSettingsDialog {
     }
 
     private final SceneDocument document;
+    private final FileBrowser browser;
+    private final ProjectIcons images = new ProjectIcons();
     private final ImString name = new ImString(128);
     private final ImString id = new ImString(64);
     private final ImString version = new ImString(32);
@@ -83,8 +93,9 @@ final class ProjectSettingsDialog {
     private boolean open;
     private boolean needsReopen;
 
-    ProjectSettingsDialog(SceneDocument document) {
+    ProjectSettingsDialog(SceneDocument document, IconWidgets icons) {
         this.document = document;
+        this.browser = new FileBrowser(icons);
     }
 
     void open() {
@@ -153,6 +164,7 @@ final class ProjectSettingsDialog {
         }
         ImGui.sameLine();
         if (Dialogs.primaryButton("Save##settings-save", invalid == null)) save();
+        browser.render();
         Dialogs.end();
     }
 
@@ -171,6 +183,64 @@ final class ProjectSettingsDialog {
             if (ImGui.inputInt("##players", maxPlayers)) maxPlayers.set(Math.max(1, Math.min(1000, maxPlayers.get())));
         });
         field("Engine", "The Moud version this place was made for, empty for any", () -> input("##engine", engine, "any"));
+        field("Image", "A PNG shown on the project card in the hub and used as the window icon", this::renderImage);
+    }
+
+    private void renderImage() {
+        Path root = ClientPlace.root();
+        float size = EditorScale.of(IMAGE_PREVIEW);
+        Optional<ProjectIcons.Image> texture = root == null ? Optional.empty() : images.of(root);
+        if (texture.isPresent()) {
+            float aspect = texture.get().aspect();
+            float sideways = Math.max(0.0f, (1.0f - 1.0f / aspect) * 0.5f);
+            float crop = Math.max(0.0f, (1.0f - aspect) * 0.5f);
+            ImGui.image(texture.get().textureId(), size, size, sideways, crop, 1.0f - sideways, 1.0f - crop);
+        } else {
+            float x = ImGui.getCursorScreenPosX();
+            float y = ImGui.getCursorScreenPosY();
+            ImGui.dummy(size, size);
+            ImGui.getWindowDrawList().addRect(x, y, x + size, y + size, EditorStyle.COLOR_OUTLINE, EditorStyle.frameRounding());
+        }
+        ImGui.sameLine();
+        ImGui.beginGroup();
+        if (ImGui.button(texture.isPresent() ? "Replace##image" : "Choose a PNG##image")) chooseImage(root);
+        if (texture.isPresent()) {
+            ImGui.sameLine();
+            if (ImGui.button("Remove##image")) removeImage(root);
+        }
+        Texts.muted(texture.isPresent() ? imageFile(root) : "No image yet, the card draws a cube instead");
+        ImGui.endGroup();
+    }
+
+    private void chooseImage(@Nullable Path root) {
+        if (root == null) return;
+        browser.chooseFile("Choose the project image", root, IMAGE_EXTENSIONS, file -> {
+            try {
+                Files.copy(file, root.resolve(ProjectIcons.CANDIDATE_FILENAMES.getFirst()), StandardCopyOption.REPLACE_EXISTING);
+                images.forget(root);
+                Output.add(Output.Level.INFO, "editor", "The project image is now " + file.getFileName());
+            } catch (IOException e) {
+                problem = "The image could not be copied: " + e.getMessage();
+            }
+        });
+    }
+
+    private void removeImage(@Nullable Path root) {
+        if (root == null) return;
+        try {
+            for (String candidate : ProjectIcons.CANDIDATE_FILENAMES) Files.deleteIfExists(root.resolve(candidate));
+            images.forget(root);
+        } catch (IOException e) {
+            problem = "The image could not be removed: " + e.getMessage();
+        }
+    }
+
+    private static String imageFile(@Nullable Path root) {
+        if (root == null) return "";
+        for (String candidate : ProjectIcons.CANDIDATE_FILENAMES) {
+            if (Files.isRegularFile(root.resolve(candidate))) return candidate;
+        }
+        return "";
     }
 
     private void renderEntry() {

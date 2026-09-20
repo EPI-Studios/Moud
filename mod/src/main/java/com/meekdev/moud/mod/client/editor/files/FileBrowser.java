@@ -87,7 +87,7 @@ public final class FileBrowser {
         Dialogs.title(active.title());
         renderNavigation();
         float bodyHeight = Math.max(EditorScale.of(MINIMUM_BODY_HEIGHT),
-                EditorScale.of(HEIGHT - FOOTER_HEIGHT) - ImGui.getCursorPosY());
+                ImGui.getContentRegionAvailY() - EditorScale.of(FOOTER_HEIGHT));
         renderPlaces(bodyHeight);
         ImGui.sameLine();
         renderListing(active, bodyHeight);
