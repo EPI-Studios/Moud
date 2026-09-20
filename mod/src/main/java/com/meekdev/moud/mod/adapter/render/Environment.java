@@ -203,13 +203,17 @@ public final class Environment {
 
     private static Runnable capture() {
         ModelLighting model = ModelLighting.INSTANCE;
+        boolean owned = model.sunSet();
         float x = model.sunX();
         float y = model.sunY();
         float z = model.sunZ();
         float intensity = model.sunIntensity();
         float ambient = model.ambientStrength();
         float environment = model.envIntensity();
-        return () -> model.sunDirection(x, y, z).sunIntensity(intensity)
-                .ambientStrength(ambient).envIntensity(environment);
+        return () -> {
+            model.sunDirection(x, y, z).sunIntensity(intensity)
+                    .ambientStrength(ambient).envIntensity(environment);
+            if (!owned) model.clearSun();
+        };
     }
 }
