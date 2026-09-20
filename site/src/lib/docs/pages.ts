@@ -1,12 +1,21 @@
-import fs from "node:fs"
-import path from "node:path"
 import { plain, renderDoc, type Heading } from "./render"
 
-const DOCS = path.resolve(process.cwd(), "docs")
-const ENGINE = path.resolve(
-  process.cwd(),
-  "../mod/src/main/java/com/meekdev/moud/mod/client/editor/style",
-)
+const MARKDOWN = import.meta.glob("/docs/*.md", {
+  eager: true,
+  query: "?raw",
+  import: "default",
+}) as Record<string, string>
+
+import CLASS_ICONS from "../../../../mod/src/main/resources/assets/moud/editor/class-icons.json"
+
+const ENUM_FILES: Record<string, string> = {
+  PARTICLES_3D: "GPUParticles3D",
+  AUDIO_MICROPHONE: "AudioStreamMicrophone",
+  STANDARD_MATERIAL: "StandardMaterial3D",
+  VISIBILITY_HIDDEN: "GuiVisibilityHidden",
+  VISIBILITY_VISIBLE: "GuiVisibilityVisible",
+  SKELETON_IK_3D: "SkeletonIK3D",
+}
 
 const GROUPS: [string, string][] = [
   ["Start", "README"],
@@ -72,7 +81,15 @@ export type Page = { stem: string; slug: string; label: string; icon: string; bl
 export type Group = { name: string; pages: Page[] }
 
 function source(stem: string) {
-  return fs.readFileSync(path.join(DOCS, `${stem}.md`), "utf8")
+  const found = MARKDOWN[`/docs/${stem}.md`]
+  if (found === undefined) throw new Error(`no such doc: ${stem}`)
+  return found
+}
+
+function stems() {
+  return Object.keys(MARKDOWN)
+    .map((file) => file.slice("/docs/".length, -".md".length))
+    .sort()
 }
 
 export function pageIcon(stem: string) {
@@ -91,9 +108,7 @@ export function pages(): Page[] {
   }
 
   const known = new Set(order.map(([stem]) => stem))
-  for (const file of fs.readdirSync(DOCS).sort()) {
-    if (!file.endsWith(".md")) continue
-    const stem = file.slice(0, -3)
+  for (const stem of stems()) {
     if (known.has(stem)) continue
     order.push([stem, stem.replace(/-/g, " ").replace(/^./, (c: string) => c.toUpperCase())])
   }
@@ -129,18 +144,18 @@ export function groupOf(stem: string) {
   return groups().find((group) => group.pages.some((page) => page.stem === stem))?.name ?? "Docs"
 }
 
-function classIcons() {
-  const files = new Map<string, string>()
-  const enumSource = fs.readFileSync(path.join(ENGINE, "EditorIcon.java"), "utf8")
-  for (const match of enumSource.matchAll(/([A-Z0-9_]+)\("([A-Za-z0-9]+)"\)/g)) {
-    files.set(match[1], match[2])
-  }
+function fileNameOf(constant: string) {
+  if (ENUM_FILES[constant]) return ENUM_FILES[constant]
+  return constant
+    .split("_")
+    .map((word) => (/^\d/.test(word) ? word : word[0] + word.slice(1).toLowerCase()))
+    .join("")
+}
 
+function classIcons() {
   const icons = new Map<string, string>()
-  const mapSource = fs.readFileSync(path.join(ENGINE, "ClassIcons.java"), "utf8")
-  for (const match of mapSource.matchAll(/entry\("([A-Za-z0-9]+)", EditorIcon\.([A-Z0-9_]+)\)/g)) {
-    const file = files.get(match[2])
-    if (file) icons.set(match[1], file)
+  for (const [klass, constant] of Object.entries(CLASS_ICONS as Record<string, string>)) {
+    icons.set(klass, fileNameOf(constant))
   }
   return icons
 }
