@@ -26,6 +26,14 @@ public final class Lighting extends Instance {
 
     public boolean globalShadows = true;
 
+    @Prop(min = 0, max = 0.01) public double shadowBias = 0.0005;
+
+    @Prop(min = 0, max = 1) public double shadowNormalBias = 0.05;
+
+    @Prop(min = 0, max = 1) public double shadowFade = 0.8;
+
+    @Prop(min = 0, max = 96) public double blockShadowDistance = 48;
+
     @Prop(min = 0, max = 10) public double environmentDiffuseScale = 1;
 
     @Prop(min = 0, max = 10) public double environmentSpecularScale = 1;

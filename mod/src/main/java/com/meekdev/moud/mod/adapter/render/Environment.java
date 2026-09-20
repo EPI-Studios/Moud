@@ -176,7 +176,8 @@ public final class Environment {
     }
 
     private static void shadows(Lighting from) {
-        if (!from.globalShadows || !Shadows.isEnabled()) {
+        if (from.globalShadows) Shadows.enable();
+        if (!from.globalShadows) {
             if (sun != null) {
                 sun.remove();
                 sun = null;
@@ -188,7 +189,12 @@ public final class Environment {
                 .setIntensity((float) (from.brightness / NEUTRAL_BRIGHTNESS))
                 .setEnabled(sunDirection.y() > 0)
                 .castsShadow(true);
-        ShadowSettings.defaults().softness((float) from.shadowSoftness);
+        ShadowSettings.defaults()
+                .softness((float) from.shadowSoftness)
+                .bias((float) from.shadowBias)
+                .normalBias((float) from.shadowNormalBias)
+                .fadeStart((float) from.shadowFade)
+                .sunBlockOccluderRadius((float) from.blockShadowDistance);
     }
 
     private static void drop() {
