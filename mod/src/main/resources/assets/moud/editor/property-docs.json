@@ -385,6 +385,7 @@
     "outdoorAmbient": "Tints the light the sky gives. Grey (0.5) leaves it as the game has it.",
     "exposureCompensation": "Brightens or darkens the whole picture in stops. 1 is twice as bright, -1 half.",
     "shadowSoftness": "How blurry the edges of the sun's shadows are.",
+    "shadowStrength": "How dark the sun's shadows are, 0 to 1. 1 takes the shadowed ground to black.",
     "shadowBias": "How far the sun shadow is pushed off a surface. Too little stripes it, too much slides the shadow away.",
     "shadowNormalBias": "Same as shadowBias, but along the surface's own direction.",
     "shadowFade": "Where shadows start fading out towards the edge of the shadowed range.",

@@ -184,11 +184,13 @@ public final class Environment {
             }
             return;
         }
-        if (sun == null) sun = Lights.directional(new Vector3f(0, -1, 0), 1, 1, 1, 1);
+        // a resource reload empties the light registry, so the sun has to be put back when that happens
+        if (sun == null || !sun.isRegistered()) sun = Lights.directional(new Vector3f(0, -1, 0), 1, 1, 1, 1);
         sun.setDirection((float) -sunDirection.x(), (float) -sunDirection.y(), (float) -sunDirection.z())
                 .setIntensity((float) (from.brightness / NEUTRAL_BRIGHTNESS))
                 .setEnabled(sunDirection.y() > 0)
-                .castsShadow(true);
+                .castsShadow(true)
+                .shadowStrength((float) from.shadowStrength);
         ShadowSettings.defaults()
                 .softness((float) from.shadowSoftness)
                 .bias((float) from.shadowBias)

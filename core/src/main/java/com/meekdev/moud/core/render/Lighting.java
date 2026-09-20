@@ -24,6 +24,8 @@ public final class Lighting extends Instance {
 
     @Prop(min = 0, max = 20) public double shadowSoftness = 0.2;
 
+    @Prop(min = 0, max = 1) public double shadowStrength = 0.8;
+
     public boolean globalShadows = true;
 
     @Prop(min = 0, max = 0.01) public double shadowBias = 0.0005;

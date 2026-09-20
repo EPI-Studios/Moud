@@ -52,7 +52,7 @@ public final class SceneLights {
                 if (ViewportFrame.inside(light)) continue;
                 seen.add(light.id());
                 Held held = LIGHTS.get(light.id());
-                if (held == null || held.instance() != light) {
+                if (held == null || held.instance() != light || !held.light().isRegistered()) {
                     if (held != null) held.light().remove();
                     held = new Held(light, create(light));
                     LIGHTS.put(light.id(), held);
