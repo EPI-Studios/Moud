@@ -53,7 +53,7 @@ export async function fetchPublic(raw: string, limitBytes = 200_000, ms = 4000):
   for (let hop = 0; hop < 3; hop++) {
     const answer = await fetch(url, {
       redirect: "manual",
-      headers: { "user-agent": "MoudForum/1.0 (+https://moud.dev)", accept: "text/html" },
+      headers: { "user-agent": "MoudForum/1.0 (+https://moud.epistudios.fr)", accept: "text/html" },
       signal: AbortSignal.timeout(ms),
     })
 

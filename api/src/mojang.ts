@@ -17,7 +17,7 @@ export async function hasJoined(username: string, serverId: string): Promise<Pla
   const url = `${SESSION}?username=${encodeURIComponent(username)}&serverId=${encodeURIComponent(serverId)}`
 
   const answer = await fetch(url, {
-    headers: { "user-agent": "MoudApi/1.0 (+https://moud.dev)" },
+    headers: { "user-agent": "MoudApi/1.0 (+https://moud.epistudios.fr)" },
     signal: AbortSignal.timeout(6000),
   })
 
