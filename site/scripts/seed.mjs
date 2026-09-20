@@ -2,6 +2,14 @@ import postgres from "postgres"
 
 const sql = postgres(process.env.DATABASE_URL, { max: 1 })
 
+const CATEGORIES = [
+  ["help", "Help", "Something does not work, or you cannot find how to do it.", "lifebuoy", 0, false],
+  ["show", "Show what you made", "A place, a plugin, a screenshot, a clip.", "game-controller", 1, false],
+  ["bugs", "Bugs", "The engine does the wrong thing, with the code that proves it.", "bug", 2, false],
+  ["plugins", "Plugins and addons", "Editor plugins, language addons, and the tools around them.", "puzzle-piece", 3, false],
+  ["news", "Announcements", "Releases and what changed in the engine.", "megaphone", 4, true],
+]
+
 const BADGES = [
   ["staff", "Staff", "Builds the engine.", "wrench", "purple", 0],
   ["founder", "Early tester", "Was here before the first release.", "rocket-launch", "yellow", 1],
@@ -10,6 +18,13 @@ const BADGES = [
   ["answerer", "Answerer", "Wrote a reply someone marked as the answer.", "check-circle", "green", 4],
   ["linked", "Verified in game", "Linked a Minecraft account from inside Moud.", "cube", "blue", 5],
 ]
+
+for (const [id, name, blurb, icon, position, staffOnly] of CATEGORIES) {
+  await sql`insert into category (id, name, blurb, icon, position, "staffOnly")
+            values (${id}, ${name}, ${blurb}, ${icon}, ${position}, ${staffOnly})
+            on conflict (id) do update set name = excluded.name, blurb = excluded.blurb,
+            icon = excluded.icon, position = excluded.position, "staffOnly" = excluded."staffOnly"`
+}
 
 for (const [id, name, blurb, icon, tone, position] of BADGES) {
   await sql`insert into badge (id, name, blurb, icon, tone, position)
@@ -20,9 +35,8 @@ for (const [id, name, blurb, icon, tone, position] of BADGES) {
 
 const staff = await sql`select id from "user" where role = 'staff'`
 for (const row of staff) {
-  await sql`insert into "userBadge" ("userId", "badgeId") values (${row.id}, 'staff')
-            on conflict do nothing`
+  await sql`insert into "userBadge" ("userId", "badgeId") values (${row.id}, 'staff') on conflict do nothing`
 }
 
-console.log(`${BADGES.length} badges ready`)
+console.log(`${CATEGORIES.length} categories, ${BADGES.length} badges`)
 await sql.end()
