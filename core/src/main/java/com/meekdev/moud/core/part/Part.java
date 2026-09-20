@@ -21,6 +21,8 @@ public class Part extends Spatial {
 
     public boolean canTouch = true;
 
+    public boolean castShadow = true;
+
     public String collisionGroup = "default";
 
     public boolean locked;

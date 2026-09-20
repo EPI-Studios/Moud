@@ -81,9 +81,9 @@ public final class Parts {
     }
 
     private static final InstanceLayout LAYOUT =
-            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).build();
+            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).float1(7).build();
 
-    private record Lit(Matrix4f transform, Vector4f color, Vector2f light) {}
+    private record Lit(Matrix4f transform, Vector4f color, Vector2f light, float casts) {}
 
     public static int lightMap() {
         GpuTextureView view = Minecraft.getInstance().gameRenderer.levelLightmap();
@@ -97,7 +97,7 @@ public final class Parts {
     private static InstancedMesh.Builder<Lit> glass(PartShape shape) {
         return InstancedMesh.<Lit>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
-                                .putVec2(inst.light().x, inst.light().y))
+                                .putVec2(inst.light().x, inst.light().y).putFloat(inst.casts()))
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .geometry(ShapeMeshes.of(shape))
@@ -114,7 +114,7 @@ public final class Parts {
     private static InstancedMesh.Builder<Lit> mesh(PartShape shape) {
         return InstancedMesh.<Lit>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
-                                .putVec2(inst.light().x, inst.light().y))
+                                .putVec2(inst.light().x, inst.light().y).putFloat(inst.casts()))
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .geometry(ShapeMeshes.of(shape))
@@ -122,7 +122,7 @@ public final class Parts {
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
                 .worldSpace()
-                .castsShadow();
+                .castsShadowPerInstance();
     }
 
     private static void renderStatic(PartShape shape, InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
@@ -195,7 +195,7 @@ public final class Parts {
         else TINT.set(c.r(), c.g(), c.b(), (float) (1.0 - part.transparency));
 
         float radius = (float) (size.length() * 0.5);
-        Lit instance = new Lit(MATRIX, TINT, PartLight.of(part, pos));
+        Lit instance = new Lit(MATRIX, TINT, PartLight.of(part, pos), part.castShadow ? 1 : 0);
         if (cull) {
             batch.addVisible(instance, pos.x(), pos.y(), pos.z(), radius);
         } else {

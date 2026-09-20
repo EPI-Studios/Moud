@@ -19,6 +19,7 @@
     "anchored": "On: physics never moves it, it stays exactly where it is placed. Off: it falls, gets pushed and rolls once the place plays.",
     "collides": "Off: bodies pass straight through it. A trigger pad is Collides off, Transparency 1, Can Touch on.",
     "canQuery": "Off: raycasts and spatial queries skip it.",
+    "castShadow": "Off: the part is lit as usual but throws no shadow.",
     "canTouch": "Off: it never fires touched or touchEnded.",
     "collisionGroup": "The collision group it belongs to. CollisionGroup instances say which groups pass through each other.",
     "meshId": "The model drawn in place of the box, a glTF, bbmodel or ammesh file.",
