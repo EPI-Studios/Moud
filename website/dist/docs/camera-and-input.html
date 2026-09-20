@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera and input | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html" class="active"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="camera-and-input">Camera and input<a class="anchor" href="#camera-and-input" title="Permanent link">#</a></h1>
+<p><code>camera</code> and <code>input</code> are two globals that exist only in <code>client/main.luau</code>. <code>camera</code> is the instance
+the world is drawn from for the player running that script, and <code>input</code> is how you read that player's
+keyboard, mouse and gamepad. There is one camera per client and it is local: it never crosses to
+anyone.</p>
+<p>Neither global exists on the server, so everything on this page belongs in <code>client/main.luau</code> or in a
+module a client script requires.</p>
+<h2 id="modes">Modes<a class="anchor" href="#modes" title="Permanent link">#</a></h2>
+<p><code>camera.mode</code> decides who places the camera each frame:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>camera.mode = <span class="syn-string">&quot;firstPerson&quot;</span>   <span class="syn-comment">-- from the player&#x27;s own eye</span>
+camera.mode = <span class="syn-string">&quot;thirdPerson&quot;</span>   <span class="syn-comment">-- pulled back along the look by `distance`</span>
+camera.mode = <span class="syn-string">&quot;scriptable&quot;</span>    <span class="syn-comment">-- wherever `cframe` says, roll included</span></code></pre></div></div>
+<p>In the two follow modes <strong>aiming stays the player's</strong>. Their mouse turns them, with their own
+sensitivity and every accessibility option attached to it. Where the camera <em>is</em> is yours, and that is
+the whole of third person.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>camera.fov = <span class="syn-num">80</span>                   <span class="syn-comment">-- 0, the default, is the player&#x27;s own fov setting</span>
+camera.distance = <span class="syn-num">6</span>
+camera.offset = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0.2</span>, <span class="syn-num">0</span>)</code></pre></div></div>
+<ul>
+<li><strong><code>fov</code></strong> is the field of view in degrees. It starts at 0, which means the camera uses whatever
+  field of view the player set in their own options. Write a number to take it over, and write 0 to
+  hand it back.</li>
+<li><strong><code>distance</code></strong> is how far back <code>thirdPerson</code> pulls the camera along the player's look, in metres.</li>
+<li><strong><code>offset</code></strong> shifts the camera from the point the mode picked for it, in metres. The line above
+  lifts it 20 cm.</li>
+</ul>
+<div class="demo" data-demo="camera-modes"></div>
+<h2 id="following-something">Following something<a class="anchor" href="#following-something" title="Permanent link">#</a></h2>
+<p><code>camera.subject</code> is the instance the camera watches. It holds a reference, so the camera follows the
+thing rather than a position copied out of it once:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>camera.subject = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;statue&quot;</span>)
+camera.subject = <span class="syn-const">nil</span>            <span class="syn-comment">-- back to the player</span></code></pre></div></div>
+<p>Set it back to <code>nil</code> when you are done, or the camera keeps watching the statue while the player walks
+away.</p>
+<h2 id="scriptable">Scriptable<a class="anchor" href="#scriptable" title="Permanent link">#</a></h2>
+<p>In <code>scriptable</code> mode nothing writes the camera except you, and <code>camera.cframe</code> is where it goes. Only
+this mode honours roll, because roll is something only a frame can carry:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>camera.mode = <span class="syn-string">&quot;scriptable&quot;</span>
+camera.cframe = cframe.<span class="syn-func">lookAt</span>(eye, target) * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0.2</span>)</code></pre></div></div>
+<p><code>cframe.lookAt</code> points the camera from <code>eye</code> at <code>target</code>, and multiplying by <code>cframe.angles(0, 0, 0.2)</code>
+rolls it a fifth of a radian around its own look.</p>
+<p>Set the camera on <code>game.renderStepped</code> when it has to move every frame. That signal runs just before
+the frame is drawn, so the frame you write is the frame the world is drawn against.</p>
+<h2 id="tweening-the-camera">Tweening the camera<a class="anchor" href="#tweening-the-camera" title="Permanent link">#</a></h2>
+<p><code>camera</code> is an instance like any other, so it tweens:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>camera.mode = <span class="syn-string">&quot;scriptable&quot;</span>
+camera:<span class="syn-func">tween</span>({ cframe = cframe.<span class="syn-func">lookAt</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">80</span>, <span class="syn-num">20</span>), <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>)), fov = <span class="syn-num">50</span> }, { time = <span class="syn-num">2</span>, easing = <span class="syn-string">&quot;sine&quot;</span>, direction = <span class="syn-string">&quot;inOut&quot;</span> })</code></pre></div></div>
+<p>The first table is the properties to land on, the second is how to get there. See
+<a href="tweens-and-timing.html">Tweens and timing</a> for the easing names.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p><code>cframe</code> only moves the camera in <code>scriptable</code> mode. The two follow modes write it back every
+frame, so a tween of <code>cframe</code> outside <code>scriptable</code> is overwritten before anyone sees it. <code>fov</code>
+tweens in any mode.</p></div></div>
+<h2 id="cameras-in-a-scene">Cameras in a scene<a class="anchor" href="#cameras-in-a-scene" title="Permanent link">#</a></h2>
+<p>Place <code>Camera</code> instances in the editor as shots to cut or fly to. With <strong>Helpers</strong> on, the viewport
+draws each one as a view cone. Select one to get two buttons in Properties:</p>
+<ul>
+<li><strong>View from here</strong> moves the editor camera to it.</li>
+<li><strong>Set to the view</strong> moves it to where the editor camera is.</li>
+</ul>
+<p>A scene camera does nothing on its own. A client script looks through it by copying its frame onto the
+client's own camera:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">local</span> shot = game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;MenuShot&quot;</span>) :: Camera
+camera.mode = <span class="syn-string">&quot;scriptable&quot;</span>
+camera.cframe = shot.worldCframe
+camera.fov = shot.fov</code></pre></div></div>
+<ul>
+<li><code>game.world:find("MenuShot")</code> looks the scene camera up by the name you gave it in the editor.</li>
+<li><code>shot.worldCframe</code> is where that instance sits in the world, which is what <code>camera.cframe</code> wants.</li>
+<li>The mode has to be <code>scriptable</code> first, or the follow mode overwrites the frame on the next one.</li>
+</ul>
+<h2 id="camera-paths">Camera paths<a class="anchor" href="#camera-paths" title="Permanent link">#</a></h2>
+<p>A <code>CameraPath</code> is a smooth curve through the <code>Attachment</code>s inside it, in Explorer order. The camera
+moves along it at an even speed however far apart the points are.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>duration</code></td>
+<td>seconds from start to end, 5 by default</td>
+</tr>
+<tr>
+<td><code>easing</code>, <code>direction</code></td>
+<td>like a tween, <code>sine</code> and <code>inOut</code> by default</td>
+</tr>
+<tr>
+<td><code>looped</code></td>
+<td>starts again instead of finishing</td>
+</tr>
+<tr>
+<td><code>closed</code></td>
+<td>joins the last point back to the first, for orbits</td>
+</tr>
+<tr>
+<td><code>faceAlong</code></td>
+<td>looks along the curve instead of turning between the points' own rotations</td>
+</tr>
+<tr>
+<td><code>lookAt</code></td>
+<td>an instance to keep looking at, which wins over <code>faceAlong</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>In the editor, select a path and use <strong>Add point at the view</strong> to drop an <code>Attachment</code> where the
+editor camera is, and <strong>Preview</strong> to fly the editor camera along it. Right click or Escape stops the
+preview. The curve is drawn in the viewport with <strong>Helpers</strong> on.</p>
+<p>You fly the camera along a path with <code>camera:play</code>, which hands back a playback object:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code><span class="syn-keyword">local</span> path = game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;IntroPath&quot;</span>) :: CameraPath
+<span class="syn-keyword">local</span> playback = camera:<span class="syn-func">play</span>(path)                                <span class="syn-comment">-- the path&#x27;s own duration and easing</span>
+<span class="syn-comment">-- camera:play(path, { duration = 8, easing = &quot;linear&quot;, restore = false })</span>
+
+playback.finished:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(completed)
+    <span class="syn-comment">-- completed is false when it was stopped or the path was destroyed</span>
+<span class="syn-keyword">end</span>)
+playback.progress   <span class="syn-comment">-- 0 to 1</span>
+playback.playing
+playback:<span class="syn-func">stop</span>()</code></pre></div></div>
+<ul>
+<li>Passing a table as the second argument overrides the path's own <code>duration</code>, <code>easing</code> and
+  <code>direction</code> for this playback, leaving the instance alone.</li>
+<li><code>camera:play</code> switches the camera to <code>scriptable</code> and, when the playback ends, back to the mode it
+  had. Pass <code>restore = false</code> to leave it in <code>scriptable</code> instead.</li>
+<li><code>finished</code> fires whether the path ran out or something stopped it, so read <code>completed</code> before you
+  treat it as the end of a cutscene.</li>
+<li>Playing another path on the same camera stops the first one.</li>
+</ul>
+<h2 id="effects">Effects<a class="anchor" href="#effects" title="Permanent link">#</a></h2>
+<p>The camera has its own verbs for shaking and knocking it about, on the camera rather than on some
+global:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>camera:<span class="syn-func">shake</span>(<span class="syn-num">0.35</span>)                  <span class="syn-comment">-- trauma, which decays</span>
+camera:<span class="syn-func">kick</span>(-<span class="syn-num">2</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0.15</span>)         <span class="syn-comment">-- pitch, yaw, roll, seconds</span>
+camera:<span class="syn-func">fovPunch</span>(<span class="syn-num">3</span>, <span class="syn-num">0.2</span>)             <span class="syn-comment">-- degrees, seconds</span>
+camera:<span class="syn-func">clearEffects</span>()</code></pre></div></div>
+<ul>
+<li><code>shake</code> takes an amount of trauma that decays on its own, so you add to it on a hit instead of
+  scheduling a stop.</li>
+<li><code>kick</code> snaps the camera by the pitch, yaw and roll you give it and settles over the seconds you
+  give it. Use it for recoil.</li>
+<li><code>fovPunch</code> widens the field of view by that many degrees for that many seconds.</li>
+<li><code>clearEffects</code> drops all of them at once, which is what you want before a cutscene.</li>
+</ul>
+<p>They layer on top of whatever the mode decided, so a scripted camera still shakes.</p>
+<h2 id="screen-and-world">Screen and world<a class="anchor" href="#screen-and-world" title="Permanent link">#</a></h2>
+<p><code>worldToScreen</code> turns a point in the world into a point on the screen, which is how you put a label
+over something:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">local</span> at = camera:<span class="syn-func">worldToScreen</span>(head.worldCframe.position)
+<span class="syn-keyword">if</span> at == <span class="syn-const">nil</span> <span class="syn-keyword">then</span>
+    <span class="syn-comment">-- behind the camera, and there is nowhere on screen to put it</span>
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p><code>screenToRay</code> goes the other way, turning a point on the screen into a ray you can cast into the
+world:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> from, direction = camera:<span class="syn-func">screenToRay</span>(x, y)
+<span class="syn-keyword">local</span> part = world:<span class="syn-func">raycast</span>(from, direction, <span class="syn-num">30</span>)</code></pre></div></div>
+<p>Both speak <strong>gui-scaled pixels</strong>, the same units <code>input.mouseX</code> answers in, so the three compose
+without a conversion. The ray's direction is unit length, so stepping along it is in metres, and the
+<code>30</code> above means 30 metres.</p>
+<h2 id="input">Input<a class="anchor" href="#input" title="Permanent link">#</a></h2>
+<p>You read the player's controls by action name. A place that asks for <code>"jump"</code> keeps working when the
+player rebinds the key, and it works on every keyboard layout:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>input:<span class="syn-func">down</span>(<span class="syn-string">&quot;forward&quot;</span>)  input:<span class="syn-func">down</span>(<span class="syn-string">&quot;back&quot;</span>)   input:<span class="syn-func">down</span>(<span class="syn-string">&quot;left&quot;</span>)  input:<span class="syn-func">down</span>(<span class="syn-string">&quot;right&quot;</span>)
+input:<span class="syn-func">down</span>(<span class="syn-string">&quot;jump&quot;</span>)     input:<span class="syn-func">down</span>(<span class="syn-string">&quot;sneak&quot;</span>)  input:<span class="syn-func">down</span>(<span class="syn-string">&quot;sprint&quot;</span>)
+input:<span class="syn-func">down</span>(<span class="syn-string">&quot;attack&quot;</span>)   input:<span class="syn-func">down</span>(<span class="syn-string">&quot;use&quot;</span>)</code></pre></div></div>
+<p>Each call answers true while the player is holding the key bound to that action. An unknown action is
+an error, not a key that never fires, so a typo shows up the first time the line runs.</p>
+<p>The mouse and the screen it is measured against:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code>input.mouseX        <span class="syn-comment">-- where the pointer is, in gui-scaled pixels</span>
+input.mouseY
+input.mouseDeltaX   <span class="syn-comment">-- how far it moved since the last frame</span>
+input.mouseDeltaY
+input.screenWidth   <span class="syn-comment">-- what the two above are measured against</span>
+input.screenHeight
+input.sensitivity   <span class="syn-comment">-- readable and writable</span>
+input.mouseLocked
+input:<span class="syn-func">lockMouse</span>()
+input:<span class="syn-func">releaseMouse</span>()</code></pre></div></div>
+<p><code>input:releaseMouse()</code> keeps the pointer free until a script calls <code>input:lockMouse()</code>, even when a
+loading screen or a menu closes, or the player clicks into the game. That is what a main menu wants
+from its first frame.</p>
+<p>The middle of the screen is nameable, which is the one point a place always wants:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> x = input.mouseLocked <span class="syn-keyword">and</span> input.screenWidth / <span class="syn-num">2</span> <span class="syn-keyword">or</span> input.mouseX
+<span class="syn-keyword">local</span> y = input.mouseLocked <span class="syn-keyword">and</span> input.screenHeight / <span class="syn-num">2</span> <span class="syn-keyword">or</span> input.mouseY</code></pre></div></div>
+<p>While the mouse is locked the pointer is not somewhere you can read, so the crosshair in the middle is
+what the player is pointing at. When it is free, <code>mouseX</code> and <code>mouseY</code> are.</p>
+<h2 id="input-events">Input events<a class="anchor" href="#input-events" title="Permanent link">#</a></h2>
+<p>Every key, mouse button, scroll and mouse move reaches three events:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code>input.inputBegan:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(object, gameProcessed)
+    <span class="syn-keyword">if</span> gameProcessed <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">if</span> object.keyCode == <span class="syn-string">&quot;f&quot;</span> <span class="syn-keyword">then</span>
+        <span class="syn-func">print</span>(<span class="syn-string">&quot;f went down with the pointer at&quot;</span>, object.position.x, object.position.y)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)
+input.inputChanged:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(object, gameProcessed) <span class="syn-keyword">end</span>)
+input.inputEnded:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(object, gameProcessed) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>inputBegan</code> fires when something goes down, <code>inputEnded</code> when it comes back up, and <code>inputChanged</code>
+while something keeps moving, such as the wheel or the mouse itself.</p>
+<p><code>object</code> is an <code>InputObject</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Member</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>inputType</code></td>
+<td><code>keyboard</code>, <code>mouseButton1</code>, <code>mouseButton2</code>, <code>mouseButton3</code>, <code>mouseWheel</code>, <code>mouseMovement</code> or <code>gamepad</code></td>
+</tr>
+<tr>
+<td><code>keyCode</code></td>
+<td>the key's name, like <code>"e"</code>, <code>"space"</code>, <code>"mousebutton1"</code> or <code>"buttonA"</code>; <code>"unknown"</code> for the wheel, mouse movement and keys without a name</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td><code>begin</code>, <code>change</code>, <code>end</code> or <code>cancel</code></td>
+</tr>
+<tr>
+<td><code>position</code></td>
+<td>where it happened, see below</td>
+</tr>
+<tr>
+<td><code>delta</code></td>
+<td>how much it changed, see below</td>
+</tr>
+</tbody>
+</table></div>
+<p>What each kind of input fills in:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th><code>inputType</code></th>
+<th>Fires</th>
+<th><code>position</code></th>
+<th><code>delta</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>keyboard</code></td>
+<td><code>inputBegan</code> on press, <code>inputEnded</code> on release</td>
+<td>the pointer, in gui-scaled pixels</td>
+<td>zero</td>
+</tr>
+<tr>
+<td><code>mouseButton1</code> to <code>3</code></td>
+<td>the same</td>
+<td>the pointer</td>
+<td>zero</td>
+</tr>
+<tr>
+<td><code>mouseWheel</code></td>
+<td><code>inputChanged</code> for each scroll</td>
+<td>the pointer, with <code>z</code> 1 scrolling up and -1 down</td>
+<td><code>z</code> is how far it scrolled</td>
+</tr>
+<tr>
+<td><code>mouseMovement</code></td>
+<td><code>inputChanged</code> each frame the mouse moved</td>
+<td>the pointer</td>
+<td>the same numbers as <code>input.mouseDeltaX</code> and <code>mouseDeltaY</code></td>
+</tr>
+<tr>
+<td><code>gamepad</code></td>
+<td>see <a href="#gamepads">Gamepads</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<p>A held key does not repeat. The same object follows a key from <code>begin</code> to <code>end</code>, so you can keep
+it and read <code>state</code> later. Nothing sends <code>cancel</code> yet; <code>inputEnded</code> hears it when something does.</p>
+<p><code>gameProcessed</code> is true when the game had it first:</p>
+<ul>
+<li>a Minecraft screen is open, the chat included,</li>
+<li>a loading overlay is up, or the editor is open,</li>
+<li>an interface took the click,</li>
+<li>a <a href="#binding-actions">bound action</a> sank it.</li>
+</ul>
+<p>Check it at the top of every handler and return early, the way the example does, or a player typing in
+the chat fires your gameplay code. Input the game had first never reaches bound actions, so typing <code>e</code>
+in the chat does not run the action bound to <code>e</code>.</p>
+<h2 id="keys-held-now">Keys held now<a class="anchor" href="#keys-held-now" title="Permanent link">#</a></h2>
+<p>The three events tell you when something changed. These calls tell you what is held right now:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>input:<span class="syn-func">isKeyDown</span>(<span class="syn-string">&quot;leftshift&quot;</span>)
+input:<span class="syn-func">isKeyDown</span>(<span class="syn-string">&quot;z&quot;</span>)                   <span class="syn-comment">-- the key that types z</span>
+input:<span class="syn-func">isMouseButtonPressed</span>(<span class="syn-num">1</span>)          <span class="syn-comment">-- or &quot;mouseButton1&quot;</span>
+<span class="syn-keyword">for</span> _, key <span class="syn-keyword">in</span> input:<span class="syn-func">getKeysPressed</span>() <span class="syn-keyword">do</span>
+    <span class="syn-func">print</span>(key.keyCode)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>These read the keyboard itself: a key a bound action sank, or one held while the chat is open,
+still reads as down. <code>input:down("sneak")</code> answers what Minecraft saw instead.</p>
+<p><code>getKeysPressed</code> only lists keyboard keys, as <code>InputObject</code>s in the <code>begin</code> state. <code>isKeyDown</code> also
+takes mouse and gamepad names. A name that is not a key is an error.</p>
+<h2 id="key-names">Key names<a class="anchor" href="#key-names" title="Permanent link">#</a></h2>
+<p>Letters name what the key <strong>types on the player's layout</strong>. On AZERTY the key a qwerty board calls W
+types z, so it is <code>"z"</code> in <code>keyCode</code>, and <code>input:isKeyDown("z")</code> asks for it. Write the letter the
+player sees on the key. Digits are always <code>"0"</code> to <code>"9"</code>, whatever the digit row types without shift.
+Other keys that type a character are named by it, like <code>"é"</code> or <code>"&lt;"</code>.</p>
+<p>The rest: <code>f1</code>–<code>f12</code>, <code>keypad0</code>–<code>keypad9</code>, <code>keypadenter</code>, <code>space</code>, <code>enter</code>, <code>tab</code>, <code>escape</code>,
+<code>backspace</code>, <code>delete</code>, <code>insert</code>, <code>home</code>, <code>end</code>, <code>pageup</code>, <code>pagedown</code>, <code>capslock</code>, <code>leftshift</code>,
+<code>rightshift</code>, <code>leftcontrol</code>, <code>rightcontrol</code>, <code>leftalt</code>, <code>rightalt</code>, <code>leftsuper</code>, <code>rightsuper</code>, <code>up</code>,
+<code>down</code>, <code>left</code>, <code>right</code>, <code>mousebutton1</code>, <code>mousebutton2</code>, <code>mousebutton3</code>, <code>mousewheel</code>,
+<code>mousemovement</code>, and the <a href="#gamepads">gamepad names</a>. Case does not matter when you pass one in.
+A key with none of these names arrives as <code>"unknown"</code>.</p>
+<p>To show a key to the player, ask for its label:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>input:<span class="syn-func">keyName</span>(<span class="syn-string">&quot;z&quot;</span>)            <span class="syn-comment">-- &quot;Z&quot;</span>
+input:<span class="syn-func">keyName</span>(<span class="syn-string">&quot;leftshift&quot;</span>)    <span class="syn-comment">-- &quot;Left Shift&quot;</span>
+input:<span class="syn-func">keyName</span>(<span class="syn-string">&quot;jump&quot;</span>)         <span class="syn-comment">-- whatever the player bound jump to, like &quot;Space&quot;</span>
+hint.text = <span class="syn-string">&quot;Press &quot;</span> .. input:<span class="syn-func">keyName</span>(<span class="syn-string">&quot;use&quot;</span>) .. <span class="syn-string">&quot; to open&quot;</span></code></pre></div></div>
+<p><code>keyName</code> answers in the player's layout and language. It also takes Minecraft's actions:
+<code>forward</code>, <code>back</code>, <code>left</code>, <code>right</code>, <code>jump</code>, <code>sneak</code>, <code>sprint</code>, <code>attack</code>, <code>use</code> and <code>pointer</code>, and
+answers the key bound to them. So <code>input:keyName("left")</code> is the strafe key, while
+<code>input:isKeyDown("left")</code> is the arrow key.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>For movement, never ask for a letter: WASD is ZQSD on AZERTY. Ask for the action with
+<code>input:down("forward")</code>, and label it with <code>input:keyName("forward")</code>.</p></div></div>
+<div class="demo" data-demo="camera-keys"></div>
+<h2 id="mouse-behaviour">Mouse behaviour<a class="anchor" href="#mouse-behaviour" title="Permanent link">#</a></h2>
+<p><code>input.mouseBehavior</code> says what the mouse does while the player is in the world:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>input.mouseBehavior = <span class="syn-string">&quot;lockCenter&quot;</span>            <span class="syn-comment">-- captured, turning the camera: normal play</span>
+input.mouseBehavior = <span class="syn-string">&quot;default&quot;</span>               <span class="syn-comment">-- the pointer is free, like input:releaseMouse()</span>
+input.mouseBehavior = <span class="syn-string">&quot;lockCurrentPosition&quot;</span>   <span class="syn-comment">-- the pointer stays and hides where it is</span>
+input.mouseIconEnabled = <span class="syn-const">false</span>                <span class="syn-comment">-- hides the pointer while it is free</span></code></pre></div></div>
+<p>With <code>lockCurrentPosition</code> the camera does not turn and <code>input.mouseX</code> and <code>mouseY</code> stay on the
+spot, but moving the mouse still fires <code>mouseMovement</code> and fills <code>mouseDeltaX</code> and <code>mouseDeltaY</code>.
+That is dragging to spin something. It lets go when a screen or the editor opens, or when a script
+sets another behaviour. While a screen is open it acts like <code>default</code>.</p>
+<p>Reading <code>mouseBehavior</code> answers what the mouse is doing now, so it reads <code>lockCenter</code> during normal
+play. <code>mouseIconEnabled</code> is the same switch as <code>window.cursorVisible</code>, see <a href="window.html">Windows</a>.</p>
+<h2 id="binding-actions">Binding actions<a class="anchor" href="#binding-actions" title="Permanent link">#</a></h2>
+<p><code>input:bindAction</code> runs a function when one of its keys is pressed, before Minecraft sees it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>input:<span class="syn-func">bindAction</span>(<span class="syn-string">&quot;dash&quot;</span>, <span class="syn-keyword">function</span>(name, state, object)
+    <span class="syn-keyword">if</span> state ~= <span class="syn-string">&quot;begin&quot;</span> <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">local</span> body = game.players:<span class="syn-func">me</span>() :: Character
+    body:<span class="syn-func">applyImpulse</span>(body.worldCframe.lookVector * <span class="syn-num">20</span> + <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">4</span>, <span class="syn-num">0</span>))
+<span class="syn-keyword">end</span>, <span class="syn-string">&quot;leftshift&quot;</span>)</code></pre></div></div>
+<ul>
+<li>The first argument names the binding. You unbind and replace it by that name.</li>
+<li>The handler is called with the name, the state and the <code>InputObject</code>, so one function can serve
+  several bindings.</li>
+<li>Every key after the function is a key that triggers it.</li>
+<li>The guard on <code>state</code> is what keeps the dash from firing again when the key comes back up.</li>
+</ul>
+<p>The handler hears <code>begin</code> and <code>end</code>, and <code>change</code> for the wheel, mouse movement and sticks. What it
+returns decides who else gets the key:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Returns</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nothing or <code>"sink"</code></td>
+<td>the key stops here: lower bindings and Minecraft never see it</td>
+</tr>
+<tr>
+<td><code>"pass"</code></td>
+<td>the next binding hears it, and Minecraft does when every binding passes</td>
+</tr>
+</tbody>
+</table></div>
+<p>The dash above returns nothing, so left shift no longer sneaks. A menu key that keeps the inventory
+from opening:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> menu = hud:<span class="syn-func">find</span>(<span class="syn-string">&quot;Menu&quot;</span>) :: Frame
+input:<span class="syn-func">bindAction</span>(<span class="syn-string">&quot;menu&quot;</span>, <span class="syn-keyword">function</span>(name, state)
+    <span class="syn-keyword">if</span> state == <span class="syn-string">&quot;begin&quot;</span> <span class="syn-keyword">then</span>
+        menu.visible = <span class="syn-keyword">not</span> menu.visible
+    <span class="syn-keyword">end</span>
+    <span class="syn-keyword">return</span> <span class="syn-string">&quot;sink&quot;</span>
+<span class="syn-keyword">end</span>, <span class="syn-string">&quot;e&quot;</span>)</code></pre></div></div>
+<p>To hear a key and still let the game have it, pass:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-keyword">local</span> jumps = <span class="syn-num">0</span>
+input:<span class="syn-func">bindAction</span>(<span class="syn-string">&quot;countJumps&quot;</span>, <span class="syn-keyword">function</span>(name, state)
+    <span class="syn-keyword">if</span> state == <span class="syn-string">&quot;begin&quot;</span> <span class="syn-keyword">then</span> jumps += <span class="syn-num">1</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">return</span> <span class="syn-string">&quot;pass&quot;</span>
+<span class="syn-keyword">end</span>, <span class="syn-string">&quot;space&quot;</span>)</code></pre></div></div>
+<p>A key sunk when pressed is kept from Minecraft until it is released, so the game never sees half a
+press.</p>
+<p>The rest of the calls, and binding at a priority of your own:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>input:<span class="syn-func">bindAction</span>(<span class="syn-string">&quot;fire&quot;</span>, onFire, <span class="syn-string">&quot;mousebutton1&quot;</span>, <span class="syn-string">&quot;buttonR2&quot;</span>)      <span class="syn-comment">-- any of the keys</span>
+input:<span class="syn-func">bindActionAtPriority</span>(<span class="syn-string">&quot;cutscene&quot;</span>, <span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>, <span class="syn-num">100</span>, <span class="syn-string">&quot;e&quot;</span>, <span class="syn-string">&quot;space&quot;</span>, <span class="syn-string">&quot;leftshift&quot;</span>)
+input:<span class="syn-func">unbindAction</span>(<span class="syn-string">&quot;dash&quot;</span>)
+input:<span class="syn-func">getBoundActions</span>()                                           <span class="syn-comment">-- { &quot;menu&quot;, &quot;countJumps&quot;, ... }</span></code></pre></div></div>
+<ul>
+<li>Higher priority runs first. With equal priority, the latest binding runs first. <code>bindAction</code> is
+  priority 0.</li>
+<li>Binding a name again replaces it.</li>
+<li>A binding goes away when the script that made it stops.</li>
+<li>An action needs at least one key, and a name that is not a key is an error.</li>
+<li><code>mousewheel</code> sinks the scroll, so the hotbar does not change. <code>mousemovement</code> is heard but cannot
+  be sunk: the camera still turns.</li>
+<li>Minecraft does not read gamepads, so sinking a gamepad key only stops lower bindings.</li>
+</ul>
+<div class="demo" data-demo="camera-bindings"></div>
+<p>An <code>InputAction</code> instance is still the way to name keys a place checks with <code>input:down</code>, see
+<a href="movement.html#input-actions">Movement</a>.</p>
+<h2 id="gamepads">Gamepads<a class="anchor" href="#gamepads" title="Permanent link">#</a></h2>
+<p>A gamepad reaches you two ways: through the input events, like a key, and through a state object you
+read whenever you want.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code>input.gamepadConnected:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(pad) <span class="syn-func">print</span>(<span class="syn-string">&quot;gamepad&quot;</span>, pad, <span class="syn-string">&quot;plugged in&quot;</span>) <span class="syn-keyword">end</span>)
+input.gamepadDisconnected:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(pad) <span class="syn-keyword">end</span>)
+
+input:<span class="syn-func">getConnectedGamepads</span>()          <span class="syn-comment">-- { 1 }</span>
+<span class="syn-keyword">local</span> pad = input:<span class="syn-func">getGamepadState</span>(<span class="syn-num">1</span>)  <span class="syn-comment">-- with no number, the first one; nil when there is none</span>
+pad.leftStick                         <span class="syn-comment">-- x right, y up, each from -1 to 1</span>
+pad.rightStick
+pad.leftTrigger                       <span class="syn-comment">-- 0 to 1</span>
+pad.rightTrigger
+pad.buttons.buttonA                   <span class="syn-comment">-- true while held</span></code></pre></div></div>
+<p>Gamepads are numbered from 1 by the slot they are in, so unplugging the first leaves the second as 2.
+One already plugged in when the place starts fires <code>gamepadConnected</code> on the first frame.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>After a script reload <code>gamepadConnected</code> does not fire again, so read <code>getConnectedGamepads()</code> when
+the script starts too, or a controller that was already plugged in goes unnoticed.</p></div></div>
+<p>Only controllers the game recognises as gamepads count. There is no vibration.</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Name</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>buttonA</code>, <code>buttonB</code>, <code>buttonX</code>, <code>buttonY</code></td>
+<td>the face buttons</td>
+</tr>
+<tr>
+<td><code>buttonL1</code>, <code>buttonR1</code></td>
+<td>the shoulder buttons</td>
+</tr>
+<tr>
+<td><code>buttonL2</code>, <code>buttonR2</code></td>
+<td>the triggers</td>
+</tr>
+<tr>
+<td><code>buttonL3</code>, <code>buttonR3</code></td>
+<td>pressing the sticks in</td>
+</tr>
+<tr>
+<td><code>buttonSelect</code>, <code>buttonStart</code>, <code>buttonGuide</code></td>
+<td>back, start and the logo button</td>
+</tr>
+<tr>
+<td><code>dPadUp</code>, <code>dPadDown</code>, <code>dPadLeft</code>, <code>dPadRight</code></td>
+<td>the d-pad</td>
+</tr>
+<tr>
+<td><code>thumbstick1</code>, <code>thumbstick2</code></td>
+<td>the left and right sticks</td>
+</tr>
+</tbody>
+</table></div>
+<p>They arrive in input events with <code>inputType</code> <code>"gamepad"</code> and one of these as <code>keyCode</code>:</p>
+<ul>
+<li>Buttons fire <code>begin</code> and <code>end</code>.</li>
+<li>Triggers fire <code>begin</code> past a tenth, <code>change</code> as they move, and <code>end</code> when let go. <code>position.z</code> is
+  how far it is pulled, <code>delta.z</code> how much that changed.</li>
+<li>Sticks only fire <code>change</code>. <code>position</code> is the stick, with <code>y</code> up, and <code>delta</code> how much it moved.
+  A stick within a tenth of the middle reads zero.</li>
+</ul>
+<p>The event does not say which gamepad sent it; <code>getGamepadState</code> does. <code>isKeyDown("buttonA")</code> is true
+while any gamepad holds it, a trigger past a tenth or a stick past half. <code>buttons</code> in the state
+holds every button and both triggers, but not the sticks.</p>
+<p>The names work in <code>bindAction</code> and in an <code>InputAction</code>'s <code>keys</code>. A camera flown with a controller:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17</pre><pre><code>camera.mode = <span class="syn-string">&quot;scriptable&quot;</span>
+<span class="syn-keyword">local</span> position = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">80</span>, <span class="syn-num">0</span>)
+<span class="syn-keyword">local</span> yaw = <span class="syn-num">0</span>
+
+game.renderStepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(dt)
+    <span class="syn-keyword">local</span> pad = input:<span class="syn-func">getGamepadState</span>()
+    <span class="syn-keyword">if</span> pad == <span class="syn-const">nil</span> <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    yaw -= pad.rightStick.x * <span class="syn-num">2</span> * dt
+    <span class="syn-keyword">local</span> facing = <span class="syn-func">cframe</span>(position) * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, yaw, <span class="syn-num">0</span>)
+    <span class="syn-keyword">local</span> lift = pad.rightTrigger - pad.leftTrigger
+    position += (facing.lookVector * pad.leftStick.y + facing.rightVector * pad.leftStick.x + <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, lift, <span class="syn-num">0</span>)) * <span class="syn-num">12</span> * dt
+    camera.cframe = <span class="syn-func">cframe</span>(position) * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, yaw, <span class="syn-num">0</span>)
+<span class="syn-keyword">end</span>)
+
+input:<span class="syn-func">bindAction</span>(<span class="syn-string">&quot;snap&quot;</span>, <span class="syn-keyword">function</span>(name, state)
+    <span class="syn-keyword">if</span> state == <span class="syn-string">&quot;begin&quot;</span> <span class="syn-keyword">then</span> camera:<span class="syn-func">fovPunch</span>(<span class="syn-num">3</span>, <span class="syn-num">0.2</span>) <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>, <span class="syn-string">&quot;buttonA&quot;</span>)</code></pre></div></div>
+<ul>
+<li>The camera is read and written every frame on <code>renderStepped</code>, and everything is multiplied by <code>dt</code>,
+  so the flight moves at the same speed whatever the frame rate is.</li>
+<li><code>yaw</code> is kept in a variable because the stick says how fast to turn rather than where to point.</li>
+<li><code>facing.lookVector</code> and <code>facing.rightVector</code> turn the left stick into movement along the direction
+  the camera already faces, and the triggers move it straight up and down.</li>
+<li>Returning nothing from the <code>snap</code> handler sinks <code>buttonA</code>, which costs nothing here because
+  Minecraft does not read gamepads anyway.</li>
+</ul>
+    </article>
+    <div class="doc-pager"><a class="prev" href="physics.html"><span>Previous</span>Physics</a><a class="next" href="game-and-screens.html"><span>Next</span>Pausing, quitting, settings and screens</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#modes">Modes</a></li><li><a href="#following-something">Following something</a></li><li><a href="#scriptable">Scriptable</a></li><li><a href="#tweening-the-camera">Tweening the camera</a></li><li><a href="#cameras-in-a-scene">Cameras in a scene</a></li><li><a href="#camera-paths">Camera paths</a></li><li><a href="#effects">Effects</a></li><li><a href="#screen-and-world">Screen and world</a></li><li><a href="#input">Input</a></li><li><a href="#input-events">Input events</a></li><li><a href="#keys-held-now">Keys held now</a></li><li><a href="#key-names">Key names</a></li><li><a href="#mouse-behaviour">Mouse behaviour</a></li><li><a href="#binding-actions">Binding actions</a></li><li><a href="#gamepads">Gamepads</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Players and bodies | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html" class="active"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="players-and-bodies">Players and bodies<a class="anchor" href="#players-and-bodies" title="Permanent link">#</a></h1>
+<p>A player is the person connected to the server. Their body is a <code>Character</code> instance whose <code>owner</code>
+property holds their player id, and it is the body that most of this page addresses: the calls that
+find someone, measure a distance or walk a body around all take and return bodies. The player object
+itself is what you use for things the body does not have, such as spawning, teams, leaderstats and
+kicking.</p>
+<h2 id="arriving-spawning-and-respawning">Arriving, spawning and respawning<a class="anchor" href="#arriving-spawning-and-respawning" title="Permanent link">#</a></h2>
+<p>Players arrive on a <strong><code>SpawnLocation</code></strong>: a part you place in the editor (Explorer &gt; Insert &gt;
+SpawnLocation, 6 by 1 by 6 by default). A player stands on its top, facing where its front faces.
+With several enabled, each spawn picks one at random from those the player's <a href="#teams">team</a> may use.
+Turn one off with <code>enabled = false</code>. One inside a <a href="containers.html">storage container</a> is never used.
+With none at all, players arrive at (0.5, 70, 0.5).</p>
+<p>Minecraft's own world spawn follows the first enabled <code>SpawnLocation</code> in the world, at the middle of
+its top face. The engine moves it whenever that location moves, so anything in the game that uses
+the world spawn sends players there too.</p>
+<p>By default every player gets a body as soon as they join. Two properties change that:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-comment">-- server</span>
+game.players.autoSpawn = <span class="syn-const">false</span>      <span class="syn-comment">-- default true</span>
+game.players.respawnTime = <span class="syn-num">3</span>        <span class="syn-comment">-- seconds after dying, default 5</span>
+
+game.players.joined:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-comment">-- with autoSpawn off the player has no body yet: player.character is nil,</span>
+    <span class="syn-comment">-- they wait at a spawn location, unable to move or jump</span>
+    task.<span class="syn-func">delay</span>(<span class="syn-num">2</span>, <span class="syn-keyword">function</span>()
+        player:<span class="syn-func">spawn</span>()                          <span class="syn-comment">-- on a SpawnLocation</span>
+        <span class="syn-comment">-- player:spawn(vec3(10, 66, 4))        -- or exactly here</span>
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>player:spawn()</code> gives a player without a body a new one. A player whose body is dead gets a
+  fresh body. A living body is moved.</li>
+<li>With <code>autoSpawn</code> on, a body whose <code>humanoid</code> dies gets a new one after <code>respawnTime</code>. With it off,
+  a dead body stays until a script calls <code>player:spawn()</code>.</li>
+</ul>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p><code>autoSpawn</code> and <code>respawnTime</code> go back to their defaults when the scripts reload. Set them at the
+top of <code>server/main.luau</code> so a save puts them back where you want them.</p></div></div>
+<p><code>game.players.spawned</code> fires every time a player gets a new body: the first one right after
+<code>joined</code>, then after each respawn or <code>player:spawn()</code> that made a new body. A body that was only
+moved does not fire it. That makes it the place to set up a fresh body, because everything you did to
+the last one is gone:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>game.players.spawned:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-keyword">local</span> humanoid = (player.character :: Character).humanoid
+    humanoid.walkSpeed = <span class="syn-num">8</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>A main menu keeps <code>autoSpawn = false</code>, shows its screen, and calls <code>player:spawn()</code> when Play is
+pressed.</p>
+<h3 id="removing-a-player">Removing a player<a class="anchor" href="#removing-a-player" title="Permanent link">#</a></h3>
+<p><code>player:kick(message)</code> disconnects a player with a reason, see
+<a href="game-and-screens.html">Pausing, quitting, settings and screens</a>.</p>
+<p><code>player:ban(reason, seconds)</code> writes them into the Minecraft server's own ban list and disconnects
+them with the reason. They cannot come back until it runs out.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>player:<span class="syn-func">ban</span>(<span class="syn-string">&quot;Flying&quot;</span>, <span class="syn-num">3600</span>)     <span class="syn-comment">-- an hour</span>
+player:<span class="syn-func">ban</span>(<span class="syn-string">&quot;Cheating&quot;</span>)         <span class="syn-comment">-- forever, and 0 seconds means the same</span>
+player:<span class="syn-func">ban</span>()                   <span class="syn-comment">-- &quot;You were banned&quot;</span></code></pre></div></div>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>The ban outlives the place. It is the same list the <code>/ban</code> command writes, so it holds through a
+reload and a restart, and it is lifted with <code>/pardon</code>. A ban you write while testing is still there
+tomorrow.</p></div></div>
+<h2 id="teams">Teams<a class="anchor" href="#teams" title="Permanent link">#</a></h2>
+<p>A <code>Team</code> is an instance with a colour. Every player is on one team or on none. You create teams in a
+server script like any other instance:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+<span class="syn-keyword">local</span> red = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Team&quot;</span>, { name = <span class="syn-string">&quot;red&quot;</span>, teamColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.25</span>, <span class="syn-num">0.25</span>) })
+<span class="syn-keyword">local</span> blue = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Team&quot;</span>, { name = <span class="syn-string">&quot;blue&quot;</span>, teamColor = <span class="syn-func">color</span>(<span class="syn-num">0.25</span>, <span class="syn-num">0.45</span>, <span class="syn-num">1</span>) })</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>teamColor</code></td>
+<td>white</td>
+<td>the colour spawn locations are matched against</td>
+</tr>
+<tr>
+<td><code>autoAssignable</code></td>
+<td>true</td>
+<td>new players may be put on this team</td>
+</tr>
+</tbody>
+</table></div>
+<p>When a player joins, they are put on the <code>autoAssignable</code> team with the fewest players, picked at
+random between teams of the same size. With no such team they join none. A team inside a
+<a href="containers.html">storage container</a> is never picked.</p>
+<p>Turn <code>autoAssignable</code> off on a team players are only meant to reach through a script or a pad, such as
+a spectator team.</p>
+<div class="demo" data-demo="players-teams"></div>
+<h3 id="choosing-a-team-from-a-script">Choosing a team from a script<a class="anchor" href="#choosing-a-team-from-a-script" title="Permanent link">#</a></h3>
+<p><code>player.team</code> is a <code>Team</code> or <code>nil</code>. Any script can read it; only a server script can set it.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-comment">-- server</span>
+game.players.joined:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-keyword">if</span> player.name == <span class="syn-string">&quot;Meek&quot;</span> <span class="syn-keyword">then</span>
+        player.team = red
+        player:<span class="syn-func">spawn</span>()
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>Setting it fires <code>playerRemoved</code> on the old team and <code>playerAdded</code> on the new one. Setting the team
+  a player is already on does nothing.</li>
+<li>It does not move the body. The team counts from the next spawn, which is why the example calls
+  <code>player:spawn()</code>: with <code>autoSpawn</code> on, the first body is already placed when <code>joined</code> fires.</li>
+<li><code>player.team = nil</code> takes a player off every team.</li>
+<li>A destroyed team leaves its players on no team, and fires nothing.</li>
+<li>A player who leaves is taken off their team, and it fires <code>playerRemoved</code>.</li>
+</ul>
+<h3 id="spawning-on-your-team">Spawning on your team<a class="anchor" href="#spawning-on-your-team" title="Permanent link">#</a></h3>
+<p>A <code>SpawnLocation</code> has three more properties for deciding who may use it:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>neutral</code></td>
+<td>true</td>
+<td>anyone spawns here. Off: only the team whose <code>teamColor</code> matches this one's</td>
+</tr>
+<tr>
+<td><code>teamColor</code></td>
+<td>white</td>
+<td>the team this location is for, when <code>neutral</code> is off</td>
+</tr>
+<tr>
+<td><code>allowTeamChangeOnTouch</code></td>
+<td>false</td>
+<td>standing on it moves the player to the team of its colour</td>
+</tr>
+</tbody>
+</table></div>
+<p>A player spawns on a random enabled location that is <code>neutral</code> or has their team's colour. When none
+of them fits, any enabled location will do. A player on no team only fits the neutral ones.</p>
+<p>The colours have to be exactly the same, so give the location the team's own colour rather than
+typing the numbers twice:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SpawnLocation&quot;</span>, {
+    name = <span class="syn-string">&quot;redBase&quot;</span>,
+    position = <span class="syn-func">vec3</span>(-<span class="syn-num">40</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>),
+    neutral = <span class="syn-const">false</span>,
+    teamColor = red.teamColor,
+    color = red.teamColor,
+})
+game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SpawnLocation&quot;</span>, {
+    name = <span class="syn-string">&quot;blueBase&quot;</span>,
+    position = <span class="syn-func">vec3</span>(<span class="syn-num">40</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>),
+    neutral = <span class="syn-const">false</span>,
+    teamColor = blue.teamColor,
+    color = blue.teamColor,
+})</code></pre></div></div>
+<p><code>teamColor</code> is what the match is made against, and <code>color</code> is what the pad looks like. Setting both to
+<code>red.teamColor</code> makes the base look like the team it belongs to.</p>
+<h3 id="changing-team-by-standing-on-a-pad">Changing team by standing on a pad<a class="anchor" href="#changing-team-by-standing-on-a-pad" title="Permanent link">#</a></h3>
+<p>A location with <code>allowTeamChangeOnTouch</code> on, <code>neutral</code> off and <code>enabled</code> on moves anyone standing on
+its top to the team with its <code>teamColor</code>. It checks every tick, so walking onto it is enough. It
+works for any team with that colour, <code>autoAssignable</code> or not, and does nothing when no team has it.</p>
+<p>A lobby with a neutral location to arrive on and a pad for each team:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SpawnLocation&quot;</span>, { name = <span class="syn-string">&quot;lobby&quot;</span>, position = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">20</span>) })
+
+game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SpawnLocation&quot;</span>, {
+    name = <span class="syn-string">&quot;joinRed&quot;</span>,
+    position = <span class="syn-func">vec3</span>(-<span class="syn-num">6</span>, <span class="syn-num">65</span>, <span class="syn-num">28</span>),
+    neutral = <span class="syn-const">false</span>,
+    teamColor = red.teamColor,
+    color = red.teamColor,
+    allowTeamChangeOnTouch = <span class="syn-const">true</span>,
+})
+game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SpawnLocation&quot;</span>, {
+    name = <span class="syn-string">&quot;joinBlue&quot;</span>,
+    position = <span class="syn-func">vec3</span>(<span class="syn-num">6</span>, <span class="syn-num">65</span>, <span class="syn-num">28</span>),
+    neutral = <span class="syn-const">false</span>,
+    teamColor = blue.teamColor,
+    color = blue.teamColor,
+    allowTeamChangeOnTouch = <span class="syn-const">true</span>,
+})</code></pre></div></div>
+<p>A pad is still a spawn location, so a red player can respawn on <code>joinRed</code> as well as on <code>redBase</code>.
+Changing team on a pad does not move the body either.</p>
+<div class="demo" data-demo="players-spawn"></div>
+<h3 id="who-is-on-a-team">Who is on a team<a class="anchor" href="#who-is-on-a-team" title="Permanent link">#</a></h3>
+<p><code>team:getPlayers()</code> gives every <code>Player</code> on the team on the server. On a client it gives only the
+local player, and only when they are on it.</p>
+<p><code>playerAdded</code> and <code>playerRemoved</code> fire on the server with the <code>Player</code>. A server that keeps a count
+every client can read:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+<span class="syn-keyword">local</span> count = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;StringValue&quot;</span>, { name = <span class="syn-string">&quot;teamCount&quot;</span> })
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">recount</span>()
+    count.value = <span class="syn-string">&quot;red &quot;</span> .. #red:<span class="syn-func">getPlayers</span>() .. <span class="syn-string">&quot;  blue &quot;</span> .. #blue:<span class="syn-func">getPlayers</span>()
+<span class="syn-keyword">end</span>
+
+<span class="syn-keyword">for</span> _, team <span class="syn-keyword">in</span> { red, blue } <span class="syn-keyword">do</span>
+    team.playerAdded:<span class="syn-func">connect</span>(recount)
+    team.playerRemoved:<span class="syn-func">connect</span>(recount)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>The <code>StringValue</code> sits in the world, so it replicates, and a client script reads <code>count.value</code> to
+label its interface without asking the server for anything.</p>
+<p>Every body carries its wearer's team as <code>team</code>, so a client reads anyone's team off their body:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> me = game.players:<span class="syn-func">me</span>() :: Character
+<span class="syn-keyword">if</span> me.team <span class="syn-keyword">then</span> <span class="syn-func">print</span>(<span class="syn-string">&quot;I am on&quot;</span>, me.team.name) <span class="syn-keyword">end</span>
+
+<span class="syn-keyword">for</span> _, body <span class="syn-keyword">in</span> game.players:<span class="syn-func">all</span>() <span class="syn-keyword">do</span>
+    <span class="syn-keyword">local</span> other = body :: Character
+    <span class="syn-keyword">if</span> other ~= me <span class="syn-keyword">and</span> other.team == me.team <span class="syn-keyword">then</span>
+        <span class="syn-comment">-- a teammate</span>
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p><code>player.team</code> on a client reads the same thing, for the local player.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Set <code>player.team</code> on the server rather than <code>team</code> on a body. A player's body is put back to their
+team every tick, so a write to the body is undone before the next one.</p></div></div>
+<h2 id="leaderstats">Leaderstats<a class="anchor" href="#leaderstats" title="Permanent link">#</a></h2>
+<p>Every player has a <code>leaderstats</code>, a container the engine makes for them when they join. Put value
+instances in it and they show up beside their name in the Tab list.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+game.players.joined:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-keyword">local</span> stats = player.leaderstats :: Leaderstats
+    stats:<span class="syn-func">add</span>(<span class="syn-string">&quot;NumberValue&quot;</span>, { name = <span class="syn-string">&quot;Kills&quot;</span> })
+    stats:<span class="syn-func">add</span>(<span class="syn-string">&quot;NumberValue&quot;</span>, { name = <span class="syn-string">&quot;Deaths&quot;</span> })
+<span class="syn-keyword">end</span>)
+
+game.players.spawned:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-keyword">local</span> body = player.character :: Character
+    body.humanoid.died:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+        <span class="syn-keyword">local</span> stats = player.leaderstats :: Leaderstats
+        <span class="syn-keyword">local</span> deaths = stats:<span class="syn-func">find</span>(<span class="syn-string">&quot;Deaths&quot;</span>) :: NumberValue
+        deaths.value += <span class="syn-num">1</span>
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The stats are made on <code>joined</code>, once, because the container is already there and only needs
+  filling.</li>
+<li>The death counter is connected on <code>spawned</code>, because each body has its own <code>humanoid</code> and the
+  connection to the old one went away with it.</li>
+<li><code>deaths.value += 1</code> is enough to change what every player sees in the Tab list on the next frame.</li>
+</ul>
+<p>Only <code>NumberValue</code>, <code>StringValue</code> and <code>BoolValue</code> children are read. A number is shown whole when it
+is whole and to two decimals otherwise, a flag as <code>yes</code> or <code>no</code>.</p>
+<ul>
+<li>The stats outlive the body: dying and respawning does not touch them. They are destroyed when the
+  player leaves, and made again empty if they come back.</li>
+<li>They sit under a <code>Leaderboard</code> at the root of the world, one <code>Leaderstats</code> per player, named after
+  the player and carrying their id as <code>owner</code>. A player who changes name keeps the same instance.</li>
+<li>The <code>Leaderboard</code> is <strong>out of the world</strong>: it is not drawn, not found by queries, and not saved
+  into a scene, the same as <code>ServerStorage</code>. See <a href="containers.html">Containers</a>.</li>
+<li>It replicates to every client all the same, and it replicates whole. The
+  <a href="place.html#streaming">streaming radius</a> does not cut it off, so any client can read anyone's score.</li>
+<li>Only the server should write them. A client may read them.</li>
+</ul>
+<h3 id="in-the-tab-list">In the Tab list<a class="anchor" href="#in-the-tab-list" title="Permanent link">#</a></h3>
+<p>Holding Tab shows each player's values after their name, and sorts the list by the <strong>first</strong>
+<code>NumberValue</code> in their stats, highest first. Players without one fall to the bottom. Nothing else
+about the list changes, and <code>tabList = false</code> in <code>place.toml</code> still hides it entirely.</p>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>The order of the children is what the list is ranked by, so add the score you want players ranked
+on before any other <code>NumberValue</code>.</p></div></div>
+<div class="demo" data-demo="players-leaderstats"></div>
+<h3 id="reading-someone-elses">Reading someone else's<a class="anchor" href="#reading-someone-elses" title="Permanent link">#</a></h3>
+<p>On the server, go through the player object:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> other = game.players:<span class="syn-func">playerOf</span>(body)
+<span class="syn-keyword">if</span> other <span class="syn-keyword">then</span>
+    <span class="syn-keyword">local</span> kills = (other.leaderstats :: Leaderstats):<span class="syn-func">find</span>(<span class="syn-string">&quot;Kills&quot;</span>) :: NumberValue
+    <span class="syn-func">print</span>(other.name, kills.value)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>On a client, read the board out of the tree:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- client, straight off the tree</span>
+<span class="syn-keyword">local</span> board = game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;Leaderboard&quot;</span>)
+<span class="syn-keyword">for</span> _, stats <span class="syn-keyword">in</span> (board :: Instance):<span class="syn-func">children</span>() <span class="syn-keyword">do</span>
+    <span class="syn-func">print</span>(stats.name, (stats:<span class="syn-func">find</span>(<span class="syn-string">&quot;Kills&quot;</span>) :: NumberValue).value)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p><code>player.leaderstats</code> on a client is the local player's own. Everyone else's is read off the board,
+where <code>owner</code> is the player id <code>body.owner</code> carries.</p>
+<h2 id="controls">Controls<a class="anchor" href="#controls" title="Permanent link">#</a></h2>
+<p>A player's controls are three switches: <code>move</code> (walking, strafing and sprinting), <code>jump</code> and
+<code>look</code> (turning with the mouse). Turning one off is how you hold a player still during a cutscene or
+while a menu is open.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-comment">-- server: for one player</span>
+player.controls.move = <span class="syn-const">false</span>
+player.controls:<span class="syn-func">disable</span>()           <span class="syn-comment">-- all three</span>
+player.controls:<span class="syn-func">enable</span>()
+
+<span class="syn-comment">-- client: for yourself</span>
+game.players.controls.look = <span class="syn-const">false</span></code></pre></div></div>
+<p>A control works only when both the server and the client leave it on. Scripted walking
+(<code>walkTo</code>, <code>follow</code>) still moves a body whose controls are off, so a cutscene can walk the player.
+Client switches go back on when the scripts reload; server switches when the player leaves or the
+scripts reload.</p>
+<p>The body's <code>humanoid</code> can take controls away too: <code>sit</code> takes <code>move</code>, <code>platformStand</code> takes <code>move</code>
+and <code>jump</code>, and turning off its <code>running</code> or <code>jumping</code> state takes <code>move</code> or <code>jump</code>. A control then
+works only when the server, the client and the humanoid all leave it on. A dead body's humanoid
+holds nothing. See <a href="movement.html#state">Movement</a>.</p>
+<h2 id="finding-players">Finding players<a class="anchor" href="#finding-players" title="Permanent link">#</a></h2>
+<p><code>game.players</code> has a call for most of the questions a place asks about who is where. They go through
+the tree's list of characters, not every instance in the world, and only count bodies a player is
+wearing.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16</pre><pre><code><span class="syn-keyword">local</span> p = game.players
+p:<span class="syn-func">all</span>()                                   <span class="syn-comment">-- every body</span>
+p:<span class="syn-func">count</span>()
+p:<span class="syn-func">near</span>(position, <span class="syn-num">30</span>, except)              <span class="syn-comment">-- within 30 m, nearest first</span>
+<span class="syn-keyword">local</span> body, distance = p:<span class="syn-func">nearest</span>(position, radius, except)
+p:<span class="syn-func">sortedByDistance</span>(position)
+p:<span class="syn-func">inBox</span>(<span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>), <span class="syn-func">vec3</span>(<span class="syn-num">10</span>, <span class="syn-num">4</span>, <span class="syn-num">10</span>))
+p:<span class="syn-func">inPart</span>(zonePart)
+p:<span class="syn-func">inCone</span>(eye, lookDirection, <span class="syn-num">30</span>, <span class="syn-num">50</span>, me)  <span class="syn-comment">-- within 30 degrees of the direction, 50 m away</span>
+p:<span class="syn-func">visibleFrom</span>(eye, <span class="syn-num">50</span>, me)                <span class="syn-comment">-- in range and nothing solid in the way</span>
+p:<span class="syn-func">withTag</span>(<span class="syn-string">&quot;red&quot;</span>)
+p:<span class="syn-func">random</span>(except)
+p:<span class="syn-func">inRange</span>(a, b, <span class="syn-num">10</span>)
+p:<span class="syn-func">bodyOf</span>(playerId)
+p:<span class="syn-func">fromName</span>(<span class="syn-string">&quot;Meek&quot;</span>)                        <span class="syn-comment">-- not case sensitive</span>
+p:<span class="syn-func">me</span>()                                    <span class="syn-comment">-- a client&#x27;s own body</span></code></pre></div></div>
+<p><code>except</code> leaves one body out, usually the asker's own. Pass it whenever the question is about other
+people; leave it out and an explosion finds the player who set it off.</p>
+<div class="demo" data-demo="players-queries"></div>
+<h2 id="asking-a-body">Asking a body<a class="anchor" href="#asking-a-body" title="Permanent link">#</a></h2>
+<p>Once you have a body, these answer questions about it without you doing the maths:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code>body:<span class="syn-func">distanceTo</span>(other)
+body:<span class="syn-func">distanceSqTo</span>(other)                  <span class="syn-comment">-- no square root, for comparing</span>
+body:<span class="syn-func">canSee</span>(other, <span class="syn-num">60</span>)                    <span class="syn-comment">-- eyes to eyes, parts and blocks block it</span>
+body:<span class="syn-func">facing</span>(other, <span class="syn-num">45</span>)                    <span class="syn-comment">-- within 45 degrees of where the head looks</span>
+body:<span class="syn-func">lookDirection</span>()
+body.velocity                             <span class="syn-comment">-- metres a second</span>
+body:<span class="syn-func">isGrounded</span>()
+body:<span class="syn-func">isInWater</span>()
+body:<span class="syn-func">isMoving</span>()</code></pre></div></div>
+<p>Use <code>distanceSqTo</code> when you only compare distances against each other, since it skips the square
+root. Use <code>distanceTo</code> when you show the number or compare it against a range in metres.</p>
+<h2 id="moving-bodies">Moving bodies<a class="anchor" href="#moving-bodies" title="Permanent link">#</a></h2>
+<p><code>walkTo</code>, <code>follow</code>, <code>jump</code> and <code>stopWalking</code> work on any body. A body with no player is walked by
+the engine through its <code>humanoid</code>. A body a player is wearing is walked by that player's own
+client: the server sends the path and the client presses the keys for them, without turning their
+camera. Pressing a movement key hands the controls back, which ends the walk on the server too.
+<code>humanoid.arrived</code> fires either way.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> ok = npc:<span class="syn-func">walkTo</span>(<span class="syn-func">vec3</span>(<span class="syn-num">20</span>, <span class="syn-num">65</span>, <span class="syn-num">4</span>))    <span class="syn-comment">-- along a path around what is in the way; false when there is none</span>
+npc:<span class="syn-func">follow</span>(targetBody, <span class="syn-num">3</span>)                 <span class="syn-comment">-- keeps following, stopping 3 m away, re-planning as it moves</span>
+npc:<span class="syn-func">stopWalking</span>()
+npc:<span class="syn-func">isWalking</span>()
+npc:<span class="syn-func">jump</span>()
+npc:<span class="syn-func">lookAt</span>(position)
+npc:<span class="syn-func">face</span>(direction)</code></pre></div></div>
+<p><code>walkTo</code> answers false straight away when there is no path, so check what it returns before you wait
+on <code>humanoid.arrived</code>.</p>
+<p>You can also ask for a path without walking anything along it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-keyword">local</span> corners = game.path:<span class="syn-func">find</span>(from, to)                    <span class="syn-comment">-- nil when there is no way</span>
+<span class="syn-keyword">local</span> closest = game.path:<span class="syn-func">find</span>(from, to, { partial = <span class="syn-const">true</span> }) <span class="syn-comment">-- as close as it gets instead of nil</span>
+game.path:<span class="syn-func">isReachable</span>(from, to)
+<span class="syn-keyword">local</span> wander = game.path:<span class="syn-func">randomPointNear</span>(npc.position, <span class="syn-num">12</span>)
+npc:<span class="syn-func">walkTo</span>(point, { partial = <span class="syn-const">true</span> })</code></pre></div></div>
+<p><code>partial = true</code> is what you want for a wandering npc, which should set off in roughly the right
+direction rather than stand still because the target is unreachable.</p>
+<p>Paths run on a navmesh built with Recast and walked with Detour. It is made from the level's blocks and every part that collides, sized for a player: 1.8 tall,
+0.3 wide either side of the middle, climbing one block, walking slopes up to 50 degrees. It is built
+in 32 by 32 block tiles the first time a path crosses them, and a tile is built again when a block in
+it changes or a part in it moves. A path is the corners a body turns at, not every step.</p>
+<p>A walking body keeps to the ground under it the whole way, so it rises onto a step and goes down a
+slope between two corners instead of cutting a straight line through the air. It turns toward where
+it goes at a person's pace. A follower stops at its distance, sets off again once the target is a
+step and a half further, and walks as close as it can get when the target stands somewhere it cannot
+reach. A player walked by the server jumps when they walk into a step.</p>
+<h2 id="the-player-object">The player object<a class="anchor" href="#the-player-object" title="Permanent link">#</a></h2>
+<p><code>game.players.joined</code> and <code>.leaving</code> hand over a player object (server):</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>game.players.joined:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    player:<span class="syn-func">spawn</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">66</span>, <span class="syn-num">0</span>))
+    <span class="syn-func">print</span>(player.name, player.character, player:<span class="syn-func">ping</span>(), player:<span class="syn-func">viewTime</span>())
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>player.name</code> is the name the player connected under.</li>
+<li><code>player.character</code> is their body, or nil while they have none.</li>
+<li><code>ping()</code> is the round trip in seconds.</li>
+<li><code>viewTime()</code> is the server time the player was looking at, for <code>game.history:rewind</code>.</li>
+</ul>
+    </article>
+    <div class="doc-pager"><a class="prev" href="animation.html"><span>Previous</span>Animations</a><a class="next" href="tools.html"><span>Next</span>Tools</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#arriving-spawning-and-respawning">Arriving, spawning and respawning</a></li><li><a href="#teams">Teams</a></li><li><a href="#leaderstats">Leaderstats</a></li><li><a href="#controls">Controls</a></li><li><a href="#finding-players">Finding players</a></li><li><a href="#asking-a-body">Asking a body</a></li><li><a href="#moving-bodies">Moving bodies</a></li><li><a href="#the-player-object">The player object</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

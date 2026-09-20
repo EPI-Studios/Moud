@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saving | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html" class="active"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Scripting</span></nav>
+    <article class="doc">
+<h1 id="saving">Saving<a class="anchor" href="#saving" title="Permanent link">#</a></h1>
+<p>A store is a table of values that outlives the server. Everything you put in one is written to a
+SQLite file in the world folder, so it is still there after a restart, after a crash, and after you
+stop the game and come back tomorrow. Stores are server only: a client script cannot open one,
+because a player's machine is not where the save lives.</p>
+<p>You open a store by name. The name is what the data is filed under, so every script in the place can
+call <code>store("players")</code> and read and write the same rows.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre><pre><code><span class="syn-keyword">local</span> players = <span class="syn-func">store</span>(<span class="syn-string">&quot;players&quot;</span>)
+
+players:<span class="syn-func">set</span>(id, { coins = <span class="syn-num">10</span>, level = <span class="syn-num">2</span> })
+<span class="syn-keyword">local</span> data = players:<span class="syn-func">get</span>(id)              <span class="syn-comment">-- nil when there is nothing</span>
+players:<span class="syn-func">remove</span>(id)
+players:<span class="syn-func">keys</span>(<span class="syn-string">&quot;guild:&quot;</span>, <span class="syn-num">100</span>)               <span class="syn-comment">-- keys starting with a prefix</span>
+
+<span class="syn-comment">-- read and write in one step, so two changes at once never lose each other</span>
+<span class="syn-keyword">local</span> new = players:<span class="syn-func">update</span>(id, <span class="syn-keyword">function</span>(old)
+    old = old <span class="syn-keyword">or</span> { coins = <span class="syn-num">0</span> }
+    old.coins += <span class="syn-num">5</span>
+    <span class="syn-keyword">return</span> old
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>set(key, value)</code> writes the value under that key, replacing whatever was there.</li>
+<li><code>get(key)</code> reads it back, and returns <code>nil</code> when nothing has ever been written under that key. The
+  usual shape is <code>local data = players:get(id) or { coins = 0 }</code>.</li>
+<li><code>remove(key)</code> deletes the row.</li>
+<li><code>keys(prefix, limit)</code> lists the keys that start with a prefix, which is how you walk a group of
+  saves such as every key beginning with <code>guild:</code>.</li>
+<li><code>update(key, fn)</code> reads the value, hands it to your function, and writes back what the function
+  returns, all in one step. It returns the new value.</li>
+</ul>
+<p>Values are anything a table can hold: numbers, text, booleans and nested tables.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Use <code>update</code> whenever the new value depends on the old one. A <code>get</code>, then some arithmetic, then a
+<code>set</code> is two separate steps, and a second change landing between them is lost. <code>update</code> does the
+read and the write together, so both changes count.</p></div></div>
+<div class="demo" data-demo="saving-update"></div>
+<h2 id="sessions">Sessions<a class="anchor" href="#sessions" title="Permanent link">#</a></h2>
+<p>A session is a lock on one key, held by this server, for as long as a player is on it. While the
+session is held, another server asking for the same key is told no, so two servers never write over
+each other's copy of the same save.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code>game.players.joined:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-keyword">local</span> session = players:<span class="syn-func">session</span>(player.name)   <span class="syn-comment">-- errors when another server holds it</span>
+    session.data.coins = (session.data.coins <span class="syn-keyword">or</span> <span class="syn-num">0</span>) + <span class="syn-num">1</span>
+    session:<span class="syn-func">save</span>()
+<span class="syn-keyword">end</span>)
+
+<span class="syn-comment">-- on leave</span>
+session:<span class="syn-func">release</span>()      <span class="syn-comment">-- saves and lets go</span></code></pre></div></div>
+<ul>
+<li><code>players:session(key)</code> takes the lock and loads the value. It raises an error when another server
+  is already holding that key, so wrap it in <code>pcall</code> if the player should be told rather than
+  dropped.</li>
+<li><code>session.data</code> is the loaded value as a plain table. Change it like any table.</li>
+<li><code>session:save()</code> writes <code>data</code> back without letting the lock go. Call it at checkpoints, such as
+  after a round.</li>
+<li><code>session:release()</code> saves and lets go, which is what you do when the player leaves.</li>
+</ul>
+<p>A session renews itself while it lives. A server that crashes loses its hold after a minute, so a
+save is never stuck locked by a server that is gone.</p>
+<div class="demo" data-demo="saving-sessions"></div>
+<h2 id="ordered-stores">Ordered stores<a class="anchor" href="#ordered-stores" title="Permanent link">#</a></h2>
+<p>An ordered store keeps one number per key and sorts them for you, so a leaderboard is a read rather
+than a pass over every save. Server only, like <code>store</code>.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-keyword">local</span> scores = <span class="syn-func">orderedStore</span>(<span class="syn-string">&quot;scores&quot;</span>)
+
+scores:<span class="syn-func">set</span>(<span class="syn-string">&quot;meek&quot;</span>, <span class="syn-num">12</span>)
+scores:<span class="syn-func">increment</span>(<span class="syn-string">&quot;meek&quot;</span>, <span class="syn-num">5</span>)          <span class="syn-comment">-- 17, and hands it back</span>
+scores:<span class="syn-func">increment</span>(<span class="syn-string">&quot;meek&quot;</span>)             <span class="syn-comment">-- adds 1 when you leave the amount out</span>
+scores:<span class="syn-func">get</span>(<span class="syn-string">&quot;meek&quot;</span>)                   <span class="syn-comment">-- nil when there is nothing</span>
+scores:<span class="syn-func">remove</span>(<span class="syn-string">&quot;meek&quot;</span>)
+
+<span class="syn-keyword">for</span> place, row <span class="syn-keyword">in</span> scores:<span class="syn-func">getSorted</span>(<span class="syn-const">false</span>, <span class="syn-num">10</span>) <span class="syn-keyword">do</span>
+    <span class="syn-func">print</span>(place, row.key, row.value)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p><code>increment</code> is the call to use while a game is running: it reads, adds and writes in one step, and
+returns the number it wrote, so you never have to fetch a score before changing it.</p>
+<p><code>getSorted</code> hands back a list of <code>{ key = ..., value = ... }</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Argument</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ascending</code></td>
+<td><code>false</code> is highest first, <code>true</code> is lowest first</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td>how many rows; 100 when left out, 1000 at most</td>
+</tr>
+<tr>
+<td><code>min</code>, <code>max</code></td>
+<td>only values in this range</td>
+</tr>
+</tbody>
+</table></div>
+<p>Because it is a list, the index you loop over is the position on the board: row 1 is the top score
+when you pass <code>false</code>.</p>
+<p>Two keys with the same value come back in key order. Only finite numbers go in: <code>1 / 0</code> and a NaN are
+an error.</p>
+<div class="demo" data-demo="saving-ordered"></div>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>An ordered store and a plain store never share a name. <code>store("scores")</code> and
+<code>orderedStore("scores")</code> are two different stores, and writing one does not change the other.</p></div></div>
+<h3 id="a-top-ten-on-the-screen">A top ten on the screen<a class="anchor" href="#a-top-ten-on-the-screen" title="Permanent link">#</a></h3>
+<p>The board is one gui the server writes, so every player reads the same ten rows without being sent
+anything.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> scores = <span class="syn-func">orderedStore</span>(<span class="syn-string">&quot;scores&quot;</span>)
+
+<span class="syn-keyword">local</span> screen = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;StarterGui&quot;</span>):<span class="syn-func">add</span>(<span class="syn-string">&quot;ScreenGui&quot;</span>, { name = <span class="syn-string">&quot;board&quot;</span> })
+<span class="syn-keyword">local</span> panel = screen:<span class="syn-func">add</span>(<span class="syn-string">&quot;Frame&quot;</span>, {
+    position = <span class="syn-func">udim2</span>(<span class="syn-num">1</span>, -<span class="syn-num">12</span>, <span class="syn-num">0</span>, <span class="syn-num">12</span>), anchorX = <span class="syn-num">1</span>,
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">190</span>, <span class="syn-num">0</span>, <span class="syn-num">230</span>),
+    backgroundColor = <span class="syn-func">color</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), backgroundTransparency = <span class="syn-num">0.4</span>,
+})
+panel:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIListLayout&quot;</span>, { padding = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">2</span>) })
+panel:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIPadding&quot;</span>, { paddingTop = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">6</span>), paddingLeft = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">8</span>) })
+
+<span class="syn-keyword">local</span> rows = {}
+<span class="syn-keyword">for</span> place = <span class="syn-num">1</span>, <span class="syn-num">10</span> <span class="syn-keyword">do</span>
+    rows[place] = panel:<span class="syn-func">add</span>(<span class="syn-string">&quot;TextLabel&quot;</span>, {
+        layoutOrder = place,
+        size = <span class="syn-func">udim2</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">20</span>),
+        backgroundTransparency = <span class="syn-num">1</span>,
+        textColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+        textXAlignment = <span class="syn-string">&quot;left&quot;</span>,
+        textSize = <span class="syn-num">14</span>,
+        text = <span class="syn-string">&quot;&quot;</span>,
+    })
+<span class="syn-keyword">end</span>
+
+task.<span class="syn-func">every</span>(<span class="syn-num">5</span>, <span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> top = scores:<span class="syn-func">getSorted</span>(<span class="syn-const">false</span>, <span class="syn-num">10</span>)
+    <span class="syn-keyword">for</span> place, label <span class="syn-keyword">in</span> rows <span class="syn-keyword">do</span>
+        <span class="syn-keyword">local</span> row = top[place]
+        label.text = <span class="syn-keyword">if</span> row <span class="syn-keyword">then</span> place .. <span class="syn-string">&quot;. &quot;</span> .. row.key .. <span class="syn-string">&quot;  &quot;</span> .. row.value <span class="syn-keyword">else</span> <span class="syn-string">&quot;&quot;</span>
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)
+
+<span class="syn-comment">-- somewhere in the game, when a round is won</span>
+scores:<span class="syn-func">increment</span>(winner.name, <span class="syn-num">1</span>)</code></pre></div></div>
+<ul>
+<li>The gui goes in a <code>StarterGui</code>, so every player who joins gets a copy of it. See
+  <a href="containers.html">Containers</a> and <a href="interface.html">Interface</a>.</li>
+<li>The ten labels are made once and kept in <code>rows</code>. The refresh only writes their <code>text</code>, which is
+  cheaper than building the list again every five seconds.</li>
+<li><code>task.every(5, ...)</code> runs the refresh every five seconds. The server writes the labels and the
+  change reaches every player the way any other property change does, with no message of your own.</li>
+<li>A row that does not exist yet, because fewer than ten people have scored, gets an empty string, so
+  the panel keeps its shape.</li>
+</ul>
+<h2 id="gamepersist">game.persist<a class="anchor" href="#gamepersist" title="Permanent link">#</a></h2>
+<p><code>game.persist</code> is a plain table the engine hands back after a hot reload. Saving a file destroys
+everything the place created and runs it again, and <code>game.persist</code> is what survives that. It does not
+survive the server stopping.</p>
+<p>Use it for things that only matter while the server is up, such as the round number or how many times
+someone has joined this session. Anything that has to be there tomorrow goes in a store. For data several scripts share, that should
+expire on its own, see <a href="memory.html">Memory stores</a>.</p>
+<div class="demo" data-demo="saving-persist"></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="math.html"><span>Previous</span>Math</a><a class="next" href="memory.html"><span>Next</span>Memory stores</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#sessions">Sessions</a></li><li><a href="#ordered-stores">Ordered stores</a></li><li><a href="#gamepersist">game.persist</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

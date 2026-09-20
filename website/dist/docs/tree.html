@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Working with the tree | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html" class="active"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="working-with-the-tree">Working with the tree<a class="anchor" href="#working-with-the-tree" title="Permanent link">#</a></h1>
+<p>Everything a place creates lives in one tree of instances, and every instance has a name, a parent
+and any number of children. This page covers the calls that read that tree: finding an instance
+again, hearing when one arrives or leaves, waiting for one that has not been made yet, and copying
+one. See <a href="instances.html">Instances</a> for what an instance is and how you create one.</p>
+<h2 id="finding">Finding<a class="anchor" href="#finding" title="Permanent link">#</a></h2>
+<p>You reach an instance by asking one above it. Each of these starts from the instance you call it on
+and searches somewhere below or above it.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code>world:<span class="syn-func">find</span>(<span class="syn-string">&quot;statue&quot;</span>)                        <span class="syn-comment">-- a direct child, or nil</span>
+world:<span class="syn-func">findFirstDescendant</span>(<span class="syn-string">&quot;statue&quot;</span>)         <span class="syn-comment">-- anywhere below</span>
+world:<span class="syn-func">descendants</span>()  world:<span class="syn-func">descendants</span>(<span class="syn-string">&quot;Part&quot;</span>)
+folder:<span class="syn-func">childrenOfClass</span>(<span class="syn-string">&quot;Light&quot;</span>)
+limb:<span class="syn-func">firstAncestorOfClass</span>(<span class="syn-string">&quot;Character&quot;</span>)
+limb:<span class="syn-func">firstAncestor</span>(<span class="syn-string">&quot;enemies&quot;</span>)
+part:<span class="syn-func">isDescendantOf</span>(world)
+world:<span class="syn-func">byTag</span>(<span class="syn-string">&quot;lava&quot;</span>)                         <span class="syn-comment">-- tagged instances under this one</span>
+folder:<span class="syn-func">firstChildOfClass</span>(<span class="syn-string">&quot;Part&quot;</span>)            <span class="syn-comment">-- the first child that is a part, or nil</span>
+folder:<span class="syn-func">firstChildOfClass</span>(<span class="syn-string">&quot;Part&quot;</span>, <span class="syn-const">true</span>)      <span class="syn-comment">-- the same, searching every level below</span>
+world:<span class="syn-func">isAncestorOf</span>(part)                    <span class="syn-comment">-- the other way round from isDescendantOf</span>
+chair:<span class="syn-func">getFullName</span>()                         <span class="syn-comment">-- &quot;World.map.room.chair&quot;</span></code></pre></div></div>
+<ul>
+<li><strong><code>find</code></strong> looks at the direct children only and gives you <code>nil</code> when there is no child by that
+  name. It is the one you reach for most, and it is what you call each time you need the instance
+  rather than keeping it in a variable across a reload.</li>
+<li><strong><code>findFirstDescendant</code></strong> keeps going down through every level, so it finds a part buried inside a
+  model without you naming each folder on the way.</li>
+<li><strong><code>descendants</code></strong> hands back everything below, and with a class name it hands back only instances of
+  that class. <strong><code>childrenOfClass</code></strong> does the same one level down.</li>
+<li><strong><code>firstAncestor</code></strong> and <strong><code>firstAncestorOfClass</code></strong> search upwards. From a limb,
+  <code>firstAncestorOfClass("Character")</code> gets you the body it belongs to, which is how a touch handler
+  works out who stepped on something.</li>
+<li><strong><code>isDescendantOf</code></strong> and <strong><code>isAncestorOf</code></strong> answer the same question from the two ends. Use them to
+  check where something ended up, such as whether a coin is now inside a backpack.</li>
+<li><strong><code>byTag</code></strong> gathers every tagged instance below this one. Tags are set in the editor or from a
+  script, and they are covered in
+  <a href="zones-and-triggers.html">Zones, touches, tags, prompts and clicks</a>.</li>
+<li><strong><code>firstChildOfClass</code></strong> gives the first child of a class, or <code>nil</code>. Pass <code>true</code> as the second
+  argument and it searches every level below instead of only the children.</li>
+</ul>
+<p><code>getFullName</code> joins every name from the root down with <code>.</code>. Use it in a log line or an error message.
+Two siblings can share a name, so the string it hands you is not enough to find the instance again.</p>
+<div class="demo" data-demo="tree-finding"></div>
+<h2 id="clearing">Clearing<a class="anchor" href="#clearing" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>folder:<span class="syn-func">clearAllChildren</span>()                   <span class="syn-comment">-- destroys every child, keeps the folder</span></code></pre></div></div>
+<p>The folder itself stays where it is, so anything holding onto it keeps working. Every child is
+destroyed, along with everything inside those children.</p>
+<h2 id="hierarchy-signals">Hierarchy signals<a class="anchor" href="#hierarchy-signals" title="Permanent link">#</a></h2>
+<p>Instead of checking the tree every tick, connect to the signal that fires when it changes.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>map.descendantAdded:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(instance) <span class="syn-keyword">end</span>)      <span class="syn-comment">-- anything arrives anywhere below</span>
+map.descendantRemoving:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(instance) <span class="syn-keyword">end</span>)   <span class="syn-comment">-- before it leaves, still in place</span>
+coin.ancestryChanged:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(child, parent) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>descendantAdded</code> fires for something made below and for something moved in from elsewhere. A
+  folder moved in fires it for the folder and then for each thing inside it.</li>
+<li><code>descendantRemoving</code> fires for something destroyed or moved out, while it is still there to read.
+  That is the moment to read its name or its position, because a tick later there is nothing to read.</li>
+<li><code>ancestryChanged</code> fires on the instance that moved and on everything under it. <code>child</code> is the one
+  that moved and <code>parent</code> is where it went.</li>
+<li>Destroying fires <code>ancestryChanged</code> on each destroyed instance with itself and <code>nil</code>, children
+  first.</li>
+</ul>
+<p>Because a destroy arrives as <code>ancestryChanged</code> with a <code>nil</code> parent, a handler that only cares about
+moves checks for that first:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>coin.ancestryChanged:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(child, parent)
+    <span class="syn-keyword">if</span> parent == <span class="syn-const">nil</span> <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>                      <span class="syn-comment">-- destroyed</span>
+    <span class="syn-keyword">if</span> backpack:<span class="syn-func">isAncestorOf</span>(coin) <span class="syn-keyword">then</span> <span class="syn-func">print</span>(<span class="syn-string">&quot;picked up&quot;</span>) <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<div class="demo" data-demo="tree-signals"></div>
+<h2 id="queries">Queries<a class="anchor" href="#queries" title="Permanent link">#</a></h2>
+<p><code>query</code> finds instances with a short selector, the way CSS finds elements. It searches everything
+below the instance you call it on and hands back a list; <code>queryFirst</code> stops at the first match.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code>world:<span class="syn-func">query</span>(<span class="syn-string">&quot;Part&quot;</span>)                              <span class="syn-comment">-- every part (and subclasses)</span>
+world:<span class="syn-func">query</span>(<span class="syn-string">&quot;Part.lava&quot;</span>)                         <span class="syn-comment">-- parts tagged lava</span>
+world:<span class="syn-func">query</span>(<span class="syn-string">&quot;#door&quot;</span>)                             <span class="syn-comment">-- anything named door</span>
+world:<span class="syn-func">query</span>(<span class="syn-string">&quot;Folder#enemies &gt; Character&quot;</span>)        <span class="syn-comment">-- characters directly inside the enemies folder</span>
+world:<span class="syn-func">query</span>(<span class="syn-string">&quot;Model Part[anchored=false]&quot;</span>)        <span class="syn-comment">-- unanchored parts anywhere under a model</span>
+world:<span class="syn-func">query</span>(<span class="syn-string">&quot;Light[brightness&gt;=2]&quot;</span>)
+world:<span class="syn-func">queryFirst</span>(<span class="syn-string">&quot;SpotLight.stage&quot;</span>)</code></pre></div></div>
+<p>The parts of a selector:</p>
+<ul>
+<li>A class name on its own matches instances of that class. <code>*</code> is any class, and a class matches its
+  subclasses, so <code>Part</code> also picks up the classes that extend it.</li>
+<li><code>.name</code> after a class matches a tag, and <code>#name</code> matches the instance's name.</li>
+<li>A space means anywhere below, and <code>&gt;</code> means directly below. <code>Folder#enemies &gt; Character</code> reads as
+  "a Character whose parent is the folder named enemies".</li>
+<li><code>[property=value]</code> compares numbers, booleans, text, enum names and references (by name). <code>!=</code>,
+  <code>&lt;</code>, <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code> work on numbers.</li>
+</ul>
+<div class="demo" data-demo="selector"></div>
+<h2 id="waiting-and-watching">Waiting and watching<a class="anchor" href="#waiting-and-watching" title="Permanent link">#</a></h2>
+<p>A script that runs before an instance exists cannot find it. These two calls let you say what to do
+when it turns up.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> door = world:<span class="syn-func">waitForChild</span>(<span class="syn-string">&quot;door&quot;</span>, <span class="syn-num">5</span>)   <span class="syn-comment">-- nil after 5 seconds; waits, so inside task.spawn</span>
+<span class="syn-keyword">end</span>)
+world:<span class="syn-func">onChild</span>(<span class="syn-string">&quot;door&quot;</span>, <span class="syn-keyword">function</span>(door) <span class="syn-keyword">end</span>)        <span class="syn-comment">-- every door, the one there now and later ones</span></code></pre></div></div>
+<ul>
+<li><code>waitForChild</code> yields until the child appears and hands it back. The second argument is how many
+  seconds to wait before giving up and returning <code>nil</code>. Because it yields, it goes inside a
+  <code>task.spawn</code> rather than in the body of a script. See <a href="tweens-and-timing.html">Tweens and timing</a>.</li>
+<li><code>onChild</code> runs your function for the child that is already there and again for every later one, so
+  you write the handling once and it covers both.</li>
+</ul>
+<div class="demo" data-demo="tree-wait"></div>
+<h2 id="values">Values<a class="anchor" href="#values" title="Permanent link">#</a></h2>
+<p>A value instance holds one number or one piece of text in the tree, where both sides can see it and
+scripts can watch it change.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>stats:<span class="syn-func">add</span>(<span class="syn-string">&quot;NumberValue&quot;</span>, { name = <span class="syn-string">&quot;coins&quot;</span>, value = <span class="syn-num">10</span> })
+stats:<span class="syn-func">add</span>(<span class="syn-string">&quot;StringValue&quot;</span>, { name = <span class="syn-string">&quot;rank&quot;</span>, value = <span class="syn-string">&quot;gold&quot;</span> })
+<span class="syn-func">print</span>(stats:<span class="syn-func">values</span>().coins)                      <span class="syn-comment">-- { coins = 10, rank = &quot;gold&quot; }</span></code></pre></div></div>
+<p><code>values()</code> reads the value instances inside and hands back a plain Luau table keyed by their names,
+so one call gets you the lot instead of a <code>find</code> each.</p>
+<h2 id="copies">Copies<a class="anchor" href="#copies" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> second = car:<span class="syn-func">clone</span>()                       <span class="syn-comment">-- beside the original</span>
+<span class="syn-keyword">local</span> third = car:<span class="syn-func">clone</span>(garage)                  <span class="syn-comment">-- under another parent</span></code></pre></div></div>
+<p><code>clone</code> copies the instance and everything inside it. With no argument the copy lands beside the
+original, under the same parent; pass a parent and it lands there instead.</p>
+<p>The copy is announced once, finished, where it lands: <code>childAdded</code> on the new parent fires with the
+copy, and <code>descendantAdded</code> fires for it and everything inside it. Nothing fires while the copy is
+being built, so a handler never sees a half-made car and never hears about the folder the engine
+built it in.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Cloning into something that has been destroyed is an error. When you keep a parent in a variable
+across a reload, look it up again before you clone into it.</p></div></div>
+<div class="demo" data-demo="tree-clone"></div>
+<h2 id="callbacks">Callbacks<a class="anchor" href="#callbacks" title="Permanent link">#</a></h2>
+<p>Some classes ask a place a question, like <code>TextChannel.shouldDeliver</code>. Assign a function to answer
+it, or <code>nil</code> to go back to the engine's answer:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>general.shouldDeliver = <span class="syn-keyword">function</span>(message, source) <span class="syn-keyword">return</span> <span class="syn-const">true</span> <span class="syn-keyword">end</span>
+general.shouldDeliver = <span class="syn-const">nil</span></code></pre></div></div>
+<p>A callback that errors is reported and the engine uses its own answer. The callbacks a class has are
+listed with that class: <code>shouldDeliver</code> is covered in <a href="chat.html">Chat</a>.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="instances.html"><span>Previous</span>Instances</a><a class="next" href="character.html"><span>Next</span>Characters</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#finding">Finding</a></li><li><a href="#clearing">Clearing</a></li><li><a href="#hierarchy-signals">Hierarchy signals</a></li><li><a href="#queries">Queries</a></li><li><a href="#waiting-and-watching">Waiting and watching</a></li><li><a href="#values">Values</a></li><li><a href="#copies">Copies</a></li><li><a href="#callbacks">Callbacks</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

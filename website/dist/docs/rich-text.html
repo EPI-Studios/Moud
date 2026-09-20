@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rich text | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html" class="active"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Screen and sound</span></nav>
+    <article class="doc">
+<h1 id="rich-text">Rich text<a class="anchor" href="#rich-text" title="Permanent link">#</a></h1>
+<p>Rich text is text with tags in it. You write the tags inside the string, and the engine draws the
+result: bold words, coloured names, letters that wave, a tooltip, an item icon. Chat messages,
+prefixes and speech bubbles are all drawn this way, so anywhere <a href="chat.html">chat</a> takes a string, it
+takes these tags.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>game.chat:<span class="syn-func">system</span>(<span class="syn-string">&quot;&lt;color=gold&gt;&lt;b&gt;meek&lt;/b&gt;&lt;/color&gt; joined&quot;</span>)</code></pre></div></div>
+<p>A tag that is not one of these is shown as text, so a stray <code>&lt;</code> is never eaten. <code>\&lt;</code> and <code>&amp;lt;</code> are
+always a plain <code>&lt;</code>; <code>&amp;gt;</code>, <code>&amp;amp;</code>, <code>&amp;quot;</code> and <code>&amp;apos;</code> work too. Tags close by name: <code>&lt;/b&gt;</code>
+closes the nearest open <code>&lt;b&gt;</code> and everything opened inside it.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>Because unknown tags are shown rather than swallowed, a player typing <code>&lt;3</code> sees <code>&lt;3</code>. A channel
+decides which tags its members may actually use through its <code>richText</code> property, so letting people
+type does not let them paint. See <a href="chat.html">Chat</a>.</p></div></div>
+<h2 id="style">Style<a class="anchor" href="#style" title="Permanent link">#</a></h2>
+<p>These change how the letters look. They nest, so <code>&lt;b&gt;&lt;color=red&gt;</code> gives you bold red text:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Tag</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;b&gt;</code> <code>&lt;i&gt;</code> <code>&lt;u&gt;</code> <code>&lt;s&gt;</code></td>
+<td>bold, italic, underline, strikethrough</td>
+</tr>
+<tr>
+<td><code>&lt;obf&gt;</code></td>
+<td>scrambled letters</td>
+</tr>
+<tr>
+<td><code>&lt;uc&gt;</code> / <code>&lt;uppercase&gt;</code></td>
+<td>upper case</td>
+</tr>
+<tr>
+<td><code>&lt;sc&gt;</code> / <code>&lt;smallcaps&gt;</code></td>
+<td>small capitals</td>
+</tr>
+<tr>
+<td><code>&lt;br/&gt;</code></td>
+<td>a line break</td>
+</tr>
+<tr>
+<td><code>&lt;!-- ... --&gt;</code></td>
+<td>hidden</td>
+</tr>
+<tr>
+<td><code>&lt;color=#ff8800&gt;</code></td>
+<td>colour: <code>#rgb</code>, <code>#rrggbb</code>, <code>#rrggbbaa</code>, or <code>red</code>, <code>gold</code>, <code>aqua</code>... (the game's sixteen)</td>
+</tr>
+<tr>
+<td><code>&lt;font color="#fff" size="1.5" face="minecraft:uniform" transparency="0.2"&gt;</code></td>
+<td>several at once</td>
+</tr>
+<tr>
+<td><code>&lt;size=1.5&gt;</code></td>
+<td>size, relative to the text around it</td>
+</tr>
+<tr>
+<td><code>&lt;alpha=0.5&gt;</code> / <code>&lt;transparency=0.5&gt;</code></td>
+<td>fade</td>
+</tr>
+<tr>
+<td><code>&lt;stroke color="#000" thickness="1"&gt;</code></td>
+<td>outline</td>
+</tr>
+<tr>
+<td><code>&lt;mark color="#ffff0066"&gt;</code></td>
+<td>highlight behind the text</td>
+</tr>
+<tr>
+<td><code>&lt;shadow&gt;</code> / <code>&lt;shadow color="#400"&gt;</code> / <code>&lt;noshadow&gt;</code></td>
+<td>drop shadow</td>
+</tr>
+<tr>
+<td><code>&lt;gradient from="#f00" to="#00f"&gt;</code> or <code>&lt;gradient=#f00,#00f&gt;</code></td>
+<td>colour across the text</td>
+</tr>
+<tr>
+<td><code>&lt;rainbow&gt;</code> / <code>&lt;rainbow speed="2"&gt;</code></td>
+<td>moving rainbow</td>
+</tr>
+</tbody>
+</table></div>
+<p>A few of them are worth knowing before you reach for the others:</p>
+<ul>
+<li><code>&lt;color&gt;</code> accepts hex with or without alpha, and the sixteen names the game already uses, so
+  <code>&lt;color=gold&gt;</code> matches vanilla gold exactly.</li>
+<li><code>&lt;size&gt;</code> is a multiple of the surrounding text's size, so <code>1.5</code> stays proportionate inside a small
+  bubble and inside a chat line.</li>
+<li><code>&lt;font&gt;</code> sets colour, size, face and transparency in one tag, which saves nesting four of them.</li>
+<li><code>&lt;!-- ... --&gt;</code> is hidden in the drawn message. Use it to leave a note in a string a script builds.</li>
+</ul>
+<div class="demo" data-demo="richtext"></div>
+<h2 id="moving-text">Moving text<a class="anchor" href="#moving-text" title="Permanent link">#</a></h2>
+<p>These animate the letters. Each takes <code>strength</code> and <code>speed</code>: <code>&lt;wave strength=2 speed=1&gt;</code>. They
+stack, so <code>&lt;wave&gt;&lt;rainbow&gt;</code> gives you letters that bob and change colour at the same time.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;wave&gt;</code></td>
+<td>letters bob in a wave</td>
+</tr>
+<tr>
+<td><code>&lt;bounce&gt;</code></td>
+<td>letters hop</td>
+</tr>
+<tr>
+<td><code>&lt;shake&gt;</code></td>
+<td>letters jitter</td>
+</tr>
+<tr>
+<td><code>&lt;pulse&gt;</code></td>
+<td>the text breathes in and out</td>
+</tr>
+<tr>
+<td><code>&lt;fade&gt;</code></td>
+<td>letters fade in a wave</td>
+</tr>
+<tr>
+<td><code>&lt;spin&gt;</code></td>
+<td>letters turn</td>
+</tr>
+</tbody>
+</table></div>
+<div class="demo" data-demo="rich-text-moving"></div>
+<h2 id="links-and-hover">Links and hover<a class="anchor" href="#links-and-hover" title="Permanent link">#</a></h2>
+<p>These make part of a message do something when the player clicks it or points at it:</p>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code>&lt;click run=&quot;/spawn&quot;&gt;spawn&lt;/click&gt;          runs a command, or sends the text when it has no /
+&lt;click suggest=&quot;/msg Meek &quot;&gt;reply&lt;/click&gt;  puts it in the chat box
+&lt;click url=&quot;https://example.com&quot;&gt;site&lt;/click&gt;   asks before opening
+&lt;click copy=&quot;ABC-123&quot;&gt;code&lt;/click&gt;         copies to the clipboard
+&lt;click callback=&quot;accept&quot;&gt;accept&lt;/click&gt;    fires game.chat.linkClicked(&quot;accept&quot;, message)
+&lt;hover text=&quot;&lt;b&gt;Meek&lt;/b&gt; is online&quot;&gt;Meek&lt;/hover&gt;   a tooltip, itself rich text
+&lt;body id=42&gt;Meek&lt;/body&gt;                    fires game.chat.bodyClicked(body, message)</code></pre></div></div>
+<ul>
+<li><code>run</code> and <code>suggest</code> are the two chat-box ones: <code>run</code> acts straight away, <code>suggest</code> fills the box
+  and waits for the player.</li>
+<li><code>url</code> never opens anything by itself. The player is asked first.</li>
+<li><code>callback</code> is the one to use for your own interface. The click fires <code>game.chat.linkClicked</code> on the
+  client with the name you gave and the message it came from, so one message can carry an <strong>accept</strong>
+  and a <strong>decline</strong> that your script tells apart by name.</li>
+<li><code>&lt;body id=42&gt;</code> fires <code>game.chat.bodyClicked</code> with the body, which is how a name in a message
+  becomes something a player can click to open a profile or a trade.</li>
+<li>The text inside <code>hover</code> is rich text as well, so a tooltip can be bold and coloured.</li>
+</ul>
+<div class="demo" data-demo="rich-text-links"></div>
+<h2 id="pictures">Pictures<a class="anchor" href="#pictures" title="Permanent link">#</a></h2>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>&lt;img src=&quot;res://icons/crown.png&quot; size=&quot;1&quot;/&gt;          size in lines; or width and height
+&lt;item id=&quot;minecraft:diamond_sword&quot; count=&quot;1&quot;/&gt;       the item&#x27;s icon, with its tooltip on hover</code></pre></div></div>
+<p><code>img</code> sizes in lines of text rather than pixels, so a <code>size="1"</code> icon matches the line it sits on.
+<code>item</code> draws a real Minecraft item, and pointing at it shows that item's own tooltip, count included.</p>
+<h2 id="custom-text-shaders">Custom text shaders<a class="anchor" href="#custom-text-shaders" title="Permanent link">#</a></h2>
+<p>When none of the tags above draw what you want, you can write the drawing yourself. A
+<code>ChatTextShader</code> names a GLSL file. Text wrapped in <code>&lt;shader=name&gt;</code> is drawn through it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>world:<span class="syn-func">add</span>(<span class="syn-string">&quot;ChatTextShader&quot;</span>, { name = <span class="syn-string">&quot;glow&quot;</span>, shader = <span class="syn-string">&quot;res://chat/glow.glsl&quot;</span> })
+game.chat:<span class="syn-func">system</span>(<span class="syn-string">&quot;&lt;shader=glow&gt;LEGENDARY&lt;/shader&gt; item found&quot;</span>)</code></pre></div></div>
+<p>The instance's <code>name</code> is what <code>&lt;shader=...&gt;</code> looks for, and <code>shader</code> is the path to the file.</p>
+<div class="doc-code"><span class="code-lang">glsl</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>// res://chat/glow.glsl
+vec4 textColor(vec4 color, vec2 uv, vec2 glyph, float time) {
+    float pulse = 0.75 + 0.25 * sin(time * 4.0 + uv.x * 20.0);
+    return vec4(color.rgb * vec3(1.0, 0.85, 0.3) * pulse * 1.4, color.a);
+}</code></pre></div></div>
+<p>The file defines one function, <code>textColor</code>, and it returns the colour to draw with:</p>
+<ul>
+<li><code>color</code> is the glyph's colour, which is what the tags around it worked out.</li>
+<li><code>uv</code> is where on the screen it is.</li>
+<li><code>glyph</code> is where inside the letter, 0 to 1.</li>
+<li><code>time</code> is seconds, which is what you drive an animation with.</li>
+</ul>
+<div class="demo" data-demo="rich-text-shader"></div>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>Saving the file recompiles it, so you can leave the game open, change a number in the shader, and
+see the next message drawn with it.</p></div></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="chat.html"><span>Previous</span>Chat</a><a class="next" href="images.html"><span>Next</span>Images</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#style">Style</a></li><li><a href="#moving-text">Moving text</a></li><li><a href="#links-and-hover">Links and hover</a></li><li><a href="#pictures">Pictures</a></li><li><a href="#custom-text-shaders">Custom text shaders</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Queries | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html" class="active"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="queries">Queries<a class="anchor" href="#queries" title="Permanent link">#</a></h1>
+<p>A query is a question you ask the engine about space: what a ray hits, which parts sit inside a box,
+how far the ground is under a point. You ask it of an instance, and it only looks at that instance
+and everything under it. Asked of <code>game.world</code> it looks at the whole place, and rays also stop at the
+level's solid blocks.</p>
+<p>Queries are how a gun decides what it shot, how a door knows somebody is standing in front of it, and
+how a script places a crate on the ground instead of inside it.</p>
+<h2 id="how-fast-they-are">How fast they are<a class="anchor" href="#how-fast-they-are" title="Permanent link">#</a></h2>
+<p>Every part in a tree is kept in a spatial grid. A query only tests the parts near what it asks about,
+never every part in the place. The grid refreshes lazily: a write marks the branch that moved, and
+the next query updates just that branch. You do not maintain any of this, and you do not have to keep
+your own list of nearby parts.</p>
+<p>A query asked again with the same arguments while nothing in the tree has changed returns the answer
+it got the first time. A place asking the same question from several scripts in one frame pays for it
+once, so you can call <code>world:partsInRadius</code> from three different systems without three searches.</p>
+<p><code>game.debug:queryStats()</code> tells you how many queries ran and how many parts they tested since you
+last asked. See <a href="debug.html">Debugging</a>.</p>
+<h2 id="casts">Casts<a class="anchor" href="#casts" title="Permanent link">#</a></h2>
+<p>A cast sends a shape along a direction and hands back the first thing it meets. <code>raycast</code> sends a
+line, and the other three send a volume, which is what you want when the thing you are testing is not
+a point:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">local</span> part, at, distance, normal, block = world:<span class="syn-func">raycast</span>(from, direction, <span class="syn-num">100</span>, options)
+<span class="syn-keyword">local</span> part, at, distance, normal = world:<span class="syn-func">spherecast</span>(from, <span class="syn-num">0.5</span>, direction, <span class="syn-num">40</span>, options)
+<span class="syn-keyword">local</span> part, at, distance, normal = world:<span class="syn-func">blockcast</span>(<span class="syn-func">cframe</span>(from), <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">2</span>, <span class="syn-num">1</span>), direction, <span class="syn-num">40</span>, options)
+<span class="syn-keyword">local</span> part, at, distance, normal = world:<span class="syn-func">capsulecast</span>(from, to, <span class="syn-num">0.4</span>, options)</code></pre></div></div>
+<p>Each one returns the part it hit, the point it hit at, how far along that was, and the surface normal
+there. When nothing was hit, the part is <code>nil</code>.</p>
+<ul>
+<li><code>direction</code> does not need to be unit length; <code>range</code> defaults to 100.</li>
+<li>A ray starting inside a part passes out of it, so a cast from inside a player's own body does not
+  immediately hit that body.</li>
+<li>A cast meets a <a href="physics.html#shapes">shaped part</a> where its shape really is. <code>blockcast</code> is the one
+  exception: it tests the box around the shape.</li>
+<li>Asked of the world, a ray that hits a block returns <code>nil</code> for the part and the block's id, like
+  <code>minecraft:stone</code>, as the fifth value, so a ray that comes back with no part still tells you what
+  it stopped against.</li>
+</ul>
+<div class="demo" data-demo="raycast"></div>
+<p><strong>Every hit</strong> along a ray, nearest first. Use this when a shot goes through glass, or when you want
+each part in a line rather than only the closest:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">for</span> _, hit <span class="syn-keyword">in</span> world:<span class="syn-func">raycastAll</span>(from, direction, <span class="syn-num">50</span>) <span class="syn-keyword">do</span>
+    <span class="syn-func">print</span>(hit.part.name, hit.position, hit.distance, hit.normal)
+<span class="syn-keyword">end</span>
+<span class="syn-comment">-- partsAlongRay is the same thing</span></code></pre></div></div>
+<p>Each entry is a table with <code>part</code>, <code>position</code>, <code>distance</code> and <code>normal</code>, the same four values a single
+cast returns.</p>
+<p><strong>Many rays</strong> in one call. Each entry is <code>{ from, direction, range? }</code>; a miss is <code>false</code>:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> hits = world:<span class="syn-func">raycastMany</span>({ { eye, dir1, <span class="syn-num">30</span> }, { eye, dir2, <span class="syn-num">30</span> } }, { exclude = { body } })</code></pre></div></div>
+<p>The answers come back in the order you asked them, so <code>hits[1]</code> belongs to the first ray. A shotgun
+that fires eight pellets is one call instead of eight.</p>
+<p><strong>A part's own box</strong> swept along a direction, never hitting itself:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> hit, at, distance = world:<span class="syn-func">sweep</span>(crate, <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), <span class="syn-num">5</span>)</code></pre></div></div>
+<p>That answers "how far can this crate slide before it runs into something", which is the question a
+pushing or sliding script actually has.</p>
+<h2 id="overlaps">Overlaps<a class="anchor" href="#overlaps" title="Permanent link">#</a></h2>
+<p>An overlap asks which parts are inside a region right now, without moving anything along a direction:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>world:<span class="syn-func">partsInBox</span>(<span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>), <span class="syn-func">vec3</span>(<span class="syn-num">4</span>, <span class="syn-num">4</span>, <span class="syn-num">4</span>), options)
+world:<span class="syn-func">partsInRadius</span>(position, <span class="syn-num">6</span>, options)
+world:<span class="syn-func">partsInPart</span>(zonePart, options)
+world:<span class="syn-func">partsAtPoint</span>(position, options)       <span class="syn-comment">-- the parts a point is inside</span></code></pre></div></div>
+<ul>
+<li><code>partsInBox</code> takes a frame and a size, so the box can be turned.</li>
+<li><code>partsInRadius</code> takes a centre and a distance in metres.</li>
+<li><code>partsInPart</code> uses an existing part as the region, which is the usual way to write a trigger volume
+  you can see and move in the editor.</li>
+<li><code>partsAtPoint</code> answers whether a single position is inside anything.</li>
+</ul>
+<h2 id="options">Options<a class="anchor" href="#options" title="Permanent link">#</a></h2>
+<p>Every cast and overlap takes the same table as its last argument. Leave it out and the query tests
+everything under the instance you asked:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>exclude = { ... }</code></td>
+<td>skip these instances and everything under them</td>
+</tr>
+<tr>
+<td><code>include = { ... }</code></td>
+<td>only these instances and everything under them</td>
+</tr>
+<tr>
+<td><code>respectCollides = true</code></td>
+<td>skip parts with <code>collides = false</code></td>
+</tr>
+<tr>
+<td><code>collisionGroup = "players"</code></td>
+<td>skip parts that group passes through</td>
+</tr>
+<tr>
+<td><code>tag = "enemy"</code></td>
+<td>only parts with this tag</td>
+</tr>
+<tr>
+<td><code>className = "MeshPart"</code></td>
+<td>only parts of this class or a subclass</td>
+</tr>
+<tr>
+<td><code>limit = 5</code></td>
+<td>at most this many results (overlaps, <code>raycastAll</code>)</td>
+</tr>
+<tr>
+<td><code>sorted = true</code></td>
+<td>nearest first (overlaps)</td>
+</tr>
+<tr>
+<td><code>ignoreBlocks = true</code></td>
+<td>a world ray ignores blocks</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>exclude = { body }</code> is the one you reach for most: it keeps a player's own shot from hitting the
+player who fired it.</p>
+<div class="demo" data-demo="queries-overlap"></div>
+<p>A part with <code>visible = false</code> or <code>canQuery = false</code> is never found. A zone that should be found but
+not seen uses <code>transparency = 1</code> instead.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>A part kept in <code>ServerStorage</code>, <code>ServerScriptService</code>, <code>ReplicatedStorage</code>, <code>StarterPack</code>,
+<code>StarterCharacterScripts</code> or a backpack is not in the world, so no query asked of <code>game.world</code>
+finds it. Asking the container itself, or something inside it, still finds what is in there. The
+same goes for a part inside a viewport frame. See <a href="containers.html">Containers</a>.</p></div></div>
+<h2 id="helpers">Helpers<a class="anchor" href="#helpers" title="Permanent link">#</a></h2>
+<p>These are the questions places ask often enough that the engine answers them directly, instead of
+making you cast and sort the results yourself:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-keyword">local</span> part, distance = world:<span class="syn-func">nearestPart</span>(position, <span class="syn-num">20</span>, options)
+<span class="syn-keyword">local</span> lava, distance = world:<span class="syn-func">nearestTagged</span>(position, <span class="syn-string">&quot;lava&quot;</span>, <span class="syn-num">50</span>)
+
+<span class="syn-keyword">local</span> height, normal = world:<span class="syn-func">groundAt</span>(x, z)       <span class="syn-comment">-- the top of whatever is under a column, parts or blocks</span>
+<span class="syn-keyword">local</span> normal = world:<span class="syn-func">surfaceNormal</span>(position)
+<span class="syn-keyword">local</span> rows = world:<span class="syn-func">heightmap</span>(<span class="syn-func">vec3</span>(-<span class="syn-num">10</span>, <span class="syn-num">0</span>, -<span class="syn-num">10</span>), <span class="syn-func">vec3</span>(<span class="syn-num">10</span>, <span class="syn-num">0</span>, <span class="syn-num">10</span>), <span class="syn-num">1</span>)   <span class="syn-comment">-- rows[z][x], nil where empty</span>
+
+<span class="syn-keyword">local</span> spot = world:<span class="syn-func">findFreeSpot</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>), <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">2</span>, <span class="syn-num">1</span>), <span class="syn-num">16</span>)
+<span class="syn-comment">-- somewhere a 1x2x1 box fits: not inside a part or solid block, standing on something, nearest first</span>
+
+<span class="syn-keyword">local</span> frame, size = world:<span class="syn-func">boundsOf</span>({ car, trailer })   <span class="syn-comment">-- the box around several instances</span></code></pre></div></div>
+<ul>
+<li><code>nearestPart</code> and <code>nearestTagged</code> take a search distance and hand back the instance and how far
+  away it was, so a monster can find the closest player without you sorting a list.</li>
+<li><code>groundAt</code> answers with the height and the surface normal of the top of the column at x and z. It
+  counts both parts and blocks, which is what you want before you place something on the terrain.</li>
+<li><code>heightmap</code> runs <code>groundAt</code> over a rectangle at a spacing you choose and hands back rows indexed
+  <code>rows[z][x]</code>, with <code>nil</code> where the column was empty.</li>
+<li><code>findFreeSpot</code> is the spawn-point question: give it a starting position, the size of the body or
+  crate, and how far to look, and it returns somewhere that box fits standing on something.</li>
+</ul>
+<p>On a part:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>part:<span class="syn-func">overlapping</span>(options)
+part:<span class="syn-func">closestPoint</span>(position)
+part:<span class="syn-func">contains</span>(position)
+<span class="syn-keyword">local</span> frame, size = part:<span class="syn-func">bounds</span>()        <span class="syn-comment">-- its own turned box</span>
+<span class="syn-keyword">local</span> low, high = part:<span class="syn-func">worldBounds</span>()     <span class="syn-comment">-- the box around it lined up with the world</span></code></pre></div></div>
+<p><code>bounds</code> keeps the part's own rotation, and <code>worldBounds</code> gives you the upright box that encloses it,
+which is the one to compare against another upright box.</p>
+<h2 id="rewinding-for-lag-compensation">Rewinding for lag compensation<a class="anchor" href="#rewinding-for-lag-compensation" title="Permanent link">#</a></h2>
+<p>A player shoots at what they see, and what they see is already a fraction of a second old by the time
+their message reaches the server. Rewinding lets the server test the shot against the world as that
+player saw it.</p>
+<p>The server keeps one second of where every <strong>moving</strong> part was. Parts that never move cost nothing.
+Run queries inside <code>game.history:rewind</code> to test against what a player saw when they acted:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>shoot.onServer:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(body, from, direction)
+    <span class="syn-keyword">local</span> seen = game.history:<span class="syn-func">viewTime</span>(body)       <span class="syn-comment">-- now, minus their round trip and draw delay</span>
+    <span class="syn-keyword">local</span> hit = game.history:<span class="syn-func">rewind</span>(seen, <span class="syn-keyword">function</span>()
+        <span class="syn-keyword">return</span> game.world:<span class="syn-func">raycast</span>(from, direction, <span class="syn-num">100</span>, { exclude = { body } })
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>game.history:viewTime(body)</code> works out which moment that player was looking at, from their round
+  trip and how far ahead the client draws.</li>
+<li><code>game.history:rewind(time, fn)</code> moves the recorded parts back to where they were at that time, runs
+  your function, and puts everything back. Any query you run inside it sees the old positions.</li>
+<li><code>game.history:now()</code> is the server's time on the same clock, for when you want to rewind by a fixed
+  amount instead.</li>
+</ul>
+<div class="demo" data-demo="queries-rewind"></div>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>The client's own claim about when it acted is never trusted. <code>viewTime</code> is worked out on the
+server, so a client that lies about its clock cannot widen its own window.</p></div></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="window.html"><span>Previous</span>Windows</a><a class="next" href="blocks.html"><span>Next</span>Blocks</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#how-fast-they-are">How fast they are</a></li><li><a href="#casts">Casts</a></li><li><a href="#overlaps">Overlaps</a></li><li><a href="#options">Options</a></li><li><a href="#helpers">Helpers</a></li><li><a href="#rewinding-for-lag-compensation">Rewinding for lag compensation</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

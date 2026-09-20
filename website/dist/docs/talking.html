@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Talking across the boundary | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html" class="active"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Scripting</span></nav>
+    <article class="doc">
+<h1 id="talking-across-the-boundary">Talking across the boundary<a class="anchor" href="#talking-across-the-boundary" title="Permanent link">#</a></h1>
+<p>The server owns the tree and each client holds a mirror of it. Property changes travel one way on
+their own, server to client, and nothing a client writes to its own mirror goes anywhere. This page
+is the other direction: how a client tells the server something, how one side asks the other a
+question and waits for the answer, how scripts on one side talk to each other, and how you share a
+value that is not a property of anything.</p>
+<h2 id="a-channel-is-an-instance">A channel is an instance<a class="anchor" href="#a-channel-is-an-instance" title="Permanent link">#</a></h2>
+<p>A <code>Remote</code> is a channel you send messages down. You create one the way you create anything else:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> hit = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Remote&quot;</span>, { name = <span class="syn-string">&quot;hit&quot;</span> })</code></pre></div></div>
+<p>It has a name, a parent and a lifetime. "Does this channel exist" is the same question as "does this
+part exist", and destroying whatever it hangs off closes it. You find it the way you find anything:
+<code>game.world:find("hit")</code>.</p>
+<h2 id="what-a-message-may-carry">What a message may carry<a class="anchor" href="#what-a-message-may-carry" title="Permanent link">#</a></h2>
+<p>A remote refuses any argument it was not told about. <code>accepts</code> lists them in order, and <code>?</code> marks one
+that may be left out:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> pressed = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Remote&quot;</span>, { name = <span class="syn-string">&quot;pressed&quot;</span>, accepts = <span class="syn-string">&quot;string&quot;</span> })
+<span class="syn-keyword">local</span> aim = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Remote&quot;</span>, { name = <span class="syn-string">&quot;aim&quot;</span>, accepts = <span class="syn-string">&quot;vec3, number?&quot;</span> })</code></pre></div></div>
+<ul>
+<li><code>pressed</code> takes one string and nothing else. A client that sends a number down it is refused.</li>
+<li><code>aim</code> takes a <code>vec3</code> and then a number the sender may leave out.</li>
+</ul>
+<p>Kinds: <code>bool</code>, <code>number</code>, <code>string</code>, <code>vec3</code>, <code>quat</code>, <code>cframe</code>, <code>color</code>, <code>udim2</code>, <code>instance</code>, <code>list</code>,
+<code>table</code>. An empty <code>accepts</code> means the message carries nothing.</p>
+<div class="demo" data-demo="talking-accepts"></div>
+<h2 id="sending-a-message-and-hearing-one">Sending a message and hearing one<a class="anchor" href="#sending-a-message-and-hearing-one" title="Permanent link">#</a></h2>
+<p>Each side has its own verb for saying something and its own signal for hearing it, and the two
+directions are not the same shape:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>says</th>
+<th>hears</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>client</td>
+<td><code>remote:fireServer(...)</code></td>
+<td><code>remote.onClient:connect(function(...) end)</code></td>
+</tr>
+<tr>
+<td>server</td>
+<td><code>remote:fireClient(body, ...)</code><br><code>remote:fireAllClients(...)</code></td>
+<td><code>remote.onServer:connect(function(body, ...) end)</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Each verb is refused on the side it doesn't belong to, by name. Calling <code>fireServer</code> on the server is
+a mistake, and being told beats a message that goes nowhere.</p>
+<p>The sender is handed over, never passed. <code>onServer</code> receives the <strong>body</strong> of whoever sent it as its
+first argument, supplied by the engine. A player is addressed by its body here, the same way
+<code>game.players:me()</code> answers with one. A client cannot claim to be somebody else, because it never
+says who it is.</p>
+<p>A player can have no body: before <code>player:spawn()</code> with <code>game.players.autoSpawn = false</code>, or while
+dead. <code>onServer</code> then hands over <code>nil</code>. <code>onServerPlayer</code> fires for the same message with the
+<strong>Player</strong> instead, which always exists:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>play.onServerPlayer:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player, choice)
+    <span class="syn-keyword">if</span> choice == <span class="syn-string">&quot;start&quot;</span> <span class="syn-keyword">then</span> player:<span class="syn-func">spawn</span>() <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Use <code>onServerPlayer</code> whenever the message is about a player rather than about a body, such as a menu
+choice, a settings change, or anything sent before the player has spawned.</p>
+<div class="demo" data-demo="talking-directions"></div>
+<p><code>game.players:list()</code> gives every <code>Player</code>, <code>game.players:byId(player.id)</code> finds one again later, and
+<code>game.players:playerOf(body)</code> turns a body into its player.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Everything <em>after</em> the sender is a claim by the client. Check it before you act on it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>hit.onServer:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(from, what, howHard)
+    <span class="syn-keyword">if</span> <span class="syn-keyword">typeof</span>(what) ~= <span class="syn-string">&quot;string&quot;</span> <span class="syn-keyword">or</span> <span class="syn-keyword">typeof</span>(howHard) ~= <span class="syn-string">&quot;number&quot;</span> <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">if</span> howHard &lt;= <span class="syn-num">0</span> <span class="syn-keyword">or</span> howHard &gt; <span class="syn-num">10</span> <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    from.humanoid.health -= howHard
+<span class="syn-keyword">end</span>)</code></pre></div></div></div></div>
+<h2 id="when-you-dont-care-if-it-arrives">When you don't care if it arrives<a class="anchor" href="#when-you-dont-care-if-it-arrives" title="Permanent link">#</a></h2>
+<p>An <code>UnreliableRemote</code> is a channel that trades ordering and delivery for costing nothing:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> looking = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;UnreliableRemote&quot;</span>, { name = <span class="syn-string">&quot;looking&quot;</span> })</code></pre></div></div>
+<p>Use it for something that is continuously replaced, where the next one is along shortly: a cursor, a
+look direction, a held key. A message that is lost is a frame of staleness and no more.</p>
+<p>Unreliable delivery is its own class rather than a flag on <code>Remote</code>, so a purchase cannot go down an
+unreliable channel because somebody passed the wrong boolean.</p>
+<div class="alert alert-warning"><i class="alert-icon ph-fill ph-warning"></i><div class="alert-body"><p>Never send a score, a payment or anything else that must arrive exactly once down an
+<code>UnreliableRemote</code>. The engine will not tell you when one goes missing.</p></div></div>
+<div class="demo" data-demo="talking-unreliable"></div>
+<h2 id="asking-and-waiting-for-the-answer">Asking and waiting for the answer<a class="anchor" href="#asking-and-waiting-for-the-answer" title="Permanent link">#</a></h2>
+<p>A <code>Remote</code> says something and moves on. A <code>RemoteFunction</code> asks, waits, and hands back what the
+other side returned:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> buy = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;RemoteFunction&quot;</span>, { name = <span class="syn-string">&quot;buy&quot;</span>, accepts = <span class="syn-string">&quot;string&quot;</span> })
+<span class="syn-keyword">local</span> prices = { sword = <span class="syn-num">50</span>, shield = <span class="syn-num">30</span> }
+<span class="syn-keyword">local</span> coins = {}
+
+buy.onServerInvoke = <span class="syn-keyword">function</span>(player, item)
+    <span class="syn-keyword">local</span> price = prices[item]
+    <span class="syn-keyword">if</span> price == <span class="syn-const">nil</span> <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-const">false</span>, <span class="syn-string">&quot;that is not for sale&quot;</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">local</span> have = coins[player.id] <span class="syn-keyword">or</span> <span class="syn-num">0</span>
+    <span class="syn-keyword">if</span> have &lt; price <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-const">false</span>, <span class="syn-string">&quot;you need &quot;</span> .. price - have .. <span class="syn-string">&quot; more coins&quot;</span> <span class="syn-keyword">end</span>
+    coins[player.id] = have - price
+    <span class="syn-keyword">return</span> <span class="syn-const">true</span>, <span class="syn-string">&quot;you bought a &quot;</span> .. item
+<span class="syn-keyword">end</span></code></pre></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- client</span>
+task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> bought, message = game.world.buy:<span class="syn-func">invokeServer</span>(<span class="syn-string">&quot;sword&quot;</span>)
+    <span class="syn-func">print</span>(bought, message)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>onServerInvoke</code> is assigned, not connected. It is one function.</li>
+<li>The handler is handed the <code>Player</code> first, then the arguments the client sent. Both of its returns
+  arrive on the client as the two values <code>invokeServer</code> gives back.</li>
+<li>The client's call sits inside <code>task.spawn</code> because it waits for the answer.</li>
+<li>The prices and the coins live on the server only. The client learns that a sword costs 50 by being
+  told, which is the point of asking rather than deciding locally.</li>
+</ul>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>asks</th>
+<th>answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>client</td>
+<td><code>remote:invokeServer(...)</code></td>
+<td><code>remote.onClientInvoke = function(...) end</code></td>
+</tr>
+<tr>
+<td>server</td>
+<td><code>remote:invokeClient(player, ...)</code></td>
+<td><code>remote.onServerInvoke = function(player, ...) end</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>accepts</code> works the way it does on a <code>Remote</code>, and is checked on both sides. What the handler returns
+is not checked against anything, but it has to be something that <a href="#what-may-cross">may cross</a>.</p>
+<p>The server's handler is handed the Player, the same way <code>onServer</code> is handed the body. A call that
+did not come from a player is refused before your handler runs.</p>
+<p><code>invokeClient</code> takes a <code>Player</code> or a body, and asks that one client. An answer only counts when it
+comes from the player that was asked.</p>
+<p>Invoking waits, so it runs inside a function started with <code>task.spawn</code>. A handler can wait too, with
+<code>task.wait</code> or a signal's <code>wait</code>, and the caller keeps waiting until it returns.</p>
+<p>A handler is one function, not a signal: assigning another replaces it, and <code>nil</code> removes it.</p>
+<h3 id="when-there-is-no-answer">When there is no answer<a class="anchor" href="#when-there-is-no-answer" title="Permanent link">#</a></h3>
+<p>Each of these raises an error in the caller, where <code>pcall</code> catches it:</p>
+<ul>
+<li>the handler errors, and the caller gets its message</li>
+<li>nothing is assigned to <code>onServerInvoke</code> or <code>onClientInvoke</code> on the other side</li>
+<li>the arguments don't match <code>accepts</code>, or the answer can't cross</li>
+<li>no answer arrives within <code>timeout</code> seconds, 30 by default; <code>0</code> waits forever</li>
+<li>the remote function is destroyed while the caller waits</li>
+<li>the script that was answering stops first</li>
+<li><code>invokeClient</code> is asked about a player who has left, or one who leaves before answering. That
+  holds with <code>timeout = 0</code> too: waiting forever means waiting for an answer, not for somebody who
+  is gone.</li>
+<li>the call is over the rate limit, which fails at once with "too many calls" rather than waiting
+  out the timeout</li>
+</ul>
+<p>A client is told <strong>what</strong> went wrong, never where. A server handler that errors sends its message
+across without the file and line it failed on; the server log keeps those.</p>
+<p>A client can close the game or never answer, so the server gives it a timeout and a <code>pcall</code>. Ask each
+player from their own <code>task.spawn</code>, so one slow answer doesn't hold up the rest:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> ready = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;RemoteFunction&quot;</span>, { name = <span class="syn-string">&quot;ready&quot;</span>, accepts = <span class="syn-string">&quot;string&quot;</span>, timeout = <span class="syn-num">10</span> })
+
+<span class="syn-keyword">for</span> _, player <span class="syn-keyword">in</span> game.players:<span class="syn-func">list</span>() <span class="syn-keyword">do</span>
+    task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+        <span class="syn-keyword">local</span> ok, said = <span class="syn-func">pcall</span>(<span class="syn-keyword">function</span>()
+            <span class="syn-keyword">return</span> ready:<span class="syn-func">invokeClient</span>(player, <span class="syn-string">&quot;Start the round?&quot;</span>)
+        <span class="syn-keyword">end</span>)
+        <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> ok <span class="syn-keyword">then</span>
+            <span class="syn-func">print</span>(player.name, <span class="syn-string">&quot;did not answer:&quot;</span>, said)
+        <span class="syn-keyword">elseif</span> said <span class="syn-keyword">then</span>
+            player:<span class="syn-func">spawn</span>()
+        <span class="syn-keyword">end</span>
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- client: label is a TextLabel and yes a TextButton on a screen gui</span>
+game.world.ready.onClientInvoke = <span class="syn-keyword">function</span>(question)
+    label.text = question
+    <span class="syn-keyword">return</span> yes.activated:<span class="syn-func">wait</span>(<span class="syn-num">8</span>) ~= <span class="syn-const">nil</span>
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>The client's handler waits up to eight seconds for the button. <code>wait(8)</code> returns <code>nil</code> when nobody
+presses it, so the handler answers <code>false</code> and the server spawns nobody. The server's own
+<code>timeout = 10</code> covers the case where the client never answers at all.</p>
+<div class="demo" data-demo="talking-ready"></div>
+<p>Calls count against the same limit as messages: 6 per remote per tick from one client. A call past
+it fails straight away with "too many calls", rather than leaving the caller to wait out its
+timeout. Answering a call the server asked for does not count, so a client that is asked ten times
+in a tick can reply to all ten.</p>
+<h2 id="what-may-cross">What may cross<a class="anchor" href="#what-may-cross" title="Permanent link">#</a></h2>
+<p>A number, text, a flag, nothing, a <code>Vector3</code>, a <code>Quat</code>, a <code>CFrame</code>, a <code>Color</code>, an <strong>instance</strong>, and
+lists or text-keyed tables of those.</p>
+<p>An instance crosses as the id it is and is resolved on the far side; one that was destroyed on the way
+arrives as <code>nil</code>, which is the ordinary race and not an error.</p>
+<p>Anything else is an error that names what was allowed: a function, a table with number keys mixed
+with text keys, or an instance one side made locally and the other has never heard of. None of these
+is dropped quietly.</p>
+<p>Limits: 16 arguments, 8 levels of nesting, 256 values per delivery, and 6 deliveries per channel per
+tick from any one client. Past the rate the rest of the tick is dropped and counted.</p>
+<h2 id="messages-between-scripts-on-one-side">Messages between scripts on one side<a class="anchor" href="#messages-between-scripts-on-one-side" title="Permanent link">#</a></h2>
+<p><code>messaging</code> is a topic board. A script publishes to a name, and every script that subscribed to that
+name hears it. Use it when one part of your code wants to say that something happened without
+knowing who is listening.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> subscription = messaging:<span class="syn-func">subscribe</span>(<span class="syn-string">&quot;rounds&quot;</span>, <span class="syn-keyword">function</span>(message)
+    <span class="syn-func">print</span>(<span class="syn-string">&quot;round&quot;</span>, message.name, <span class="syn-string">&quot;in&quot;</span>, message.seconds)
+<span class="syn-keyword">end</span>)
+
+messaging:<span class="syn-func">publish</span>(<span class="syn-string">&quot;rounds&quot;</span>, { name = <span class="syn-string">&quot;final&quot;</span>, seconds = <span class="syn-num">90</span> })
+
+subscription:<span class="syn-func">unsubscribe</span>()</code></pre></div></div>
+<ul>
+<li>Handlers run <strong>in order of subscription, straight away</strong>, inside the <code>publish</code> call. There is no
+  queue and no tick of delay.</li>
+<li>A message is any Luau value: it never leaves the machine, so none of the
+  <a href="#what-may-cross">rules about what may cross</a> apply.</li>
+<li>A topic is one to 1024 letters. An empty one is an error.</li>
+<li>Subscribing twice with the same handler subscribes twice, and each <code>unsubscribe</code> drops one.
+  Unsubscribing something already gone does nothing.</li>
+<li>A subscription made by a <code>Script</code> ends when it is destroyed or disabled, like its signal
+  connections and its <code>task</code> threads.</li>
+</ul>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p><code>messaging</code> does not cross the boundary. The server has one board and each client has its own, so
+a <code>publish</code> on the server is heard by server scripts only. Use a channel for the other side.</p></div></div>
+<p>Moud has one server, so <code>messaging</code> never carries anything between servers. It is only the loose
+coupling: one script saying a thing happened without knowing who is listening.</p>
+<h2 id="shared-state">Shared state<a class="anchor" href="#shared-state" title="Permanent link">#</a></h2>
+<p>A value instance holds one value in the tree, which is how you share a number or a piece of text that
+is not a property of anything:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-keyword">local</span> score = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;NumberValue&quot;</span>, { name = <span class="syn-string">&quot;score&quot;</span> })
+<span class="syn-keyword">local</span> phase = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;StringValue&quot;</span>, { name = <span class="syn-string">&quot;phase&quot;</span>, value = <span class="syn-string">&quot;waiting&quot;</span> })
+
+score.value += <span class="syn-num">1</span>
+score.changed:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(property) <span class="syn-func">print</span>(score.value) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>There are five of them: <code>NumberValue</code>, <code>StringValue</code>, <code>BoolValue</code>, <code>Vector3Value</code> and <code>ObjectValue</code>.
+They replicate because every property does, so a client reads one straight off the tree without being
+told anything, and hears it change without a channel.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p><code>changed</code> gives you the <strong>property name</strong>, like every other instance, so you read <code>.value</code> off the
+thing that changed. It does not hand over the new value.</p></div></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="http.html"><span>Previous</span>Reaching websites</a><a class="next" href="debug.html"><span>Next</span>Debugging</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#a-channel-is-an-instance">A channel is an instance</a></li><li><a href="#what-a-message-may-carry">What a message may carry</a></li><li><a href="#sending-a-message-and-hearing-one">Sending a message and hearing one</a></li><li><a href="#when-you-dont-care-if-it-arrives">When you don't care if it arrives</a></li><li><a href="#asking-and-waiting-for-the-answer">Asking and waiting for the answer</a></li><li><a href="#what-may-cross">What may cross</a></li><li><a href="#messages-between-scripts-on-one-side">Messages between scripts on one side</a></li><li><a href="#shared-state">Shared state</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

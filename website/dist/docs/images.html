@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Images | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html" class="active"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Screen and sound</span></nav>
+    <article class="doc">
+<h1 id="images">Images<a class="anchor" href="#images" title="Permanent link">#</a></h1>
+<p>An image in Moud is a string that says where the pixels come from. An <code>ImageLabel</code> shows one, a
+<code>Decal</code> puts one on a part, a particle flies one around. This page covers where images can go, how
+an image fills the box it is given, and how a script draws its own images, pixel by pixel, while the
+game runs.</p>
+<h2 id="showing-an-image">Showing an image<a class="anchor" href="#showing-an-image" title="Permanent link">#</a></h2>
+<p><code>ImageLabel</code> shows an image. <code>ImageButton</code> is an <code>ImageLabel</code> you can click. See
+<a href="interface.html#image-buttons">Image buttons</a> for its hover and pressed images.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> hud = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;ScreenGui&quot;</span>, { name = <span class="syn-string">&quot;hud&quot;</span> })
+
+hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, {
+    position = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">16</span>, <span class="syn-num">16</span>),
+    size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">64</span>, <span class="syn-num">64</span>),
+    image = <span class="syn-string">&quot;res://ui/heart.png&quot;</span>,
+})</code></pre></div></div>
+<p>An <code>ImageLabel</code> has no background until you set <code>backgroundTransparency</code>. <code>imageColor</code> tints the
+image and <code>imageTransparency</code> fades it.</p>
+<h3 id="where-an-image-can-go">Where an image can go<a class="anchor" href="#where-an-image-can-go" title="Permanent link">#</a></h3>
+<p>Every one of these takes the same kind of image string:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Where</th>
+<th>Property</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ImageLabel</code>, <code>ImageButton</code> in a <code>ScreenGui</code>, <code>SurfaceGui</code> or <code>BillboardGui</code></td>
+<td><code>image</code>, <code>hoverImage</code>, <code>pressedImage</code></td>
+</tr>
+<tr>
+<td>a <code>ScreenGui</code> shown in a <a href="window.html">window</a></td>
+<td>same as above</td>
+</tr>
+<tr>
+<td><code>Decal</code>, <code>Texture</code> on a part</td>
+<td><code>texture</code></td>
+</tr>
+<tr>
+<td><code>ParticleEmitter</code>, <code>Beam</code>, <code>Trail</code></td>
+<td><code>texture</code></td>
+</tr>
+<tr>
+<td><code>Sky</code></td>
+<td><code>skyboxBk</code> and the other faces, <code>sunTextureId</code>, <code>moonTextureId</code></td>
+</tr>
+<tr>
+<td><a href="rich-text.html">rich text</a></td>
+<td><code>&lt;img src="..."&gt;</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Only an <code>ImageLabel</code> or <code>ImageButton</code> can fit, tile, slice or crop its image. The rest draw the
+whole image. See <a href="effects.html#images">Particles, beams, trails, highlights and decals</a> for how effects
+read theirs.</p>
+<h3 id="sources">Sources<a class="anchor" href="#sources" title="Permanent link">#</a></h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Image</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"res://ui/heart.png"</code></td>
+<td>a file in the place</td>
+</tr>
+<tr>
+<td><code>"minecraft:item/diamond"</code></td>
+<td>a Minecraft texture. <code>textures/</code> and <code>.png</code> are added, and the full id <code>"minecraft:textures/item/diamond.png"</code> works too</td>
+</tr>
+<tr>
+<td><code>canvas.uri</code></td>
+<td>an image a script drew or loaded, see <a href="#drawing">Drawing</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>Particles also take a bare particle name such as <code>"flame"</code>, which is looked up under
+<code>textures/particle/</code>.</p>
+<h2 id="fitting-an-image-in-its-box">Fitting an image in its box<a class="anchor" href="#fitting-an-image-in-its-box" title="Permanent link">#</a></h2>
+<p><code>scaleType</code> says how the image fills the widget.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th><code>scaleType</code></th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"stretch"</code></td>
+<td>the image is stretched to the box. This is the default</td>
+</tr>
+<tr>
+<td><code>"fit"</code></td>
+<td>the whole image shows, as large as fits, centred. The rest of the box stays empty</td>
+</tr>
+<tr>
+<td><code>"crop"</code></td>
+<td>the image covers the whole box, centred. What sticks out is cut off</td>
+</tr>
+<tr>
+<td><code>"tile"</code></td>
+<td>the image repeats, one copy every <code>tileSize</code></td>
+</tr>
+<tr>
+<td><code>"slice"</code></td>
+<td>nine-slice: the corners keep their size and the middle stretches</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>fit</code> and <code>crop</code> keep the image's shape. <code>stretch</code> does not.</p>
+<h3 id="tiles">Tiles<a class="anchor" href="#tiles" title="Permanent link">#</a></h3>
+<p><code>tileSize</code> is a <code>UDim2</code>. Its offset is pixels and its scale is a fraction of the widget's size. The
+default, <code>udim2.fromScale(1, 1)</code>, is one tile as big as the box.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, {
+    size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">300</span>, <span class="syn-num">120</span>),
+    image = <span class="syn-string">&quot;res://ui/checker.png&quot;</span>,
+    scaleType = <span class="syn-string">&quot;tile&quot;</span>,
+    tileSize = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">32</span>, <span class="syn-num">32</span>),
+})</code></pre></div></div>
+<p>Tiles start at the top left. The last row and column are cut where the box ends. A box that would
+need more than 4096 tiles gets bigger tiles instead.</p>
+<div class="demo" data-demo="images-scale"></div>
+<h3 id="nine-slice">Nine-slice<a class="anchor" href="#nine-slice" title="Permanent link">#</a></h3>
+<p>A nine-slice image is cut into a 3 by 3 grid. The four corners keep their size, the four edges
+stretch one way, and the middle stretches both ways. That keeps a rounded frame's corners round at
+any size.</p>
+<p>There is no <code>Rect</code> type in Moud. The middle of the grid is given by two points, in image pixels:</p>
+<ul>
+<li><code>sliceMin</code> is the top left corner of the stretchy middle.</li>
+<li><code>sliceMax</code> is its bottom right corner.</li>
+</ul>
+<p>Both are <code>Vector3</code>s. Only x and y are read.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">-- a 24 by 24 frame with 8 pixel corners</span>
+hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, {
+    size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">400</span>, <span class="syn-num">200</span>),
+    image = <span class="syn-string">&quot;res://ui/frame.png&quot;</span>,
+    scaleType = <span class="syn-string">&quot;slice&quot;</span>,
+    sliceMin = <span class="syn-func">vec3</span>(<span class="syn-num">8</span>, <span class="syn-num">8</span>, <span class="syn-num">0</span>),
+    sliceMax = <span class="syn-func">vec3</span>(<span class="syn-num">16</span>, <span class="syn-num">16</span>, <span class="syn-num">0</span>),
+    sliceScale = <span class="syn-num">1</span>,
+})</code></pre></div></div>
+<ul>
+<li><code>sliceScale</code> scales the corners. <code>2</code> draws them twice as big. It is at least <code>0.01</code>.</li>
+<li>When the box is smaller than the corners, the corners shrink so they still fit.</li>
+<li>When <code>sliceMax</code> is not past <code>sliceMin</code> on both axes, the whole image is stretched instead.</li>
+</ul>
+<div class="demo" data-demo="images-slice"></div>
+<h3 id="sprite-sheets">Sprite sheets<a class="anchor" href="#sprite-sheets" title="Permanent link">#</a></h3>
+<p><code>imageRectOffset</code> and <code>imageRectSize</code> pick a part of the image to show, in pixels. Everything else,
+fitting and slicing included, works on that part only. Both are <code>Vector3</code>s and z is ignored.</p>
+<ul>
+<li><code>imageRectOffset</code> is the top left of the part.</li>
+<li><code>imageRectSize</code> is its size. <code>0</code> on an axis means "to the edge of the image". The default shows
+  the whole image.</li>
+</ul>
+<p>Move <code>imageRectOffset</code> to play a sprite sheet. Here the sheet has four 16 pixel frames side by side:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> sprite = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, {
+    size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">64</span>, <span class="syn-num">64</span>),
+    image = <span class="syn-string">&quot;res://ui/coin.png&quot;</span>,
+    imageRectSize = <span class="syn-func">vec3</span>(<span class="syn-num">16</span>, <span class="syn-num">16</span>, <span class="syn-num">0</span>),
+    resampleMode = <span class="syn-string">&quot;pixelated&quot;</span>,
+})
+
+<span class="syn-keyword">local</span> frame = <span class="syn-num">0</span>
+task.<span class="syn-func">every</span>(<span class="syn-num">0.12</span>, <span class="syn-keyword">function</span>()
+    frame = (frame + <span class="syn-num">1</span>) % <span class="syn-num">4</span>
+    sprite.imageRectOffset = <span class="syn-func">vec3</span>(frame * <span class="syn-num">16</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<div class="demo" data-demo="images-sprite"></div>
+<h3 id="pixel-art">Pixel art<a class="anchor" href="#pixel-art" title="Permanent link">#</a></h3>
+<p><code>resampleMode = "pixelated"</code> keeps each pixel a sharp square when the image is drawn bigger than it
+is. The default, <code>"default"</code>, smooths it. It only changes <code>ImageLabel</code> and <code>ImageButton</code>.</p>
+<h2 id="drawing">Drawing<a class="anchor" href="#drawing" title="Permanent link">#</a></h2>
+<p><code>images</code> is a global that makes images a script can draw on. Each one is an <code>EditableImage</code>.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> canvas = images.<span class="syn-func">create</span>(<span class="syn-num">128</span>, <span class="syn-num">128</span>, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>))
+canvas:<span class="syn-func">drawCircle</span>(<span class="syn-num">64</span>, <span class="syn-num">64</span>, <span class="syn-num">20</span>, <span class="syn-func">color</span>(<span class="syn-num">0.9</span>, <span class="syn-num">0.2</span>, <span class="syn-num">0.2</span>), { smooth = <span class="syn-const">true</span> })
+
+hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, { size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">128</span>, <span class="syn-num">128</span>), image = canvas.uri })</code></pre></div></div>
+<ul>
+<li><code>images.create(width, height, color?, transparency?)</code> makes a blank image. Without a colour every
+  pixel is fully see-through.</li>
+<li><code>images.fromPixels(width, height, pixels)</code> makes one from a list of numbers, laid out like
+  <a href="#reading-and-writing-pixels"><code>readPixels</code></a>.</li>
+</ul>
+<p><code>canvas.width</code> and <code>canvas.height</code> read its size.</p>
+<h3 id="showing-it">Showing it<a class="anchor" href="#showing-it" title="Permanent link">#</a></h3>
+<p><code>canvas.uri</code> is the image's string, such as <code>"editable://3"</code>. Put it anywhere an image goes, from
+the <a href="#where-an-image-can-go">table above</a>.</p>
+<p>Assigning the image object itself, <code>label.image = canvas</code>, also works while the game runs. Strict
+mode reports it as an error, because <code>image</code> is a <code>string</code>. Use <code>.uri</code>.</p>
+<p>What you draw shows up the next time the image is drawn. The pixels go to the graphics card at most
+once a frame, however many changes you make, so a thousand <code>setPixel</code> calls cost one upload.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Show images from a client script. An image lives in the memory of the side that made it. A
+server <code>Script</code> can make, load and read images, but its <code>uri</code> means nothing on a player's
+machine, so players do not see it.</p></div></div>
+<h3 id="coordinates">Coordinates<a class="anchor" href="#coordinates" title="Permanent link">#</a></h3>
+<p>Coordinates are pixels. <code>(0, 0)</code> is the top left corner, x goes right and y goes down.</p>
+<p>Pixel <code>(x, y)</code> is the square from <code>x</code> to <code>x + 1</code> and from <code>y</code> to <code>y + 1</code>. The calls read that in two
+ways:</p>
+<ul>
+<li><code>drawRectangle</code>, <code>drawGradient</code>, <code>drawPolygon</code> and <code>drawImage</code> take edges. A rectangle at
+  <code>(0, 0)</code> with size <code>24, 24</code> covers exactly the pixels 0 to 23.</li>
+<li><code>drawCircle</code>, <code>drawEllipse</code> and <code>drawLine</code> take pixels. The point is the centre of that pixel, so
+  <code>drawCircle(10, 10, ...)</code> is centred in pixel 10, 10.</li>
+</ul>
+<p><code>setPixel</code>, <code>getPixel</code>, <code>floodFill</code>, <code>crop</code>, <code>readPixels</code> and <code>writePixels</code> take whole pixels.
+Fractions are dropped.</p>
+<p>Drawing past the edge of the image is fine. The part outside is left out.</p>
+<h3 id="transparency">Transparency<a class="anchor" href="#transparency" title="Permanent link">#</a></h3>
+<p>Transparency is <code>0</code> for solid and <code>1</code> for gone, as everywhere else in Moud. A colour's own alpha,
+from <code>color(r, g, b, a)</code>, counts too: the two multiply.</p>
+<p><code>readPixels</code> and <code>writePixels</code> are the exception. They work with alpha, <code>1</code> for solid.</p>
+<h3 id="limits">Limits<a class="anchor" href="#limits" title="Permanent link">#</a></h3>
+<p>An image is 1 to 1024 pixels on each side. <code>create</code>, <code>fromPixels</code> and <code>resize</code> error outside that.
+A loaded image bigger than that is scaled down to fit.</p>
+<h3 id="colours-and-pixels">Colours and pixels<a class="anchor" href="#colours-and-pixels" title="Permanent link">#</a></h3>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Call</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>canvas:setPixel(x, y, color, transparency?)</code></td>
+<td>sets one pixel exactly, transparency included</td>
+</tr>
+<tr>
+<td><code>canvas:getPixel(x, y)</code></td>
+<td>returns the pixel's <code>Color</code> and its transparency. Outside the image it is black and fully see-through</td>
+</tr>
+<tr>
+<td><code>canvas:fill(color, transparency?)</code></td>
+<td>sets every pixel exactly</td>
+</tr>
+<tr>
+<td><code>canvas:clear()</code></td>
+<td>makes every pixel fully see-through</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> c, transparency = canvas:<span class="syn-func">getPixel</span>(<span class="syn-num">3</span>, <span class="syn-num">4</span>)</code></pre></div></div>
+<p><code>setPixel</code> and <code>fill</code> replace what was there. They do not mix with it.</p>
+<h3 id="shapes">Shapes<a class="anchor" href="#shapes" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>canvas:<span class="syn-func">drawRectangle</span>(x, y, width, height, color, options?)
+canvas:<span class="syn-func">drawCircle</span>(x, y, radius, color, options?)
+canvas:<span class="syn-func">drawEllipse</span>(x, y, radiusX, radiusY, color, options?)
+canvas:<span class="syn-func">drawLine</span>(x1, y1, x2, y2, color, options?)
+canvas:<span class="syn-func">drawPolygon</span>(points, color, options?)</code></pre></div></div>
+<p>Every shape takes the same options table, <code>DrawOptions</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>transparency</code></td>
+<td><code>0</code></td>
+<td>how see-through the paint is</td>
+</tr>
+<tr>
+<td><code>blend</code></td>
+<td><code>"over"</code></td>
+<td>how the paint mixes with what is there, see <a href="#blends">Blends</a></td>
+</tr>
+<tr>
+<td><code>smooth</code></td>
+<td><code>false</code></td>
+<td>soft edges instead of hard ones</td>
+</tr>
+<tr>
+<td><code>filled</code></td>
+<td><code>true</code></td>
+<td><code>false</code> draws only the outline</td>
+</tr>
+<tr>
+<td><code>thickness</code></td>
+<td><code>1</code></td>
+<td>the outline's width, or the line's width, in pixels. At least 1</td>
+</tr>
+<tr>
+<td><code>cornerRadius</code></td>
+<td><code>0</code></td>
+<td>rounds a rectangle's corners, up to half its shorter side</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>canvas:<span class="syn-func">drawRectangle</span>(<span class="syn-num">8</span>, <span class="syn-num">8</span>, <span class="syn-num">48</span>, <span class="syn-num">32</span>, <span class="syn-func">color</span>(<span class="syn-num">0.2</span>, <span class="syn-num">0.3</span>, <span class="syn-num">0.8</span>), { cornerRadius = <span class="syn-num">6</span>, smooth = <span class="syn-const">true</span> })
+canvas:<span class="syn-func">drawRectangle</span>(<span class="syn-num">8</span>, <span class="syn-num">8</span>, <span class="syn-num">48</span>, <span class="syn-num">32</span>, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>), { cornerRadius = <span class="syn-num">6</span>, smooth = <span class="syn-const">true</span>, filled = <span class="syn-const">false</span>, thickness = <span class="syn-num">2</span> })
+canvas:<span class="syn-func">drawLine</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">63</span>, <span class="syn-num">63</span>, <span class="syn-func">color</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), { thickness = <span class="syn-num">3</span>, smooth = <span class="syn-const">true</span> })</code></pre></div></div>
+<ul>
+<li>An outline grows inwards from the shape's edge, so a 2 pixel outline on a rectangle stays inside
+  the rectangle.</li>
+<li>A line is <code>thickness</code> wide in total, with round ends.</li>
+<li><code>cornerRadius</code> is only read by <code>drawRectangle</code>.</li>
+<li><code>drawPolygon</code> with <code>filled = false</code> draws the outline, closing the last point back to the first, with <code>thickness</code>.</li>
+</ul>
+<p><strong>Points.</strong> <code>drawPolygon</code> takes its corners as a list of <code>Vector3</code>s, where z is ignored, or as a flat
+list of numbers, x then y:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>canvas:<span class="syn-func">drawPolygon</span>({ <span class="syn-num">32</span>, <span class="syn-num">4</span>, <span class="syn-num">60</span>, <span class="syn-num">60</span>, <span class="syn-num">4</span>, <span class="syn-num">60</span> }, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.2</span>), { smooth = <span class="syn-const">true</span> })
+canvas:<span class="syn-func">drawPolygon</span>({ <span class="syn-func">vec3</span>(<span class="syn-num">32</span>, <span class="syn-num">4</span>, <span class="syn-num">0</span>), <span class="syn-func">vec3</span>(<span class="syn-num">60</span>, <span class="syn-num">60</span>, <span class="syn-num">0</span>), <span class="syn-func">vec3</span>(<span class="syn-num">4</span>, <span class="syn-num">60</span>, <span class="syn-num">0</span>) }, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.2</span>))</code></pre></div></div>
+<p>The polygon needs at least three corners. Its sides may cross; a spot is inside when a line from it
+crosses the sides an odd number of times.</p>
+<p><strong>Hard and smooth edges.</strong> Without <code>smooth</code>, a pixel is painted when its centre is inside the shape,
+and not at all otherwise. That is what pixel art wants. With <code>smooth = true</code>, pixels on the edge are
+painted partly, by how much of them the shape covers. That is what a drawing at normal size wants.</p>
+<div class="demo" data-demo="images-edges"></div>
+<h3 id="gradients">Gradients<a class="anchor" href="#gradients" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>canvas:<span class="syn-func">drawGradient</span>(x, y, width, height, from, to, options?)</code></pre></div></div>
+<p><code>from</code> is the colour at one side and <code>to</code> the colour at the other. <code>GradientOptions</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rotation</code></td>
+<td><code>0</code></td>
+<td>the direction, in degrees. <code>0</code> runs left to right, <code>90</code> top to bottom</td>
+</tr>
+<tr>
+<td><code>fromTransparency</code></td>
+<td><code>0</code></td>
+<td>transparency at the <code>from</code> side</td>
+</tr>
+<tr>
+<td><code>toTransparency</code></td>
+<td><code>0</code></td>
+<td>transparency at the <code>to</code> side</td>
+</tr>
+<tr>
+<td><code>blend</code></td>
+<td><code>"over"</code></td>
+<td>see <a href="#blends">Blends</a></td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>canvas:<span class="syn-func">drawGradient</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">128</span>, <span class="syn-num">128</span>, <span class="syn-func">color</span>(<span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>, <span class="syn-num">0.3</span>), <span class="syn-func">color</span>(<span class="syn-num">0.9</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0.2</span>), { rotation = <span class="syn-num">90</span> })</code></pre></div></div>
+<p>A gradient fills a plain rectangle. It has no smooth edges or rounded corners.</p>
+<h3 id="drawing-one-image-onto-another">Drawing one image onto another<a class="anchor" href="#drawing-one-image-onto-another" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>canvas:<span class="syn-func">drawImage</span>(other, x, y, options?)</code></pre></div></div>
+<p><code>x</code> and <code>y</code> are where the top left of <code>other</code> lands. <code>ImageDrawOptions</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sourceX</code>, <code>sourceY</code></td>
+<td><code>0</code></td>
+<td>the top left of the part of <code>other</code> to copy</td>
+</tr>
+<tr>
+<td><code>sourceWidth</code>, <code>sourceHeight</code></td>
+<td>to the edge of <code>other</code></td>
+<td>the size of that part</td>
+</tr>
+<tr>
+<td><code>width</code>, <code>height</code></td>
+<td>the part's size</td>
+<td>the size it is drawn at; different sizes scale it</td>
+</tr>
+<tr>
+<td><code>transparency</code></td>
+<td><code>0</code></td>
+<td>fades it</td>
+</tr>
+<tr>
+<td><code>blend</code></td>
+<td><code>"over"</code></td>
+<td>see <a href="#blends">Blends</a></td>
+</tr>
+<tr>
+<td><code>smooth</code></td>
+<td><code>false</code></td>
+<td>smooths it when it is scaled; without it, pixels stay square</td>
+</tr>
+</tbody>
+</table></div>
+<p>An image may be drawn onto itself.</p>
+<h3 id="flood-fill">Flood fill<a class="anchor" href="#flood-fill" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> painted = canvas:<span class="syn-func">floodFill</span>(x, y, color, options?)</code></pre></div></div>
+<p>Paints the pixel at <code>x, y</code> and every pixel joined to it that looks the same, like a paint bucket.
+Pixels join up, down, left and right, not across corners. It returns how many pixels it painted.
+<code>FillOptions</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tolerance</code></td>
+<td><code>0</code></td>
+<td>from 0 to 1. How far a pixel's red, green, blue and alpha may each be from the first pixel's and still count as the same. <code>0</code> only takes exact matches</td>
+</tr>
+<tr>
+<td><code>transparency</code></td>
+<td><code>0</code></td>
+<td>how see-through the paint is</td>
+</tr>
+<tr>
+<td><code>blend</code></td>
+<td><code>"over"</code></td>
+<td>see <a href="#blends">Blends</a></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="text">Text<a class="anchor" href="#text" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> width, height = canvas:<span class="syn-func">drawText</span>(<span class="syn-string">&quot;Score: 12&quot;</span>, <span class="syn-num">4</span>, <span class="syn-num">4</span>, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>), { shadow = <span class="syn-const">true</span>, size = <span class="syn-num">2</span> })</code></pre></div></div>
+<p><code>drawText(text, x, y, color, options?)</code> writes text in Minecraft's own font and returns the width
+and height of what it drew, in pixels. <code>TextOptions</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>size</code></td>
+<td><code>1</code></td>
+<td>how many pixels one pixel of the font takes. Fractions work. Above 0</td>
+</tr>
+<tr>
+<td><code>shadow</code></td>
+<td><code>false</code></td>
+<td>draws the text again first, one font pixel right and down, in a quarter of the colour, as Minecraft does</td>
+</tr>
+<tr>
+<td><code>align</code></td>
+<td><code>"left"</code></td>
+<td><code>"left"</code>, <code>"center"</code> or <code>"right"</code>. Which part of each line <code>x</code> is</td>
+</tr>
+<tr>
+<td><code>wrap</code></td>
+<td><code>0</code></td>
+<td>the widest a line may be, in pixels. <code>0</code> never wraps</td>
+</tr>
+<tr>
+<td><code>lineHeight</code></td>
+<td><code>0</code></td>
+<td>pixels from the top of one line to the next. <code>0</code> is the font's, 9 font pixels</td>
+</tr>
+<tr>
+<td><code>transparency</code></td>
+<td><code>0</code></td>
+<td>how see-through the text is</td>
+</tr>
+<tr>
+<td><code>blend</code></td>
+<td><code>"over"</code></td>
+<td>see <a href="#blends">Blends</a></td>
+</tr>
+<tr>
+<td><code>bold</code></td>
+<td><code>false</code></td>
+<td>draws each letter twice, one font pixel apart, and adds a pixel after each</td>
+</tr>
+<tr>
+<td><code>italic</code></td>
+<td><code>false</code></td>
+<td>leans each letter, as Minecraft does</td>
+</tr>
+<tr>
+<td><code>smooth</code></td>
+<td><code>false</code></td>
+<td>smooths the letters when <code>size</code> scales them; without it, pixels stay square</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><code>x</code> and <code>y</code> are where the text starts. With <code>"center"</code> each line is centred on <code>x</code>, and with
+  <code>"right"</code> each line ends at <code>x</code>.</li>
+<li><code>y</code> is the top of the tallest letter in the font, not the top of the letters you wrote. In
+  Minecraft's font the accented capitals are tallest, so plain ASCII lands 3 font pixels lower, 3
+  pixels at size 1 and 6 at size 2.</li>
+<li><code>"\n"</code> starts a new line. With <code>wrap</code>, a line breaks at its last space that fits, and the spaces at
+  the break are dropped. A word wider than <code>wrap</code> breaks between two letters.</li>
+<li>The colour multiplies the letter's own colour. The font's letters are white, so they come out in
+  your colour.</li>
+<li>A character the font does not have draws as an empty box, 5 by 8 font pixels.</li>
+</ul>
+<p><code>canvas:measureText(text, options?)</code> and <code>images.measureText(text, options?)</code> return the same width
+and height without drawing anything, so you can place text before you draw it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> options = { size = <span class="syn-num">2</span>, shadow = <span class="syn-const">true</span> }
+<span class="syn-keyword">local</span> w, h = images.<span class="syn-func">measureText</span>(<span class="syn-string">&quot;Game over&quot;</span>, options)
+canvas:<span class="syn-func">drawText</span>(<span class="syn-string">&quot;Game over&quot;</span>, (canvas.width - w) / <span class="syn-num">2</span>, (canvas.height - h) / <span class="syn-num">2</span>, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.3</span>, <span class="syn-num">0.3</span>), options)</code></pre></div></div>
+<ul>
+<li>The width is the widest line, and counts the one pixel gap after the last letter.</li>
+<li>The height runs from <code>y</code> to the lowest pixel a letter of the font can reach on the last line. At
+  size 1 in Minecraft's font one line is 12 pixels tall, and each line after it adds 9.</li>
+<li><code>shadow</code> adds <code>size</code> to both.</li>
+<li><code>italic</code> is not counted, so leaning text reaches up to about 3 font pixels past the width.</li>
+</ul>
+<p>The font is read from the game on the player's machine, with its resource packs, so a pack that
+changes the font changes the text. Letters come from the font's bitmap files. Characters Minecraft
+only has in its unifont fallback, such as most Chinese, Japanese and Korean, draw as the box.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Text needs Minecraft's font, which only a player's game has. Draw and measure text in a
+<code>LocalScript</code>. A server <code>Script</code> can do it only when the server runs inside a player's game, as
+in singleplayer. On a dedicated server it is an error.</p></div></div>
+<h3 id="blends">Blends<a class="anchor" href="#blends" title="Permanent link">#</a></h3>
+<p><code>blend</code> says how new paint mixes with the pixels already there.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Blend</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"over"</code></td>
+<td>the paint goes on top, as a brush would. See-through paint lets what is under it show. The default</td>
+</tr>
+<tr>
+<td><code>"replace"</code></td>
+<td>the pixel becomes the paint, transparency included. Painting with transparency 1 cuts a hole</td>
+</tr>
+<tr>
+<td><code>"add"</code></td>
+<td>the paint's colour is added, which brightens. Good for glows</td>
+</tr>
+<tr>
+<td><code>"multiply"</code></td>
+<td>the colour is multiplied by the paint, which darkens. Transparency stays as it was</td>
+</tr>
+<tr>
+<td><code>"erase"</code></td>
+<td>the paint's colour is ignored and its strength wipes the pixel away. A solid paint makes it fully see-through</td>
+</tr>
+</tbody>
+</table></div>
+<p>On a smooth edge every blend is applied only as much as the shape covers the pixel.</p>
+<div class="demo" data-demo="images-blend"></div>
+<h3 id="reading-and-writing-pixels">Reading and writing pixels<a class="anchor" href="#reading-and-writing-pixels" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> pixels = canvas:<span class="syn-func">readPixels</span>(x?, y?, width?, height?)
+canvas:<span class="syn-func">writePixels</span>(x, y, width, height, pixels)</code></pre></div></div>
+<p>Pixels are a flat list of numbers from 0 to 1, four per pixel: red, green, blue, alpha. They go row
+by row, left to right, starting at the top left. Pixel <code>(px, py)</code> of the area starts at index
+<code>(py * width + px) * 4 + 1</code>.</p>
+<ul>
+<li><code>readPixels()</code> with no arguments reads the whole image. Pixels outside the image read as <code>0, 0, 0,
+  0</code>. It reads at most 1024 by 1024 pixels at once.</li>
+<li><code>writePixels</code> needs exactly <code>width * height * 4</code> numbers. Numbers below 0 or above 1 are clamped.
+  Pixels outside the image are skipped. It replaces the pixels; it does not blend.</li>
+</ul>
+<p>One <code>writePixels</code> call is much faster than many <code>setPixel</code> calls. Keep the list and fill it again
+each frame, as the <a href="#a-plasma-animation">plasma example</a> does.</p>
+<h3 id="changing-an-image">Changing an image<a class="anchor" href="#changing-an-image" title="Permanent link">#</a></h3>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Call</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>canvas:resize(width, height, smooth?)</code></td>
+<td>scales the image to a new size. <code>smooth</code> smooths it, otherwise pixels stay square</td>
+</tr>
+<tr>
+<td><code>canvas:crop(x, y, width, height)</code></td>
+<td>returns a new image cut out of this one. Parts outside this image come out see-through</td>
+</tr>
+<tr>
+<td><code>canvas:copy()</code></td>
+<td>returns a new image with the same pixels</td>
+</tr>
+<tr>
+<td><code>canvas:flip("horizontal")</code></td>
+<td>mirrors it left to right. <code>"vertical"</code> mirrors it top to bottom</td>
+</tr>
+<tr>
+<td><code>canvas:rotate(quarterTurns)</code></td>
+<td>turns it clockwise by quarter turns. Negative turns go the other way. An odd number swaps width and height</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>resize</code>, <code>flip</code> and <code>rotate</code> change the image in place, so everything showing it changes too. <code>crop</code>
+and <code>copy</code> leave it alone.</p>
+<h3 id="destroying">Destroying<a class="anchor" href="#destroying" title="Permanent link">#</a></h3>
+<p><code>canvas:destroy()</code> throws the pixels away. Anything showing it stops showing it, and every other call
+on it errors with "this image was destroyed". <code>width</code>, <code>height</code> and <code>uri</code> can still be read.</p>
+<p>You rarely need to. Every image a script made is thrown away when its scripts stop, which includes
+every reload.</p>
+<p>Images made by <code>crop</code> and <code>copy</code> are thrown away with the others.</p>
+<h2 id="loading">Loading<a class="anchor" href="#loading" title="Permanent link">#</a></h2>
+<p><code>images.load</code> and <code>images.skin</code> return an <code>EditableImage</code> like any other, ready to draw on or read.
+Both wait for the image, so call them inside <code>task.spawn</code> or a function that may yield. If the image
+cannot be read they raise an error, which <code>pcall</code> catches.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">-- client</span>
+task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> logo = images.<span class="syn-func">load</span>(<span class="syn-string">&quot;res://ui/logo.png&quot;</span>)
+    logo:<span class="syn-func">drawRectangle</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, logo.width, logo.height, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>), { filled = <span class="syn-const">false</span>, thickness = <span class="syn-num">2</span> })
+    badge.image = logo.uri
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>images.load(source)</code> reads:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Source</th>
+<th>Where it works</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"res://ui/logo.png"</code></td>
+<td>a file in the place. Scripts and client scripts</td>
+</tr>
+<tr>
+<td><code>"https://example.com/cat.png"</code></td>
+<td>a web address. Scripts and client scripts, with <code>httpRequests</code> on</td>
+</tr>
+<tr>
+<td><code>"minecraft:block/stone"</code>, <code>"item/diamond"</code></td>
+<td>a Minecraft texture. Client scripts only</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Files may be PNG, JPEG, GIF or BMP. A GIF gives its first frame.</li>
+<li>An image bigger than 1024 pixels on a side is scaled down, keeping its shape, until it fits.</li>
+<li>A web address needs <code>httpRequests = true</code> under <code>[features]</code> in <code>place.toml</code>, as for
+  <a href="http.html#turning-it-on">http</a>. The switch is read on the machine the script runs on. The
+  download stops after 20 seconds, or if the file is bigger than 16 MB, or if the address answers
+  with anything but success.</li>
+<li>A Minecraft texture is looked up under <code>textures/</code>, and <code>.png</code> is added. Both may be written out:
+  <code>"minecraft:textures/block/stone.png"</code> works too. A namespace left out is <code>minecraft</code>.</li>
+</ul>
+<h3 id="skins">Skins<a class="anchor" href="#skins" title="Permanent link">#</a></h3>
+<p><code>images.skin(player, part?)</code> reads a player's skin. It works in client scripts only.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- client</span>
+task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> ok, head = <span class="syn-func">pcall</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">return</span> images.<span class="syn-func">skin</span>(game.players:<span class="syn-func">me</span>(), <span class="syn-string">&quot;head&quot;</span>) <span class="syn-keyword">end</span>)
+    <span class="syn-keyword">if</span> ok <span class="syn-keyword">then</span> face.image = head.uri <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>player</code> is a <code>Player</code>, or a body that belongs to one.</li>
+<li><code>part</code> is <code>"full"</code> for the whole skin sheet, which is the default, or <code>"head"</code> for an 8 by 8 face
+  with the hat layer drawn over it.</li>
+<li>A skin is downloaded after the player joins. <code>skin</code> waits up to 2 seconds for it. A player whose
+  skin has still not arrived gets the default skin. A player who is not in the game after 2 seconds
+  is an error.</li>
+</ul>
+<p>Show a head with <code>resampleMode = "pixelated"</code>, or its 8 pixels are smoothed into a blur.</p>
+<h2 id="examples">Examples<a class="anchor" href="#examples" title="Permanent link">#</a></h2>
+<p>These come from the image showcase place. They all run in <code>client/main.luau</code>, and <code>screen</code> is a
+<code>ScreenGui</code> made at the top of it.</p>
+<h3 id="a-paint-canvas-mirrored-in-the-world">A paint canvas, mirrored in the world<a class="anchor" href="#a-paint-canvas-mirrored-in-the-world" title="Permanent link">#</a></h3>
+<p>The canvas is one image. The button on the screen and the decal on a part show the same image, so
+what you paint on the screen appears on the easel in the world at the same moment.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39</pre><pre><code><span class="syn-keyword">local</span> PAINT = <span class="syn-num">256</span>
+<span class="syn-keyword">local</span> canvas = images.<span class="syn-func">create</span>(PAINT, PAINT, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>))
+
+<span class="syn-keyword">local</span> board = screen:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageButton&quot;</span>, {
+    position = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">20</span>, <span class="syn-num">36</span>), size = udim2.<span class="syn-func">fromOffset</span>(PAINT, PAINT),
+    image = canvas.uri, autoButtonColor = <span class="syn-const">false</span>, backgroundTransparency = <span class="syn-num">1</span>,
+}) :: ImageButton
+
+<span class="syn-keyword">local</span> easel = game.world:<span class="syn-func">waitForChild</span>(<span class="syn-string">&quot;Easel&quot;</span>) :: Part
+easel:<span class="syn-func">add</span>(<span class="syn-string">&quot;Decal&quot;</span>, { texture = canvas.uri, face = <span class="syn-string">&quot;back&quot;</span> })
+
+<span class="syn-keyword">local</span> brush = <span class="syn-func">color</span>(<span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>)
+<span class="syn-keyword">local</span> drawing = <span class="syn-const">false</span>
+<span class="syn-keyword">local</span> lastX, lastY = <span class="syn-num">0</span>, <span class="syn-num">0</span>
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">toCanvas</span>(x: number, y: number): (number, number)
+    <span class="syn-keyword">local</span> at, size = board.absolutePosition, board.absoluteSize
+    <span class="syn-keyword">return</span> (x - at.x) / size.x * PAINT, (y - at.y) / size.y * PAINT
+<span class="syn-keyword">end</span>
+
+board.mouseButton1Down:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(x, y)
+    drawing = <span class="syn-const">true</span>
+    lastX, lastY = <span class="syn-func">toCanvas</span>(x, y)
+    canvas:<span class="syn-func">drawCircle</span>(lastX, lastY, <span class="syn-num">3</span>, brush, { smooth = <span class="syn-const">true</span> })
+<span class="syn-keyword">end</span>)
+board.mouseMoved:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(x, y)
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> drawing <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">local</span> cx, cy = <span class="syn-func">toCanvas</span>(x, y)
+    canvas:<span class="syn-func">drawLine</span>(lastX, lastY, cx, cy, brush, { thickness = <span class="syn-num">6</span>, smooth = <span class="syn-const">true</span> })
+    lastX, lastY = cx, cy
+<span class="syn-keyword">end</span>)
+board.mouseButton1Up:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() drawing = <span class="syn-const">false</span> <span class="syn-keyword">end</span>)
+board.mouseLeave:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() drawing = <span class="syn-const">false</span> <span class="syn-keyword">end</span>)
+
+<span class="syn-comment">-- right click fills like a paint bucket</span>
+board.mouseButton2Click:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(x, y)
+    <span class="syn-keyword">local</span> cx, cy = <span class="syn-func">toCanvas</span>(x, y)
+    canvas:<span class="syn-func">floodFill</span>(math.<span class="syn-func">floor</span>(cx), math.<span class="syn-func">floor</span>(cy), brush, { tolerance = <span class="syn-num">0.1</span> })
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>toCanvas</code> turns a mouse position on the screen into a pixel of the canvas. Joining each mouse
+position to the last one with a thick line keeps a fast stroke from breaking into dots.</p>
+<h3 id="a-plasma-animation">A plasma animation<a class="anchor" href="#a-plasma-animation" title="Permanent link">#</a></h3>
+<p>A 48 by 48 image computed in Luau every frame and written in one call. The list of pixels is made
+once and reused.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27</pre><pre><code><span class="syn-keyword">local</span> SIZE = <span class="syn-num">48</span>
+<span class="syn-keyword">local</span> plasma = images.<span class="syn-func">create</span>(SIZE, SIZE)
+screen:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, {
+    size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">144</span>, <span class="syn-num">144</span>),
+    image = plasma.uri, resampleMode = <span class="syn-string">&quot;pixelated&quot;</span>,
+})
+
+<span class="syn-keyword">local</span> pixels: { number } = table.<span class="syn-func">create</span>(SIZE * SIZE * <span class="syn-num">4</span>, <span class="syn-num">1</span>)
+<span class="syn-keyword">local</span> clock = <span class="syn-num">0</span>
+
+game.renderStepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(dt: number)
+    clock += dt
+    <span class="syn-keyword">local</span> at = <span class="syn-num">1</span>
+    <span class="syn-keyword">for</span> y = <span class="syn-num">0</span>, SIZE - <span class="syn-num">1</span> <span class="syn-keyword">do</span>
+        <span class="syn-keyword">for</span> x = <span class="syn-num">0</span>, SIZE - <span class="syn-num">1</span> <span class="syn-keyword">do</span>
+            <span class="syn-keyword">local</span> v = math.<span class="syn-func">sin</span>(x / <span class="syn-num">5</span> + clock) + math.<span class="syn-func">sin</span>(y / <span class="syn-num">7</span> - clock * <span class="syn-num">1.3</span>)
+                + math.<span class="syn-func">sin</span>((x + y) / <span class="syn-num">9</span> + clock * <span class="syn-num">0.7</span>)
+            <span class="syn-keyword">local</span> t = v / <span class="syn-num">3</span> * math.pi
+            pixels[at] = <span class="syn-num">0.5</span> + <span class="syn-num">0.5</span> * math.<span class="syn-func">sin</span>(t)
+            pixels[at + <span class="syn-num">1</span>] = <span class="syn-num">0.5</span> + <span class="syn-num">0.5</span> * math.<span class="syn-func">sin</span>(t + <span class="syn-num">2.1</span>)
+            pixels[at + <span class="syn-num">2</span>] = <span class="syn-num">0.5</span> + <span class="syn-num">0.5</span> * math.<span class="syn-func">sin</span>(t + <span class="syn-num">4.2</span>)
+            pixels[at + <span class="syn-num">3</span>] = <span class="syn-num">1</span>
+            at += <span class="syn-num">4</span>
+        <span class="syn-keyword">end</span>
+    <span class="syn-keyword">end</span>
+    plasma:<span class="syn-func">writePixels</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, SIZE, SIZE, pixels)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<h3 id="your-own-face">Your own face<a class="anchor" href="#your-own-face" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-keyword">local</span> face = screen:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, {
+    size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">80</span>, <span class="syn-num">80</span>),
+    resampleMode = <span class="syn-string">&quot;pixelated&quot;</span>,
+}) :: ImageLabel
+
+task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> me = game.players:<span class="syn-func">me</span>()
+    <span class="syn-keyword">if</span> me == <span class="syn-const">nil</span> <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">local</span> ok, head = <span class="syn-func">pcall</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">return</span> images.<span class="syn-func">skin</span>(me, <span class="syn-string">&quot;head&quot;</span>) <span class="syn-keyword">end</span>)
+    <span class="syn-keyword">if</span> ok <span class="syn-keyword">then</span> face.image = head.uri <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>The label starts empty and gets its image once the skin has been read.</p>
+<h3 id="a-frame-drawn-in-code-stretched-with-nine-slice">A frame drawn in code, stretched with nine-slice<a class="anchor" href="#a-frame-drawn-in-code-stretched-with-nine-slice" title="Permanent link">#</a></h3>
+<p>A 24 by 24 image is enough for a panel of any size. The 8 pixel corners hold the rounding, and
+nine-slice stretches only the middle.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-keyword">local</span> frameArt = images.<span class="syn-func">create</span>(<span class="syn-num">24</span>, <span class="syn-num">24</span>)
+frameArt:<span class="syn-func">drawRectangle</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">24</span>, <span class="syn-num">24</span>, <span class="syn-func">color</span>(<span class="syn-num">0.08</span>, <span class="syn-num">0.09</span>, <span class="syn-num">0.12</span>), { cornerRadius = <span class="syn-num">8</span>, smooth = <span class="syn-const">true</span>, transparency = <span class="syn-num">0.1</span> })
+frameArt:<span class="syn-func">drawRectangle</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">24</span>, <span class="syn-num">24</span>, <span class="syn-func">color</span>(<span class="syn-num">0.45</span>, <span class="syn-num">0.55</span>, <span class="syn-num">0.95</span>), { cornerRadius = <span class="syn-num">8</span>, smooth = <span class="syn-const">true</span>, filled = <span class="syn-const">false</span>, thickness = <span class="syn-num">2</span> })
+
+<span class="syn-keyword">local</span> panel = screen:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, {
+    position = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">20</span>, <span class="syn-num">20</span>),
+    size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">560</span>, <span class="syn-num">340</span>),
+    image = frameArt.uri,
+    scaleType = <span class="syn-string">&quot;slice&quot;</span>,
+    sliceMin = <span class="syn-func">vec3</span>(<span class="syn-num">8</span>, <span class="syn-num">8</span>, <span class="syn-num">0</span>),
+    sliceMax = <span class="syn-func">vec3</span>(<span class="syn-num">16</span>, <span class="syn-num">16</span>, <span class="syn-num">0</span>),
+})</code></pre></div></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="rich-text.html"><span>Previous</span>Rich text</a><a class="next" href="sound.html"><span>Next</span>Sound</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#showing-an-image">Showing an image</a></li><li><a href="#fitting-an-image-in-its-box">Fitting an image in its box</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#loading">Loading</a></li><li><a href="#examples">Examples</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

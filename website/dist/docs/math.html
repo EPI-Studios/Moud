@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Math | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html" class="active"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Scripting</span></nav>
+    <article class="doc">
+<h1 id="math">Math<a class="anchor" href="#math" title="Permanent link">#</a></h1>
+<p>Moud has three value types for maths, and three tables of functions that work on them. <code>vec3</code> builds
+a <code>Vector3</code>, which is a point or a direction in the world. <code>cframe</code> builds a frame, a position and a
+rotation held together, which is what a part's <code>cframe</code> property takes. <code>quat</code> builds a rotation on
+its own, with no position in it. The <code>math</code>, <code>angle</code> and <code>random</code> tables hold functions that take
+plain numbers and vectors.</p>
+<p>Everything is metres and seconds, and every angle is in radians.</p>
+<h2 id="vectors">Vectors<a class="anchor" href="#vectors" title="Permanent link">#</a></h2>
+<p>A <code>Vector3</code> is three numbers: x and z run along the ground, y is height. The same type carries a
+position, a size and a direction, so <code>vec3(0, 66, 0)</code> is a spot 66 metres up, <code>vec3(40, 1, 40)</code> is a
+wide flat slab, and <code>vec3(0, 1, 0)</code> points at the sky.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> v = <span class="syn-func">vec3</span>(<span class="syn-num">3</span>, <span class="syn-num">4</span>, <span class="syn-num">0</span>)
+v.x  v.y  v.z  v.magnitude  v.unit
+v + w  v - w  v * <span class="syn-num">2</span>  -v
+v:<span class="syn-func">distance</span>(w)  v:<span class="syn-func">distanceSq</span>(w)  v:<span class="syn-func">dot</span>(w)  v:<span class="syn-func">cross</span>(w)
+v:<span class="syn-func">lerp</span>(w, <span class="syn-num">0.5</span>)  v:<span class="syn-func">angleTo</span>(w)          <span class="syn-comment">-- radians</span>
+v:<span class="syn-func">flat</span>()                              <span class="syn-comment">-- y set to 0</span>
+v:<span class="syn-func">clampMagnitude</span>(<span class="syn-num">10</span>)  v:<span class="syn-func">abs</span>()  v:<span class="syn-func">floor</span>()</code></pre></div></div>
+<ul>
+<li><strong><code>magnitude</code></strong> is how long the vector is, in metres. On the difference between two positions, that
+  is the distance between them.</li>
+<li><strong><code>unit</code></strong> is the same direction with a length of 1. Use it when you want a direction and the length
+  is in your way, such as pushing something at a speed you choose.</li>
+<li>Adding and subtracting work component by component, and multiplying by a number scales all three.
+  <code>-v</code> points the other way.</li>
+<li><strong><code>distance</code></strong> and <strong><code>distanceSq</code></strong> measure between two positions. <code>distanceSq</code> skips the square
+  root, so compare it against a squared range when you are checking many pairs each tick.</li>
+<li><strong><code>dot</code></strong> tells you how much two directions agree: 1 when they point the same way, 0 when they are
+  at right angles, -1 when they are opposite. <strong><code>cross</code></strong> gives a vector at right angles to both.</li>
+<li><strong><code>lerp</code></strong> walks from one vector to another, <code>0</code> giving the first and <code>1</code> the second, so
+  <code>v:lerp(w, 0.5)</code> is the midpoint. <strong><code>angleTo</code></strong> is the angle between two directions, in radians.</li>
+<li><strong><code>flat</code></strong> copies the vector with y set to 0, which is how you measure a distance along the ground
+  and ignore how far apart two things are vertically.</li>
+<li><strong><code>clampMagnitude</code></strong> hands back a vector no longer than the length you give. Shorter vectors come
+  back unchanged, so it caps a speed without changing its direction.</li>
+<li><strong><code>abs</code></strong> makes each of the three numbers positive, and <strong><code>floor</code></strong> rounds each one down.</li>
+</ul>
+<div class="demo" data-demo="math-vectors"></div>
+<h2 id="frames">Frames<a class="anchor" href="#frames" title="Permanent link">#</a></h2>
+<p>A frame holds a position and a rotation in one value. Parts, cameras and models all take one, so
+writing an instance's <code>cframe</code> moves it and turns it in a single write.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> f = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>)
+
+<span class="syn-func">cframe</span>(position)                    <span class="syn-comment">-- at a point, unrotated</span>
+<span class="syn-func">cframe</span>(from, lookAtPoint)           <span class="syn-comment">-- at a point, turned to face another point</span>
+cframe.<span class="syn-func">angles</span>(pitch, yaw, roll)     <span class="syn-comment">-- a rotation at the origin, in radians</span>
+cframe.<span class="syn-func">lookAt</span>(from, to)             <span class="syn-comment">-- at `from`, facing `to`</span>
+cframe.identity                     <span class="syn-comment">-- the origin, unrotated</span></code></pre></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code>f.position  f.rotation  f.lookVector  f.rightVector  f.upVector
+f * g
+f:<span class="syn-func">inverse</span>()  f:<span class="syn-func">lerp</span>(g, t)
+f:<span class="syn-func">toObjectSpace</span>(g)  f:<span class="syn-func">toWorldSpace</span>(g)
+f:<span class="syn-func">pointToObjectSpace</span>(p)  f:<span class="syn-func">pointToWorldSpace</span>(p)
+f:<span class="syn-func">vectorToObjectSpace</span>(v)  f:<span class="syn-func">vectorToWorldSpace</span>(v)
+f:<span class="syn-func">lookAt</span>(target)                    <span class="syn-comment">-- same position, turned to face a point</span></code></pre></div></div>
+<ul>
+<li><strong><code>position</code></strong> is where the frame is and <strong><code>rotation</code></strong> is how it is turned, with the position taken
+  out.</li>
+<li><strong><code>lookVector</code></strong>, <strong><code>rightVector</code></strong> and <strong><code>upVector</code></strong> are the three directions the frame faces:
+  forward, to its right and out of its top. They are what you use to move something the way it is
+  pointing rather than the way the world is.</li>
+<li><strong><code>f * g</code></strong> applies <code>g</code> inside <code>f</code>, so the second frame is read in the first one's axes. That is why
+  <code>part.cframe = part.cframe * cframe.angles(0, dt, 0)</code> spins a part around its own up axis wherever
+  it stands, while <code>cframe.angles(0, dt, 0) * part.cframe</code> would swing it around the world's.</li>
+<li><strong><code>inverse</code></strong> gives the frame that undoes this one. <strong><code>lerp</code></strong> blends between two frames, moving and
+  turning at once.</li>
+<li><strong><code>toObjectSpace</code></strong> and <strong><code>toWorldSpace</code></strong> convert a whole frame in and out of this one's axes.
+  <code>pointToObjectSpace</code> and <code>pointToWorldSpace</code> do the same for a position, and
+  <code>vectorToObjectSpace</code> and <code>vectorToWorldSpace</code> for a direction. A direction carries no position, so
+  the vector pair only turns what you give it and never shifts it.</li>
+<li><strong><code>f:lookAt(target)</code></strong> keeps the frame where it is and turns it to face a point. Use it to aim a
+  turret or a camera without working out the angles yourself.</li>
+</ul>
+<div class="demo" data-demo="math-frames"></div>
+<h2 id="rotations">Rotations<a class="anchor" href="#rotations" title="Permanent link">#</a></h2>
+<p>A quaternion is a rotation with no position attached. Reach for one when you want to blend between
+two rotations, or to store which way something is facing without saying where it is.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>quat.identity
+quat.<span class="syn-func">axisAngle</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>), math.pi / <span class="syn-num">2</span>)
+quat.<span class="syn-func">euler</span>(pitch, yaw, roll)
+quat.<span class="syn-func">lookAt</span>(forward, up)
+quat.<span class="syn-func">fromTo</span>(<span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, -<span class="syn-num">1</span>))    <span class="syn-comment">-- the shortest turn between two directions</span>
+q:<span class="syn-func">slerp</span>(r, t)  q:<span class="syn-func">inverse</span>()  q:<span class="syn-func">rotate</span>(v)  q:<span class="syn-func">mul</span>(r)</code></pre></div></div>
+<ul>
+<li><strong><code>quat.identity</code></strong> is no rotation at all.</li>
+<li><strong><code>quat.axisAngle</code></strong> turns by an angle around an axis you give, so the example above is a quarter
+  turn around the up axis.</li>
+<li><strong><code>quat.euler</code></strong> builds one from pitch, yaw and roll. <strong><code>quat.lookAt</code></strong> builds one from a forward
+  direction and an up direction. <strong><code>quat.fromTo</code></strong> gives the shortest turn that takes one direction
+  onto another.</li>
+<li><strong><code>slerp</code></strong> blends two rotations, <code>0</code> giving the first and <code>1</code> the second, and keeps the speed of
+  the turn even along the way.</li>
+<li><strong><code>inverse</code></strong> undoes the rotation, <strong><code>rotate</code></strong> turns a vector by it, and <strong><code>mul</code></strong> puts two
+  rotations one after the other.</li>
+</ul>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>Angles are radians everywhere in Moud, in <code>cframe.angles</code>, in <code>quat.euler</code> and in the <code>angle</code> table
+below. <code>math.pi / 2</code> is a quarter turn and <code>math.pi * 2</code> is a full one.</p></div></div>
+<h2 id="numbers">Numbers<a class="anchor" href="#numbers" title="Permanent link">#</a></h2>
+<p>These sit alongside Luau's own <code>math</code> functions, in the same table.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code>math.<span class="syn-func">remap</span>(<span class="syn-num">5</span>, <span class="syn-num">0</span>, <span class="syn-num">10</span>, <span class="syn-num">0</span>, <span class="syn-num">100</span>)          <span class="syn-comment">-- 50</span>
+math.<span class="syn-func">lerp</span>(a, b, t)
+math.<span class="syn-func">inverseLerp</span>(a, b, value)
+math.<span class="syn-func">approach</span>(value, target, step)
+<span class="syn-keyword">local</span> velocity
+x, velocity = math.<span class="syn-func">smoothDamp</span>(x, target, velocity, <span class="syn-num">0.3</span>, dt)
+math.<span class="syn-func">noise</span>(x, y, z)                   <span class="syn-comment">-- luau&#x27;s perlin noise</span>
+math.<span class="syn-func">fbm</span>(x, y, z, <span class="syn-num">4</span>)                  <span class="syn-comment">-- layered noise: octaves, lacunarity, gain</span>
+math.<span class="syn-func">bezier</span>({ a, b, c }, t)           <span class="syn-comment">-- numbers or vectors</span>
+math.<span class="syn-func">catmullRom</span>({ a, b, c, d }, t)    <span class="syn-comment">-- passes through every point</span></code></pre></div></div>
+<ul>
+<li><strong><code>math.remap</code></strong> moves a number from one range into another. The example reads 5 out of 0 to 10 and
+  writes it back into 0 to 100, which gives 50. It is how you turn health into the width of a bar.</li>
+<li><strong><code>math.lerp</code></strong> blends <code>a</code> and <code>b</code> by <code>t</code>. <strong><code>math.inverseLerp</code></strong> runs the other way and tells you
+  which <code>t</code> a value sits at.</li>
+<li><strong><code>math.approach</code></strong> moves a value towards a target by at most <code>step</code> and stops there, so it never
+  overshoots. Give it a step of <code>speed * delta</code> inside a step handler and it moves at that speed a
+  second.</li>
+<li><strong><code>math.smoothDamp</code></strong> eases a value towards a target and remembers how fast it is going. It takes
+  the current value, the target, the velocity, roughly how long it should take, and the seconds since
+  the last step, and returns the new value and the new velocity. Keep the velocity in a variable and
+  hand it back in each time, as the example does.</li>
+<li><strong><code>math.noise</code></strong> is Luau's Perlin noise. <strong><code>math.fbm</code></strong> layers it: the fourth argument is how many
+  octaves to add up, and lacunarity and gain follow it.</li>
+<li><strong><code>math.bezier</code></strong> reads a list of control points as a curve, and <strong><code>math.catmullRom</code></strong> reads a list
+  of points the curve passes through. Both take numbers or vectors, so the same call smooths a value
+  and a path.</li>
+</ul>
+<div class="demo" data-demo="math-numbers"></div>
+<h2 id="angles">Angles<a class="anchor" href="#angles" title="Permanent link">#</a></h2>
+<p>An angle that keeps growing eventually reads as a large number rather than a direction, and
+subtracting one angle from another can tell you to turn the long way round. These three functions
+handle that.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>angle.<span class="syn-func">wrap</span>(a)          <span class="syn-comment">-- into -pi to pi</span>
+angle.<span class="syn-func">delta</span>(a, b)      <span class="syn-comment">-- the shortest turn from a to b</span>
+angle.<span class="syn-func">lerp</span>(a, b, t)</code></pre></div></div>
+<ul>
+<li><strong><code>angle.wrap</code></strong> brings an angle back into the range -pi to pi.</li>
+<li><strong><code>angle.delta</code></strong> gives the shortest turn from one angle to another, which can be negative. Use it
+  to decide which way a body should turn to face something.</li>
+<li><strong><code>angle.lerp</code></strong> blends two angles the short way round, so turning from just under pi to just over
+  -pi crosses the gap instead of sweeping back through zero.</li>
+</ul>
+<div class="demo" data-demo="math-angles"></div>
+<h2 id="random">Random<a class="anchor" href="#random" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>random.<span class="syn-func">range</span>(<span class="syn-num">1</span>, <span class="syn-num">5</span>)  random.<span class="syn-func">int</span>(<span class="syn-num">1</span>, <span class="syn-num">6</span>)  random.<span class="syn-func">chance</span>(<span class="syn-num">0.25</span>)
+random.<span class="syn-func">pick</span>(list)  random.<span class="syn-func">shuffle</span>(list)
+random.<span class="syn-func">unit</span>()  random.<span class="syn-func">onSphere</span>(<span class="syn-num">3</span>)  random.<span class="syn-func">inSphere</span>(<span class="syn-num">3</span>)
+random.<span class="syn-func">inCircle</span>(<span class="syn-num">5</span>)                    <span class="syn-comment">-- flat on the ground</span>
+random.<span class="syn-func">inBox</span>(<span class="syn-func">vec3</span>(<span class="syn-num">4</span>, <span class="syn-num">1</span>, <span class="syn-num">4</span>))</code></pre></div></div>
+<ul>
+<li><strong><code>random.range</code></strong> gives a decimal number between the two you pass, and <strong><code>random.int</code></strong> gives a
+  whole one, so the example rolls a die.</li>
+<li><strong><code>random.chance</code></strong> answers true that fraction of the time: <code>0.25</code> is true one call in four.</li>
+<li><strong><code>random.pick</code></strong> takes one entry out of a list, and <strong><code>random.shuffle</code></strong> reorders the list.</li>
+<li><strong><code>random.unit</code></strong> gives a direction of length 1. <strong><code>random.onSphere</code></strong> gives a point on the surface
+  of a sphere of that radius and <strong><code>random.inSphere</code></strong> a point anywhere inside it.</li>
+<li><strong><code>random.inCircle</code></strong> gives a point inside a circle flat on the ground, with y left at 0, which is
+  what you want for scattering things across a floor. <strong><code>random.inBox</code></strong> gives a point inside a box of
+  that size.</li>
+</ul>
+    </article>
+    <div class="doc-pager"><a class="prev" href="tweens-and-timing.html"><span>Previous</span>Tweens and timing</a><a class="next" href="saving.html"><span>Next</span>Saving</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#vectors">Vectors</a></li><li><a href="#frames">Frames</a></li><li><a href="#rotations">Rotations</a></li><li><a href="#numbers">Numbers</a></li><li><a href="#angles">Angles</a></li><li><a href="#random">Random</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getting started | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html" class="active"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Start</span></nav>
+    <article class="doc">
+<h1 id="getting-started">Getting started<a class="anchor" href="#getting-started" title="Permanent link">#</a></h1>
+<p>This page walks through a whole place, from the project hub to a floor you can stand on and a camera
+that switches to third person when you sneak. It takes two files and no setup beyond creating the
+project.</p>
+<h2 id="create-a-place">Create a place<a class="anchor" href="#create-a-place" title="Permanent link">#</a></h2>
+<p><strong>New project</strong> in the project hub offers three starts:</p>
+<ul>
+<li><strong>Baseplate</strong> gives you a 128 m floor to build on. Use it when you want to try something out
+  straight away.</li>
+<li><strong>Main menu</strong> gives you a menu drawn over a camera flying along a <code>CameraPath</code>. <strong>Play</strong> hands the
+  player a body, <kbd>Escape</kbd> opens a pause menu, and <code>place.toml</code> sets a loading screen. Players
+  wait in the menu because the template sets <code>game.players.autoSpawn = false</code>. The menus are built in
+  <code>client/main.luau</code>, and the scene holds the floor, the <code>SpawnLocation</code>, the camera path and the
+  <code>Menu</code> remote.</li>
+<li><strong>Empty</strong> gives you a place with nothing in the scene.</li>
+</ul>
+<p>Each template is a folder of ordinary files. Nothing in it is generated at build time, so you can
+read and change every part of it.</p>
+<h2 id="write-the-server-script">Write the server script<a class="anchor" href="#write-the-server-script" title="Permanent link">#</a></h2>
+<p><code>server/main.luau</code> runs on the server. It builds the world and decides what happens to the players in
+it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14</pre><pre><code><span class="syn-keyword">local</span> world = game.world
+
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;floor&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">40</span>, <span class="syn-num">1</span>, <span class="syn-num">40</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">64</span>, <span class="syn-num">0</span>),
+    color = <span class="syn-func">color</span>(<span class="syn-num">0.35</span>, <span class="syn-num">0.42</span>, <span class="syn-num">0.38</span>),
+    anchored = <span class="syn-const">true</span>,
+})
+
+game.players.joined:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    player:<span class="syn-func">spawn</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">66</span>, <span class="syn-num">0</span>))
+    player.character.humanoid.walkSpeed = <span class="syn-num">6</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Line by line:</p>
+<ul>
+<li><code>world:add("Part", { ... })</code> creates a part and parents it to the world. <code>size</code> is in metres,
+  <code>cframe</code> places its centre at x 0, y 64, z 0, and <code>anchored = true</code> keeps physics from moving it,
+  which is what you want for a floor.</li>
+<li><code>game.players.joined</code> fires once for each player who connects. It exists on the server only,
+  because the server is the side that knows about everyone.</li>
+<li><code>player:spawn(position)</code> gives that player a body and puts it where you asked. Two metres above the
+  floor is enough to land on it.</li>
+<li><code>player.character</code> is the body. Its <code>humanoid</code> decides how it moves, so setting <code>walkSpeed = 6</code>
+  makes that player walk six metres a second.</li>
+</ul>
+<div class="demo" data-demo="getting-started-spawn"></div>
+<h2 id="write-the-client-script">Write the client script<a class="anchor" href="#write-the-client-script" title="Permanent link">#</a></h2>
+<p><code>client/main.luau</code> runs inside each player's own game. It sets the camera, reads input and draws
+interface for that player alone:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>camera.fov = <span class="syn-num">80</span>
+
+game.renderStepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    camera.mode = input:<span class="syn-func">down</span>(<span class="syn-string">&quot;sneak&quot;</span>) <span class="syn-keyword">and</span> <span class="syn-string">&quot;thirdPerson&quot;</span> <span class="syn-keyword">or</span> <span class="syn-string">&quot;firstPerson&quot;</span>
+    camera.distance = <span class="syn-num">6</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>camera</code> and <code>input</code> are globals that exist on the client only. <code>renderStepped</code> runs once a frame,
+just before the frame is drawn, so the camera you set inside it is the camera the world is drawn
+against.</p>
+<div class="demo" data-demo="getting-started-camera"></div>
+<p>That is a whole place. There is no registration step and nothing to declare: a file that exists is a
+file that runs.</p>
+<h2 id="change-something-while-it-runs">Change something while it runs<a class="anchor" href="#change-something-while-it-runs" title="Permanent link">#</a></h2>
+<p>Save any file in the place and Moud restarts it. Everything the place created is destroyed and made
+again, which means you can change a number, save, and see the result without leaving the game.</p>
+<p>It also means a variable that holds an instance from before the reload points at something that no
+longer exists:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-comment">-- wrong: points at an instance the reload destroyed</span>
+<span class="syn-keyword">local</span> statue = game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;statue&quot;</span>)
+
+<span class="syn-comment">-- right: looked up when it is needed</span>
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">statue</span>()
+    <span class="syn-keyword">return</span> game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;statue&quot;</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<div class="alert alert-warning"><i class="alert-icon ph-fill ph-warning"></i><div class="alert-body"><p>Every variable in your scripts is cleared by a reload. Anything that has to survive one goes in
+<code>game.persist</code>, a plain table the engine hands back after each restart:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>game.persist.joins = (game.persist.joins <span class="syn-keyword">or</span> <span class="syn-num">0</span>) + <span class="syn-num">1</span></code></pre></div></div></div></div>
+<div class="demo" data-demo="getting-started-reload"></div>
+<h2 id="the-two-clocks">The two clocks<a class="anchor" href="#the-two-clocks" title="Permanent link">#</a></h2>
+<p>Each side has its own loop:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- the server, once a tick. delta is seconds</span>
+game.stepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(delta) <span class="syn-keyword">end</span>)
+
+<span class="syn-comment">-- the client, once a frame. delta is seconds</span>
+game.renderStepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(delta) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Write game state on <code>stepped</code>, where every player gets the same answer. Write the camera and anything
+that has to look smooth on <code>renderStepped</code>, which runs often enough to follow the frame rate.</p>
+<div class="demo" data-demo="clocks"></div>
+<h2 id="waiting-without-blocking">Waiting without blocking<a class="anchor" href="#waiting-without-blocking" title="Permanent link">#</a></h2>
+<p><code>task</code> lets a script wait without stopping the tick that everyone else is on:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code>task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">while</span> <span class="syn-const">true</span> <span class="syn-keyword">do</span>
+        task.<span class="syn-func">wait</span>(<span class="syn-num">0.6</span>)
+        lantern.color = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.88</span>, <span class="syn-num">0.5</span>)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)
+
+task.<span class="syn-func">delay</span>(<span class="syn-num">3</span>, <span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)
+
+<span class="syn-keyword">local</span> handle = task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)
+task.<span class="syn-func">cancel</span>(handle)</code></pre></div></div>
+<p><code>task.spawn</code> starts a piece of work that can yield, <code>task.wait</code> yields for a number of seconds,
+<code>task.delay</code> runs something once later, and <code>task.cancel</code> stops work you started.</p>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>A loop without a <code>task.wait</code> inside it never gives the tick back, and the server stops answering
+anybody. If you write <code>while true do</code>, put a wait in it.</p></div></div>
+<h2 id="when-something-goes-wrong">When something goes wrong<a class="anchor" href="#when-something-goes-wrong" title="Permanent link">#</a></h2>
+<p>A value an enum does not accept is an error that names what was allowed, instead of quietly falling
+back to a default:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>camera.mode = <span class="syn-string">&quot;birdseye&quot;</span>
+<span class="syn-comment">-- error: mode wants one of firstPerson, thirdPerson, scriptable</span></code></pre></div></div>
+<p>Errors are listed in the in-game overlay, which opens with <kbd>Right Shift</kbd>. The overlay also
+shows what the renderer and the physics currently think, so it tells you whether the place is wrong
+or the engine is.</p>
+<h2 id="next-steps">Next steps<a class="anchor" href="#next-steps" title="Permanent link">#</a></h2>
+<ul>
+<li><a href="place.html">Places, modules, scenes and scripts</a> explains <code>place.toml</code>, <code>require</code>, scene files and
+  the script instances you can put in the tree.</li>
+<li><a href="instances.html">Instances</a> covers parts, properties, signals and raycasts in full.</li>
+<li><a href="players.html">Players and bodies</a> covers spawning, teams and walking bodies around.</li>
+<li><a href="interface.html">Interface</a> covers the screen, billboards and surface guis.</li>
+</ul>
+    </article>
+    <div class="doc-pager"><a class="prev" href="index.html"><span>Previous</span>Overview</a><a class="next" href="place.html"><span>Next</span>Places, modules, scenes and scripts</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#create-a-place">Create a place</a></li><li><a href="#write-the-server-script">Write the server script</a></li><li><a href="#write-the-client-script">Write the client script</a></li><li><a href="#change-something-while-it-runs">Change something while it runs</a></li><li><a href="#the-two-clocks">The two clocks</a></li><li><a href="#waiting-without-blocking">Waiting without blocking</a></li><li><a href="#when-something-goes-wrong">When something goes wrong</a></li><li><a href="#next-steps">Next steps</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

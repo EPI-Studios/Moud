@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lighting, sky, weather and presets | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html" class="active"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Screen and sound</span></nav>
+    <article class="doc">
+<h1 id="lighting-sky-weather-and-presets">Lighting, sky, weather and presets<a class="anchor" href="#lighting-sky-weather-and-presets" title="Permanent link">#</a></h1>
+<p>A <code>Lighting</code> is an instance you put in the world that takes the time of day, the sunlight, the
+weather and the sky over from Minecraft. There is no lighting service to look up and no lighting
+until you add one: a place with no <code>Lighting</code> in it keeps the game's own clock, sky and weather.</p>
+<p>The first <code>Lighting</code> the engine finds in the world is the one it reads. A <code>Lighting</code> kept in
+<code>ServerStorage</code> or <code>ReplicatedStorage</code> is ignored, because nothing in those containers is in the
+world, as <a href="containers.html">Containers</a> explains. Destroy the one in the world and the game takes its
+sky, clock and weather back.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">-- server: a place that is always just after dusk</span>
+<span class="syn-keyword">local</span> lighting = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Lighting&quot;</span>, {
+    clockTime = <span class="syn-num">20.5</span>,
+    timeScale = <span class="syn-num">0</span>,
+    brightness = <span class="syn-num">1.2</span>,
+    ambient = <span class="syn-func">color</span>(<span class="syn-num">0.05</span>, <span class="syn-num">0.06</span>, <span class="syn-num">0.1</span>),
+    outdoorAmbient = <span class="syn-func">color</span>(<span class="syn-num">0.3</span>, <span class="syn-num">0.32</span>, <span class="syn-num">0.45</span>),
+})</code></pre></div></div>
+<ul>
+<li><code>clockTime = 20.5</code> puts the clock at half past eight in the evening.</li>
+<li><code>timeScale = 0</code> freezes the clock there, so the light never moves on while players are in the
+  place.</li>
+<li><code>brightness</code>, <code>ambient</code> and <code>outdoorAmbient</code> set how strong the sunlight is and what light
+  everything gets when the sun is not on it.</li>
+</ul>
+<p>You add this from a server script, so every player is sent it and every player sees the same sky.</p>
+<p>Four more classes go inside the <code>Lighting</code> and shape parts of what it draws: a <code>Sky</code> for what is
+overhead, an <code>Atmosphere</code> for the air between the camera and the world, a <code>Clouds</code> for the clouds
+and a <code>Weather</code> for rain, snow, fog and storms. They may hang anywhere underneath the <code>Lighting</code>, not
+only straight under it, and the first one the engine finds is the one it reads.</p>
+<p>In the Explorer, <strong>Insert &gt; Lighting</strong> lists all five. A <code>Lighting</code> inserted there starts with
+<a href="#colours-of-the-day"><code>dayCycle</code></a> on; one a script adds starts with it off.</p>
+<p>Rather than setting every property by hand, a <code>Lighting</code> can take a whole look at once from a
+<a href="#presets">preset</a>, such as a golden hour or a storm.</p>
+<h2 id="the-clock">The clock<a class="anchor" href="#the-clock" title="Permanent link">#</a></h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>clockTime</code></td>
+<td>14</td>
+<td>the time of day in hours, 0 to 24</td>
+</tr>
+<tr>
+<td><code>timeScale</code></td>
+<td>1</td>
+<td>how fast the day runs, up to 60; 0 freezes it, 1 is a twenty minute day</td>
+</tr>
+<tr>
+<td><code>geographicLatitude</code></td>
+<td>41.733</td>
+<td>how far north the place sits, in degrees</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>clockTime</code> drives the game's own clock, so the sun, the sky colour and the block light all follow
+it. While <code>timeScale</code> is above 0 the engine writes <code>clockTime</code> back as the day runs, so reading it
+always gives the time now. Writing it moves the clock at once, and the day keeps the date it was on.</p>
+<p>Two methods read and write the same clock in minutes, which is easier when you are counting from
+midnight:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-func">print</span>(lighting:<span class="syn-func">getMinutesAfterMidnight</span>())    <span class="syn-comment">-- 1230 at 20.5</span>
+lighting:<span class="syn-func">setMinutesAfterMidnight</span>(<span class="syn-num">6</span> * <span class="syn-num">60</span>)     <span class="syn-comment">-- sunrise</span></code></pre></div></div>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lighting:getMinutesAfterMidnight()</code></td>
+<td><code>clockTime</code> in minutes, 0 to 1440</td>
+</tr>
+<tr>
+<td><code>lighting:setMinutesAfterMidnight(minutes)</code></td>
+<td>sets <code>clockTime</code> from minutes</td>
+</tr>
+<tr>
+<td><code>lighting:getSunDirection()</code></td>
+<td>a unit vector from the world towards the sun</td>
+</tr>
+<tr>
+<td><code>lighting:getMoonDirection()</code></td>
+<td>the other way</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>geographicLatitude</code> tilts the sun's path: 0 sends it straight overhead at noon, 90 keeps it near the
+horizon all day. It turns the direction those two methods give, and with it the light and the shadows
+on mesh parts. It does not move the game's own sun sprite, which keeps the path it always had; a
+<code>sunTextureId</code> is drawn along the tilted path instead.</p>
+<p><code>getSunDirection</code> is what you point things at when they have to follow the sun:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">-- server: a panel that keeps facing the sun</span>
+<span class="syn-keyword">local</span> lighting = game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;Lighting&quot;</span>) :: Lighting
+<span class="syn-keyword">local</span> panel = game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;panel&quot;</span>) :: Part
+game.stepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    panel.cframe = cframe.<span class="syn-func">lookAt</span>(panel.position, panel.position + lighting:<span class="syn-func">getSunDirection</span>())
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>game.stepped</code> is the server's loop, so the panel is turned once a tick and every player sees it
+pointing the same way. Adding the sun direction to the panel's own position gives a point in the sky
+for <code>cframe.lookAt</code> to aim at.</p>
+<h2 id="colours-of-the-day">Colours of the day<a class="anchor" href="#colours-of-the-day" title="Permanent link">#</a></h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dayCycle</code></td>
+<td>false</td>
+<td>the light, the air and the sky take the colours of the hour</td>
+</tr>
+</tbody>
+</table></div>
+<p>With <code>dayCycle</code> off, the colours you set are the colours you get at every hour. Turn it on and the
+engine tints them by how high the sun stands: blue at night, violet in the twilight, orange as the sun
+crosses the horizon, and back to what you set once the sun is well up.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-comment">-- server: a day that runs twice as fast and takes the colours of the hour</span>
+<span class="syn-keyword">local</span> lighting = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Lighting&quot;</span>, {
+    clockTime = <span class="syn-num">17</span>,
+    timeScale = <span class="syn-num">2</span>,
+    dayCycle = <span class="syn-const">true</span>,
+}) :: Lighting
+lighting:<span class="syn-func">add</span>(<span class="syn-string">&quot;Atmosphere&quot;</span>, { density = <span class="syn-num">0.25</span> })</code></pre></div></div>
+<p>The clock starts an hour before sunset and runs at twice the speed, so within a few minutes the
+light goes gold, then orange, then blue.</p>
+<p>Four things follow the hour:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th></th>
+<th>What happens to it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>outdoorAmbient</code></td>
+<td>multiplied by the tint, so the sky's light turns warm at sunrise and sunset and blue at night</td>
+</tr>
+<tr>
+<td><code>ambient</code></td>
+<td>never lower than a dark blue at night and a faint grey by day; an <code>ambient</code> brighter than that wins</td>
+</tr>
+<tr>
+<td>the <code>Atmosphere</code>'s <code>color</code> and <code>decay</code></td>
+<td>multiplied by the tint, dark blue at night and orange at the horizon</td>
+</tr>
+<tr>
+<td>the game's sky colour</td>
+<td>multiplied by a paler version of the same tint</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>The tint changes with the sun's height: full night with the sun 20 degrees or more below the
+  horizon, twilight at 7 below, the warmest colours at the horizon, and no tint at all once the sun is
+  20 degrees up. The colours in between fade smoothly, so nothing jumps.</li>
+<li>Before noon the engine uses a morning set of colours, pinker than the evening one.</li>
+<li>The colours you set are the daytime ones. Between the sun reaching 20 degrees and dropping back to
+  it, <code>outdoorAmbient</code> and the <code>Atmosphere</code> look exactly as the properties say.</li>
+<li><code>geographicLatitude</code> moves the sun, so it moves the colours too. Beyond about 70 degrees north or
+  south the sun never climbs 20 degrees, and the whole day keeps some of the evening colour.</li>
+<li>Only the game's own sky is tinted. A <a href="#sky"><code>Sky</code></a> with its faces filled draws your images as they
+  are.</li>
+</ul>
+<div class="demo" data-demo="lighting-sun"></div>
+<p>The tint is applied when the frame is drawn. Reading <code>outdoorAmbient</code> or the <code>Atmosphere</code>'s <code>color</code>
+gives back what you set, not the tinted colour.</p>
+<h2 id="light">Light<a class="anchor" href="#light" title="Permanent link">#</a></h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>brightness</code></td>
+<td>2</td>
+<td>how strong the sunlight is; 2 is what the game gives on its own</td>
+</tr>
+<tr>
+<td><code>ambient</code></td>
+<td>black</td>
+<td>the least light anything gets, indoors and at night</td>
+</tr>
+<tr>
+<td><code>outdoorAmbient</code></td>
+<td>grey (0.5)</td>
+<td>tints the light the sky gives; grey leaves it as the game has it</td>
+</tr>
+<tr>
+<td><code>exposureCompensation</code></td>
+<td>0</td>
+<td>brightens or darkens the whole picture in stops; 1 is twice as bright</td>
+</tr>
+<tr>
+<td><code>shadowSoftness</code></td>
+<td>0.2</td>
+<td>how blurry the edges of the sun's shadows are</td>
+</tr>
+<tr>
+<td><code>globalShadows</code></td>
+<td>true</td>
+<td>the sun casts shadows</td>
+</tr>
+<tr>
+<td><code>environmentDiffuseScale</code></td>
+<td>1</td>
+<td>how much of the surroundings' light reaches meshes</td>
+</tr>
+<tr>
+<td><code>environmentSpecularScale</code></td>
+<td>1</td>
+<td>how much the surroundings show in the shine on meshes</td>
+</tr>
+</tbody>
+</table></div>
+<p>Raise <code>ambient</code> when a cave or a night in your place is too dark to play in: it is a floor under the
+light, so it lifts the parts the sun never reaches without touching the ones it does. Leave it black
+and unlit corners stay black.</p>
+<p>Three of these need something else in the place before they do anything:</p>
+<ul>
+<li><code>globalShadows</code> only adds a sun to the shadow pass when the place has a
+  <a href="rendering.html#post-effects"><code>ShadowQuality</code></a> effect in it. Without one there is no shadow pass to
+  add to, and the switch does nothing.</li>
+<li>The two environment scales only reach <code>MeshPart</code>s drawn from a glTF file. Blocks and plain parts
+  keep the game's own light.</li>
+<li><code>exposureCompensation</code> rides on top of a <a href="rendering.html#post-effects"><code>ColorGradeEffect</code></a>, so put
+  one in the place when you use it.</li>
+</ul>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>With no <code>ShadowQuality</code> or <code>ColorGradeEffect</code> in the place, <code>globalShadows</code> and
+<code>exposureCompensation</code> leave the picture as it was. That is the usual reason a lighting property
+looks like it was ignored.</p></div></div>
+<h2 id="sky">Sky<a class="anchor" href="#sky" title="Permanent link">#</a></h2>
+<p>A <code>Sky</code> inside the <code>Lighting</code> replaces what is drawn overhead: the six faces of a skybox, the sun,
+the moon and the stars.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code>lighting:<span class="syn-func">add</span>(<span class="syn-string">&quot;Sky&quot;</span>, {
+    skyboxFt = <span class="syn-string">&quot;res://sky/front.png&quot;</span>,
+    skyboxBk = <span class="syn-string">&quot;res://sky/back.png&quot;</span>,
+    skyboxLf = <span class="syn-string">&quot;res://sky/left.png&quot;</span>,
+    skyboxRt = <span class="syn-string">&quot;res://sky/right.png&quot;</span>,
+    skyboxUp = <span class="syn-string">&quot;res://sky/top.png&quot;</span>,
+    skyboxDn = <span class="syn-string">&quot;res://sky/bottom.png&quot;</span>,
+    sunTextureId = <span class="syn-string">&quot;res://sky/sun.png&quot;</span>,
+    sunAngularSize = <span class="syn-num">40</span>,
+    starCount = <span class="syn-num">800</span>,
+})</code></pre></div></div>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>skyboxFt</code>, <code>skyboxBk</code></td>
+<td><code>""</code></td>
+<td>the faces looking north and south</td>
+</tr>
+<tr>
+<td><code>skyboxLf</code>, <code>skyboxRt</code></td>
+<td><code>""</code></td>
+<td>the faces looking west and east</td>
+</tr>
+<tr>
+<td><code>skyboxUp</code>, <code>skyboxDn</code></td>
+<td><code>""</code></td>
+<td>the top and the bottom</td>
+</tr>
+<tr>
+<td><code>sunTextureId</code>, <code>moonTextureId</code></td>
+<td><code>""</code></td>
+<td>images drawn in place of the sun and the moon</td>
+</tr>
+<tr>
+<td><code>sunAngularSize</code>, <code>moonAngularSize</code></td>
+<td>21, 11</td>
+<td>how wide each looks, in degrees</td>
+</tr>
+<tr>
+<td><code>starCount</code></td>
+<td>3000</td>
+<td>how many stars come out at night; 3000 is every star the game has</td>
+</tr>
+<tr>
+<td><code>celestialBodiesShown</code></td>
+<td>true</td>
+<td>off: no sun, no moon and no stars</td>
+</tr>
+<tr>
+<td><code>skyboxOrientation</code></td>
+<td>0, 0, 0</td>
+<td>turns the box of images, in degrees</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>The game's own sun is about 33 degrees across and its moon about 23, so the defaults are smaller
+  than what it draws. The sample above sets <code>sunAngularSize = 40</code> to get a sun larger than the
+  game's.</li>
+<li>A <code>sunTextureId</code> hides the game's sun and draws the image along the path <code>getSunDirection</code> gives.
+  An empty one keeps the game's sun, and the game's moon keeps its phases.</li>
+<li><code>skyboxOrientation</code> turns the images only. The sun and the moon keep following the clock.</li>
+</ul>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Filling any one face puts the whole box in place of the game's sky, and the faces you left empty
+are holes. Fill all six.</p></div></div>
+<h2 id="atmosphere">Atmosphere<a class="anchor" href="#atmosphere" title="Permanent link">#</a></h2>
+<p>An <code>Atmosphere</code> inside the <code>Lighting</code> is the distance fog: the air between the camera and what it
+looks at.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>density</code></td>
+<td>0.3</td>
+<td>how thick the air is, 0 to 1</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td>0.25</td>
+<td>pushes the near edge of the fog out, -1 to 1</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td>light grey</td>
+<td>the colour of the air near the camera</td>
+</tr>
+<tr>
+<td><code>decay</code></td>
+<td>blue grey</td>
+<td>the colour it falls back to away from the sun</td>
+</tr>
+<tr>
+<td><code>glare</code></td>
+<td>0</td>
+<td>how much the air lights up when the sun is ahead, 0 to 10</td>
+</tr>
+<tr>
+<td><code>haze</code></td>
+<td>0</td>
+<td>how far the air reaches into the sky, 0 to 10</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>density</code> pulls the fog in: 0 leaves the view open to the render distance, 1 closes it to a few
+metres. The far edge never comes nearer than 8 metres. <code>haze</code> also trades <code>decay</code> for <code>color</code>, so
+with no haze the fog takes <code>decay</code> alone.</p>
+<p>The <a href="rendering.html#post-effects"><code>FogEffect</code></a> is a separate screen pass and draws on top of this. It
+is the one that knows about height, so a valley that fills with mist wants both:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code>lighting:<span class="syn-func">add</span>(<span class="syn-string">&quot;Atmosphere&quot;</span>, {
+    density = <span class="syn-num">0.45</span>,
+    offset = <span class="syn-num">0.3</span>,
+    color = <span class="syn-func">color</span>(<span class="syn-num">0.72</span>, <span class="syn-num">0.76</span>, <span class="syn-num">0.8</span>),
+    decay = <span class="syn-func">color</span>(<span class="syn-num">0.4</span>, <span class="syn-num">0.45</span>, <span class="syn-num">0.55</span>),
+    haze = <span class="syn-num">4</span>,
+})
+
+game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;FogEffect&quot;</span>, {
+    color = <span class="syn-func">color</span>(<span class="syn-num">0.75</span>, <span class="syn-num">0.78</span>, <span class="syn-num">0.82</span>),
+    start = <span class="syn-num">2</span>,
+    density = <span class="syn-num">0.4</span>,
+    baseHeight = <span class="syn-num">70</span>,
+    heightFalloff = <span class="syn-num">0.35</span>,
+})</code></pre></div></div>
+<ul>
+<li>The <code>Atmosphere</code> thickens the air everywhere at once, at any height.</li>
+<li>The <code>FogEffect</code> sits in the world rather than in the <code>Lighting</code>, and its <code>baseHeight</code> and
+  <code>heightFalloff</code> are what keep the mist in the valley floor instead of over the hilltops.</li>
+</ul>
+<p>Two things change the air on top of these properties without writing to them: with
+<a href="#colours-of-the-day"><code>dayCycle</code></a> on, <code>color</code> and <code>decay</code> take the colour of the hour, and a
+<a href="#weather"><code>Weather</code></a> thickens and greys the air. A script that reads or tweens <code>density</code> keeps
+working through a storm, because the storm is added when the frame is drawn.</p>
+<h2 id="clouds">Clouds<a class="anchor" href="#clouds" title="Permanent link">#</a></h2>
+<p>A <code>Clouds</code> inside the <code>Lighting</code> tints and thins the game's clouds.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>true</td>
+<td>off: no clouds are drawn</td>
+</tr>
+<tr>
+<td><code>cover</code></td>
+<td>0.5</td>
+<td>how much sky they take, 0 to 1</td>
+</tr>
+<tr>
+<td><code>density</code></td>
+<td>0.7</td>
+<td>how solid they look, 0 to 1</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td>white</td>
+<td>the colour they are tinted</td>
+</tr>
+</tbody>
+</table></div>
+<p>The game's clouds keep their shape, so <code>cover</code> and <code>density</code> thin them rather than opening holes in
+them. Either at 0 draws nothing at all, except that a <a href="#weather"><code>Weather</code></a> that clouds the sky over
+raises the cover it draws with.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>lighting:<span class="syn-func">add</span>(<span class="syn-string">&quot;Clouds&quot;</span>, { cover = <span class="syn-num">0.9</span>, density = <span class="syn-num">0.4</span>, color = <span class="syn-func">color</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0.45</span>, <span class="syn-num">0.55</span>) })</code></pre></div></div>
+<p>That gives clouds over most of the sky, thin enough to see through, tinted towards violet.</p>
+<h2 id="weather">Weather<a class="anchor" href="#weather" title="Permanent link">#</a></h2>
+<p>A <code>Weather</code> inside the <code>Lighting</code> brings rain, snow, fog or a storm. It draws its own rain and snow,
+plays their sound, thickens the air, fills and darkens the clouds, and in a storm throws lightning. A
+<code>Weather</code> anywhere else in the tree does nothing.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-comment">-- server: light rain drifting east, easing in over ten seconds</span>
+<span class="syn-keyword">local</span> lighting = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Lighting&quot;</span>, { dayCycle = <span class="syn-const">true</span> }) :: Lighting
+<span class="syn-keyword">local</span> weather = lighting:<span class="syn-func">add</span>(<span class="syn-string">&quot;Weather&quot;</span>, {
+    kind = <span class="syn-string">&quot;rain&quot;</span>,
+    intensity = <span class="syn-num">0.5</span>,
+    wind = <span class="syn-func">vec3</span>(<span class="syn-num">3</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>),
+    transition = <span class="syn-num">10</span>,
+}) :: Weather
+
+task.<span class="syn-func">delay</span>(<span class="syn-num">120</span>, <span class="syn-keyword">function</span>()
+    weather.kind = <span class="syn-string">&quot;snow&quot;</span>
+    weather.intensity = <span class="syn-num">0.8</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>The rain comes in over ten seconds for every player. Two minutes later the script turns it to snow,
+and the change takes another ten seconds: the rain thins out while the snow thickens.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code></td>
+<td><code>"clear"</code></td>
+<td><code>"clear"</code>, <code>"rain"</code>, <code>"snow"</code>, <code>"storm"</code> or <code>"fog"</code></td>
+</tr>
+<tr>
+<td><code>intensity</code></td>
+<td>1</td>
+<td>how heavy it is, 0 to 1</td>
+</tr>
+<tr>
+<td><code>wind</code></td>
+<td>2, 0, 1</td>
+<td>which way and how fast the rain and snow drift, in blocks a second</td>
+</tr>
+<tr>
+<td><code>transition</code></td>
+<td>5</td>
+<td>seconds a change of <code>kind</code> or <code>intensity</code> takes, 0 to 600; 0 switches at once</td>
+</tr>
+<tr>
+<td><code>strikes</code></td>
+<td>0</td>
+<td>how many times lightning has struck; the server counts it</td>
+</tr>
+<tr>
+<td><code>strikePosition</code></td>
+<td>0, 0, 0</td>
+<td>where the last lightning struck; the server writes it</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>strikes</code> and <code>strikePosition</code> are read-only: a script that writes either gets an error, the same as
+writing any other read-only property. They are the server's record of its lightning and reach every
+player like any other property, but they are not saved with the scene. To make lightning, call
+<a href="#lightning"><code>strike</code></a>.</p>
+<h3 id="what-each-kind-brings">What each kind brings<a class="anchor" href="#what-each-kind-brings" title="Permanent link">#</a></h3>
+<p>Each kind is a mix of five ingredients, and <code>intensity</code> scales all of them:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>Rain</th>
+<th>Snow</th>
+<th>Storm</th>
+<th>Fog</th>
+<th>Overcast</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"clear"</code></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>"rain"</code></td>
+<td>1</td>
+<td></td>
+<td></td>
+<td>0.15</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>"snow"</code></td>
+<td></td>
+<td>1</td>
+<td></td>
+<td>0.25</td>
+<td>0.8</td>
+</tr>
+<tr>
+<td><code>"storm"</code></td>
+<td>1</td>
+<td></td>
+<td>1</td>
+<td>0.3</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>"fog"</code></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>0.3</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>"rain"</code> at an <code>intensity</code> of 0.5 is half the rain, a little fog and a half-grey sky. <code>"clear"</code> with any
+<code>intensity</code> is no weather at all.</p>
+<p>When <code>kind</code> or <code>intensity</code> changes, the five ingredients ease from where they are to the new mix over
+<code>transition</code> seconds, slow at both ends. A change that arrives halfway through starts from where the
+last one had got to, so nothing jumps. <code>transition</code> is read at the moment of the change; changing it
+on its own does not restart anything. <code>wind</code> is not eased: the drops change direction at once.</p>
+<div class="demo" data-demo="lighting-weather"></div>
+<h3 id="air-clouds-and-sky">Air, clouds and sky<a class="anchor" href="#air-clouds-and-sky" title="Permanent link">#</a></h3>
+<p>The weather is added when the frame is drawn. It never writes to the <code>Atmosphere</code> or the <code>Clouds</code>,
+so their properties keep the values you gave them.</p>
+<ul>
+<li><strong>Air.</strong> Fog, rain and snow thicken the <code>Atmosphere</code> on top of its own <code>density</code>: full fog adds
+  most, then snow, then rain, and the weather never closes more than nine tenths of the view the
+  <code>Atmosphere</code> left open. Fog and an overcast sky raise <code>haze</code> towards 10, so the sky disappears into
+  the fog. Overcast fades out the <code>glare</code> and greys <code>color</code> and <code>decay</code>, and a storm darkens them by
+  up to 40 percent.</li>
+<li><strong>No <code>Atmosphere</code>.</strong> Rain, snow or fog still turn the distance fog on, starting from the game's own
+  fog colour, even when the <code>fog</code> switch in <code>place.toml</code> is off.</li>
+<li><strong>Clouds.</strong> With a <code>Clouds</code>, the cover drawn is at least the overcast amount, so a full storm fills
+  the sky even when <code>cover</code> is low. Overcast greys the clouds by up to 20 percent and a storm darkens
+  them by up to 45 percent more. Without a <code>Clouds</code>, the game's own clouds are darkened the same way,
+  if the <code>clouds</code> switch lets them show.</li>
+<li><strong>Sky.</strong> The weather sets the game's own rain and thunder levels, below, and the game dims its sky
+  and sunlight for those as it always does.</li>
+</ul>
+<h3 id="rain-and-snow">Rain and snow<a class="anchor" href="#rain-and-snow" title="Permanent link">#</a></h3>
+<p>Each player's game draws the rain and snow around its own camera: rain within 18 blocks, snow within
+16. Drops fall at about 16 blocks a second and flakes at about 2, swaying as they go, and <code>wind</code>
+carries both. A full storm brings half as much rain again as full rain.</p>
+<p>Rain and snow stop at the highest thing above them, so they do not fall indoors:</p>
+<ul>
+<li>the world's blocks count, and so does every <strong>anchored</strong> part that is not see-through
+  (<code>transparency</code> below 0.99);</li>
+<li>an unanchored part, such as a car or a crate, does not shelter anything;</li>
+<li>a part shelters the whole box it fills along the world's axes, so a beam turned at 45 degrees
+  covers a square;</li>
+<li>only what lies within 24 blocks sideways of the camera, from 24 blocks below it to 48 above,
+  is looked at, a few times a second.</li>
+</ul>
+<p>A player with a roof more than half a block above their head is indoors. Indoors the rain, the wind
+and the thunder drop to about a third of their loudness, and rain seen through a window is lit like
+the outside.</p>
+<h3 id="sound">Sound<a class="anchor" href="#sound" title="Permanent link">#</a></h3>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Sound</th>
+<th>When</th>
+<th>How loud</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>rain (<code>minecraft:weather.rain</code>)</td>
+<td>while it rains</td>
+<td>up to 0.55 in rain, 0.9 in a full storm</td>
+</tr>
+<tr>
+<td>wind (<code>minecraft:item.elytra.flying</code>, lowered)</td>
+<td>in snow, fog and storms</td>
+<td>up to 0.25</td>
+</tr>
+<tr>
+<td>thunder (<code>minecraft:entity.lightning_bolt.thunder</code>)</td>
+<td>after each strike</td>
+<td>1 close by, down to 0.25 far off</td>
+</tr>
+<tr>
+<td>crack (<code>minecraft:entity.lightning_bolt.impact</code>)</td>
+<td>after a strike within 48 blocks</td>
+<td>1, from where it struck</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every one of these is about a third as loud for a player indoors.</p>
+<p>The rain and the wind loop, and fade in and out over a second and a half. Thunder comes after the
+flash, one second for every 343 blocks between the player and the strike, and never more than five
+seconds late.</p>
+<div class="demo" data-demo="lighting-thunder"></div>
+<h3 id="lightning">Lightning<a class="anchor" href="#lightning" title="Permanent link">#</a></h3>
+<p>A <code>"storm"</code> throws lightning on its own. At full storm a strike comes about every nine seconds on
+average, and less often as the storm weakens. Each one lands on the ground 16 to 72 blocks from a
+player picked at random. With no player on the server there is no one to strike near, so a storm
+throws nothing until someone joins. While the editor is editing a scene, storms do not throw
+lightning.</p>
+<p>A strike flashes the sky, lights up the world and the fog for a moment with a flicker or two, and
+brings the thunder above. It does nothing else: no damage, no fire, no broken blocks. What a strike
+does to the game is up to your scripts, through the <code>struck</code> signal:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-comment">-- server: lightning that blasts whatever it lands on</span>
+<span class="syn-keyword">local</span> weather = game.world:<span class="syn-func">findFirstDescendant</span>(<span class="syn-string">&quot;Weather&quot;</span>) :: Weather
+
+weather.struck:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(position: Vector3)
+    game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Explosion&quot;</span>, { position = position, blastRadius = <span class="syn-num">4</span> })
+<span class="syn-keyword">end</span>)
+
+weather:<span class="syn-func">strike</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">70</span>, <span class="syn-num">0</span>))
+weather:<span class="syn-func">strike</span>()</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>weather:strike(position)</code></td>
+<td>strikes at that position</td>
+</tr>
+<tr>
+<td><code>weather:strike()</code></td>
+<td>strikes where a storm would: on the ground near a random player, or at 0, 0, 0 on the ground when nobody is on</td>
+</tr>
+<tr>
+<td><code>weather.struck</code></td>
+<td>fires with the position every time lightning strikes, on the server</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><code>strike</code> works in any <code>kind</code>, not only in a storm. On the server the strike happens on the next
+  tick.</li>
+<li>Called on the server, every player sees the flash and hears the thunder. <code>struck</code> fires,
+  <code>strikePosition</code> is set and <code>strikes</code> counts up, whether a script asked for the strike or the storm
+  threw it.</li>
+<li>Called on a client, the strike is for that player alone. With no position it lands on the ground
+  24 to 80 blocks from the camera. <code>struck</code> does not fire and <code>strikes</code> does not change.</li>
+<li><code>struck</code> only fires on the server. A client that wants to know about lightning watches <code>strikes</code>:</li>
+</ul>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-comment">-- client: hear about the server&#x27;s lightning</span>
+<span class="syn-keyword">local</span> weather = game.world:<span class="syn-func">findFirstDescendant</span>(<span class="syn-string">&quot;Weather&quot;</span>) :: Weather?
+<span class="syn-keyword">if</span> weather <span class="syn-keyword">then</span>
+    <span class="syn-keyword">local</span> found = weather
+    found:<span class="syn-func">getPropertyChangedSignal</span>(<span class="syn-string">&quot;strikes&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+        <span class="syn-func">print</span>(<span class="syn-string">&quot;lightning at&quot;</span>, found.strikePosition)
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>Strikes that land in the same server tick reach each player together, with only the position of the
+last one. Each still flashes and thunders on its own, a few frames apart, all at that last
+position, and <code>strikes</code> counts every one. <code>struck</code> fires once for each with its own position.</p></div></div>
+<h3 id="the-games-rain-and-thunder">The game's rain and thunder<a class="anchor" href="#the-games-rain-and-thunder" title="Permanent link">#</a></h3>
+<p>The <code>Lighting</code> has two weather properties of its own, older than <code>Weather</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rain</code></td>
+<td>0</td>
+<td>how hard the game's own rain falls, 0 to 1</td>
+</tr>
+<tr>
+<td><code>thunder</code></td>
+<td>0</td>
+<td>how dark and stormy the game's own sky is, 0 to 1</td>
+</tr>
+</tbody>
+</table></div>
+<p>These set Minecraft's own rain and thunder levels, which the game uses to dim the sky and the
+sunlight. Rain has to be above 0 for thunder to show. <code>thunder</code> only darkens the sky and, with a
+<code>Weather</code> in the <code>Lighting</code>, makes the rain it draws heavier: it never throws lightning. A <code>Lighting</code>
+in the world takes the game's weather over: its own cycle no longer starts or stops rain, so a place
+that wants a storm sets one.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-comment">-- server: a storm that blows over in a minute</span>
+<span class="syn-keyword">local</span> lighting = game.world:<span class="syn-func">findFirstDescendant</span>(<span class="syn-string">&quot;Lighting&quot;</span>) :: Lighting
+lighting.rain = <span class="syn-num">1</span>
+lighting.thunder = <span class="syn-num">0.8</span>
+task.<span class="syn-func">delay</span>(<span class="syn-num">60</span>, <span class="syn-keyword">function</span>()
+    lighting.rain = <span class="syn-num">0</span>
+    lighting.thunder = <span class="syn-num">0</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>The rain starts for every player as soon as the property is written, because the server owns the
+<code>Lighting</code> and the change replicates. A minute later <code>task.delay</code> runs the function that clears both
+and the sky goes back to what the clock says it should be.</p>
+<p>A <code>Weather</code> sets the same two levels. The game's rain level is the larger of <code>rain</code> and the
+<code>Weather</code>'s rain or snow, and its thunder level the larger of <code>thunder</code> and the storm. Neither
+property is written, so <code>lighting.rain</code> still reads what you set. Snow counts as rain here, so
+anything in the game that checks whether it is raining sees rain in a snowfall.</p>
+<p>With a <code>Weather</code> in the <code>Lighting</code>, the game's own rain and snow are no longer drawn and its rain
+sounds and splashes stop. The <code>Weather</code> draws the rain instead, as hard as the larger of
+<code>lighting.rain</code> and its own rain, and plays the rain sound to match. <code>lighting.rain = 1</code> with a
+<code>"clear"</code> <code>Weather</code> still rains in full, and <code>thunder</code> makes that rain heavier the way a storm does.</p>
+<p>The game's own lightning never strikes while a place runs, with or without a <code>Weather</code>, and whatever
+<code>rain</code> and <code>thunder</code> say. The only lightning is a <code>Weather</code>'s: a storm's strikes and the ones scripts
+ask for with <code>strike</code>, which flash and thunder but never set fires or hurt anyone.</p>
+<h2 id="presets">Presets<a class="anchor" href="#presets" title="Permanent link">#</a></h2>
+<p>A preset sets the <code>Lighting</code>, its <code>Atmosphere</code>, its <code>Clouds</code> and its <code>Weather</code> to a finished look in
+one call. There are seven:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> lighting = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Lighting&quot;</span>, {}) :: Lighting
+<span class="syn-keyword">for</span> _, name <span class="syn-keyword">in</span> lighting:<span class="syn-func">getPresetNames</span>() <span class="syn-keyword">do</span>
+    <span class="syn-func">print</span>(name)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>That prints <code>clear day</code>, <code>golden hour</code>, <code>overcast</code>, <code>night</code>, <code>foggy dawn</code>, <code>snowfall</code> and <code>storm</code>.</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lighting:getPresetNames()</code></td>
+<td>the names of every preset, in the order above</td>
+</tr>
+<tr>
+<td><code>lighting:applyPreset(name, seconds)</code></td>
+<td>moves to that preset over <code>seconds</code>, or at once when <code>seconds</code> is left out or 0</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-comment">-- server: start on a clear afternoon, then let a storm roll in over half a minute</span>
+<span class="syn-keyword">local</span> lighting = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Lighting&quot;</span>, {}) :: Lighting
+lighting:<span class="syn-func">applyPreset</span>(<span class="syn-string">&quot;clear day&quot;</span>)
+
+task.<span class="syn-func">delay</span>(<span class="syn-num">60</span>, <span class="syn-keyword">function</span>()
+    lighting:<span class="syn-func">applyPreset</span>(<span class="syn-string">&quot;storm&quot;</span>, <span class="syn-num">30</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>The first call adds an <code>Atmosphere</code>, a <code>Clouds</code> and a <code>Weather</code> under the <code>Lighting</code>, because it has
+none, and sets everything at once. A minute later the second call eases all of it towards the storm
+over 30 seconds: the clock moves on to three in the afternoon, the light dims, the air thickens and
+the rain comes in.</p>
+<ul>
+<li>The name is matched without regard to case or spaces at either end. A name that is not a preset is
+  an error that lists the real ones. In the editor's types <code>name</code> is one of the seven names written
+  exactly as above, so a misspelt name is a type error before the script runs. A name taken from a
+  loop over <code>getPresetNames()</code> reads as a plain <code>string</code> to the type checker, so a strict script
+  passes it on as <code>name :: any</code>.</li>
+<li><code>seconds</code> must be 0 or more.</li>
+<li>Any <code>Atmosphere</code>, <code>Clouds</code> or <code>Weather</code> the <code>Lighting</code> lacks is added under it, named after its
+  class. With no <code>seconds</code> they appear at the preset's values at once. With <code>seconds</code>, a new
+  <code>Atmosphere</code> starts clear and thickens over the blend, and a new <code>Clouds</code> starts with a <code>cover</code> of
+  0 and fills in over it.</li>
+<li>Every preset turns <code>dayCycle</code> on and turns the <code>Clouds</code> on.</li>
+<li>A preset sets the time; it does not stop it. With <code>timeScale</code> above 0 the day runs on from the
+  preset's hour. Presets leave <code>timeScale</code>, <code>geographicLatitude</code>, the shadow and environment
+  settings, the <code>Lighting</code>'s own <code>rain</code> and <code>thunder</code>, and the <code>Sky</code> as they were.</li>
+</ul>
+<h3 id="what-each-preset-sets">What each preset sets<a class="anchor" href="#what-each-preset-sets" title="Permanent link">#</a></h3>
+<p>The <code>Lighting</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Preset</th>
+<th><code>clockTime</code></th>
+<th><code>brightness</code></th>
+<th><code>ambient</code></th>
+<th><code>outdoorAmbient</code></th>
+<th><code>exposureCompensation</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>clear day</code></td>
+<td>13</td>
+<td>2</td>
+<td>black</td>
+<td>0.5, 0.5, 0.5</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>golden hour</code></td>
+<td>17.6</td>
+<td>2.2</td>
+<td>black</td>
+<td>0.55, 0.5, 0.45</td>
+<td>0.1</td>
+</tr>
+<tr>
+<td><code>overcast</code></td>
+<td>12</td>
+<td>1.2</td>
+<td>black</td>
+<td>0.42, 0.44, 0.48</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>night</code></td>
+<td>22.5</td>
+<td>1.5</td>
+<td>0.02, 0.025, 0.05</td>
+<td>0.4, 0.45, 0.6</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>foggy dawn</code></td>
+<td>6.3</td>
+<td>1.6</td>
+<td>black</td>
+<td>0.5, 0.5, 0.52</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>snowfall</code></td>
+<td>11</td>
+<td>1.6</td>
+<td>black</td>
+<td>0.5, 0.52, 0.56</td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>storm</code></td>
+<td>15</td>
+<td>0.9</td>
+<td>black</td>
+<td>0.35, 0.37, 0.42</td>
+<td>-0.2</td>
+</tr>
+</tbody>
+</table></div>
+<p>The <code>Atmosphere</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Preset</th>
+<th><code>density</code></th>
+<th><code>offset</code></th>
+<th><code>color</code></th>
+<th><code>decay</code></th>
+<th><code>glare</code></th>
+<th><code>haze</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>clear day</code></td>
+<td>0.2</td>
+<td>0.3</td>
+<td>0.78, 0.84, 0.95</td>
+<td>0.55, 0.65, 0.8</td>
+<td>1</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>golden hour</code></td>
+<td>0.3</td>
+<td>0.2</td>
+<td>1, 0.82, 0.6</td>
+<td>0.75, 0.55, 0.45</td>
+<td>4</td>
+<td>2</td>
+</tr>
+<tr>
+<td><code>overcast</code></td>
+<td>0.4</td>
+<td>0.1</td>
+<td>0.7, 0.72, 0.75</td>
+<td>0.55, 0.57, 0.6</td>
+<td>0</td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>night</code></td>
+<td>0.3</td>
+<td>0.25</td>
+<td>0.55, 0.6, 0.75</td>
+<td>0.35, 0.4, 0.55</td>
+<td>0</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>foggy dawn</code></td>
+<td>0.7</td>
+<td>-0.2</td>
+<td>0.85, 0.82, 0.85</td>
+<td>0.7, 0.7, 0.75</td>
+<td>2</td>
+<td>8</td>
+</tr>
+<tr>
+<td><code>snowfall</code></td>
+<td>0.45</td>
+<td>0.1</td>
+<td>0.85, 0.88, 0.93</td>
+<td>0.75, 0.8, 0.88</td>
+<td>0</td>
+<td>5</td>
+</tr>
+<tr>
+<td><code>storm</code></td>
+<td>0.5</td>
+<td>0</td>
+<td>0.45, 0.47, 0.52</td>
+<td>0.3, 0.32, 0.36</td>
+<td>0</td>
+<td>5</td>
+</tr>
+</tbody>
+</table></div>
+<p>The <code>Clouds</code> and the <code>Weather</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Preset</th>
+<th><code>cover</code></th>
+<th><code>density</code></th>
+<th><code>color</code></th>
+<th><code>kind</code></th>
+<th><code>intensity</code></th>
+<th><code>wind</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>clear day</code></td>
+<td>0.35</td>
+<td>0.65</td>
+<td>white</td>
+<td><code>"clear"</code></td>
+<td>1</td>
+<td>1.5, 0, 0.8</td>
+</tr>
+<tr>
+<td><code>golden hour</code></td>
+<td>0.4</td>
+<td>0.6</td>
+<td>1, 0.9, 0.8</td>
+<td><code>"clear"</code></td>
+<td>1</td>
+<td>1, 0, 0.5</td>
+</tr>
+<tr>
+<td><code>overcast</code></td>
+<td>1</td>
+<td>0.9</td>
+<td>0.75, 0.76, 0.8</td>
+<td><code>"clear"</code></td>
+<td>1</td>
+<td>2.5, 0, 1.2</td>
+</tr>
+<tr>
+<td><code>night</code></td>
+<td>0.3</td>
+<td>0.5</td>
+<td>0.7, 0.75, 0.9</td>
+<td><code>"clear"</code></td>
+<td>1</td>
+<td>1, 0, 0.5</td>
+</tr>
+<tr>
+<td><code>foggy dawn</code></td>
+<td>0.6</td>
+<td>0.6</td>
+<td>0.95, 0.9, 0.9</td>
+<td><code>"fog"</code></td>
+<td>0.6</td>
+<td>0.5, 0, 0.3</td>
+</tr>
+<tr>
+<td><code>snowfall</code></td>
+<td>0.9</td>
+<td>0.8</td>
+<td>0.9, 0.92, 0.95</td>
+<td><code>"snow"</code></td>
+<td>0.7</td>
+<td>1, 0, 0.5</td>
+</tr>
+<tr>
+<td><code>storm</code></td>
+<td>1</td>
+<td>1</td>
+<td>0.45, 0.46, 0.5</td>
+<td><code>"storm"</code></td>
+<td>0.9</td>
+<td>6, 0, 3</td>
+</tr>
+</tbody>
+</table></div>
+<p>Colours are red, green and blue from 0 to 1. <code>overcast</code> is a grey sky with no rain: its <code>Weather</code> is
+clear, and the look comes from the clouds and the air.</p>
+<h3 id="how-a-blend-moves">How a blend moves<a class="anchor" href="#how-a-blend-moves" title="Permanent link">#</a></h3>
+<p>Given <code>seconds</code>, the preset eases from where things are to where it wants them, slow at both ends:</p>
+<ul>
+<li>Numbers, colours and vectors on the <code>Lighting</code>, the <code>Atmosphere</code> and the <code>Clouds</code> move a little
+  every tick, so halfway through the time they are halfway there.</li>
+<li><code>clockTime</code> goes the short way round the dial. From <code>golden hour</code> at 17.6 to <code>foggy dawn</code> at 6.3 is
+  11.3 hours backwards against 12.7 forwards, so the clock runs backwards through the day.</li>
+<li>A switch the preset turns on is on from the start; a switch it turns off stays on until the end.</li>
+<li>The <code>Weather</code> switches to the new <code>kind</code>, <code>intensity</code> and <code>wind</code> at the start, and its <code>transition</code>
+  is set to <code>seconds</code> while the blend runs, so the weather's own easing takes the same time as the
+  rest. When the blend ends, or a newer <code>applyPreset</code> stops it, <code>transition</code> goes back to what it was.
+  With no <code>seconds</code>, <code>transition</code> is not touched, so the weather eases into the preset over its own
+  <code>transition</code>.</li>
+<li>While a blend runs it writes its properties every tick, so a script that sets one of them in the
+  meantime is overwritten until the blend ends. Calling <code>applyPreset</code> again stops the running blend
+  and starts the new one from wherever things had got to.</li>
+</ul>
+<div class="demo" data-demo="lighting-preset"></div>
+<p>A preset applied on the server replicates like any other change, and every player sees the same
+blend. A client may apply a preset only to a <code>Lighting</code> it made itself; on the server's <code>Lighting</code> it
+is an error, because a client cannot write the server's properties.</p>
+<h3 id="in-the-editor">In the editor<a class="anchor" href="#in-the-editor" title="Permanent link">#</a></h3>
+<p>Select a <code>Lighting</code> and <strong>Apply a preset</strong> at the top of the Properties panel lists the seven. Picking
+one sets everything at once, with no blend, and adds any <code>Atmosphere</code>, <code>Clouds</code> or <code>Weather</code> that is
+missing. The whole change is one step in the history, so one undo takes it back. Like a script
+applying a preset with no <code>seconds</code>, the editor leaves the <code>Weather</code>'s <code>transition</code> as it is, and a
+<code>Weather</code> it adds keeps the default of 5.</p>
+<p>The button only shows when a single <code>Lighting</code> from the scene is selected. Parts the engine made
+rather than the scene file are left as they are.</p>
+<h2 id="what-a-lighting-takes-over">What a Lighting takes over<a class="anchor" href="#what-a-lighting-takes-over" title="Permanent link">#</a></h2>
+<p><code>place.toml</code> has a <code>[features]</code> switch for each of these, see <a href="place.html#placetoml">Places</a>. A
+<code>Lighting</code> in the world wins over the switch, so what you set in a script decides no matter what the
+file says.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Switch</th>
+<th>Off, with no Lighting</th>
+<th>With a Lighting</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dayNightCycle</code></td>
+<td>the clock stands still</td>
+<td><code>timeScale</code> says how fast the day runs, 0 freezes it</td>
+</tr>
+<tr>
+<td><code>weather</code></td>
+<td>no rain, no thunder</td>
+<td><code>rain</code> and <code>thunder</code> say what the weather is, and a <code>Weather</code> adds its own</td>
+</tr>
+<tr>
+<td><code>sky</code></td>
+<td>no sky colour, no sun, no sunrise</td>
+<td>a <code>Sky</code> with a face filled replaces it; without one the switch still decides</td>
+</tr>
+<tr>
+<td><code>clouds</code></td>
+<td>no clouds</td>
+<td>a <code>Clouds</code> decides; without one the switch still decides, and a <code>Weather</code> only darkens what it lets through</td>
+</tr>
+<tr>
+<td><code>fog</code></td>
+<td>no distance fog</td>
+<td>an <code>Atmosphere</code> turns the fog back on and shapes it; a <code>Weather</code> with rain, snow or fog turns it on too</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>stars</code> is its own switch, and <code>celestialBodiesShown</code> off hides the stars whatever it says.</p>
+<h2 id="explosions">Explosions<a class="anchor" href="#explosions" title="Permanent link">#</a></h2>
+<p>An <code>Explosion</code> is a blast that pushes parts and kills bodies. It is in
+<a href="effects.html#explosions">Effects</a>.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="rendering.html"><span>Previous</span>Models, lights, post effects and held items</a><a class="next" href="effects.html"><span>Next</span>Particles, beams, trails, highlights and decals</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#the-clock">The clock</a></li><li><a href="#colours-of-the-day">Colours of the day</a></li><li><a href="#light">Light</a></li><li><a href="#sky">Sky</a></li><li><a href="#atmosphere">Atmosphere</a></li><li><a href="#clouds">Clouds</a></li><li><a href="#weather">Weather</a></li><li><a href="#presets">Presets</a></li><li><a href="#what-a-lighting-takes-over">What a Lighting takes over</a></li><li><a href="#explosions">Explosions</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

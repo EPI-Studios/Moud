@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Animations | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html" class="active"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="animations">Animations<a class="anchor" href="#animations" title="Permanent link">#</a></h1>
+<p>An animation is a set of poses for a rig's joints over time. You load it into an <code>Animator</code>, which
+gives you an <code>AnimationTrack</code>, and you play the track.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> wave = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Animation&quot;</span>, { name = <span class="syn-string">&quot;wave&quot;</span>, animationId = <span class="syn-string">&quot;res://animations/wave.anim&quot;</span> })
+<span class="syn-keyword">local</span> track = body.animator:<span class="syn-func">loadAnimation</span>(wave)
+track:<span class="syn-func">play</span>()</code></pre></div></div>
+<ul>
+<li>The <code>Animation</code> instance is the animation itself, and <code>animationId</code> says which file it reads.</li>
+<li><code>animator:loadAnimation(wave)</code> binds that animation to that rig and returns an <code>AnimationTrack</code>.
+  One animation can be loaded onto as many rigs as you like; each gets its own track with its own
+  time, speed and weight.</li>
+<li><code>track:play()</code> starts it. Nothing moves until you call that.</li>
+</ul>
+<p>Make an animation in the <a href="#the-animation-editor">animation editor</a>, write it as a <code>.anim</code> file, build
+it out of instances in a script, or import it from Blockbench with
+<a href="#importing-a-blockbench-model"><code>scene.importBbmodel</code></a>.</p>
+<h2 id="rigs-bodies-and-models">Rigs: bodies and models<a class="anchor" href="#rigs-bodies-and-models" title="Permanent link">#</a></h2>
+<p>An <code>Animator</code> poses the joints of the rig it sits in. There are two kinds of rig:</p>
+<ul>
+<li>A <strong>body</strong> (<code>Character</code>) has its animator at <code>body.animator</code>, and its joints are the <code>Motor</code>s
+  under <code>body.joints</code>: <code>root</code>, <code>head</code>, <code>torso</code>, <code>rightArm</code>, <code>leftArm</code>, <code>rightLeg</code>, <code>leftLeg</code>, <code>cape</code>,
+  <code>rightWing</code>, <code>leftWing</code>, <code>spinInner</code> and <code>spinOuter</code>.</li>
+<li>Any other <strong><code>Model</code></strong> is animated through an <code>AnimationController</code>. Put an <code>AnimationController</code>
+  in the model and an <code>Animator</code> in the controller. Its joints are every <code>Bone</code> and every <code>Motor</code>
+  anywhere inside the model, found by name.</li>
+</ul>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code>Model &quot;dragon&quot;
+  AnimationController &quot;animationController&quot;
+    Animator &quot;animator&quot;
+  MeshPart &quot;mesh&quot;          meshId = &quot;res://models/dragon.bbmodel&quot;
+    Bone &quot;body&quot;
+      Bone &quot;neck&quot;
+        Bone &quot;head&quot;
+      Bone &quot;tail&quot;</code></pre></div></div>
+<p>The engine does not make the <code>Animator</code> for you; add it, or let the importer do it.</p>
+<h3 id="bone">Bone<a class="anchor" href="#bone" title="Permanent link">#</a></h3>
+<p>A <code>Bone</code> is a joint in a model's rig. It is an <code>Attachment</code>, so it has a <code>cframe</code> and sits inside its
+parent, which is the <code>MeshPart</code> it moves or another bone.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cframe</code></td>
+<td>where the bone's pivot rests, relative to its parent bone or part</td>
+</tr>
+<tr>
+<td><code>transform</code></td>
+<td>the animated offset on top of the rest, in the bone's own space. Animators, IK and springs write it</td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td>scales the bone's geometry and everything under it, about its pivot</td>
+</tr>
+</tbody>
+</table></div>
+<p>A bone's world frame is its parent's world frame, times <code>cframe</code>, times <code>transform</code>. Anything you
+put inside a bone, an attachment or another bone, follows the animated bone, and <code>worldCframe</code>
+includes the animation. <code>scale</code> is drawn but does not move the children's <code>worldCframe</code>.</p>
+<p>A <code>MeshPart</code> that holds bones draws each bone's piece of the model where the bone is posed. Its
+<code>animation</code> property is ignored while it has bones, and its geometry is drawn at the size it was
+modelled, not stretched to <code>size</code>. Which piece belongs to which bone is decided by name: a
+<code>.bbmodel</code> group called <code>head</code> is drawn by the bone called <code>head</code>. A piece whose bone is missing
+follows its parent's bone.</p>
+<p>A controller starts each joint it animates from its rest on every tick, then lays the tracks on top.
+A joint no track moves keeps whatever <code>transform</code> you gave it.</p>
+<h2 id="where-an-animation-comes-from">Where an animation comes from<a class="anchor" href="#where-an-animation-comes-from" title="Permanent link">#</a></h2>
+<p>An <code>Animation</code> points at a <code>.anim</code> file with <code>animationId</code>, a <code>res://</code> path inside the place. If the
+<code>Animation</code> holds a <code>KeyframeSequence</code>, the sequence is used and the file is ignored.</p>
+<p><code>loadAnimation</code> also takes a <code>KeyframeSequence</code> directly, so an animation you build in a script does
+not need an <code>Animation</code> wrapped around it.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>A file is read once and kept. When a <code>.anim</code> in the server's place changes, whether you saved it in
+the animation editor or edited it on disk, the server drops its copy and sends the new file to every
+player, who drop theirs too. Tracks that are playing it carry on from the same time with the new
+curves; they do not restart. A file that cannot be read shows an error in the output, and the track
+plays nothing, which is what you are looking at when a track runs its full length and the body never
+moves.</p></div></div>
+<h3 id="clips-and-models-on-a-server">Clips and models on a server<a class="anchor" href="#clips-and-models-on-a-server" title="Permanent link">#</a></h3>
+<p>Players read a place's files from their own copy of the place. For <code>.anim</code> and <code>.bbmodel</code> files the
+server keeps them up to date while they are connected:</p>
+<ul>
+<li>The server watches its place for <code>.anim</code> and <code>.bbmodel</code> files that change or are removed, and sends
+  each one to every player. A player keeps what the server sent in memory, in place of their own file,
+  until they leave. Nothing is written to the player's disk.</li>
+<li>A player who joins later is sent every such file that changed since the server started.</li>
+<li>Saving a clip in the animation editor while connected to a server also sends it to the server,
+  which writes it into its place and passes it on. So do clips written by importing a <code>.bbmodel</code>, and
+  <code>.anim</code> or <code>.bbmodel</code> files imported into or duplicated in the assets panel. Undoing an edit that
+  wrote clips removes them from the server too, unless the server's copy was changed since. Only
+  operators may do this, only for <code>.anim</code> and <code>.bbmodel</code> files, and only inside the place; anyone
+  else is told no.</li>
+<li>A <code>.bbmodel</code> drawn by a <code>MeshPart</code> is redrawn within a second, and a view model rebuilds its rig.</li>
+</ul>
+<p>Limits: a file must be under 8 MB. A player whose own copy of the place is out of date and whose files
+did not change during this server's run still reads their own copy. Renaming, moving or deleting a
+file in the editor does not reach the server. Scripts, scenes and other assets are not sent.</p>
+<h2 id="a-sequence-in-the-tree">A sequence in the tree<a class="anchor" href="#a-sequence-in-the-tree" title="Permanent link">#</a></h2>
+<p>A <code>KeyframeSequence</code> is an animation made of instances. It holds <code>Keyframe</code> children, each at a time
+in seconds, and each keyframe holds a <code>Pose</code> for every joint it moves:</p>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>KeyframeSequence      looped, priority, mask, blend, space
+  Keyframe            time
+    Pose              name is the joint; cframe, easing, direction, weight
+    KeyframeMarker    name, value</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>KeyframeSequence</code></td>
+<td><code>looped</code></td>
+<td>start over at the end</td>
+</tr>
+<tr>
+<td></td>
+<td><code>priority</code></td>
+<td>which sequence wins a joint when several move it, see <a href="#priority-and-weight">priority and weight</a></td>
+</tr>
+<tr>
+<td></td>
+<td><code>mask</code></td>
+<td>joint names split by commas or spaces; only those joints are moved. Empty moves every joint</td>
+</tr>
+<tr>
+<td></td>
+<td><code>blend</code></td>
+<td><code>"normal"</code>, or <code>"additive"</code> to add on top of the other tracks</td>
+</tr>
+<tr>
+<td></td>
+<td><code>space</code></td>
+<td><code>"body"</code>, or <code>"view"</code> for a clip that plays on the <a href="#first-person">view model</a></td>
+</tr>
+<tr>
+<td><code>Keyframe</code></td>
+<td><code>time</code></td>
+<td>seconds from the start</td>
+</tr>
+<tr>
+<td><code>Pose</code></td>
+<td><code>name</code></td>
+<td>the joint it moves, like <code>rightArm</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>cframe</code></td>
+<td>the joint's <code>transform</code> at this keyframe</td>
+</tr>
+<tr>
+<td></td>
+<td><code>easing</code></td>
+<td>how the joint moves from this keyframe to the next: <code>linear</code>, <code>sine</code>, <code>quad</code>, <code>cubic</code>, <code>quart</code>, <code>quint</code>, <code>expo</code>, <code>circ</code>, <code>back</code>, <code>elastic</code>, <code>bounce</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>direction</code></td>
+<td><code>in</code>, <code>out</code> or <code>inOut</code>; <code>inOut</code> by default</td>
+</tr>
+<tr>
+<td></td>
+<td><code>weight</code></td>
+<td>0 to 1, how much of the pose is blended in</td>
+</tr>
+<tr>
+<td><code>KeyframeMarker</code></td>
+<td><code>name</code></td>
+<td>what <code>keyframeReached</code> and <code>getMarkerReachedSignal</code> listen for</td>
+</tr>
+<tr>
+<td></td>
+<td><code>value</code></td>
+<td>a string handed to <code>getMarkerReachedSignal</code></td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>The sequence is as long as its last keyframe.</li>
+<li>A joint does not need a pose in every keyframe. It moves between the keyframes that have one, holds
+  its first pose before the first and its last pose after the last.</li>
+<li>A pose can hold more poses. Each is found by its own name, so nesting only groups them.</li>
+<li>A joint's <code>weight</code> is read from its first pose. The weights of later poses are ignored for now.</li>
+<li>A marker fires at the time of the keyframe it is in.</li>
+</ul>
+<p>A wave, built in a server script:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> wave = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;KeyframeSequence&quot;</span>, { name = <span class="syn-string">&quot;wave&quot;</span>, looped = <span class="syn-const">true</span>, priority = <span class="syn-num">1</span> })
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">key</span>(time, roll)
+    <span class="syn-keyword">local</span> frame = wave:<span class="syn-func">add</span>(<span class="syn-string">&quot;Keyframe&quot;</span>, { time = time })
+    frame:<span class="syn-func">add</span>(<span class="syn-string">&quot;Pose&quot;</span>, {
+        name = <span class="syn-string">&quot;rightArm&quot;</span>,
+        cframe = cframe.<span class="syn-func">angles</span>(math.pi, <span class="syn-num">0</span>, roll),
+        easing = <span class="syn-string">&quot;sine&quot;</span>,
+    })
+<span class="syn-keyword">end</span>
+
+<span class="syn-func">key</span>(<span class="syn-num">0</span>, -<span class="syn-num">0.3</span>)
+<span class="syn-func">key</span>(<span class="syn-num">0.4</span>, <span class="syn-num">0.3</span>)
+<span class="syn-func">key</span>(<span class="syn-num">0.8</span>, -<span class="syn-num">0.3</span>)
+
+<span class="syn-keyword">local</span> track = body.animator:<span class="syn-func">loadAnimation</span>(wave)
+track:<span class="syn-func">play</span>()</code></pre></div></div>
+<p>The three keyframes put the arm up and rock it from one roll to the other and back. The last pose
+matches the first, so <code>looped = true</code> runs it again with no jump.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Keep the sequence somewhere every client has it, like under <code>world</code>. Clients do the posing, so a
+client that cannot find the sequence poses nothing, and that body stands still for that player
+while it animates for everyone else.</p></div></div>
+<h2 id="the-anim-file">The .anim file<a class="anchor" href="#the-anim-file" title="Permanent link">#</a></h2>
+<p>A <code>.anim</code> file is JSON. There are two layouts. The first, from before, lists whole poses at
+keyframes. The second, version 2, gives each joint its own curves for rotation, position and scale,
+which is what the Blockbench importer and the animation editor write.</p>
+<h3 id="version-2-curves-per-joint">Version 2: curves per joint<a class="anchor" href="#version-2-curves-per-joint" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">json</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28</pre><pre><code>{
+  &quot;version&quot;: 2,
+  &quot;length&quot;: 1,
+  &quot;loop&quot;: &quot;loop&quot;,
+  &quot;priority&quot;: &quot;movement&quot;,
+  &quot;euler&quot;: &quot;yxz&quot;,
+  &quot;joints&quot;: {
+    &quot;rightLeg&quot;: {
+      &quot;rotation&quot;: [
+        [0,   [30, 0, 0], &quot;catmullrom&quot;],
+        [0.5, [-30, 0, 0], &quot;catmullrom&quot;],
+        [1,   [30, 0, 0]]
+      ]
+    },
+    &quot;torso&quot;: {
+      &quot;position&quot;: [
+        [0,    [0, 0, 0], &quot;bezier&quot;, { &quot;out&quot;: [0.1, [0, 0.05, 0]] }],
+        [0.25, [0, 0.06, 0], &quot;bezier&quot;, { &quot;in&quot;: [-0.1, 0], &quot;out&quot;: [0.1, 0] }],
+        [0.5,  [0, 0, 0], &quot;step&quot;]
+      ],
+      &quot;weight&quot;: 0.8
+    }
+  },
+  &quot;mask&quot;: [&quot;rightLeg&quot;, &quot;leftLeg&quot;, &quot;torso&quot;],
+  &quot;blend&quot;: &quot;normal&quot;,
+  &quot;markers&quot;: [{ &quot;time&quot;: 0.25, &quot;name&quot;: &quot;step&quot;, &quot;value&quot;: &quot;right&quot; }],
+  &quot;events&quot;: [{ &quot;time&quot;: 0.75, &quot;name&quot;: &quot;sound&quot;, &quot;payload&quot;: { &quot;effect&quot;: &quot;step&quot;, &quot;volume&quot;: 0.6 } }]
+}</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>version</code></td>
+<td>optional</td>
+<td><code>2</code>. A file with <code>joints</code> is read as version 2 either way</td>
+</tr>
+<tr>
+<td><code>length</code></td>
+<td>optional</td>
+<td>seconds; the last key or marker when left out</td>
+</tr>
+<tr>
+<td><code>loop</code></td>
+<td>optional</td>
+<td><code>loop</code> starts over, <code>once</code> stops at the end, <code>hold</code> stays on the last frame until stopped. <code>once</code> when left out</td>
+</tr>
+<tr>
+<td><code>priority</code></td>
+<td>optional</td>
+<td><code>core</code>, <code>idle</code>, <code>movement</code>, <code>action</code>, <code>action2</code>, <code>action3</code>, <code>action4</code>, or a number. <code>core</code> when left out</td>
+</tr>
+<tr>
+<td><code>euler</code></td>
+<td>optional</td>
+<td>the order the three rotation angles are put together in, like <code>yxz</code> (the default, the same as <code>cframe.angles</code>) or <code>zyx</code> (Blockbench's)</td>
+</tr>
+<tr>
+<td><code>joints</code></td>
+<td></td>
+<td>joint name to its channels</td>
+</tr>
+<tr>
+<td><code>mask</code></td>
+<td>optional</td>
+<td>a list of joint names, or one string of names split by commas or spaces. Only those joints are moved</td>
+</tr>
+<tr>
+<td><code>blend</code></td>
+<td>optional</td>
+<td><code>normal</code>, or <code>additive</code></td>
+</tr>
+<tr>
+<td><code>space</code></td>
+<td>optional</td>
+<td><code>body</code>, or <code>view</code> for a clip that plays on the <a href="#first-person">view model</a>. A body's animator refuses a view clip</td>
+</tr>
+<tr>
+<td><code>rig</code></td>
+<td>optional</td>
+<td>the rig the clip was made for: <code>player</code>, <code>view</code>, the <code>res://</code> path of the <code>.bbmodel</code> a model was made from, or a model's name. Only the editor reads it</td>
+</tr>
+<tr>
+<td><code>markers</code></td>
+<td>optional</td>
+<td>each with a <code>time</code>, a <code>name</code> and an optional string <code>value</code></td>
+</tr>
+<tr>
+<td><code>events</code></td>
+<td>optional</td>
+<td>each with a <code>time</code>, a <code>name</code>, a <code>payload</code>, which is any JSON, and an <code>on</code>: <code>server</code>, <code>client</code> or <code>both</code>, where it fires. <code>both</code> when left out</td>
+</tr>
+<tr>
+<td><code>skeleton</code></td>
+<td>optional</td>
+<td>the hierarchy the clip was made on, see <a href="#playing-an-imported-clip-on-a-body">retargeting</a></td>
+</tr>
+<tr>
+<td><code>retarget</code></td>
+<td>optional</td>
+<td>joint name in the clip to the body joint it plays on, overriding the guess from its name. An empty name keeps that joint off a body</td>
+</tr>
+<tr>
+<td><code>fps</code>, <code>viewModel</code></td>
+<td>optional</td>
+<td>written by the editor for itself, as is an event's <code>preview</code>. The engine reads past them</td>
+</tr>
+</tbody>
+</table></div>
+<p>A joint has up to three channels and a weight:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>rotation</code></td>
+<td><code>[x, y, z]</code> angles in degrees, put together in the file's <code>euler</code> order, or <code>[x, y, z, w]</code>, a quaternion</td>
+</tr>
+<tr>
+<td><code>position</code></td>
+<td><code>[x, y, z]</code>, the offset from the joint's rest, in blocks</td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td><code>[x, y, z]</code>, 1 is the joint's own size. On a body joint it is the joint's <code>scale</code></td>
+</tr>
+<tr>
+<td><code>weight</code></td>
+<td>0 to 1, how much of the joint the clip takes; 1 when left out</td>
+</tr>
+</tbody>
+</table></div>
+<p>A channel is a list of keys, and a key is <code>[time, value, interpolation, handles]</code>. The last two are
+optional. The interpolation says how the value travels from this key <strong>to the next one</strong>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Interpolation</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>linear</code></td>
+<td>a straight line. The default</td>
+</tr>
+<tr>
+<td><code>catmullrom</code></td>
+<td>a smooth curve through every key, bent by the keys on either side</td>
+</tr>
+<tr>
+<td><code>bezier</code></td>
+<td>a curve shaped by this key's <code>out</code> handle and the next key's <code>in</code> handle</td>
+</tr>
+<tr>
+<td><code>step</code></td>
+<td>holds this key's value, then jumps to the next key when its time comes</td>
+</tr>
+</tbody>
+</table></div>
+<p>Angles are interpolated one axis at a time, like Blockbench does, so a key can spin a joint more than
+half a turn. Quaternion keys slerp, and treat <code>catmullrom</code> and <code>bezier</code> as <code>linear</code>.</p>
+<p><strong>Bezier handles</strong> are <code>{ "in": [dt, dv], "out": [dt, dv] }</code>. <code>dt</code> is the handle's time from its key
+in seconds, negative for <code>in</code>. <code>dv</code> is how far the handle is from the key's value, either one number
+for all three axes or <code>[dx, dy, dz]</code>. The two handles of a segment share one time line, so the three
+axes ease in step, and a handle only moves its own axis's value. A missing handle is flat and a
+third of the segment long, which gives an ease in and out.</p>
+<p><strong>Two keys at the same time</strong> make a jump: the value arrives at the first and leaves from the second.</p>
+<p>Channels a joint does not have are left alone. A clip with only rotations turns the joints and does
+not pull their positions back to the rest.</p>
+<div class="demo" data-demo="animation-curves"></div>
+<h3 id="version-1-poses-at-keyframes">Version 1: poses at keyframes<a class="anchor" href="#version-1-poses-at-keyframes" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">json</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17</pre><pre><code>{
+  &quot;length&quot;: 1,
+  &quot;looped&quot;: true,
+  &quot;priority&quot;: 1,
+  &quot;keyframes&quot;: [
+    { &quot;time&quot;: 0,   &quot;poses&quot;: { &quot;rightLeg&quot;: { &quot;angles&quot;: [30, 0, 0], &quot;easing&quot;: &quot;sine&quot; },
+                              &quot;leftLeg&quot;:  { &quot;angles&quot;: [-30, 0, 0], &quot;easing&quot;: &quot;sine&quot; } } },
+    { &quot;time&quot;: 0.5, &quot;poses&quot;: { &quot;rightLeg&quot;: { &quot;angles&quot;: [-30, 0, 0], &quot;easing&quot;: &quot;sine&quot; },
+                              &quot;leftLeg&quot;:  { &quot;angles&quot;: [30, 0, 0], &quot;easing&quot;: &quot;sine&quot; } } },
+    { &quot;time&quot;: 1,   &quot;poses&quot;: { &quot;rightLeg&quot;: { &quot;angles&quot;: [30, 0, 0] },
+                              &quot;leftLeg&quot;:  { &quot;angles&quot;: [-30, 0, 0] } } }
+  ],
+  &quot;markers&quot;: [
+    { &quot;time&quot;: 0.25, &quot;name&quot;: &quot;step&quot;, &quot;value&quot;: &quot;right&quot; },
+    { &quot;time&quot;: 0.75, &quot;name&quot;: &quot;step&quot;, &quot;value&quot;: &quot;left&quot; }
+  ]
+}</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>length</code></td>
+<td>optional</td>
+<td>seconds; the last keyframe's time when left out</td>
+</tr>
+<tr>
+<td><code>looped</code></td>
+<td>optional</td>
+<td>false when left out</td>
+</tr>
+<tr>
+<td><code>priority</code></td>
+<td>optional</td>
+<td>a number or a level name; 0 when left out</td>
+</tr>
+<tr>
+<td><code>keyframes</code></td>
+<td></td>
+<td>each with a <code>time</code> and <code>poses</code>, a table of joint name to pose</td>
+</tr>
+<tr>
+<td><code>markers</code></td>
+<td>optional</td>
+<td>each with a <code>time</code>, a <code>name</code> and an optional <code>value</code></td>
+</tr>
+<tr>
+<td><code>mask</code>, <code>blend</code>, <code>space</code></td>
+<td>optional</td>
+<td>as in version 2</td>
+</tr>
+</tbody>
+</table></div>
+<p>A pose in the file:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>position</code></td>
+<td><code>[x, y, z]</code>, the offset from the joint's rest</td>
+</tr>
+<tr>
+<td><code>rotation</code></td>
+<td><code>[x, y, z, w]</code>, a quaternion</td>
+</tr>
+<tr>
+<td><code>angles</code></td>
+<td><code>[x, y, z]</code> in degrees, used when there is no <code>rotation</code></td>
+</tr>
+<tr>
+<td><code>easing</code></td>
+<td>same names as tweens; <code>linear</code> when left out</td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td><code>in</code>, <code>out</code> or <code>inOut</code>; <code>inOut</code> when left out</td>
+</tr>
+<tr>
+<td><code>weight</code></td>
+<td>0 to 1; 1 when left out</td>
+</tr>
+</tbody>
+</table></div>
+<p>Everything a pose leaves out is the rest: no offset and no turn. Markers in a file have their own
+times and do not belong to a keyframe, so you can put a marker between two keyframes.</p>
+<h2 id="markers-and-events">Markers and events<a class="anchor" href="#markers-and-events" title="Permanent link">#</a></h2>
+<p>A marker is a name at a time, with a string <code>value</code>. An event is the same with a <code>payload</code> that can
+be any JSON: a string, a number, a list or an object. Both fire through the same signals:</p>
+<ul>
+<li><code>track:getMarkerReachedSignal(name)</code> fires with the marker's <code>value</code> or the event's <code>payload</code>, each
+  time the track passes one with that name. An object payload arrives as a table.</li>
+<li><code>track.keyframeReached</code> fires with the name of every marker and event.</li>
+</ul>
+<p>Footsteps from a file, on a body the place owns:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> walk = body.animator:<span class="syn-func">loadAnimation</span>(world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Animation&quot;</span>, {
+    name = <span class="syn-string">&quot;walk&quot;</span>,
+    animationId = <span class="syn-string">&quot;res://animations/walk.anim&quot;</span>,
+}))
+<span class="syn-keyword">local</span> step = body:<span class="syn-func">add</span>(<span class="syn-string">&quot;Sound&quot;</span>, { soundId = <span class="syn-string">&quot;res://sounds/step.ogg&quot;</span>, volume = <span class="syn-num">0.6</span> })
+
+walk:<span class="syn-func">getMarkerReachedSignal</span>(<span class="syn-string">&quot;step&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(foot)
+    step.pitch = <span class="syn-keyword">if</span> foot == <span class="syn-string">&quot;left&quot;</span> <span class="syn-keyword">then</span> <span class="syn-num">0.95</span> <span class="syn-keyword">else</span> <span class="syn-num">1.05</span>
+    step:<span class="syn-func">play</span>()
+<span class="syn-keyword">end</span>)
+walk:<span class="syn-func">play</span>()</code></pre></div></div>
+<ul>
+<li><code>getMarkerReachedSignal("step")</code> returns a signal for markers named <code>step</code> alone. The two markers
+  in the file share that name, so the handler runs twice a loop.</li>
+<li>The value handed to the handler is the marker's <code>value</code>, which is <code>"right"</code> or <code>"left"</code> here, so
+  one handler gives each foot its own pitch.</li>
+</ul>
+<p>An event carrying a table:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> sounds = track:<span class="syn-func">getMarkerReachedSignal</span>(<span class="syn-string">&quot;sound&quot;</span>)
+sounds:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(payload: any)
+    <span class="syn-func">print</span>(payload.effect, payload.volume)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Markers and events fire wherever a track runs: on the server, and on every client that has the
+track. An event's <code>on</code> narrows that to <code>server</code> or <code>client</code>; a marker fires on both. They only fire
+while a track plays forwards.</p>
+<h2 id="tracks">Tracks<a class="anchor" href="#tracks" title="Permanent link">#</a></h2>
+<p>An <code>AnimationTrack</code> is one playing copy of an animation on one rig. It holds where the animation has
+got to, how fast it runs and how strongly it poses the joints.</p>
+<p><code>animator:loadAnimation(animation)</code> makes an <code>AnimationTrack</code> inside the animator and returns it. It
+takes an <code>Animation</code> or a <code>KeyframeSequence</code>. <code>animator:getPlayingAnimationTracks()</code> lists the tracks
+that are playing, and <code>animator.animationPlayed</code> fires with a track each time one starts.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>animation</code></td>
+<td>the <code>Animation</code> or <code>KeyframeSequence</code> it plays</td>
+</tr>
+<tr>
+<td><code>playing</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>weight</code></td>
+<td>0 to 1</td>
+</tr>
+<tr>
+<td><code>speed</code></td>
+<td>1 is normal, 2 twice as fast, negative plays backwards</td>
+</tr>
+<tr>
+<td><code>looped</code></td>
+<td>starts over at the end; a looped animation loops either way</td>
+</tr>
+<tr>
+<td><code>priority</code></td>
+<td>0 uses the animation's own priority</td>
+</tr>
+<tr>
+<td><code>mask</code></td>
+<td>joint names split by commas or spaces. Empty uses the animation's own mask</td>
+</tr>
+<tr>
+<td><code>blend</code></td>
+<td><code>"additive"</code> makes the track add to the others; an additive animation adds either way</td>
+</tr>
+<tr>
+<td><code>fadeTime</code></td>
+<td>seconds it takes to blend in when played and out when stopped</td>
+</tr>
+<tr>
+<td><code>timePosition</code></td>
+<td>where it is, in seconds</td>
+</tr>
+<tr>
+<td><code>length</code></td>
+<td>how long the animation is, in seconds</td>
+</tr>
+</tbody>
+</table></div>
+<p>Leave <code>priority</code> at 0 and the track uses the priority written in the animation. Set it to something
+else and the track uses that instead, so one file can win a joint on one body and lose it on another.
+Setting <code>looped</code> on the track makes an animation loop that does not say so itself; an animation that
+is already looped loops either way, and clearing the track's <code>looped</code> does not stop it.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p><code>timePosition</code> is not replicated. The server and each client keep their own, so writing it only
+seeks on the side that wrote it.</p></div></div>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Method</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>play(fadeTime?, weight?, speed?)</code></td>
+<td>starts from the beginning, or from the end when <code>speed</code> is negative, fading in over <code>fadeTime</code> (0.1 when left out). A track that is already playing keeps its place</td>
+</tr>
+<tr>
+<td><code>stop(fadeTime?)</code></td>
+<td>fades out over <code>fadeTime</code> (0.1 when left out)</td>
+</tr>
+<tr>
+<td><code>adjustSpeed(speed)</code></td>
+<td>sets <code>speed</code></td>
+</tr>
+<tr>
+<td><code>adjustWeight(weight, fadeTime?)</code></td>
+<td>sets <code>weight</code>, and moves to it over <code>fadeTime</code> when given</td>
+</tr>
+<tr>
+<td><code>getMarkerReachedSignal(name)</code></td>
+<td>a signal that fires with the value or payload each time the track passes a marker or event with that name</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Fires with</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stopped</code></td>
+<td>the track</td>
+<td>when <code>playing</code> turns false</td>
+</tr>
+<tr>
+<td><code>ended</code></td>
+<td>the track</td>
+<td>when a track that does not loop reaches the end</td>
+</tr>
+<tr>
+<td><code>didLoop</code></td>
+<td>the track</td>
+<td>each time it starts over</td>
+</tr>
+<tr>
+<td><code>keyframeReached</code></td>
+<td>the name</td>
+<td>each time it passes a marker or an event</td>
+</tr>
+</tbody>
+</table></div>
+<p>How a track ends depends on the animation's <code>loop</code>:</p>
+<ul>
+<li><code>loop</code>, or <code>looped</code> on the track: it starts over and fires <code>didLoop</code>.</li>
+<li><code>once</code>: it fires <code>ended</code> and stops. When the server plays it, the server sets <code>playing</code> to false
+  and every client follows; it fades out from its last frame over <code>fadeTime</code>. A track a
+  <code>LocalScript</code> loads is only seen by that client, and it holds its last frame after <code>ended</code> until
+  you stop it.</li>
+<li><code>hold</code>: it fires <code>ended</code> once and stays playing on its last frame until you call <code>stop</code>.</li>
+</ul>
+<p>Played backwards, a track that does not loop stays at the start, still playing.</p>
+<div class="demo" data-demo="animation-ends"></div>
+<h2 id="priority-and-weight">Priority and weight<a class="anchor" href="#priority-and-weight" title="Permanent link">#</a></h2>
+<p>Several tracks can move the same joint, and priority and weight decide the pose it ends up with.
+Priorities are numbers, and each level has a name:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Number</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core</code></td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>idle</code></td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>movement</code></td>
+<td>2</td>
+</tr>
+<tr>
+<td><code>action</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td><code>action2</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td><code>action3</code></td>
+<td>5</td>
+</tr>
+<tr>
+<td><code>action4</code></td>
+<td>6</td>
+</tr>
+</tbody>
+</table></div>
+<p>A file takes either the name or the number; a track or a <code>KeyframeSequence</code> takes the number. Any
+other number works too and sits between the levels.</p>
+<p>For each joint, the tracks that move it are grouped by priority and laid on top of each other from
+the lowest group to the highest:</p>
+<ul>
+<li>Inside one priority, the tracks share the joint by weight. Two tracks at 1 and 1 land halfway
+  between their poses.</li>
+<li>A group's weights add up, to at most 1, and the group covers what is under it by that much. A
+  higher priority at full weight hides everything below it; at 0.5 it leaves half of the joint to
+  the priorities below.</li>
+<li>What is under the lowest group is what the joint held before: the engine's walk on a body with
+  <code>animate</code> on, the rest on a model's controller.</li>
+</ul>
+<p>A track's weight is its <code>weight</code> times how far it has faded in, times the joint's weight in the
+animation. Fading a high priority in over 0.3 seconds hands the joint over smoothly.</p>
+<p>Idle and attack, faded into each other:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> idle = body.animator:<span class="syn-func">loadAnimation</span>(world:<span class="syn-func">find</span>(<span class="syn-string">&quot;idle&quot;</span>))
+<span class="syn-keyword">local</span> attack = body.animator:<span class="syn-func">loadAnimation</span>(world:<span class="syn-func">find</span>(<span class="syn-string">&quot;attack&quot;</span>))
+idle.looped = <span class="syn-const">true</span>
+attack.priority = <span class="syn-num">3</span>
+
+idle:<span class="syn-func">play</span>(<span class="syn-num">0.3</span>)
+
+task.<span class="syn-func">every</span>(<span class="syn-num">4</span>, <span class="syn-keyword">function</span>()
+    attack:<span class="syn-func">play</span>(<span class="syn-num">0.2</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>The attack is at <code>action</code>, above the idle. While it fades in, the idle shows through less and less,
+and when it ends it fades out and the idle comes back, with no need to stop and restart the idle.</p>
+<h3 id="masks">Masks<a class="anchor" href="#masks" title="Permanent link">#</a></h3>
+<p>A mask keeps a track to some joints. It is a list of joint names in the file, or a string of names
+split by commas or spaces on a track or a sequence:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">local</span> wave = body.animator:<span class="syn-func">loadAnimation</span>(world:<span class="syn-func">find</span>(<span class="syn-string">&quot;wave&quot;</span>))
+wave.mask = <span class="syn-string">&quot;rightArm&quot;</span>
+wave.priority = <span class="syn-num">3</span>
+wave:<span class="syn-func">play</span>()</code></pre></div></div>
+<p>The wave now only moves the right arm, so the legs keep walking whatever the file says about them.
+A track's own <code>mask</code> replaces the animation's mask; leave it empty to use the animation's. A mask
+name can be the rig's joint name or the name in the file, so a retargeted clip can be masked either
+way.</p>
+<h3 id="additive-tracks">Additive tracks<a class="anchor" href="#additive-tracks" title="Permanent link">#</a></h3>
+<p>An additive track does not replace the pose, it adds its own on top. It is applied after every
+normal track, whatever its priority, turning each joint by the track's rotation and moving it by its
+position, scaled by the track's weight. Author an additive clip as the change you want: a nod is a
+head turned down a little from zero.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-keyword">local</span> nod = body.animator:<span class="syn-func">loadAnimation</span>(world:<span class="syn-func">find</span>(<span class="syn-string">&quot;nod&quot;</span>))
+nod.blend = <span class="syn-string">&quot;additive&quot;</span>
+nod:<span class="syn-func">play</span>()</code></pre></div></div>
+<p>Played over a walk, the head nods while it walks. Additive clips go well with masks.</p>
+<div class="demo" data-demo="animation-blend"></div>
+<h2 id="tracks-and-the-engines-walk">Tracks and the engine's walk<a class="anchor" href="#tracks-and-the-engines-walk" title="Permanent link">#</a></h2>
+<p>Posing happens on clients. The server keeps time for its tracks and fires their events, but it never
+moves a joint for them.</p>
+<p>On each client, a body with <code>animate</code> on is posed by the engine first, from its walk and the rest of
+its <a href="character.html#the-animation-state">animation state</a>. The tracks are laid over that pose. A joint
+no track moves keeps the walk cycle, so a wave on <code>rightArm</code> still walks with the legs. A track at
+full weight on the legs replaces the walk.</p>
+<p>With <code>animate</code> off, only tracks move the joints. A joint starts from where it was left, which is the
+last pose a track gave it or a <code>transform</code> you wrote, and stays there when the tracks stop.</p>
+<p>A model's controller starts every joint a track moves from its rest on each tick, so a joint goes
+back to rest as its last track fades out.</p>
+<p>Animations do not play while you edit a scene. Play the place to see one run.</p>
+<h2 id="inverse-kinematics-ikcontrol">Inverse kinematics: IKControl<a class="anchor" href="#inverse-kinematics-ikcontrol" title="Permanent link">#</a></h2>
+<p>An <code>IKControl</code> bends joints so that one of them reaches, points at or looks at a target. It is
+solved on each client every tick, after the tracks and the
+engine's walk, so it bends the animated pose rather than replacing it. The server can create one,
+and it replicates like any instance; put it anywhere, usually inside the rig.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code></td>
+<td><code>"aim"</code>, <code>"lookAt"</code>, <code>"position"</code> or <code>"transform"</code>; <code>"position"</code> by default</td>
+</tr>
+<tr>
+<td><code>chainRoot</code></td>
+<td>the first joint of the chain, like an upper arm. Empty uses <code>endEffector</code> alone</td>
+</tr>
+<tr>
+<td><code>endEffector</code></td>
+<td>the joint that reaches, a <code>Bone</code> or a <code>Motor</code></td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td>an instance to reach for: a part, an attachment, a bone or a joint</td>
+</tr>
+<tr>
+<td><code>targetCframe</code></td>
+<td>the world frame to reach for when <code>target</code> is empty</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td>moves the goal in the target's own space</td>
+</tr>
+<tr>
+<td><code>pole</code></td>
+<td>an instance the middle joint of a two-bone chain bends toward, like the way an elbow points</td>
+</tr>
+<tr>
+<td><code>axis</code></td>
+<td>for <code>aim</code>, the joint's own axis that points at the target. <code>vec3(0, -1, 0)</code> by default, which is down a Minecraft limb</td>
+</tr>
+<tr>
+<td><code>weight</code></td>
+<td>0 leaves the pose alone, 1 solves all the way</td>
+</tr>
+<tr>
+<td><code>rootWeight</code></td>
+<td>for <code>lookAt</code>, how much of the turn the chain root takes. 0.3 by default</td>
+</tr>
+<tr>
+<td><code>smoothTime</code></td>
+<td>seconds the goal takes to catch up with a moving target. 0.05 by default, 0 snaps</td>
+</tr>
+<tr>
+<td><code>priority</code></td>
+<td>lower priorities are solved first</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>off leaves the joints to the tracks</td>
+</tr>
+</tbody>
+</table></div>
+<p>What each type does:</p>
+<ul>
+<li><strong><code>aim</code></strong> turns <code>endEffector</code> alone so that its <code>axis</code> points at the target. A body's arm is one
+  joint, so aiming is how a body points.</li>
+<li><strong><code>lookAt</code></strong> turns <code>endEffector</code> so that its front, <code>vec3(0, 0, -1)</code>, faces the target. With a
+  <code>chainRoot</code>, like the torso, the root turns by <code>rootWeight</code> of the way first and the end effector
+  takes the rest.</li>
+<li><strong><code>position</code></strong> moves the end of the chain onto the target. A chain of two bones, like an upper
+  arm and a forearm ending at a hand bone, is solved exactly, with <code>pole</code> choosing which way the
+  elbow bends. One bone points at the target. Longer chains turn each joint in turn until the end
+  gets there. The end effector's own turn is left alone.</li>
+<li><strong><code>transform</code></strong> does what <code>position</code> does and also turns the end effector to the target's
+  rotation.</li>
+</ul>
+<p>The chain is the joints from <code>chainRoot</code> down to <code>endEffector</code>: parent bones for bones, and for
+motors each motor whose <code>part0</code> is the part the next one holds. A body's motors all hang off its
+root, so a body's chain is one joint long.</p>
+<p>A body pointing its right arm at a part:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> body = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;npc&quot;</span>) :: Character
+<span class="syn-keyword">local</span> joints = body:<span class="syn-func">find</span>(<span class="syn-string">&quot;joints&quot;</span>) :: Folder
+<span class="syn-keyword">local</span> point = body:<span class="syn-func">add</span>(<span class="syn-string">&quot;IKControl&quot;</span>, {
+    <span class="syn-keyword">type</span> = <span class="syn-string">&quot;aim&quot;</span>,
+    endEffector = joints:<span class="syn-func">find</span>(<span class="syn-string">&quot;rightArm&quot;</span>),
+    target = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;lamp&quot;</span>),
+}) :: IKControl
+point.weight = <span class="syn-num">1</span></code></pre></div></div>
+<p>A two-bone arm on a model reaching for a handle, bending outwards:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> mesh = model:<span class="syn-func">find</span>(<span class="syn-string">&quot;mesh&quot;</span>) :: MeshPart
+<span class="syn-keyword">local</span> shoulder = mesh:<span class="syn-func">find</span>(<span class="syn-string">&quot;RightArm&quot;</span>) :: Bone
+<span class="syn-keyword">local</span> hand = shoulder:<span class="syn-func">findFirstDescendant</span>(<span class="syn-string">&quot;RightHand&quot;</span>) :: Bone
+model:<span class="syn-func">add</span>(<span class="syn-string">&quot;IKControl&quot;</span>, {
+    <span class="syn-keyword">type</span> = <span class="syn-string">&quot;position&quot;</span>,
+    chainRoot = shoulder,
+    endEffector = hand,
+    target = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;handle&quot;</span>),
+    pole = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;elbowHint&quot;</span>),
+})</code></pre></div></div>
+<p>Turning <code>enabled</code> off, or bringing <code>weight</code> to 0, gives the joints back to the tracks on the next
+tick. A weight between leaves the joint that far between its animated pose and the solved one, and
+stays there tick after tick.</p>
+<div class="demo" data-demo="animation-ik"></div>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>IK and springs run once per tick, like the rest of posing, and are drawn smoothly between ticks.
+A <code>transform</code> a <code>LocalScript</code> writes on a joint that nothing animates is where they start from.</p></div></div>
+<h2 id="secondary-motion-jointspring">Secondary motion: JointSpring<a class="anchor" href="#secondary-motion-jointspring" title="Permanent link">#</a></h2>
+<p>A <code>JointSpring</code> makes a joint lag behind and swing, like a cape, a tail or an ear. It follows a tip
+point a little way out along the joint, simulated in the world, pulled back toward where the
+animation puts it and pulled down by gravity. The joint is then turned to point at the tip.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>joint</code></td>
+<td>the <code>Bone</code> or <code>Motor</code> that swings. Empty uses the spring's parent</td>
+</tr>
+<tr>
+<td><code>stiffness</code></td>
+<td>how hard the tip is pulled back to the animated pose. 60 by default</td>
+</tr>
+<tr>
+<td><code>damping</code></td>
+<td>how quickly the swinging dies down. 8 by default</td>
+</tr>
+<tr>
+<td><code>gravity</code></td>
+<td>the pull on the tip, in blocks per second squared. <code>vec3(0, -9.8, 0)</code> by default</td>
+</tr>
+<tr>
+<td><code>axis</code></td>
+<td>the joint's own direction from its pivot to the tip. Down by default</td>
+</tr>
+<tr>
+<td><code>length</code></td>
+<td>how far the tip is from the pivot, in blocks</td>
+</tr>
+<tr>
+<td><code>maxAngle</code></td>
+<td>the furthest the joint swings from its animated pose, in degrees</td>
+</tr>
+<tr>
+<td><code>weight</code></td>
+<td>how much of the swing is used, 0 to 1</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> tail = mesh:<span class="syn-func">findFirstDescendant</span>(<span class="syn-string">&quot;tail&quot;</span>) :: Bone
+tail:<span class="syn-func">add</span>(<span class="syn-string">&quot;JointSpring&quot;</span>, {
+    axis = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">1</span>),
+    length = <span class="syn-num">0.5</span>,
+    stiffness = <span class="syn-num">40</span>,
+    damping = <span class="syn-num">6</span>,
+})</code></pre></div></div>
+<p>The tail here sticks out backwards, so its <code>axis</code> is <code>+z</code>. When the model runs forward the tail trails
+behind, and when it stops the tail swings back and settles. Put a spring on each bone of a chain and
+the chain swings as a whole; parents are solved before their children. Springs run on each client
+after IK, and a rig that jumps more than a few blocks in one tick starts its springs over instead of
+flinging them.</p>
+<div class="demo" data-demo="animation-spring"></div>
+<h2 id="first-person">First person<a class="anchor" href="#first-person" title="Permanent link">#</a></h2>
+<p>What you see of yourself in first person is the body's <strong>view model</strong>, <code>body.viewModel</code>: a pair of
+arms and whatever they hold, drawn in front of your camera. It is a model kept at the camera and
+posed every frame, built in. It has its own <code>Animator</code>, so first-person clips play
+on it and not on the body, and other players never see it: they see the body and the body's tracks.</p>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code>Character
+  ViewModel &quot;viewModel&quot;      enabled, model, fieldOfView
+    Animator &quot;animator&quot;
+    Bone &quot;camera&quot;            made on your client
+      Bone &quot;rightArm&quot;
+        Bone &quot;rightItem&quot;
+      Bone &quot;leftArm&quot;
+        Bone &quot;leftItem&quot;</code></pre></div></div>
+<p>Every body is made with a <code>ViewModel</code> and its <code>Animator</code>. The bones are only made on the client that
+wears the body, the first time a script asks for them or the first frame it draws, and they never
+replicate. A server script sees <code>viewModel.joints</code> as an empty table.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>draw the view model even when no clip plays</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>a <code>res://</code> <code>.bbmodel</code> to use instead of your skin's arms, see <a href="#a-blockbench-view-model">a Blockbench view model</a></td>
+</tr>
+<tr>
+<td><code>fieldOfView</code></td>
+<td>the view model's own field of view in degrees. 0, the default, uses the one Minecraft draws its hand with</td>
+</tr>
+<tr>
+<td><code>visible</code></td>
+<td>off never draws it, whatever else says so</td>
+</tr>
+<tr>
+<td><code>cframe</code></td>
+<td>where your eye was this frame, written by your client. The bones' <code>worldCframe</code> follows it</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Member</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>animator</code></td>
+<td>the view model's <code>Animator</code></td>
+</tr>
+<tr>
+<td><code>joints</code></td>
+<td>its bones by name, a table like <code>{ camera = Bone, rightArm = Bone, ... }</code></td>
+</tr>
+<tr>
+<td><code>isActive()</code></td>
+<td>whether it is drawn this frame</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="when-it-draws">When it draws<a class="anchor" href="#when-it-draws" title="Permanent link">#</a></h3>
+<p>The view model is <strong>active</strong> when it is <code>visible</code> and it is <code>enabled</code>, has a <code>model</code>, or one of its
+tracks is playing or still fading out. While it is active and you are in first person, it takes the
+place of Minecraft's hand, whatever <code>appearance.firstPerson</code> says. When it is not active nothing
+changes: the hand, <code>firstPerson = "arm"</code>, <code>"hand"</code>, <code>"body"</code> and <code>"none"</code> behave as they always did.
+In third person the view model is not drawn, and a body drawn in first person with
+<code>firstPerson = "body"</code> is still drawn under it.</p>
+<p>It is drawn the way Minecraft draws your hand: after the world, on top of it, so it never pokes into
+a wall, and with the field of view Minecraft gives its hand rather than the world's, so your field
+of view setting does not stretch it. <code>fieldOfView</code> gives it a field of view of its own. The arms
+wear your skin, slim or wide, sleeves and all. Your held item, <code>body.rightItem</code> and <code>body.leftItem</code> or their overrides, is drawn at
+<code>rightItem</code> and <code>leftItem</code> the way it is held in third person.</p>
+<h3 id="the-rig">The rig<a class="anchor" href="#the-rig" title="Permanent link">#</a></h3>
+<p>The bones live in the camera's space: the <code>camera</code> bone is the eye, <code>-z</code> is where you look, <code>+x</code> is
+right and <code>+y</code> is up. At rest the arms sit exactly where Minecraft holds its empty hand, so turning
+<code>enabled</code> on with no clip looks like the hand you know, with both arms out. <code>rightItem</code> and
+<code>leftItem</code> are the grips, where an item sits in the fist.</p>
+<p>Every frame, on your own client, the view model is posed in this order:</p>
+<ol>
+<li>every bone goes back to its rest, <code>transform</code> the identity and <code>scale</code> one;</li>
+<li>its tracks move on by the frame's time and pose the bones, with the same priorities, weights,
+   masks and blending as <a href="#priority-and-weight">any other track</a>;</li>
+<li>render step functions run, so a script can add to what the clips did;</li>
+<li><code>IKControl</code>s whose end effector is in the view model are solved;</li>
+<li>the camera is placed and the view model is drawn.</li>
+</ol>
+<p>Because every bone starts from rest each frame, a script adds to the clips by multiplying:
+<code>bone.transform = bone.transform * offset</code>. A transform written once outside a render step is gone
+the next frame. <code>JointSpring</code>s do not run on the view model.</p>
+<h3 id="the-camera-bone">The camera bone<a class="anchor" href="#the-camera-bone" title="Permanent link">#</a></h3>
+<p>The <code>camera</code> bone's <code>transform</code> is added to your camera after the camera has been placed: its
+position is along the camera's own axes, then it turns the view. A
+clip that kicks <code>camera</code> up kicks your view up. The arms hang under the <code>camera</code> bone, so they stay
+where they are on the screen while the world behind them moves.</p>
+<p>It only changes what you see. Where you aim, what you click and where your body looks are the
+player's own look, as before, and other players see nothing of it. It applies in first person only.</p>
+<h3 id="playing-a-clip-on-it">Playing a clip on it<a class="anchor" href="#playing-a-clip-on-it" title="Permanent link">#</a></h3>
+<p>A clip with <code>"space": "view"</code> is made for the view model, and you load it with the view model's
+animator:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> reload = body.viewModel.animator:<span class="syn-func">loadAnimation</span>(game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;reload&quot;</span>) :: Animation)
+reload:<span class="syn-func">play</span>(<span class="syn-num">0.1</span>)</code></pre></div></div>
+<ul>
+<li>A view clip loaded on a body's animator is refused with an error: it names <code>camera</code>, <code>rightArm</code>
+  and the rest in the camera's space, which would twist a body out of shape.</li>
+<li>A body clip loaded on the view model works, but only the joints the two share move, so a body clip
+  that moves legs, a torso or a head prints a warning once. Mark a clip made for the view model with
+  <code>"space": "view"</code>.</li>
+<li>The server or a client can load and play a view clip. The track replicates like any other, the
+  wearer's client plays it once a frame, and other clients keep it but never draw it. Markers and
+  events fire on the server for tracks the server plays, and on the wearer's client.</li>
+</ul>
+<p>A reload, <code>animations/reload.anim</code>:</p>
+<div class="doc-code"><span class="code-lang">json</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23</pre><pre><code>{
+  &quot;version&quot;: 2,
+  &quot;length&quot;: 1.2,
+  &quot;loop&quot;: &quot;once&quot;,
+  &quot;space&quot;: &quot;view&quot;,
+  &quot;priority&quot;: &quot;action&quot;,
+  &quot;joints&quot;: {
+    &quot;leftArm&quot;: {
+      &quot;rotation&quot;: [[0, [0, 0, 0], &quot;catmullrom&quot;], [0.35, [-40, 25, 10], &quot;catmullrom&quot;],
+                   [0.8, [-40, 25, 10], &quot;catmullrom&quot;], [1.2, [0, 0, 0]]],
+      &quot;position&quot;: [[0, [0, 0, 0]], [0.35, [0.05, -0.1, 0.05]], [0.8, [0.05, -0.1, 0.05]], [1.2, [0, 0, 0]]]
+    },
+    &quot;rightArm&quot;: {
+      &quot;rotation&quot;: [[0, [0, 0, 0], &quot;catmullrom&quot;], [0.35, [15, 0, -35], &quot;catmullrom&quot;],
+                   [0.8, [15, 0, -35], &quot;catmullrom&quot;], [1.2, [0, 0, 0]]]
+    },
+    &quot;camera&quot;: { &quot;rotation&quot;: [[0, [0, 0, 0]], [0.35, [-2, 0, 3]], [1.2, [0, 0, 0]]] }
+  },
+  &quot;events&quot;: [
+    { &quot;time&quot;: 0.3, &quot;name&quot;: &quot;magOut&quot;, &quot;payload&quot;: { &quot;volume&quot;: 0.8 } },
+    { &quot;time&quot;: 0.85, &quot;name&quot;: &quot;magIn&quot;, &quot;payload&quot;: { &quot;volume&quot;: 1 } }
+  ]
+}</code></pre></div></div>
+<h3 id="sway-bob-and-recoil">Sway, bob and recoil<a class="anchor" href="#sway-bob-and-recoil" title="Permanent link">#</a></h3>
+<p>Sway, bob and recoil are yours to write, in a render step, on top of whatever the clips do. This
+<code>LocalScript</code> is copied into every body through <a href="containers.html#startercharacterscripts"><code>StarterCharacterScripts</code></a>:
+the arms lag behind the mouse, the camera bobs while you walk, a click kicks the camera up and <code>R</code>
+plays the reload above, with a sound on its event.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> me = script.parent :: Character
+<span class="syn-keyword">if</span> me ~= game.players:<span class="syn-func">me</span>() <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+<span class="syn-keyword">local</span> view = me.viewModel
+view.enabled = <span class="syn-const">true</span>
+
+<span class="syn-keyword">local</span> joints = view.joints
+<span class="syn-keyword">local</span> reload = view.animator:<span class="syn-func">loadAnimation</span>(game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;reload&quot;</span>) :: Animation)
+<span class="syn-keyword">local</span> magOut = me:<span class="syn-func">add</span>(<span class="syn-string">&quot;Sound&quot;</span>, { soundId = <span class="syn-string">&quot;res://sounds/mag_out.ogg&quot;</span> }) :: Sound
+
+reload:<span class="syn-func">getMarkerReachedSignal</span>(<span class="syn-string">&quot;magOut&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(payload: any)
+    magOut.volume = payload.volume
+    magOut:<span class="syn-func">play</span>()
+<span class="syn-keyword">end</span>)
+reload.ended:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-func">print</span>(<span class="syn-string">&quot;reloaded&quot;</span>)
+<span class="syn-keyword">end</span>)
+
+<span class="syn-keyword">local</span> kick = <span class="syn-num">0</span>
+<span class="syn-keyword">local</span> sway = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>)
+<span class="syn-keyword">local</span> walked = <span class="syn-num">0</span>
+
+input.inputBegan:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(object: InputObject, typing: boolean)
+    <span class="syn-keyword">if</span> typing <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">if</span> object.inputType == <span class="syn-string">&quot;mouseButton1&quot;</span> <span class="syn-keyword">then</span>
+        kick += math.<span class="syn-func">rad</span>(<span class="syn-num">4</span>)
+    <span class="syn-keyword">elseif</span> object.keyCode == <span class="syn-string">&quot;r&quot;</span> <span class="syn-keyword">then</span>
+        reload:<span class="syn-func">play</span>(<span class="syn-num">0.1</span>)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)
+
+game:<span class="syn-func">bindToRenderStep</span>(<span class="syn-string">&quot;viewModel&quot;</span>, <span class="syn-num">200</span>, <span class="syn-keyword">function</span>(dt: number)
+    <span class="syn-keyword">local</span> turned = <span class="syn-func">vec3</span>(-input.mouseDeltaX, input.mouseDeltaY, <span class="syn-num">0</span>) * <span class="syn-num">0.0015</span>
+    sway = sway:<span class="syn-func">lerp</span>(turned, math.<span class="syn-func">min</span>(<span class="syn-num">1</span>, dt * <span class="syn-num">10</span>))
+
+    <span class="syn-keyword">local</span> speed = <span class="syn-func">vec3</span>(me.velocity.x, <span class="syn-num">0</span>, me.velocity.z).magnitude
+    walked += dt * speed * <span class="syn-num">1.6</span>
+    <span class="syn-keyword">local</span> stride = math.<span class="syn-func">min</span>(<span class="syn-num">1</span>, speed / <span class="syn-num">5</span>)
+    <span class="syn-keyword">local</span> bob = <span class="syn-func">vec3</span>(math.<span class="syn-func">sin</span>(walked) * <span class="syn-num">0.02</span>, -math.<span class="syn-func">abs</span>(math.<span class="syn-func">cos</span>(walked)) * <span class="syn-num">0.03</span>, <span class="syn-num">0</span>) * stride
+
+    kick *= math.<span class="syn-func">exp</span>(-dt * <span class="syn-num">14</span>)
+
+    <span class="syn-keyword">local</span> eye = joints.camera
+    eye.transform = eye.transform * cframe.<span class="syn-func">new</span>(bob) * cframe.<span class="syn-func">angles</span>(kick, <span class="syn-num">0</span>, <span class="syn-num">0</span>)
+    <span class="syn-keyword">for</span> _, name <span class="syn-keyword">in</span> { <span class="syn-string">&quot;rightArm&quot;</span>, <span class="syn-string">&quot;leftArm&quot;</span> } <span class="syn-keyword">do</span>
+        <span class="syn-keyword">local</span> arm = joints[name]
+        arm.transform = cframe.<span class="syn-func">new</span>(sway) * arm.transform
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The render step runs after the clips each frame, so the bob and the kick are added to the reload's
+  own camera move, and the sway is laid over the arms wherever the reload put them.</li>
+<li><code>kick</code> dies away on its own, so each click adds to it and the view settles back.</li>
+<li>The sway comes before the arm's own transform, so it slides the whole arm along the camera's axes.</li>
+</ul>
+<h3 id="reaching-with-ik">Reaching with IK<a class="anchor" href="#reaching-with-ik" title="Permanent link">#</a></h3>
+<p>An <code>IKControl</code> works on the view model's bones like on any other, solved each frame after the render
+steps. The left hand holding a foregrip on whatever the right hand carries:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> me = script.parent :: Character
+<span class="syn-keyword">if</span> me ~= game.players:<span class="syn-func">me</span>() <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+<span class="syn-keyword">local</span> view = me.viewModel
+<span class="syn-keyword">local</span> joints = view.joints
+
+<span class="syn-keyword">local</span> grip = joints.rightItem:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, {
+    name = <span class="syn-string">&quot;foregrip&quot;</span>,
+    cframe = cframe.<span class="syn-func">new</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0.1</span>, -<span class="syn-num">0.35</span>)),
+}) :: Attachment
+
+view:<span class="syn-func">add</span>(<span class="syn-string">&quot;IKControl&quot;</span>, {
+    name = <span class="syn-string">&quot;support&quot;</span>,
+    <span class="syn-keyword">type</span> = <span class="syn-string">&quot;position&quot;</span>,
+    chainRoot = joints.leftArm,
+    endEffector = joints.leftItem,
+    target = grip,
+    smoothTime = <span class="syn-num">0</span>,
+})</code></pre></div></div>
+<p>The foregrip hangs off <code>rightItem</code>, so it follows every clip and sway that moves the right arm, and
+the left arm turns to put its hand on it. A skin arm is one bone, so it points its hand at the grip;
+an arm of two bones in a Blockbench view model bends at the elbow to reach it, with a <code>pole</code> to pick
+the way.</p>
+<h3 id="a-blockbench-view-model">A Blockbench view model<a class="anchor" href="#a-blockbench-view-model" title="Permanent link">#</a></h3>
+<p>Set <code>model</code> to a <code>.bbmodel</code> in the place and it replaces your skin's arms:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>view.model = <span class="syn-string">&quot;res://models/rifle.bbmodel&quot;</span></code></pre></div></div>
+<ul>
+<li>Each Blockbench group becomes a <code>Bone</code> with the group's name, nested like the groups, and its
+  cubes are drawn with it. A group named <code>rightArm</code> is the bone a view clip's <code>rightArm</code> keys move,
+  so name the groups after the joints your clips use.</li>
+<li>The model's origin is the eye, looking north, <code>-z</code>. A top-level group named <code>camera</code> is the eye
+  instead, and every other top-level group hangs under it. Without one, a <code>camera</code> bone is made at
+  the origin.</li>
+<li>Groups named <code>rightItem</code> and <code>leftItem</code> get your held items. Without them nothing is held.</li>
+<li>Textures must be saved inside the <code>.bbmodel</code>. Only cubes are drawn; mesh elements are skipped.</li>
+<li>Changing <code>model</code> builds the bones again, so anything you put under the old bones goes with them.
+  A model that cannot be read falls back to the skin arms and says why in the output.</li>
+<li>A clip imported with <a href="#importing-a-blockbench-model"><code>scene.importBbmodel</code></a> moves these bones by
+  the same names. Give it <code>"space": "view"</code> so it is not taken for a body clip.</li>
+</ul>
+<h2 id="importing-a-blockbench-model">Importing a Blockbench model<a class="anchor" href="#importing-a-blockbench-model" title="Permanent link">#</a></h2>
+<p><code>scene.importBbmodel(path, parent?)</code> turns a <code>.bbmodel</code> in the place into a model you can animate,
+and writes one <code>.anim</code> file per Blockbench animation. It returns the model and a list of notes about
+anything it could not carry over.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> model, notes = scene.<span class="syn-func">importBbmodel</span>(<span class="syn-string">&quot;res://models/fox.bbmodel&quot;</span>)
+<span class="syn-keyword">for</span> _, note <span class="syn-keyword">in</span> notes <span class="syn-keyword">do</span>
+    <span class="syn-func">print</span>(note)
+<span class="syn-keyword">end</span>
+
+<span class="syn-keyword">local</span> controller = model:<span class="syn-func">firstChildOfClass</span>(<span class="syn-string">&quot;AnimationController&quot;</span>) :: AnimationController
+<span class="syn-keyword">local</span> animator = controller:<span class="syn-func">firstChildOfClass</span>(<span class="syn-string">&quot;Animator&quot;</span>) :: Animator
+<span class="syn-keyword">local</span> animations = model:<span class="syn-func">find</span>(<span class="syn-string">&quot;animations&quot;</span>) :: Folder
+<span class="syn-keyword">local</span> run = animator:<span class="syn-func">loadAnimation</span>(animations:<span class="syn-func">find</span>(<span class="syn-string">&quot;run&quot;</span>) :: Animation)
+run:<span class="syn-func">play</span>()</code></pre></div></div>
+<p>What it builds:</p>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code>Model &quot;fox&quot;                        under parent, or world when left out
+  MeshPart &quot;mesh&quot;                  meshId = the .bbmodel, sized to the model, anchored
+    Bone ...                       one per Blockbench group, nested like the groups
+  AnimationController &quot;animationController&quot;
+    Animator &quot;animator&quot;
+  Folder &quot;animations&quot;
+    Animation &quot;run&quot;                animationId = res://models/fox/run.anim</code></pre></div></div>
+<ul>
+<li><strong>Each group becomes a <code>Bone</code></strong> at the group's pivot, turned by the group's rotation, and the
+  cubes in the group are drawn rigidly with it. Blockbench's 16 units are one block. The model's
+  origin sits at the <code>Model</code>'s position, so an entity model stands on it; the <code>MeshPart</code> sits at the
+  middle of the cubes.</li>
+<li>Two groups with the same name are told apart by a number, <code>tail</code> and <code>tail2</code>.</li>
+<li>Cubes outside any group are drawn with the <code>MeshPart</code> and never move.</li>
+<li>Textures must be saved inside the <code>.bbmodel</code>. One that only points at a file on disk is drawn blank.</li>
+<li><strong>Each animation becomes a <code>.anim</code> file</strong> next to the model, in a folder with the model's name.
+  Keyframes become rotation, position and scale keys with their interpolation: <code>linear</code>,
+  <code>catmullrom</code>, <code>bezier</code> with its handles, and <code>step</code>. A keyframe with separate before and after
+  values becomes two keys at the same time. The animation's <code>loop</code> mode comes across as it is.</li>
+<li><strong>Sound, particle and timeline keyframes become events.</strong> A sound fires <code>sound</code> with
+  <code>{ effect, file }</code>, a particle fires <code>particle</code> with <code>{ effect, locator, file, script }</code>, and a
+  timeline keyframe fires <code>timeline</code> with its script as a string. Connect with
+  <code>track:getMarkerReachedSignal("sound")</code>.</li>
+<li><strong>Molang is not run.</strong> A keyframe value that is a plain number, even written as text, comes
+  across; any other expression becomes 0 (1 for scale) and is listed in the notes. <code>anim_time_update</code>,
+  <code>start_delay</code>, <code>loop_delay</code> and <code>blend_weight</code> are listed when set and otherwise ignored.</li>
+</ul>
+<p>The importer writes what Blockbench shows, so the clip looks the same in Moud. The angles are written
+in Blockbench's <code>zyx</code> order and positions are in blocks. A file saved by Blockbench 5 or later
+(<code>format_version</code> 5 and up) keeps its keyframes in the axes Blockbench shows, and they come across as
+they are. Older files saved animated rotations with x and y turned the other way and positions with
+x turned, and the importer turns those back. Each clip also carries the model's <code>skeleton</code>, which
+lets a bone's keys be added to its group's own rotation the way Blockbench adds them.</p>
+<p>The Java entry point, for tools such as the editor, is <code>BbmodelImport.build(text, res, parent)</code>,
+which returns the model, the <code>.anim</code> files to write and the notes. <code>BbmodelImport.read(text, name)</code>
+does the conversion without making instances.</p>
+<h3 id="playing-an-imported-clip-on-a-body">Playing an imported clip on a body<a class="anchor" href="#playing-an-imported-clip-on-a-body" title="Permanent link">#</a></h3>
+<p>A clip made on the player's shape plays straight on a body: <code>body.animator:loadAnimation(clip)</code>. Group
+names are matched to body joints without caring about case, spaces, <code>_</code> or <code>-</code>, and a leading
+<code>biped</code>:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Group names</th>
+<th>Body joint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>head</code></td>
+<td><code>head</code></td>
+</tr>
+<tr>
+<td><code>body</code>, <code>torso</code>, <code>chest</code>, <code>upperBody</code></td>
+<td><code>torso</code></td>
+</tr>
+<tr>
+<td><code>rightArm</code>, <code>armRight</code>, <code>rArm</code></td>
+<td><code>rightArm</code></td>
+</tr>
+<tr>
+<td><code>leftArm</code>, <code>armLeft</code>, <code>lArm</code></td>
+<td><code>leftArm</code></td>
+</tr>
+<tr>
+<td><code>rightLeg</code>, <code>legRight</code>, <code>rLeg</code></td>
+<td><code>rightLeg</code></td>
+</tr>
+<tr>
+<td><code>leftLeg</code>, <code>legLeft</code>, <code>lLeg</code></td>
+<td><code>leftLeg</code></td>
+</tr>
+<tr>
+<td><code>cape</code></td>
+<td><code>cape</code></td>
+</tr>
+<tr>
+<td><code>rightWing</code>, <code>wingRight</code>, <code>leftWing</code>, <code>wingLeft</code></td>
+<td><code>rightWing</code>, <code>leftWing</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>So Blockbench's own names, <code>Head</code>, <code>Body</code>, <code>RightArm</code>, Bedrock's <code>rightArm</code> and Java's <code>right_arm</code>
+all land on the right joint. A model with at least three of these is marked <code>"rig": "player"</code>.</p>
+<p>Blockbench players are usually nested: arms and head under the body, the body under a waist. A body's
+joints are not, they all hang off its root. When a clip with a <code>skeleton</code> plays on a body, each joint
+gets the whole movement its group made in the model, parents included, so turning <code>Body</code> in the
+clip turns the arms and head with it and moves their pivots. A body's limbs pivot where the player
+model's do, at the shoulders, neck and hips, which is where Blockbench's player templates put them.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> model, _ = scene.<span class="syn-func">importBbmodel</span>(<span class="syn-string">&quot;res://models/emotes.bbmodel&quot;</span>)
+<span class="syn-keyword">local</span> animations = model:<span class="syn-func">find</span>(<span class="syn-string">&quot;animations&quot;</span>) :: Folder
+<span class="syn-keyword">local</span> body = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;npc&quot;</span>) :: Character
+<span class="syn-keyword">local</span> dance = body.animator:<span class="syn-func">loadAnimation</span>(animations:<span class="syn-func">find</span>(<span class="syn-string">&quot;dance&quot;</span>) :: Animation)
+dance:<span class="syn-func">play</span>(<span class="syn-num">0.2</span>)</code></pre></div></div>
+<p>The model's own bones are not needed for this; the clip only reads its <code>.anim</code> file. Keep the
+<code>animations</code> folder where every client can see it, or make your own <code>Animation</code> pointing at the same
+file.</p>
+<h2 id="the-animation-editor">The animation editor<a class="anchor" href="#the-animation-editor" title="Permanent link">#</a></h2>
+<p>The editor has an animation workspace for making and changing <code>.anim</code> clips on a rig in the scene.
+What it shows is what plays: the preview samples the clip with the same code a track uses, turns
+the joints the way the runtime turns them, and runs the rig's IK and springs after the clip.</p>
+<h3 id="opening-it">Opening it<a class="anchor" href="#opening-it" title="Permanent link">#</a></h3>
+<p>Open it from the editor with any of:</p>
+<ul>
+<li>the <strong>Animation</strong> button in the toolbar, next to play</li>
+<li><strong>Window → Animation Editor</strong></li>
+<li><strong>Ctrl+Shift+A</strong></li>
+</ul>
+<p>The same button or shortcut takes you back to the scene. The workspace opens the last clip you had,
+or the first clip in <code>animations/</code>. Clips live in the place's <code>animations</code> folder, and a new clip is
+saved as <code>animations/&lt;name&gt;.anim</code>.</p>
+<h3 id="the-workspace">The workspace<a class="anchor" href="#the-workspace" title="Permanent link">#</a></h3>
+<ul>
+<li><strong>Top bar.</strong> Play and pause, the previous and next key, loop playback, and the time and frame
+  under the playhead. On the right, <strong>Body</strong> or <strong>View</strong> sets the clip's <code>space</code>, the rig picker
+  chooses what the clip is shown on, and <strong>Save</strong> writes the clip.</li>
+<li><strong>Rig.</strong> The joints of the rig as a tree, with the number of keys each has; filter them by name.
+  <strong>Controls</strong> lists the rig's <code>IKControl</code>s and <code>JointSpring</code>s. <strong>Clips</strong> lists the clips for the
+  rig: every clip in the place for the player, or the model's own folder for a model; the plus makes
+  a new one there.</li>
+<li><strong>Viewport.</strong> The rig, posed at the playhead. Click a limb or a bone to select its joint, then turn
+  it with the rotate gizmo or move it with the move gizmo. Changing a joint keys it at the playhead.
+  Onion skin draws the poses at the keys before and after the playhead.</li>
+<li><strong>Inspector.</strong> What is selected: a key's value and interpolation with a small curve, a joint's
+  rotation, position and scale at the playhead, a marker, an event, or a control's properties. Under
+  it, the clip itself: length, frame rate, playback (<code>loop</code>, <code>once</code>, <code>hold</code>), priority, blend and
+  mask.</li>
+<li><strong>Timeline.</strong> A lane for markers, one for script events, and one per joint. Click the arrow by a
+  joint's name, or double-click the name, to open its rotation, position and scale lanes, and
+  double-click inside a lane to add a key there. The curve view draws each channel's x, y and z over
+  time, with the bezier handles of the selected keys.</li>
+</ul>
+<p>A clip is saved in the runtime's format, version 2, with a few fields the runtime reads past: <code>fps</code>,
+each event's <code>preview</code>, and <code>viewModel</code>. A clip written in the first format, or in the editor's early
+format with <code>channels</code>, opens as it is and is written in version 2 when you save it; the top bar says
+so while it is open.</p>
+<p>Saving a clip drops the copy the engine keeps, so the next track that plays it reads the new file.
+Play the place after saving and the scripts that play the clip play the change.</p>
+<h3 id="keys-and-shortcuts">Keys and shortcuts<a class="anchor" href="#keys-and-shortcuts" title="Permanent link">#</a></h3>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Key</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Space</td>
+<td>play and pause</td>
+</tr>
+<tr>
+<td>Home, End</td>
+<td>the start or the end of the clip</td>
+</tr>
+<tr>
+<td>Left, Right</td>
+<td>one frame back or on</td>
+</tr>
+<tr>
+<td>R, G</td>
+<td>the rotate or the move gizmo</td>
+</tr>
+<tr>
+<td>X</td>
+<td>the gizmo turns with the joint, or stays on the world's axes</td>
+</tr>
+<tr>
+<td>B</td>
+<td>show or hide a model's bones and the handles of every control; off, only the selected joint and control are drawn</td>
+</tr>
+<tr>
+<td>M</td>
+<td>mirror the selected joint's pose to the other side</td>
+</tr>
+<tr>
+<td>Ctrl while dragging the gizmo</td>
+<td>snap to 15 degrees, or to 1/16 of a block</td>
+</tr>
+<tr>
+<td>Alt and drag an arm</td>
+<td>aim a body's arm at the pointer</td>
+</tr>
+<tr>
+<td>V</td>
+<td>in a view clip, look through the camera bone</td>
+</tr>
+<tr>
+<td>Numpad 5</td>
+<td>orthographic view</td>
+</tr>
+<tr>
+<td>Ctrl+C, Ctrl+V, Ctrl+D</td>
+<td>copy, paste and duplicate keys; paste lands at the playhead</td>
+</tr>
+<tr>
+<td>Delete</td>
+<td>delete the selected keys, event or marker</td>
+</tr>
+<tr>
+<td>Ctrl+A</td>
+<td>select every key</td>
+</tr>
+<tr>
+<td>Ctrl+S</td>
+<td>save the clip</td>
+</tr>
+<tr>
+<td>Ctrl+Z, Ctrl+Y</td>
+<td>undo and redo, for keys, events and control handles alike</td>
+</tr>
+</tbody>
+</table></div>
+<p>In the timeline, drag a key to move it in time, Shift or Ctrl click to add to the selection, and drag
+across empty lanes to select a box of keys. Ctrl and the wheel zoom the time, Shift and the wheel
+scroll it. Right-click a lane to add a key, a marker or an event, or to change the interpolation of
+the selected keys. In the curve view, drag a key up and down to change its value, and hold Alt to
+keep its time.</p>
+<p>Keys land on frames while <strong>Snap to frames</strong> is on. The frame rate is only the editor's grid; the
+runtime plays the curves at any time.</p>
+<h3 id="script-events">Script events<a class="anchor" href="#script-events" title="Permanent link">#</a></h3>
+<p>An event is a name at a time with a payload, which the inspector edits as a table of fields, or as
+a single value for an event that carries a string or a number. <strong>Fires on</strong> is the event's <code>on</code>:
+<code>server</code>, <code>client</code> or <code>both</code>. A server event fires only on the server, a client event only on the
+clients, which is where sounds and particles belong.</p>
+<p>Scripts hear an event with <code>getMarkerReachedSignal</code>, and the payload arrives as a table:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> body = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;npc&quot;</span>) :: Character
+<span class="syn-keyword">local</span> swing = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Animation&quot;</span>, {
+    name = <span class="syn-string">&quot;swing&quot;</span>,
+    animationId = <span class="syn-string">&quot;res://animations/swing.anim&quot;</span>,
+}) :: Animation
+<span class="syn-keyword">local</span> track = body.animator:<span class="syn-func">loadAnimation</span>(swing)
+
+track:<span class="syn-func">getMarkerReachedSignal</span>(<span class="syn-string">&quot;hit&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(payload: any)
+    <span class="syn-func">print</span>(payload.damage, payload.side)
+<span class="syn-keyword">end</span>)
+track:<span class="syn-func">play</span>()</code></pre></div></div>
+<p>The inspector writes this handler for the selected event, with its clip and fields filled in, and
+<strong>Copy snippet</strong> puts it on the clipboard. <strong>Listeners in this place</strong> lists the scripts that
+already connect to that name; click one to open it at the line.</p>
+<p><strong>Preview in editor</strong> plays a sound and shows particles in the viewport when the playhead passes the
+event, so its timing can be judged without playing the place. The sound and particle are only for
+the editor; they are saved in the event's <code>preview</code> and the runtime ignores them.</p>
+<h3 id="importing-a-blockbench-model_1">Importing a Blockbench model<a class="anchor" href="#importing-a-blockbench-model_1" title="Permanent link">#</a></h3>
+<p>Right-click a <code>.bbmodel</code> in the Assets panel and choose <strong>Import animations...</strong>. The dialog shows
+the model on the left and three tabs:</p>
+<ul>
+<li><strong>Bones</strong> lists every Blockbench group, its pivot and its number of cubes, and the body joint it
+  plays on. The guess comes from the group's name, as in the
+  <a href="#playing-an-imported-clip-on-a-body">table above</a>; pick another joint, or <strong>new bone</strong> to keep a
+  group off the body. A choice that differs from the guess is written into each clip's <code>retarget</code>.</li>
+<li><strong>Animations</strong> has a box per Blockbench animation. Only the ticked ones are written. Molang keys
+  are flagged, since they come across as numbers.</li>
+<li><strong>Options</strong> sets the folder the clips go in, <code>animations/&lt;model&gt;/</code> by default, and whether the
+  model itself is added to the scene. Turn that off to write only the clips for a model you already
+  have.</li>
+</ul>
+<p><strong>Import</strong> does what <a href="#importing-a-blockbench-model"><code>scene.importBbmodel</code></a> does: it writes a <code>.anim</code>
+per ticked animation, adds the model with a <code>Bone</code> per group, an <code>AnimationController</code> and an
+<code>Animator</code> in front of the camera as one undoable step, and lists the importer's notes. The first
+clip then opens on the new model.</p>
+<h3 id="animating-a-blockbench-mesh">Animating a Blockbench mesh<a class="anchor" href="#animating-a-blockbench-mesh" title="Permanent link">#</a></h3>
+<p>A <code>.bbmodel</code> dragged into the scene arrives as a model you can animate: a <code>Model</code> with a <code>Bone</code> per
+Blockbench group, an <code>AnimationController</code> and an <code>Animator</code>, and an <code>Animation</code> per Blockbench
+animation. A <code>.bbmodel</code> with no groups stays a plain <code>MeshPart</code>.</p>
+<p>A <code>.bbmodel</code> that was placed before as a plain <code>MeshPart</code> shows under <strong>Blockbench meshes</strong> in the rig
+picker. Picking it asks first, then turns it into such a model in the same place, with its name,
+size, look and parent, as one undoable step.</p>
+<p>Either way, each animation is written as a <code>.anim</code> in <code>animations/&lt;file&gt;/</code>, named after the
+<code>.bbmodel</code> file and not the instance: <code>res://models/knight.bbmodel</code> writes to <code>animations/knight/</code>,
+whatever the model is called. Every model made from the same file shares that folder, and a clip that
+is already there is kept, never overwritten. Each clip's <code>rig</code> is the <code>.bbmodel</code>'s path.</p>
+<p>The step owns the clips it wrote. Undo removes them, redo writes them again with the same content.
+A clip that was there before is never removed, and one you changed after it was written is kept on
+undo, with a line in Output saying so. Connected to a server, the clips are written and removed on
+the server too.</p>
+<h3 id="rigs">Rigs<a class="anchor" href="#rigs" title="Permanent link">#</a></h3>
+<p>The rig picker in the top bar chooses what the clip is shown on:</p>
+<ul>
+<li><strong>Preview character</strong>, a body with your skin or one of the default skins. It stands in front of
+  the camera and is not part of the scene.</li>
+<li><strong>Characters in the scene</strong>, which lends the editor a body the place already has, with its own
+  skin and controls. It is handed back as it was when you pick something else or leave.</li>
+<li><strong>Models in the scene</strong>, every <code>Model</code> with an <code>AnimationController</code> and at least one <code>Bone</code> or
+  <code>Motor</code>. The Rig panel shows its bones as a tree, the viewport draws them as a skeleton you can
+  click while <strong>Bones</strong> is on, and the gizmo turns them.</li>
+</ul>
+<p>A clip remembers its rig in <code>rig</code>: <code>player</code>, <code>view</code>, or, for a model made from a <code>.bbmodel</code>, the
+<code>res://</code> path of that file. Opening a clip shows it on a model in the scene made from that file, so a
+clip opens on any copy of the model. Older clips that name a model by its name still find it.</p>
+<p>Undo keeps the clip you have open. When undo takes away the model you are animating, the clip stays
+open on the preview character; redo brings the model back and shows the clip on it again. Undoing a
+key change in a clip that is not open changes that clip without opening it, and the status bar says
+which one.</p>
+<p><strong>Controls</strong> lists the <code>IKControl</code>s and <code>JointSpring</code>s that move the rig's joints. Selecting one
+shows its properties in the inspector. In the viewport, an <code>IKControl</code>'s target is a diamond and its
+pole a circle, each joined to the chain by a dashed line; drag them to move <code>targetCframe</code>, or the
+part or attachment the control points at. A <code>JointSpring</code> is drawn as its axis, out to <code>length</code>.
+Moving a handle is an undoable scene edit. The preview solves the controls after the clip on every
+frame, so the pose in the viewport is the one a client draws.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="character.html"><span>Previous</span>Characters</a><a class="next" href="players.html"><span>Next</span>Players and bodies</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#rigs-bodies-and-models">Rigs: bodies and models</a></li><li><a href="#where-an-animation-comes-from">Where an animation comes from</a></li><li><a href="#a-sequence-in-the-tree">A sequence in the tree</a></li><li><a href="#the-anim-file">The .anim file</a></li><li><a href="#markers-and-events">Markers and events</a></li><li><a href="#tracks">Tracks</a></li><li><a href="#priority-and-weight">Priority and weight</a></li><li><a href="#tracks-and-the-engines-walk">Tracks and the engine's walk</a></li><li><a href="#inverse-kinematics-ikcontrol">Inverse kinematics: IKControl</a></li><li><a href="#secondary-motion-jointspring">Secondary motion: JointSpring</a></li><li><a href="#first-person">First person</a></li><li><a href="#importing-a-blockbench-model">Importing a Blockbench model</a></li><li><a href="#the-animation-editor">The animation editor</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

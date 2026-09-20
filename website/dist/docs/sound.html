@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sound | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html" class="active"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Screen and sound</span></nav>
+    <article class="doc">
+<h1 id="sound">Sound<a class="anchor" href="#sound" title="Permanent link">#</a></h1>
+<p>There are two ways to make noise in a place. A <code>Sound</code> is an instance you put in the tree, which
+means the server can create one and every player hears it. The <code>audio</code> global is a set of calls that
+exist on the client only, for sound that belongs to one player's own game: their music, their
+footsteps, the click of their menu.</p>
+<p>Start with <code>Sound</code> instances. Reach for <code>audio</code> when you want layered music, a tempo to line effects
+up with, or a mix you move around during play.</p>
+<h2 id="sound-instances">Sound instances<a class="anchor" href="#sound-instances" title="Permanent link">#</a></h2>
+<p>You create a <code>Sound</code> with <code>add</code>, like any other instance, and play it with <code>play()</code>:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code><span class="syn-keyword">local</span> bell = deck:<span class="syn-func">add</span>(<span class="syn-string">&quot;Sound&quot;</span>, {
+    soundId = <span class="syn-string">&quot;res://sounds/bell.ogg&quot;</span>,   <span class="syn-comment">-- or a resource pack sound like minecraft:block.note_block.bell</span>
+    volume = <span class="syn-num">0.8</span>, pitch = <span class="syn-num">1</span>, looped = <span class="syn-const">false</span>,
+    minDistance = <span class="syn-num">8</span>, maxDistance = <span class="syn-num">48</span>, rollOff = <span class="syn-num">1</span>,
+    bus = <span class="syn-string">&quot;sfx&quot;</span>, priority = <span class="syn-num">0</span>, fadeIn = <span class="syn-num">0</span>, stream = <span class="syn-const">false</span>,
+})
+bell:<span class="syn-func">play</span>()
+bell:<span class="syn-func">stop</span>()
+bell.played:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)
+bell.ended:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>soundId</code> is the file to play. It takes a <code>res://</code> path in your place, or the name of a sound the
+  resource pack already has.</li>
+<li><code>minDistance</code>, <code>maxDistance</code> and <code>rollOff</code> decide how the sound fades with distance when it is
+  playing from somewhere in the world.</li>
+<li><code>bus</code> puts it on a named bus, which is how you turn all the sound effects down at once without
+  touching the music. See <a href="#buses">Buses</a>.</li>
+<li><code>fadeIn</code> is how many seconds the sound takes to come up to <code>volume</code>, and <code>stream = true</code> reads the
+  file off disk as it plays instead of decoding it first.</li>
+<li><code>played</code> fires when the sound starts and <code>ended</code> when it finishes.</li>
+</ul>
+<p>Where you parent the sound is what decides where it is heard from. <code>deck</code> above is whatever instance
+you put it in:</p>
+<ul>
+<li>Inside a part or a body it plays <strong>from there</strong> and follows it. Anywhere else it plays for
+  everyone at the same volume.</li>
+<li><code>event</code> plays a named event (see <code>audio.defineEvent</code>) instead of <code>soundId</code>.</li>
+<li><code>play()</code> on a sound that is already playing restarts it on every client.</li>
+<li>Sounds replicate like any instance, so the server can play one for everybody.</li>
+</ul>
+<div class="alert alert-warning"><i class="alert-icon ph-fill ph-warning"></i><div class="alert-body"><p>A sound kept out of the world never plays: one in <code>ServerStorage</code>, <code>ReplicatedStorage</code>, a starter
+folder or a backpack is only stored, and <code>play()</code> on it does nothing until a copy is in the world.
+See <a href="containers.html">Containers</a>.</p></div></div>
+<h2 id="pausing-seeking-and-how-far-along-it-is">Pausing, seeking and how far along it is<a class="anchor" href="#pausing-seeking-and-how-far-along-it-is" title="Permanent link">#</a></h2>
+<p><code>pause()</code> and <code>resume()</code> leave the sound where it is, and <code>timePosition</code> is both where it has got to
+and where you send it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>bell:<span class="syn-func">pause</span>()
+bell:<span class="syn-func">resume</span>()
+bell.timePosition = <span class="syn-num">2.5</span>        <span class="syn-comment">-- seek</span>
+bell.loaded:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() <span class="syn-func">print</span>(bell.timeLength, <span class="syn-string">&quot;seconds&quot;</span>) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>timePosition</code></td>
+<td>where the sound is, in seconds. Write it to seek</td>
+</tr>
+<tr>
+<td><code>timeLength</code></td>
+<td>how long the file is, in seconds, once it is loaded. Read-only</td>
+</tr>
+<tr>
+<td><code>isLoaded</code></td>
+<td>whether the file is decoded and ready to play. Read-only</td>
+</tr>
+<tr>
+<td><code>playbackLoudness</code></td>
+<td>how loud it is coming out right now, 0 to 1000. Read-only</td>
+</tr>
+<tr>
+<td><code>paused</code></td>
+<td>true between <code>pause()</code> and <code>resume()</code>, false again after <code>stop()</code></td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><code>pause()</code> keeps the sound where it is; <code>resume()</code> carries on from there. <code>stop()</code> unpauses it and
+  forgets the position, so the next <code>play()</code> starts at the beginning.</li>
+<li><code>loaded</code> fires on each client once the file is decoded, which is when <code>timeLength</code> is known.
+  Changing <code>soundId</code> clears both and fires it again for the new file.</li>
+<li><code>pitch</code> moves the sound's speed and its pitch together.</li>
+</ul>
+<p><code>playbackLoudness</code> is how you make something react to the sound the player is hearing, such as a
+light that pulses with the music. Read it on the client, once a frame.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>The three read-only properties and the real <code>timePosition</code> are worked out by the client that plays
+the sound. On the server <code>timePosition</code> is only what a script last wrote there, <code>timeLength</code> and
+<code>playbackLoudness</code> are 0 and <code>isLoaded</code> is false, because no sound comes out of a server.</p></div></div>
+<h2 id="buses">Buses<a class="anchor" href="#buses" title="Permanent link">#</a></h2>
+<p>A <code>SoundBus</code> is an instance that owns a named bus. Every <code>Sound</code> whose <code>bus</code> matches the name goes
+through it, so one bus turns a whole group of sounds down at once:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SoundBus&quot;</span>, { bus = <span class="syn-string">&quot;music&quot;</span>, volume = <span class="syn-num">0.5</span>, lowPass = <span class="syn-num">1</span>, muted = <span class="syn-const">false</span> })</code></pre></div></div>
+<p><code>volume</code> scales every sound on the bus and <code>muted</code> silences them all. <code>lowPass</code> below 1 muffles the
+whole bus, which is what you use for sound heard through a wall or under water.</p>
+<h2 id="sound-effects">Sound effects<a class="anchor" href="#sound-effects" title="Permanent link">#</a></h2>
+<p>An effect is an instance you put <strong>inside</strong> a <code>Sound</code> or a <code>SoundBus</code>. Inside a sound it treats that
+one sound; inside a bus it treats every sound on that bus.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">local</span> horn = deck:<span class="syn-func">add</span>(<span class="syn-string">&quot;Sound&quot;</span>, { soundId = <span class="syn-string">&quot;res://sounds/horn.ogg&quot;</span> })
+horn:<span class="syn-func">add</span>(<span class="syn-string">&quot;ReverbSoundEffect&quot;</span>, { decayTime = <span class="syn-num">4</span>, wetLevel = -<span class="syn-num">3</span> })
+horn:<span class="syn-func">add</span>(<span class="syn-string">&quot;EchoSoundEffect&quot;</span>, { delay = <span class="syn-num">0.25</span>, feedback = <span class="syn-num">0.4</span>, wetLevel = -<span class="syn-num">6</span> })
+horn:<span class="syn-func">play</span>()</code></pre></div></div>
+<p>The horn now plays through a four second reverb tail and a quarter second echo, because both effects
+are children of that one sound. No other sound in the place is touched.</p>
+<p>Every effect has <code>enabled</code> (default true) and <code>priority</code> (default 0).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Property</th>
+<th>Default</th>
+<th>Range</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ReverbSoundEffect</code></td>
+<td><code>decayTime</code></td>
+<td>1.5</td>
+<td>0.1 to 20</td>
+<td>how long the tail lasts, in seconds</td>
+</tr>
+<tr>
+<td></td>
+<td><code>density</code></td>
+<td>1</td>
+<td>0 to 1</td>
+<td>how thick the tail is</td>
+</tr>
+<tr>
+<td></td>
+<td><code>diffusion</code></td>
+<td>1</td>
+<td>0 to 1</td>
+<td>how smeared the reflections are</td>
+</tr>
+<tr>
+<td></td>
+<td><code>dryLevel</code></td>
+<td>0</td>
+<td>-80 to 10</td>
+<td>the untreated sound, in decibels</td>
+</tr>
+<tr>
+<td></td>
+<td><code>wetLevel</code></td>
+<td>-6</td>
+<td>-80 to 10</td>
+<td>the treated sound, in decibels</td>
+</tr>
+<tr>
+<td><code>EqualizerSoundEffect</code></td>
+<td><code>lowGain</code></td>
+<td>0</td>
+<td>-80 to 10</td>
+<td>decibels below <code>midLow</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>midGain</code></td>
+<td>0</td>
+<td>-80 to 10</td>
+<td>decibels between the two</td>
+</tr>
+<tr>
+<td></td>
+<td><code>highGain</code></td>
+<td>0</td>
+<td>-80 to 10</td>
+<td>decibels above <code>midHigh</code></td>
+</tr>
+<tr>
+<td></td>
+<td><code>midLow</code></td>
+<td>500</td>
+<td>20 to 20000</td>
+<td>where the middle band starts, in hertz</td>
+</tr>
+<tr>
+<td></td>
+<td><code>midHigh</code></td>
+<td>3000</td>
+<td>20 to 20000</td>
+<td>where it ends</td>
+</tr>
+<tr>
+<td><code>DistortionSoundEffect</code></td>
+<td><code>level</code></td>
+<td>0.5</td>
+<td>0 to 1</td>
+<td>how hard the signal is driven</td>
+</tr>
+<tr>
+<td><code>EchoSoundEffect</code></td>
+<td><code>delay</code></td>
+<td>1</td>
+<td>0.01 to 5</td>
+<td>seconds between repeats</td>
+</tr>
+<tr>
+<td></td>
+<td><code>feedback</code></td>
+<td>0.5</td>
+<td>0 to 1</td>
+<td>how much of a repeat comes back round</td>
+</tr>
+<tr>
+<td></td>
+<td><code>dryLevel</code></td>
+<td>0</td>
+<td>-80 to 10</td>
+<td>decibels</td>
+</tr>
+<tr>
+<td></td>
+<td><code>wetLevel</code></td>
+<td>0</td>
+<td>-80 to 10</td>
+<td>decibels</td>
+</tr>
+<tr>
+<td><code>PitchShiftSoundEffect</code></td>
+<td><code>octave</code></td>
+<td>1</td>
+<td>0.5 to 2</td>
+<td>2 is an octave up, 0.5 an octave down</td>
+</tr>
+<tr>
+<td><code>CompressorSoundEffect</code></td>
+<td><code>threshold</code></td>
+<td>-20</td>
+<td>-80 to 0</td>
+<td>decibels above which it pushes down</td>
+</tr>
+<tr>
+<td></td>
+<td><code>ratio</code></td>
+<td>5</td>
+<td>1 to 50</td>
+<td>how hard it pushes</td>
+</tr>
+<tr>
+<td></td>
+<td><code>attack</code></td>
+<td>0.1</td>
+<td>0 to 1</td>
+<td>seconds to start</td>
+</tr>
+<tr>
+<td></td>
+<td><code>release</code></td>
+<td>0.1</td>
+<td>0 to 5</td>
+<td>seconds to let go</td>
+</tr>
+<tr>
+<td></td>
+<td><code>makeupGain</code></td>
+<td>0</td>
+<td>-80 to 10</td>
+<td>decibels put back afterwards</td>
+</tr>
+<tr>
+<td><code>ChorusSoundEffect</code></td>
+<td><code>depth</code></td>
+<td>0.25</td>
+<td>0 to 1</td>
+<td>how far the copy drifts</td>
+</tr>
+<tr>
+<td></td>
+<td><code>mix</code></td>
+<td>0.5</td>
+<td>0 to 1</td>
+<td>how much of it you hear</td>
+</tr>
+<tr>
+<td></td>
+<td><code>rate</code></td>
+<td>5</td>
+<td>0 to 20</td>
+<td>hertz</td>
+</tr>
+<tr>
+<td><code>FlangeSoundEffect</code></td>
+<td><code>depth</code></td>
+<td>0.25</td>
+<td>0 to 1</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>mix</code></td>
+<td>0.5</td>
+<td>0 to 1</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><code>rate</code></td>
+<td>5</td>
+<td>0 to 20</td>
+<td>hertz</td>
+</tr>
+<tr>
+<td><code>TremoloSoundEffect</code></td>
+<td><code>depth</code></td>
+<td>1</td>
+<td>0 to 1</td>
+<td>how far the volume swings</td>
+</tr>
+<tr>
+<td></td>
+<td><code>duty</code></td>
+<td>0.5</td>
+<td>0.01 to 0.99</td>
+<td>how much of each swing is loud</td>
+</tr>
+<tr>
+<td></td>
+<td><code>frequency</code></td>
+<td>5</td>
+<td>0.01 to 20</td>
+<td>hertz</td>
+</tr>
+</tbody>
+</table></div>
+<p>In the editor, <strong>Explorer &gt; Insert &gt; Sound effects</strong> lists all nine.</p>
+<h3 id="the-order-they-run-in">The order they run in<a class="anchor" href="#the-order-they-run-in" title="Permanent link">#</a></h3>
+<p>Effects run sorted by <code>priority</code>, lowest first, and two with the same priority keep the order they
+sit in as children. A sound's own effects run first, then its bus's.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-keyword">local</span> bus = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SoundBus&quot;</span>, { bus = <span class="syn-string">&quot;sfx&quot;</span> })
+bus:<span class="syn-func">add</span>(<span class="syn-string">&quot;CompressorSoundEffect&quot;</span>, { threshold = -<span class="syn-num">18</span> })       <span class="syn-comment">-- after every sound&#x27;s own</span>
+
+horn:<span class="syn-func">add</span>(<span class="syn-string">&quot;DistortionSoundEffect&quot;</span>, { level = <span class="syn-num">0.3</span>, priority = <span class="syn-num">1</span> })
+horn:<span class="syn-func">add</span>(<span class="syn-string">&quot;EqualizerSoundEffect&quot;</span>, { highGain = -<span class="syn-num">12</span>, priority = <span class="syn-num">0</span> })   <span class="syn-comment">-- this one first</span></code></pre></div></div>
+<p>The equaliser has the lower priority, so the horn is equalised, then distorted, and only then hits
+the compressor on the bus, even though the compressor was written first.</p>
+<div class="demo" data-demo="sound-chain"></div>
+<p>A bus effect runs <strong>per sound</strong>, not once over the mixed bus: ten sounds on a reverberating bus are
+ten reverbs. Put an effect on a bus to say "everything here sounds like this", not to save work.</p>
+<h3 id="limits">Limits<a class="anchor" href="#limits" title="Permanent link">#</a></h3>
+<ul>
+<li><code>ReverbSoundEffect</code> is a Freeverb-style approximation, not a model of a room. Its numbers are
+  tuned by ear.</li>
+<li><code>PitchShiftSoundEffect</code> is granular, so it goes grainy when pushed towards the ends of its range.
+  A whole octave on a long sustained sound is where you hear it.</li>
+</ul>
+<p>Adding the <strong>first</strong> effect to a playing sound, or removing the <strong>last</strong> one, rebuilds the voice: it
+stops and starts again at the same position, and you hear one frame's gap. Adding a second effect, or
+changing a property, does not. Set the effects up before <code>play()</code> when it matters.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Effects are ignored when the sound has <code>stream = true</code>. A streamed sound is read off disk as it
+plays and never passes through the chain.</p></div></div>
+<h2 id="the-audio-global-clients">The audio global (clients)<a class="anchor" href="#the-audio-global-clients" title="Permanent link">#</a></h2>
+<p><code>audio</code> is a global that exists in client scripts only. It plays sound for the player whose game the
+script is running in, and nobody else hears any of it.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-keyword">local</span> voice = audio.<span class="syn-func">play</span>(<span class="syn-string">&quot;res://sounds/click.ogg&quot;</span>, { volume = <span class="syn-num">1</span>, pitch = <span class="syn-num">1.2</span>, at = part.position })
+voice:<span class="syn-func">setVolume</span>(<span class="syn-num">0.5</span>)  voice:<span class="syn-func">setPitch</span>(<span class="syn-num">0.9</span>)  voice:<span class="syn-func">fade</span>(<span class="syn-num">0</span>, <span class="syn-num">1</span>)  voice:<span class="syn-func">fadeOut</span>(<span class="syn-num">0.5</span>)
+voice:<span class="syn-func">setPosition</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>))  voice:<span class="syn-func">isPlaying</span>()  voice:<span class="syn-func">stop</span>()</code></pre></div></div>
+<ul>
+<li><code>audio.play</code> starts the file straight away and hands you back a voice, which is the handle to the
+  one sound now playing.</li>
+<li><code>at</code> places it at a point in the world, and <code>setPosition</code> moves it from there while it plays.</li>
+<li><code>setVolume</code> and <code>setPitch</code> change it as it goes, and <code>fade</code> and <code>fadeOut</code> move the volume over
+  time instead of jumping.</li>
+<li><code>isPlaying</code> tells you whether it is still running, and <code>stop</code> ends it.</li>
+</ul>
+<h3 id="events">Events<a class="anchor" href="#events" title="Permanent link">#</a></h3>
+<p>An event is a name you give to a group of sounds, so a script asks for "footstep" and the engine
+picks a different variation each time:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>audio.<span class="syn-func">defineEvent</span>(<span class="syn-string">&quot;footstep&quot;</span>, { sounds = { <span class="syn-string">&quot;res://sounds/step1.ogg&quot;</span>, <span class="syn-string">&quot;res://sounds/step2.ogg&quot;</span> },
+    bus = <span class="syn-string">&quot;sfx&quot;</span>, volume = { <span class="syn-num">0.8</span>, <span class="syn-num">1</span> }, pitch = { <span class="syn-num">0.9</span>, <span class="syn-num">1.1</span> } })
+audio.<span class="syn-func">playEvent</span>(<span class="syn-string">&quot;footstep&quot;</span>, body.position)</code></pre></div></div>
+<p><code>volume</code> and <code>pitch</code> are given as two numbers rather than one: each play picks a value between them,
+so the same two files stop sounding like the same two files. <code>playEvent</code> takes the position to play
+from.</p>
+<p>A <code>Sound</code> instance can use the same events: set its <code>event</code> property to the name instead of setting
+<code>soundId</code>.</p>
+<h3 id="tempo-and-stingers">Tempo and stingers<a class="anchor" href="#tempo-and-stingers" title="Permanent link">#</a></h3>
+<p>The tempo clock lets you line sounds up with the beat of your music:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>audio.<span class="syn-func">tempo</span>(<span class="syn-num">100</span>, <span class="syn-num">4</span>)                    <span class="syn-comment">-- bpm, beats per bar</span>
+audio.beat:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(n) <span class="syn-keyword">end</span>)
+audio.bar:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(n) <span class="syn-keyword">end</span>)
+audio.<span class="syn-func">stinger</span>(<span class="syn-string">&quot;res://sounds/hit.ogg&quot;</span>, <span class="syn-string">&quot;bar&quot;</span>)   <span class="syn-comment">-- starts on the next beat or bar</span>
+audio.<span class="syn-func">stopTempo</span>()</code></pre></div></div>
+<ul>
+<li><code>audio.tempo</code> starts the clock at a hundred beats a minute, four beats to the bar, and
+  <code>audio.stopTempo</code> ends it.</li>
+<li><code>beat</code> and <code>bar</code> fire with the number of the beat or bar, which is what you use to flash a light
+  or move something in time.</li>
+<li><code>audio.stinger</code> holds a sound back until the next beat or bar, so a hit lands on the music instead
+  of across it.</li>
+</ul>
+<div class="demo" data-demo="sound-tempo"></div>
+<h3 id="parameters-switches-and-lfos">Parameters, switches and LFOs<a class="anchor" href="#parameters-switches-and-lfos" title="Permanent link">#</a></h3>
+<p>These three drive the mix from your game state, instead of you setting volumes by hand:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>audio.<span class="syn-func">setParameter</span>(<span class="syn-string">&quot;danger&quot;</span>, <span class="syn-num">0.7</span>)
+audio.<span class="syn-func">bindBusVolume</span>(<span class="syn-string">&quot;danger&quot;</span>, <span class="syn-string">&quot;music&quot;</span>, { { <span class="syn-num">0</span>, <span class="syn-num">0.3</span> }, { <span class="syn-num">1</span>, <span class="syn-num">1</span> } })
+audio.<span class="syn-func">setSwitch</span>(<span class="syn-string">&quot;surface&quot;</span>, <span class="syn-string">&quot;grass&quot;</span>)
+audio.<span class="syn-func">lfo</span>(<span class="syn-string">&quot;wobble&quot;</span>, <span class="syn-string">&quot;sine&quot;</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0</span>, <span class="syn-num">1</span>)       <span class="syn-comment">-- sine, triangle, saw, square</span></code></pre></div></div>
+<ul>
+<li>A parameter is a named number you set from your own code. <code>danger</code> here is at 0.7.</li>
+<li><code>audio.bindBusVolume</code> ties that parameter to a bus volume through a list of points: <code>danger</code> at 0
+  leaves the music bus at 0.3, <code>danger</code> at 1 puts it at 1, and values between move between them. Set
+  the parameter and the music comes up on its own.</li>
+<li>A switch is a named choice rather than a number, such as which surface the player is walking on.</li>
+<li><code>audio.lfo</code> makes a named value that moves on its own, using one of sine, triangle, saw or square.</li>
+</ul>
+<div class="demo" data-demo="sound-bind"></div>
+<h3 id="mix">Mix<a class="anchor" href="#mix" title="Permanent link">#</a></h3>
+<p>These calls act on the whole mix at once:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>audio.<span class="syn-func">snapshot</span>({ music = <span class="syn-num">0.2</span>, sfx = <span class="syn-num">1</span> }, <span class="syn-num">0.5</span>)
+audio.<span class="syn-func">clearSnapshot</span>(<span class="syn-num">0.5</span>)
+audio.<span class="syn-func">sidechain</span>(<span class="syn-string">&quot;voice&quot;</span>, <span class="syn-string">&quot;music&quot;</span>, <span class="syn-num">0.6</span>)
+audio.<span class="syn-func">reverb</span>(<span class="syn-num">2.5</span>, <span class="syn-num">0.3</span>)
+audio.<span class="syn-func">hrtf</span>(<span class="syn-const">true</span>)
+audio.<span class="syn-func">occlusion</span>(<span class="syn-const">true</span>)        <span class="syn-comment">-- blocks and solid parts muffle sounds behind them</span></code></pre></div></div>
+<ul>
+<li><code>audio.snapshot</code> moves the buses you name to those volumes over half a second, and
+  <code>audio.clearSnapshot</code> takes the same time to put them back. Use it for a pause menu that ducks the
+  game and a menu screen that does not.</li>
+<li><code>audio.sidechain</code> gets one bus out of another's way: sound on <code>voice</code> pushes <code>music</code> down by 0.6.</li>
+<li><code>audio.reverb</code> puts a reverb over everything, <code>audio.hrtf</code> places sounds for headphones, and
+  <code>audio.occlusion</code> lets blocks and solid parts muffle what is behind them.</li>
+</ul>
+<h3 id="layered-music">Layered music<a class="anchor" href="#layered-music" title="Permanent link">#</a></h3>
+<p>Layered music is one piece written as several files that play together, where the mix of layers says
+what is happening in the game:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-keyword">local</span> music = audio.<span class="syn-func">music</span>({ layers = { <span class="syn-string">&quot;res://music/drums.ogg&quot;</span>, <span class="syn-string">&quot;res://music/bass.ogg&quot;</span> },
+    states = { calm = { <span class="syn-num">1</span>, <span class="syn-num">0</span> }, fight = { <span class="syn-num">1</span>, <span class="syn-num">1</span> } }, bus = <span class="syn-string">&quot;music&quot;</span> })
+music:<span class="syn-func">transitionTo</span>(<span class="syn-string">&quot;fight&quot;</span>, <span class="syn-num">2</span>, <span class="syn-string">&quot;bar&quot;</span>)
+music:<span class="syn-func">setLayer</span>(<span class="syn-num">2</span>, <span class="syn-num">0.5</span>)
+music:<span class="syn-func">blend</span>(<span class="syn-num">0.8</span>)
+music:<span class="syn-func">stop</span>(<span class="syn-num">1</span>)</code></pre></div></div>
+<ul>
+<li>Each state is a volume for each layer in order. <code>calm</code> plays the drums alone, <code>fight</code> brings the
+  bass in with them.</li>
+<li><code>transitionTo</code> moves to a state over two seconds and waits for the next bar before it starts, so
+  the change lands on the music.</li>
+<li><code>setLayer</code> sets one layer's volume by its number, and <code>blend</code> moves the mix by hand when you want
+  something no state covers.</li>
+<li><code>stop(1)</code> takes a second to fade the whole thing out.</li>
+</ul>
+<div class="demo" data-demo="sound-music"></div>
+<h3 id="voice-chat-filters">Voice chat filters<a class="anchor" href="#voice-chat-filters" title="Permanent link">#</a></h3>
+<p>Proximity voice chat runs through filters you set the same way:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>audio.<span class="syn-func">voiceChat</span>({ enabled = <span class="syn-const">true</span>, strength = <span class="syn-num">1</span>, filters = { { kind = <span class="syn-string">&quot;lowpass&quot;</span>, frequency = <span class="syn-num">3000</span> } } })</code></pre></div></div>
+<p>Each filter has a <code>kind</code> and its own settings. The <code>lowpass</code> above cuts everything over 3000 hertz,
+which is what makes a voice sound like it is coming through a radio.</p>
+<p>Each time the client place loads, including hot reloads, the mix is reset to silence. Anything you
+set with <code>audio</code> has to be set again by the script that runs after the reload, which is why these
+calls usually sit at the top of a client script rather than behind a one-off condition.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="images.html"><span>Previous</span>Images</a><a class="next" href="rendering.html"><span>Next</span>Models, lights, post effects and held items</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#sound-instances">Sound instances</a></li><li><a href="#pausing-seeking-and-how-far-along-it-is">Pausing, seeking and how far along it is</a></li><li><a href="#buses">Buses</a></li><li><a href="#sound-effects">Sound effects</a></li><li><a href="#the-audio-global-clients">The audio global (clients)</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Places, modules, scenes and scripts | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html" class="active"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Start</span></nav>
+    <article class="doc">
+<h1 id="places-modules-scenes-and-scripts">Places, modules, scenes and scripts<a class="anchor" href="#places-modules-scenes-and-scripts" title="Permanent link">#</a></h1>
+<p>A place is the game you write: a folder of files that Moud reads when the game starts and reads again
+every time you save. This page covers the file at its root that describes it, the folders inside it,
+how one file loads another, the scene files the editor writes, how you ship the result, how a
+server runs it, and the script instances you can put in the tree.</p>
+<h2 id="placetoml">place.toml<a class="anchor" href="#placetoml" title="Permanent link">#</a></h2>
+<p><code>place.toml</code> sits at the root of the place folder and says what the place is called, which files to
+run, and which parts of vanilla Minecraft are switched on. A place without one still runs, from
+<code>server/main.luau</code> and <code>client/main.luau</code>.</p>
+<div class="doc-code"><span class="code-lang">toml</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code>name = &quot;Spinning Floor&quot;
+id = &quot;spinning-floor&quot;
+version = &quot;0.1.0&quot;
+maxPlayers = 8
+
+[entry]
+server = &quot;res://server/main.luau&quot;
+client = &quot;res://client/main.luau&quot;
+scene = &quot;res://scenes/arena.scene&quot;     # loaded under game.world before the server script runs
+
+[features]
+hunger = false
+fallDamage = false
+blockBreaking = false
+chat = true</code></pre></div></div>
+<ul>
+<li><code>name</code> is what the place is called, <code>id</code> and <code>version</code> name the file <strong>File &gt; Export</strong> builds, and
+  <code>maxPlayers</code> is how many players the place takes.</li>
+<li><code>[entry]</code> names the files Moud runs. <code>server</code> runs once on the server, <code>client</code> runs once inside
+  each player's own game, and <code>scene</code> is loaded under <code>game.world</code> before the server script runs, so
+  the server script finds the scene's instances already there.</li>
+<li><code>[features]</code> is a list of switches, one per vanilla Minecraft feature.</li>
+</ul>
+<p>An unknown setting is an error that lists the ones that exist.</p>
+<p><code>[features]</code> turns parts of vanilla Minecraft on or off. The names are camel case:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Features</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>World</td>
+<td><code>sky</code>, <code>clouds</code>, <code>fog</code>, <code>stars</code>, <code>weather</code>, <code>dayNightCycle</code>, <code>ambientLight</code>, <code>terrain</code>, <code>blockBreaking</code>, <code>blockPlacing</code>, <code>blockEntities</code>, <code>fluids</code>, <code>mobs</code>, <code>itemDrops</code></td>
+</tr>
+<tr>
+<td>Player</td>
+<td><code>hunger</code>, <code>healthRegen</code>, <code>fallDamage</code>, <code>drowning</code>, <code>fireDamage</code>, <code>vanillaMovement</code>, <code>inventory</code>, <code>crafting</code>, <code>xp</code>, <code>deathScreen</code></td>
+</tr>
+<tr>
+<td>Screen</td>
+<td><code>hotbar</code>, <code>healthBar</code>, <code>hungerBar</code>, <code>xpBar</code>, <code>crosshair</code>, <code>effectIcons</code>, <code>bossBar</code>, <code>chat</code>, <code>tabList</code>, <code>scoreboard</code>, <code>hand</code>, <code>pauseMenu</code>, <code>debugScreen</code>, <code>titleScreen</code></td>
+</tr>
+<tr>
+<td>Rendering and sound</td>
+<td><code>entityRendering</code>, <code>blobShadows</code>, <code>playerModel</code>, <code>nameTags</code>, <code>vanillaSounds</code>, <code>vanillaMusic</code></td>
+</tr>
+<tr>
+<td>Scripts</td>
+<td><code>httpRequests</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>hand</code> is off by default. The first person arm still shows while it is off, because a body shows
+it by default with <code>appearance.firstPerson</code>. Turning <code>hand</code> on shows the arm always, even for a body
+set to <code>"none"</code> or a player with no body. Only <code>"body"</code> hides it then. See
+<a href="character.html#what-you-see-of-your-own-body">What you see of your own body</a>.</p>
+<p><code>httpRequests</code> is not a Minecraft feature: it lets server scripts call out to websites. See
+<a href="http.html">Reaching websites</a>.</p>
+<p>What <code>[features]</code> says is what every client starts with. A client script changes seven of the screen
+ones for itself while the place runs, with <code>ui.setCoreGuiEnabled</code>, and a reload puts them back the
+way this table asked for them. See
+<a href="game-and-screens.html#the-core-interface">the core interface</a>.</p>
+<h2 id="streaming">Streaming<a class="anchor" href="#streaming" title="Permanent link">#</a></h2>
+<p>Streaming sends each client only the instances near it, so a large world does not have to fit in
+every player's memory at once. It is on by default:</p>
+<div class="doc-code"><span class="code-lang">toml</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>[streaming]
+enabled = true    # default
+radius = 256      # metres, default 256, between 32 and 4096</code></pre></div></div>
+<ul>
+<li>The radius is measured from the player to each branch hanging off the root of the world. A branch
+  further away than that is not sent, and is destroyed on that client until they come back. What is
+  inside a branch goes with it, so a <code>Model</code> is sent or not sent whole.</li>
+<li><code>alwaysRelevant</code> on a <code>Spatial</code> sends it whatever the distance. It is read on the branch itself,
+  the one hanging off the root, not on something buried inside one. Use it for a skybox, a boss, or
+  anything a far-away script looks at.</li>
+<li>Anything that is not a <code>Spatial</code> has no position, so it is always sent: values, remotes,
+  containers, the <a href="players.html#leaderstats">leaderboard</a>.</li>
+<li><code>enabled = false</code> sends everything to everyone. Do that for a small place where a client script
+  reads the whole world.</li>
+<li>While you edit or playtest in the editor everything is sent, whatever this table says, so what the
+  Explorer shows is the whole tree.</li>
+</ul>
+<div class="demo" data-demo="place-streaming"></div>
+<div class="alert alert-warning"><i class="alert-icon ph-fill ph-warning"></i><div class="alert-body"><p>A branch that comes back is sent again from scratch, so a client script that kept a reference to
+something far away is holding a destroyed instance. Look things up when you need them.</p></div></div>
+<h2 id="folders">Folders<a class="anchor" href="#folders" title="Permanent link">#</a></h2>
+<p>The rest of the place is four folders, and which side reads a file depends only on which one it is
+in:</p>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>place/
+  place.toml
+  server/     only the server reads these
+  client/     only clients read these
+  shared/     both sides read these
+  scenes/     .scene files</code></pre></div></div>
+<h2 id="require">require<a class="anchor" href="#require" title="Permanent link">#</a></h2>
+<p><code>require</code> loads another file and hands you back what it returns. There are two ways to name the file:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> palette = <span class="syn-func">require</span>(<span class="syn-string">&quot;@shared/palette&quot;</span>)
+<span class="syn-keyword">local</span> same = <span class="syn-func">require</span>(<span class="syn-string">&quot;res://shared/palette.luau&quot;</span>)</code></pre></div></div>
+<ul>
+<li><code>@server/</code>, <code>@client/</code> and <code>@shared/</code> name those folders, and the extension can be left out. Use
+  this form: it is the one Luau editors follow, so the module's own types reach the caller.</li>
+<li>A <code>res://</code> path starts at the place root and includes <code>.luau</code>. It cannot go up a folder: a <code>..</code>
+  segment, as in <code>res://server/../secret.luau</code>, is refused, so a path never leaves the place. (This
+  is about paths only; <code>..</code> joining strings works as usual.)</li>
+<li>Both forms name the same file, so they share one loaded module.</li>
+<li>A module runs <strong>once per side</strong>, and every caller gets the same value back.</li>
+<li>A module returns exactly one value.</li>
+<li>Two modules that require each other is an error: move what they share into a third.</li>
+<li>A module must not <code>task.wait</code> while loading. Start the waiting from a <code>task.spawn</code> inside it.</li>
+<li>Saving a module reloads the place, like any other file.</li>
+<li><code>require</code> also takes a <a href="#modulescript">ModuleScript</a> instance.</li>
+</ul>
+<div class="demo" data-demo="place-require"></div>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>A client script may require <code>client/</code> and <code>shared/</code>, never <code>server/</code>. Server code never reaches a
+player's machine.</p></div></div>
+<h2 id="scenes">Scenes<a class="anchor" href="#scenes" title="Permanent link">#</a></h2>
+<p>A scene file is a branch of the tree saved as JSON: classes, names, the properties that differ from
+their defaults, tags, children, and references inside the branch. You lay a scene out in the editor
+instead of writing it by hand, and a script loads it when it is needed.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> built = scene.<span class="syn-func">load</span>(<span class="syn-string">&quot;res://scenes/arena.scene&quot;</span>)          <span class="syn-comment">-- under game.world</span>
+<span class="syn-keyword">local</span> more = scene.<span class="syn-func">load</span>(<span class="syn-string">&quot;res://scenes/props.scene&quot;</span>, folder)   <span class="syn-comment">-- under another instance</span>
+
+scene.<span class="syn-func">save</span>({ game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;arena&quot;</span>) }, <span class="syn-string">&quot;res://scenes/arena.scene&quot;</span>)
+
+<span class="syn-keyword">local</span> text = scene.<span class="syn-func">encode</span>({ game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;arena&quot;</span>) })
+<span class="syn-keyword">local</span> copies = scene.<span class="syn-func">decode</span>(text, game.world)</code></pre></div></div>
+<ul>
+<li><code>scene.load</code> parents what it builds under <code>game.world</code>, or under the instance you pass as the
+  second argument.</li>
+<li><code>scene.save</code> writes the instances you list to a file, and only writes <code>.scene</code> files.</li>
+<li><code>scene.encode</code> gives you the same content as text, and <code>scene.decode</code> builds it again under the
+  instance you name.</li>
+</ul>
+<p>Scenes are what the editor reads and writes, which is why everything the engine can do is an
+instance: a light, a post effect, a chat window, a zone and a collision group all save with the scene
+they are in.</p>
+<h3 id="terrain">Terrain<a class="anchor" href="#terrain" title="Permanent link">#</a></h3>
+<p>A scene's blocks live next to it: <code>scenes/arena.scene</code> uses <code>scenes/arena.polar</code>. A place from
+before this keeps its <code>world.polar</code> at the root, and only the start scene uses it.</p>
+<ul>
+<li><strong>File &gt; Import Minecraft World</strong> turns a Java Edition world (any version, it is upgraded on the
+  way) into the open scene's <code>.polar</code>. One scene holds one terrain, so importing replaces it; the
+  old file goes to <code>.moud/backups</code>.</li>
+<li>Opening a scene in the editor swaps the terrain around you. Renaming, moving, duplicating or
+  deleting a scene in Assets takes its <code>.polar</code> along.</li>
+<li>Only finished chunks are imported. Block entities such as chest contents are left out.</li>
+</ul>
+<h3 id="in-the-editor">In the editor<a class="anchor" href="#in-the-editor" title="Permanent link">#</a></h3>
+<ul>
+<li>Scenes open in tabs above the viewport. <strong>Set as start scene</strong> writes <code>[entry] scene</code>.</li>
+<li><strong>Ctrl+G</strong> groups the selection. When everything selected has a position (parts, lights,
+  attachments, other models) it goes into a <code>Model</code>. When the selection holds a gui or a script, or
+  sits inside a viewport frame or a gui, it goes into a <code>Folder</code>. See <a href="physics.html#models">Physics</a>.</li>
+<li>While you edit, the scene is copied into <code>.moud/backups</code> every minute it changed, and the saved
+  file is copied before each save. The last 20 are kept, <strong>File &gt; Scene Backups</strong> restores one, and
+  opening a scene with a newer autosave than its file offers to recover it.</li>
+</ul>
+<h2 id="exporting">Exporting<a class="anchor" href="#exporting" title="Permanent link">#</a></h2>
+<p><strong>File &gt; Export</strong> builds <code>&lt;id&gt;-&lt;version&gt;.jar</code>: the engine without the editor, Amnetic, Bkun, Resona,
+the language addons and the place. Put it in the <code>mods</code> folder of a Minecraft with Fabric Loader and
+Fabric API, and launching goes straight into the place, unpacked into <code>moud-games/&lt;id&gt;</code>.</p>
+<p>Or choose <strong>Modrinth pack</strong>: a <code>.mrpack</code> that Prism Launcher and the Modrinth App import as a
+ready instance, with Fabric Loader and Fabric API already set up. It holds the same jar plus
+Fabric API.</p>
+<p>Before building, the export checks that the entry scripts and the start scene exist and that every
+<code>res://</code> path written in scripts and scenes points at a file.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>The engine runs Luau and physics through native libraries. The export lists the systems it found
+them for; a game only starts on those. Today the build only carries them for Linux x64.</p></div></div>
+<h2 id="running-a-server">Running a server<a class="anchor" href="#running-a-server" title="Permanent link">#</a></h2>
+<p>A dedicated Minecraft server with Fabric and Moud runs a place when its Java command line names the
+place folder with <code>-Dmoud.place=/path/to/place</code>.</p>
+<ul>
+<li>The server builds its world from the place, not from generated terrain. The level is empty void
+  with the blocks of the start scene's <code>.polar</code> in it, and nothing else. A place with no terrain file
+  gets an empty level.</li>
+<li>This only happens when the server creates its world. A world folder that already exists keeps
+  whatever terrain it was made with: delete the folder <code>level-name</code> names in <code>server.properties</code>
+  (<code>world</code> by default) and start again.</li>
+<li>Nobody is kicked for flying while a place runs. The vanilla server can not see parts, so a player
+  standing on one looks to it like a player floating in the air, and Moud turns that check off.</li>
+</ul>
+<h3 id="from-the-repository">From the repository<a class="anchor" href="#from-the-repository" title="Permanent link">#</a></h3>
+<p>Gradle starts a development server and clients that join it. The server needs a folder of its own
+with an <code>eula.txt</code> holding <code>eula=true</code> and a <code>server.properties</code> with at least:</p>
+<div class="doc-code"><span class="code-lang">properties</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>online-mode=false
+server-port=25570</code></pre></div></div>
+<p><code>online-mode=false</code> lets development clients in without a Microsoft account. Then:</p>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>./gradlew :mod:runServer -PrunDir=$HOME/moud/server -Pplace=$HOME/moud/arena
+./gradlew :mod:runClient -PrunDir=$HOME/moud/alice -Pplace=$HOME/moud/arena -Pjoin=localhost:25570 -Pplayer=Alice
+./gradlew :mod:runClient -PrunDir=$HOME/moud/bob -Pplace=$HOME/moud/arena -Pjoin=localhost:25570 -Pplayer=Bob</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-PrunDir</code></td>
+<td>the folder the game or server runs in. It defaults to <code>Moud-run</code> beside the repository, so give each server and each client its own</td>
+</tr>
+<tr>
+<td><code>-Pplace</code></td>
+<td>the place folder, passed on as <code>moud.place</code></td>
+</tr>
+<tr>
+<td><code>-Pjoin</code></td>
+<td><code>host:port</code> of a server to join straight away, instead of opening the title screen</td>
+</tr>
+<tr>
+<td><code>-Pplayer</code></td>
+<td>the name the client plays under, so two clients on one machine are two players</td>
+</tr>
+</tbody>
+</table></div>
+<p>A relative <code>-PrunDir</code> or <code>-Pplace</code> counts from the repository's <code>mod</code> folder, so absolute paths are
+the safer choice.</p>
+<h2 id="scripts-as-instances">Scripts as instances<a class="anchor" href="#scripts-as-instances" title="Permanent link">#</a></h2>
+<p>A <code>Script</code> is an instance that holds server code, and a <code>LocalScript</code> is one that holds client code.
+Each runs while it is in the tree and <code>enabled</code>, which lets you turn code on and off by moving it or
+by writing one property.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Script&quot;</span>, { name = <span class="syn-string">&quot;spinner&quot;</span>, source = <span class="syn-string">&quot;res://server/spinner.luau&quot;</span> })
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Script&quot;</span>, { name = <span class="syn-string">&quot;hello&quot;</span>, code = <span class="syn-string">&quot;print(&#x27;hi from&#x27;, script.name)&quot;</span> })</code></pre></div></div>
+<ul>
+<li><code>source</code> is a file under <code>server/</code> or <code>shared/</code> (<code>client/</code> or <code>shared/</code> for a <code>LocalScript</code>).</li>
+<li><code>code</code> is the code itself and is used instead of <code>source</code> when set. It is never sent to a
+  client.</li>
+<li>Inside the script, <code>script</code> is the instance. <code>local part = script.parent :: Part</code> gives it a type.</li>
+<li>In the editor, right-click an instance for <strong>Add script</strong>: it writes <code>server/scripts/&lt;Name&gt;.luau</code>
+  from a template (empty, on touched, spin, kill on touch) and adds a <code>Script</code> pointing at it.
+  Double-clicking a script opens it in Zed.</li>
+<li>Destroying or disabling the instance <strong>stops everything it connected or scheduled</strong>: its signal
+  connections, its <code>task</code> threads and its tweens. Moving it keeps it running.</li>
+<li>A script inside <code>ServerStorage</code>, <code>ReplicatedStorage</code>, a <code>StarterPack</code> or
+  <code>StarterCharacterScripts</code> does not run. Moving it in stops it like disabling it. See
+  <a href="containers.html">Containers</a>.</li>
+</ul>
+<div class="demo" data-demo="place-scripts"></div>
+<h3 id="modulescript">ModuleScript<a class="anchor" href="#modulescript" title="Permanent link">#</a></h3>
+<p>A <code>ModuleScript</code> is a module that lives in the tree, so a script can require it by where it is
+rather than by a path. It never runs on its own.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-comment">-- a script inside game.world.lib</span>
+<span class="syn-keyword">local</span> weapons = <span class="syn-func">require</span>(script.parent.weapons)
+<span class="syn-keyword">local</span> same = <span class="syn-func">require</span>(game.world.lib.weapons)
+<span class="syn-func">print</span>(weapons.<span class="syn-func">damage</span>(<span class="syn-string">&quot;sword&quot;</span>))   <span class="syn-comment">-- 12</span></code></pre></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">-- weapons, a ModuleScript beside the script</span>
+<span class="syn-keyword">local</span> weapons = {}
+
+<span class="syn-keyword">function</span> weapons.<span class="syn-func">damage</span>(name)
+    <span class="syn-keyword">return</span> <span class="syn-keyword">if</span> name == <span class="syn-string">&quot;sword&quot;</span> <span class="syn-keyword">then</span> <span class="syn-num">12</span> <span class="syn-keyword">else</span> <span class="syn-num">4</span>
+<span class="syn-keyword">end</span>
+
+<span class="syn-keyword">return</span> weapons</code></pre></div></div>
+<p>Both lines in the first sample reach the same module: <code>script.parent.weapons</code> walks up from the
+script that is running, and <code>game.world.lib.weapons</code> names the same instance from the root.</p>
+<ul>
+<li>It has <code>source</code> and <code>code</code>, like a <code>Script</code>. <code>code</code> is used when set; <code>source</code> names a <code>.luau</code>
+  file otherwise. One with neither is an error when required.</li>
+<li>It follows the rules of <a href="#require">require</a>: it runs <strong>once per side</strong>, returns one value, and a
+  client may not require a <code>source</code> under <code>server/</code>.</li>
+<li>Every <code>ModuleScript</code> is loaded <strong>once per instance</strong>, whether it carries <code>code</code> or a <code>source</code>. Two
+  modules pointing at the same file each run their own copy of it, and <code>require("@shared/weapons")</code>
+  by path is a third. So <code>script</code> inside a module is always that <code>ModuleScript</code>, and <code>script.parent</code>
+  is where it sits.</li>
+<li><code>code</code> reaches clients only when the module can be theirs: inside a <code>LocalScript</code>,
+  <code>ReplicatedStorage</code>, <code>StarterGui</code>, <code>StarterPlayerScripts</code> or <code>StarterCharacterScripts</code>, or when
+  its <code>source</code> is a file under <code>client/</code> or <code>shared/</code>. Inside <code>ServerStorage</code> or
+  <code>ServerScriptService</code> it never crosses, whatever else is true. Anywhere else it stays on the
+  server. See <a href="containers.html">Containers</a>.</li>
+<li>Requiring anything else, like a <code>Folder</code>, is an error that says a <code>ModuleScript</code> was expected.</li>
+<li>In the editor, right-click an instance for <strong>Add module script</strong>: it writes
+  <code>shared/modules/Module.luau</code> (<code>Module2.luau</code> and so on if that exists) and adds a <code>ModuleScript</code>
+  pointing at it.</li>
+</ul>
+    </article>
+    <div class="doc-pager"><a class="prev" href="getting-started.html"><span>Previous</span>Getting started</a><a class="next" href="containers.html"><span>Next</span>Containers</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#placetoml">place.toml</a></li><li><a href="#streaming">Streaming</a></li><li><a href="#folders">Folders</a></li><li><a href="#require">require</a></li><li><a href="#scenes">Scenes</a></li><li><a href="#exporting">Exporting</a></li><li><a href="#running-a-server">Running a server</a></li><li><a href="#scripts-as-instances">Scripts as instances</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

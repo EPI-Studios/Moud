@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Writing a place in Luau | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html" class="active"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><span>Guides</span></nav>
+    <article class="doc">
+<h1 id="writing-a-place-in-luau">Writing a place in Luau<a class="anchor" href="#writing-a-place-in-luau" title="Permanent link">#</a></h1>
+<p>Moud is a game engine that runs inside Minecraft. You write your game in Luau, Moud runs it while
+Minecraft is running, and you ship the result as a mod. Everything your code creates lives in a tree
+of instances that the engine draws, collides and replicates for you.</p>
+<p>The game you write is called a <strong>place</strong>. A place is a folder of files: Moud reads the folder when
+the game starts, runs the entry points it finds inside it, and runs them again every time you save.</p>
+<p>Vanilla Minecraft features start switched off. Hunger, fall damage, block breaking, the hotbar and
+the sky each have a setting in <code>place.toml</code>, and you turn on only the ones your game needs.</p>
+<h2 id="a-place-is-a-folder">A place is a folder<a class="anchor" href="#a-place-is-a-folder" title="Permanent link">#</a></h2>
+<p>A new place has this layout:</p>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code>place/
+  place.toml           the name, the entry points, and which vanilla features are on
+  server/main.luau     the world, and everyone in it
+  client/main.luau     the camera, the input, and this client&#x27;s own body
+  shared/              modules both sides require
+  scenes/              .scene files laid out in the editor
+  .moud/types.d.luau   generated when the place starts; never edit it
+  .luaurc              the @server, @client and @shared require aliases, written once
+  .zed/settings.json   points Zed&#x27;s Luau server at the types, kept in sync</code></pre></div></div>
+<p>Two files do the work:</p>
+<ul>
+<li><strong><code>server/main.luau</code></strong> runs on the server. It builds the world, decides what happens in it, and is
+  the only side allowed to change what every player sees.</li>
+<li><strong><code>client/main.luau</code></strong> runs inside each player's own game, once per player. It sets that player's
+  camera, reads their input and draws their interface.</li>
+</ul>
+<p>The rest of the folder supports those two:</p>
+<ul>
+<li><strong><code>place.toml</code></strong> holds the name of the place, the entry points and a switch for each vanilla
+  Minecraft feature. See <a href="place.html">Places, modules, scenes and scripts</a>.</li>
+<li><strong><code>shared/</code></strong> holds modules that both sides load with <code>require</code>, such as a table of weapon stats
+  the server uses to deal damage and the client uses to fill a menu.</li>
+<li><strong><code>scenes/</code></strong> holds <code>.scene</code> files. A scene is a piece of the world you lay out in the editor
+  instead of writing by hand, and a script loads it when it is needed.</li>
+<li><strong><code>.moud/types.d.luau</code></strong> is written by the engine every time the place starts. It gives your editor
+  the type of every class and property, which is what makes autocomplete and strict mode work.</li>
+</ul>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>There is no registration step and nothing to declare. A file that exists is a file that runs, and
+adding a script never means editing a list somewhere else.</p></div></div>
+<h2 id="saving-reloads-the-place">Saving reloads the place<a class="anchor" href="#saving-reloads-the-place" title="Permanent link">#</a></h2>
+<p>When you save a file, Moud destroys everything the place created and runs it again from the top. You
+do not restart Minecraft to test a change, and what you see in the game is always what the code
+currently says.</p>
+<p>Because everything is created again, a variable holding an instance from before the reload points at
+something that no longer exists. Look instances up at the moment you use them:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-comment">-- wrong: this points at an instance the reload destroyed</span>
+<span class="syn-keyword">local</span> statue = game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;statue&quot;</span>)
+
+<span class="syn-comment">-- right: looked up when it is needed</span>
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">statue</span>()
+    <span class="syn-keyword">return</span> game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;statue&quot;</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<div class="alert alert-warning"><i class="alert-icon ph-fill ph-warning"></i><div class="alert-body"><p>A reload also clears every variable in your scripts. Values that have to survive one, such as a
+score or a round number, go in <code>game.persist</code>, a plain table the engine hands back after each
+restart.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>game.persist.joins = (game.persist.joins <span class="syn-keyword">or</span> <span class="syn-num">0</span>) + <span class="syn-num">1</span></code></pre></div></div></div></div>
+<h2 id="the-server-owns-the-tree-each-client-mirrors-it">The server owns the tree, each client mirrors it<a class="anchor" href="#the-server-owns-the-tree-each-client-mirrors-it" title="Permanent link">#</a></h2>
+<p>The server holds the real tree of instances. Every player's game holds a copy of it. When a server
+script creates a part, moves it or changes one of its properties, the engine sends that change to
+every client and applies it there. Nothing travels back the other way on its own.</p>
+<p>That rule decides where each API lives:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th></th>
+<th><code>server/main.luau</code></th>
+<th><code>client/main.luau</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>game.world</code></td>
+<td>the real tree</td>
+<td>a mirror of it</td>
+</tr>
+<tr>
+<td><code>game.stepped</code></td>
+<td>yes, once a tick</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>game.renderStepped</code></td>
+<td>no</td>
+<td>yes, once a frame</td>
+</tr>
+<tr>
+<td><code>game.players.joined</code> / <code>.leaving</code></td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td><code>game.players:me()</code></td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>camera</code>, <code>input</code></td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>task</code>, <code>game.persist</code>, <code>game.reloaded</code></td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table></div>
+<div class="demo" data-demo="replication"></div>
+<p>What a client script adds to the tree stays on that client. It is drawn, other client scripts can
+find it, and no other player ever sees it. That is what you want for interface, previews and effects
+only the local player needs.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>A client cannot change the world for anybody else, and writing to its own mirror does not ask the
+server for anything. When a player needs something to happen for everyone, the client sends a
+message and the server decides what to do with it. See
+<a href="talking.html">Talking across the boundary</a>.</p></div></div>
+<h2 id="everything-you-create-is-an-instance">Everything you create is an instance<a class="anchor" href="#everything-you-create-is-an-instance" title="Permanent link">#</a></h2>
+<p>Parts, characters, lights, buttons, sounds and scripts are all instances. You create one with <code>add</code>,
+which takes a class name and a table of properties, and returns the new instance:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> floor = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;floor&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">40</span>, <span class="syn-num">1</span>, <span class="syn-num">40</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">64</span>, <span class="syn-num">0</span>),
+    color = <span class="syn-func">color</span>(<span class="syn-num">0.35</span>, <span class="syn-num">0.42</span>, <span class="syn-num">0.38</span>),
+    anchored = <span class="syn-const">true</span>,
+})</code></pre></div></div>
+<p>The properties in that table do the same thing as assigning them afterwards, so the part above is the
+same part as one you create empty and then fill in. Writing a property later changes the instance
+immediately, for every player who can see it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>floor.color = <span class="syn-func">color</span>(<span class="syn-num">0.8</span>, <span class="syn-num">0.2</span>, <span class="syn-num">0.2</span>)
+floor.transparency = <span class="syn-num">0.5</span></code></pre></div></div>
+<p>The tree is how you reach an instance again. <code>add</code> parents the new instance to whatever you called it
+on, <code>find</code> looks a child up by name, and <code>destroy</code> removes an instance along with everything under
+it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-keyword">local</span> lamp = floor:<span class="syn-func">add</span>(<span class="syn-string">&quot;PointLight&quot;</span>, { brightness = <span class="syn-num">4</span>, range = <span class="syn-num">12</span> })
+
+game.world:<span class="syn-func">find</span>(<span class="syn-string">&quot;floor&quot;</span>)     <span class="syn-comment">-- the part above</span>
+floor:<span class="syn-func">find</span>(<span class="syn-string">&quot;PointLight&quot;</span>)     <span class="syn-comment">-- the light inside it</span>
+
+lamp:<span class="syn-func">destroy</span>()</code></pre></div></div>
+<p>Instances also have signals, which are events you connect a function to. The function runs every time
+the event happens, until you disconnect it or the instance is destroyed:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>floor.touched:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(other)
+    <span class="syn-func">print</span>(other.name .. <span class="syn-string">&quot; stepped on the floor&quot;</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Every class follows that pattern. Once you know <code>add</code>, <code>find</code>, <code>destroy</code> and <code>connect</code>, a class you
+have not used yet is only a list of properties and signals to read.</p>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>Every class, property and signal is listed in the <a href="reference.html">Reference</a>, and your editor knows
+them too, because the engine writes them into <code>.moud/types.d.luau</code> each time the place starts. A
+misspelled property shows up in the editor before you run anything.</p></div></div>
+<h2 id="a-player-and-their-body-are-two-different-things">A player and their body are two different things<a class="anchor" href="#a-player-and-their-body-are-two-different-things" title="Permanent link">#</a></h2>
+<p>The <strong>player</strong> is the person connected to the server. The <strong>character</strong> is the body they wear in the
+world. A player can be connected without a body: before they spawn, while they are dead, or the whole
+time they sit in a menu.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>game.players.joined:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    player:<span class="syn-func">spawn</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">66</span>, <span class="syn-num">0</span>))
+    player.character.humanoid.walkSpeed = <span class="syn-num">6</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>A character is an instance like any other, made of parts joined together:</p>
+<ul>
+<li><strong><code>humanoid</code></strong> carries health and decides how the body moves, through properties such as
+  <code>walkSpeed</code> and <code>jumpHeight</code> and calls such as <code>takeDamage</code>.</li>
+<li><strong><code>animator</code></strong> plays <code>.anim</code> files on the body and blends them by priority.</li>
+<li><strong><code>backpack</code></strong> holds the tools the player carries, which is what fills their hotbar.</li>
+</ul>
+<p>The server spawns bodies and says what happens to them. The client that owns a body is the one that
+moves it, which is why walking feels immediate, and why the server checks anything that matters. See
+<a href="character.html">Characters</a>, <a href="players.html">Players and bodies</a> and <a href="tools.html">Tools</a>.</p>
+<h2 id="interface-sound-and-effects-are-instances-too">Interface, sound and effects are instances too<a class="anchor" href="#interface-sound-and-effects-are-instances-too" title="Permanent link">#</a></h2>
+<p>There is no separate UI system to learn. A <code>ScreenGui</code> draws over the screen, a <code>BillboardGui</code> floats
+over an instance in the world, and a <code>SurfaceGui</code> sticks to one face of a part. All three hold the
+same widgets, and the engine reads them every frame, so a property you write shows up on the next
+one:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> hud = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;ScreenGui&quot;</span>, { name = <span class="syn-string">&quot;hud&quot;</span> })
+
+hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;TextLabel&quot;</span>, {
+    position = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">16</span>, <span class="syn-num">0</span>, <span class="syn-num">16</span>),
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">200</span>, <span class="syn-num">0</span>, <span class="syn-num">24</span>),
+    text = <span class="syn-string">&quot;Score: 0&quot;</span>,
+    textColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+    backgroundTransparency = <span class="syn-num">1</span>,
+})</code></pre></div></div>
+<p>Sounds, particle emitters, lights and post effects work the same way: you add them to the tree, set
+their properties, and destroy them when you are done with them. Even the time of day is an instance:
+a <code>Lighting</code> in the world takes the clock, the sky and the weather over. See
+<a href="interface.html">Interface</a>, <a href="sound.html">Sound</a>,
+<a href="rendering.html">Models, lights, post effects and held items</a> and
+<a href="lighting.html">Lighting, sky, weather and presets</a>.</p>
+<h2 id="the-two-clocks">The two clocks<a class="anchor" href="#the-two-clocks" title="Permanent link">#</a></h2>
+<p>The server and the client each have their own loop, and different work belongs in each one:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- server, once a tick. delta is how many seconds passed</span>
+game.stepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(delta) <span class="syn-keyword">end</span>)
+
+<span class="syn-comment">-- client, once a frame. delta is how many seconds passed</span>
+game.renderStepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(delta) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Game state belongs on <code>stepped</code>, where every player gets the same answer. The camera and anything
+that has to look smooth belong on <code>renderStepped</code>, which runs just before the frame is drawn, so the
+camera you set there is the camera the world is drawn against. See
+<a href="tweens-and-timing.html">Tweens and timing</a>.</p>
+<h2 id="units">Units<a class="anchor" href="#units" title="Permanent link">#</a></h2>
+<p>Metres and seconds, everywhere. Angles are radians, and colours run from 0 to 1.</p>
+<p>Nothing in a place is stated per tick. <code>walkSpeed = 6</code> means six metres a second whatever the tick
+rate is, and the engine does the dividing.</p>
+<div class="demo" data-demo="color"></div>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>Press <kbd>Right Shift</kbd> in game to open the overlay. It lists the errors your scripts have
+raised, along with what the renderer and the physics currently think, which is the quickest way to
+tell whether your place is wrong or the engine is. See <a href="debug.html">Debugging</a>.</p></div></div>
+<h2 id="browse-the-docs">Browse the docs<a class="anchor" href="#browse-the-docs" title="Permanent link">#</a></h2><div class="tiles"><a class="tile" href="getting-started.html"><span class="tile-art"><i class="ph-fill ph-rocket-launch"></i></span><span class="tile-title">Your first place</span><span class="tile-text">The smallest place that does something</span></a><a class="tile" href="physics.html"><span class="tile-art"><i class="ph-fill ph-cube"></i></span><span class="tile-title">Physics</span><span class="tile-text">Falling parts, shapes, pushing, who simulates a part, models, welds, hinges, ropes, winches, springs and rods</span></a><a class="tile" href="zones-and-triggers.html"><span class="tile-art"><i class="ph-fill ph-target"></i></span><span class="tile-title">Zones</span><span class="tile-text">Regions, triggers, &quot;press E&quot;, clickable parts</span></a><a class="tile" href="animation.html"><span class="tile-art"><i class="ph-fill ph-film-strip"></i></span><span class="tile-title">Animation</span><span class="tile-text">.anim files, keyframe sequences, tracks, fades and markers</span></a><a class="tile" href="players.html"><span class="tile-art"><i class="ph-fill ph-users-three"></i></span><span class="tile-title">Players</span><span class="tile-text">Finding players, asking a body, teams, leaderstats, paths and following</span></a><a class="tile" href="interface.html"><span class="tile-art"><i class="ph-fill ph-layout"></i></span><span class="tile-title">Interface</span><span class="tile-text">Screen, billboard and surface guis, layouts, text boxes, scrolling, mouse events</span></a><a class="tile" href="lighting.html"><span class="tile-art"><i class="ph-fill ph-sun"></i></span><span class="tile-title">Lighting</span><span class="tile-text">The day clock, the sun, skyboxes, distance fog, clouds, rain, snow, storms and lightning, and presets that set a whole look at once</span></a><a class="tile" href="effects.html"><span class="tile-art"><i class="ph-fill ph-sparkle"></i></span><span class="tile-title">Effects</span><span class="tile-text">Emitters, fire, smoke, bursts, selection boxes, explosions</span></a></div><div class="browse"><div class="browse-col"><h3>Start</h3><ul><li><a href="index.html"><i class="ph-fill ph-house"></i>Overview</a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i>Getting started</a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16">Places, modules, scenes and scripts</a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16">Containers</a></li></ul></div><div class="browse-col"><h3>The world</h3><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16">Instances</a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i>Working with the tree</a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16">Characters</a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16">Animations</a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i>Players and bodies</a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16">Tools</a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i>Movement, collision and input</a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16">Building in the editor</a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i>Editor plugins</a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16">Physics</a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16">Camera and input</a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16">Pausing, quitting, settings and screens</a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i>Windows</a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16">Queries</a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16">Blocks</a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16">Zones, touches, tags, prompts and clicks</a></li></ul></div><div class="browse-col"><h3>Screen and sound</h3><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16">Interface</a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i>Chat</a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16">Rich text</a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16">Images</a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16">Sound</a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16">Models, lights, post effects and held items</a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16">Lighting, sky, weather and presets</a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16">Particles, beams, trails, highlights and decals</a></li></ul></div><div class="browse-col"><h3>Scripting</h3><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16">Mixins, Java and shader patches</a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16">Other languages</a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i>Tweens and timing</a></li><li><a href="math.html"><i class="ph-fill ph-function"></i>Math</a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16">Saving</a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16">Memory stores</a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i>Reaching websites</a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16">Talking across the boundary</a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i>Debugging</a></li></ul></div><div class="browse-col"><h3>Reference</h3><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i>Reference</a></li></ul></div></div>
+    </article>
+    <div class="doc-pager"><span></span><a class="next" href="getting-started.html"><span>Next</span>Getting started</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#a-place-is-a-folder">A place is a folder</a></li><li><a href="#saving-reloads-the-place">Saving reloads the place</a></li><li><a href="#the-server-owns-the-tree-each-client-mirrors-it">The server owns the tree, each client mirrors it</a></li><li><a href="#everything-you-create-is-an-instance">Everything you create is an instance</a></li><li><a href="#a-player-and-their-body-are-two-different-things">A player and their body are two different things</a></li><li><a href="#interface-sound-and-effects-are-instances-too">Interface, sound and effects are instances too</a></li><li><a href="#the-two-clocks">The two clocks</a></li><li><a href="#units">Units</a></li><li><a href="#browse-the-docs">Browse the docs</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

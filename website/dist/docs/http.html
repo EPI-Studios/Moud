@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reaching websites | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html" class="active"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Scripting</span></nav>
+    <article class="doc">
+<h1 id="reaching-websites">Reaching websites<a class="anchor" href="#reaching-websites" title="Permanent link">#</a></h1>
+<p><code>http</code> is the global a server script uses to call an address on the web and read what comes back: a
+webhook, a score board of your own, a Discord message. Client scripts cannot; a player's machine
+never makes the call, so nothing a place asks for depends on what is installed on their computer or
+what their network allows.</p>
+<h2 id="turning-it-on">Turning it on<a class="anchor" href="#turning-it-on" title="Permanent link">#</a></h2>
+<p>Requests are off until the place asks for them. Add the feature to <code>place.toml</code>:</p>
+<div class="doc-code"><span class="code-lang">toml</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>[features]
+httpRequests = true</code></pre></div></div>
+<p>In the editor the same switch is <strong>Project Settings &gt; Scripts &gt; httpRequests</strong>. Without it every
+request errors with "http requests are off".</p>
+<h2 id="asking">Asking<a class="anchor" href="#asking" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">-- server</span>
+task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> reply = http.<span class="syn-func">get</span>(<span class="syn-string">&quot;https://example.com/scores&quot;</span>)
+    <span class="syn-func">print</span>(reply.status, reply.ok)
+    <span class="syn-keyword">local</span> scores = http.<span class="syn-func">jsonDecode</span>(reply.body)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>The call runs inside <code>task.spawn</code> because it waits for the website to answer. While it waits, the
+rest of the place keeps running: the tick carries on, other players are served, and your script
+resumes on the line after the call once the answer arrives.</p>
+<p>There are three ways to ask, and they differ only in how much you spell out:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Call</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>http.get(url, headers?)</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>http.post(url, body, contentType?, headers?)</code></td>
+<td><code>contentType</code> is <code>application/json</code> when left out</td>
+</tr>
+<tr>
+<td><code>http.request({ url = ..., method = ..., headers = ..., body = ... })</code></td>
+<td><code>method</code> is <code>GET</code> when left out</td>
+</tr>
+</tbody>
+</table></div>
+<p>Use <code>http.request</code> when you need a method the other two do not cover, or when you want to build the
+request as a table. <code>method</code> is one of <code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code>, <code>HEAD</code> or <code>OPTIONS</code>.
+A method the engine does not know is an error that says so.</p>
+<p>Each of them hands back one table:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status</code></td>
+<td>the code, like 200 or 404</td>
+</tr>
+<tr>
+<td><code>ok</code></td>
+<td>true for 200 to 299</td>
+</tr>
+<tr>
+<td><code>body</code></td>
+<td>the answer as text</td>
+</tr>
+<tr>
+<td><code>headers</code></td>
+<td>the answer's headers, joined with <code>,</code> where one was sent twice</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>body</code> is always text. If the site answered with JSON, run it through <code>http.jsonDecode</code> yourself.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>A request waits, so it runs inside a function started with <code>task.spawn</code>, like anything else that
+waits. Calling it straight out of <code>game.stepped</code> holds up the tick everybody else is on.</p></div></div>
+<div class="demo" data-demo="http-wait"></div>
+<h2 id="helpers">Helpers<a class="anchor" href="#helpers" title="Permanent link">#</a></h2>
+<p>These turn values into text and back, and generate the ids and escaped strings a web call usually
+needs. They work on both sides, with the feature off, and never wait:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>http.<span class="syn-func">jsonEncode</span>({ name = <span class="syn-string">&quot;meek&quot;</span>, score = <span class="syn-num">12</span> })   <span class="syn-comment">-- &#x27;{&quot;name&quot;:&quot;meek&quot;,&quot;score&quot;:12}&#x27;</span>
+http.<span class="syn-func">jsonDecode</span>(<span class="syn-string">&#x27;{&quot;ok&quot;:true}&#x27;</span>).ok                <span class="syn-comment">-- true</span>
+http.<span class="syn-func">generateGuid</span>()                              <span class="syn-comment">-- &quot;{2E3A...}&quot;</span>
+http.<span class="syn-func">generateGuid</span>(<span class="syn-const">false</span>)                         <span class="syn-comment">-- the same without the braces</span>
+http.<span class="syn-func">urlEncode</span>(<span class="syn-string">&quot;a b&amp;c&quot;</span>)                          <span class="syn-comment">-- &quot;a%20b%26c&quot;</span></code></pre></div></div>
+<ul>
+<li><code>jsonEncode</code> takes what a store takes: numbers, text, booleans and nested tables with text keys.</li>
+<li><code>jsonDecode</code> errors on text it cannot read, so catch it with <code>pcall</code> when the text came from
+  outside.</li>
+<li><code>generateGuid</code> gives you a unique id, with braces by default and without them when you pass
+  <code>false</code>.</li>
+<li><code>urlEncode</code> escapes a value so you can put it in a query string without the spaces and ampersands
+  breaking the address.</li>
+</ul>
+<div class="demo" data-demo="http-helpers"></div>
+<h2 id="catch-what-you-send">Catch what you send<a class="anchor" href="#catch-what-you-send" title="Permanent link">#</a></h2>
+<p>A website can be down, slow or angry, and a request that fails raises in the caller. Wrap it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> hook = <span class="syn-string">&quot;https://example.com/hooks/rounds&quot;</span>
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">announce</span>(winner: string, seconds: number)
+    task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+        <span class="syn-keyword">local</span> ok, reply = <span class="syn-func">pcall</span>(<span class="syn-keyword">function</span>()
+            <span class="syn-keyword">return</span> http.<span class="syn-func">post</span>(hook, http.<span class="syn-func">jsonEncode</span>({
+                content = winner .. <span class="syn-string">&quot; won in &quot;</span> .. math.<span class="syn-func">floor</span>(seconds) .. <span class="syn-string">&quot; seconds&quot;</span>,
+            }))
+        <span class="syn-keyword">end</span>)
+        <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> ok <span class="syn-keyword">then</span>
+            <span class="syn-func">print</span>(<span class="syn-string">&quot;the webhook did not go through:&quot;</span>, reply)
+        <span class="syn-keyword">elseif</span> <span class="syn-keyword">not</span> reply.ok <span class="syn-keyword">then</span>
+            <span class="syn-func">print</span>(<span class="syn-string">&quot;the webhook answered&quot;</span>, reply.status, reply.body)
+        <span class="syn-keyword">end</span>
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>There are two ways this goes wrong, and you check them separately:</p>
+<ul>
+<li>The call never got an answer at all, because the address is unreachable or it ran out of time.
+  <code>pcall</code> returns <code>false</code> and the second value is the error.</li>
+<li>The call got an answer and the answer was a refusal, such as 401 or 429. <code>pcall</code> returns <code>true</code>,
+  and <code>reply.ok</code> is false. <code>reply.status</code> and <code>reply.body</code> say why.</li>
+</ul>
+<div class="demo" data-demo="http-outcome"></div>
+<h2 id="limits">Limits<a class="anchor" href="#limits" title="Permanent link">#</a></h2>
+<ul>
+<li>Only <code>http://</code> and <code>https://</code> addresses. Anything else is an error before the call leaves.</li>
+<li>30 seconds to connect and to answer.</li>
+<li>16 MB each way. A longer body is refused; a longer answer is cut.</li>
+<li>Redirects are followed.</li>
+<li>A player is never told what the server asked or what it heard. Send it over a
+  <a href="talking.html">channel</a> yourself if they should see it.</li>
+</ul>
+<div class="alert alert-caution"><i class="alert-icon ph-fill ph-warning-octagon"></i><div class="alert-body"><p>Treat everything in <code>body</code> as something a stranger wrote. Check it before you put it in the world:
+a name you paste into a <code>TextLabel</code>, a number you feed to <code>cframe</code>, or a block id you look up all
+come from somebody outside your place.</p></div></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="memory.html"><span>Previous</span>Memory stores</a><a class="next" href="talking.html"><span>Next</span>Talking across the boundary</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#turning-it-on">Turning it on</a></li><li><a href="#asking">Asking</a></li><li><a href="#helpers">Helpers</a></li><li><a href="#catch-what-you-send">Catch what you send</a></li><li><a href="#limits">Limits</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor plugins | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html" class="active"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="editor-plugins">Editor plugins<a class="anchor" href="#editor-plugins" title="Permanent link">#</a></h1>
+<p>A plugin is a Luau file the editor runs while you edit a scene. It can add buttons to the viewport
+toolbar, commands with keyboard shortcuts to a <strong>Plugins</strong> menu, and panels of its own. It changes
+the scene the way you would by hand: every change it makes is an edit you can undo.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-comment">-- plugins/hello.luau</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+plugin:<span class="syn-func">command</span>(<span class="syn-string">&quot;Say hello&quot;</span>, <span class="syn-string">&quot;Ctrl+Shift+H&quot;</span>, <span class="syn-keyword">function</span>()
+    <span class="syn-func">print</span>(<span class="syn-string">`{plugin.name}: {#plugin.selection:get()} selected`</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Save that file in your project's <code>plugins/</code> folder and the command shows up under <strong>Plugins</strong> at
+once. Pressing <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>H</kbd> prints <code>hello: 2 selected</code> to the
+Output panel when two things are selected.</p>
+<h2 id="where-plugins-live">Where plugins live<a class="anchor" href="#where-plugins-live" title="Permanent link">#</a></h2>
+<p>The editor reads plugins from two folders:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Folder</th>
+<th>Runs in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plugins/</code> in the project, next to <code>place.toml</code></td>
+<td>this project only. It travels with the project</td>
+</tr>
+<tr>
+<td><code>~/.moud/plugins/</code> in your home folder</td>
+<td>every project you open</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Plugins &gt; Open Plugins Folder</strong> and <strong>Plugins &gt; Open User Plugins Folder</strong> open them, and make them
+first if they do not exist yet.</p>
+<ul>
+<li>Every <code>.luau</code> file directly in one of the folders is one plugin. Subfolders are not read, and
+  neither are <code>.d.luau</code> files.</li>
+<li>A plugin's name is its file name without <code>.luau</code>. <code>plugins/grid.luau</code> is the plugin <code>grid</code>.</li>
+<li>When both folders have a plugin with the same name, the project's runs and the other one does not.
+  The Output panel says <code>grid is both a project and a user plugin, the project one runs</code>.</li>
+<li>Project plugins load before user plugins, and each folder loads in file name order.</li>
+</ul>
+<h2 id="when-plugins-run">When plugins run<a class="anchor" href="#when-plugins-run" title="Permanent link">#</a></h2>
+<p>Plugins run while the editor is editing a scene. They do not run while the place plays, and they
+never run in an exported game.</p>
+<ul>
+<li>Pressing play stops every plugin. Going back to editing runs every plugin again from the top.</li>
+<li>The editor looks at both folders twice a second. Saving a plugin runs that plugin again from the
+  top, adding a file loads it, and deleting one unloads it. The Output panel says <code>loaded grid</code>,
+  <code>reloaded grid</code> or <code>unloaded grid</code>.</li>
+<li><strong>Plugins &gt; Reload Plugins</strong> stops every plugin and runs them all again, which also forgets every
+  module they had required.</li>
+</ul>
+<p>A plugin that is unloaded or run again loses everything it made: its toolbar buttons, its commands,
+its panels, its preview folder, its connections and the tasks it started. The file running again
+makes them afresh. What it changed in the scene stays, because that went into the scene.</p>
+<h3 id="what-a-plugin-can-reach">What a plugin can reach<a class="anchor" href="#what-a-plugin-can-reach" title="Permanent link">#</a></h3>
+<p>All plugins share one Luau runtime on your own client, separate from the place's scripts:</p>
+<ul>
+<li><code>plugin</code> is what this page is about. Start a plugin file with
+  <code>local plugin = require("@moud/plugin")</code>: that gives the type checker the Plugin types, while game
+  scripts never see <code>plugin</code> in their completions. Requiring it from a game script fails with
+  <code>@moud/plugin can only be required by a plugin script</code>. The bare <code>plugin</code> global also works at run
+  time, but the type checker doesn't know it.</li>
+<li><code>game.world</code> is the scene you are editing, the same tree the Explorer shows.</li>
+<li><code>game.renderStepped</code> fires once per editor frame, and <code>task</code> runs as it does in a <code>LocalScript</code>.
+  <code>game.stepped</code> never fires.</li>
+<li><code>print</code> writes to the Output panel.</li>
+<li><code>camera</code>, <code>input</code> and the blocks API are not there.</li>
+<li>Scripts inside the scene do not run in the plugin runtime.</li>
+</ul>
+<h3 id="errors">Errors<a class="anchor" href="#errors" title="Permanent link">#</a></h3>
+<p>An error in a plugin goes to the Output panel with the plugin's name in front of it, and the other
+plugins keep going. That holds for an error while the file first runs, in a button click, in a
+command, in a task and in a connection.</p>
+<p>A panel is the exception. When its draw function errors, the panel stops drawing and shows
+<code>This panel stopped after an error, see the output. Save the plugin to try again.</code> until the plugin
+runs again.</p>
+<h3 id="modules">Modules<a class="anchor" href="#modules" title="Permanent link">#</a></h3>
+<p><code>require</code> takes a path from the project root, the same as in a place:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> snapping = <span class="syn-func">require</span>(<span class="syn-string">&quot;@plugins/lib/snapping&quot;</span>)</code></pre></div></div>
+<ul>
+<li><code>@plugins/...</code> reads from the project's <code>plugins/</code> folder, and from <code>~/.moud/plugins/</code> when the
+  project has no such file. <code>@plugins/lib/snapping</code> is <code>plugins/lib/snapping.luau</code> in the project,
+  or else <code>~/.moud/plugins/lib/snapping.luau</code>. So a plugin in <code>~/.moud/plugins/</code> requires the
+  modules next to it the same way.</li>
+<li>Put modules in a subfolder such as <code>lib/</code>, since every file directly in a plugins folder is
+  loaded as a plugin of its own.</li>
+<li><code>@client/...</code> and <code>@shared/...</code> read the place's own modules. <code>@server/...</code> is refused:
+  <code>a plugin cannot require res://server/tools.luau, plugins run on your client</code>.</li>
+<li>Anything else is refused with the folders a plugin can require from:
+  <code>res://lib/snapping.luau is not in plugins/, client/ or shared/</code>. A missing file under <code>@plugins/</code>
+  names both places it looked: <code>there is no res://plugins/lib/snap.luau in plugins/ or ~/.moud/plugins/</code>.</li>
+<li>A module is loaded once and shared by every plugin that requires it.</li>
+<li>Saving a module runs again every plugin that required it, directly or through another module. The
+  module and every module that required it are loaded afresh, and the Output panel says
+  <code>reloaded grid</code> for each plugin. Plugins that never required it keep running.</li>
+</ul>
+<p>New projects have a <code>.luaurc</code> with <code>plugins</code> and <code>moud</code> aliases, so the editor's type checker
+follows <code>require("@plugins/...")</code> and <code>require("@moud/plugin")</code> too. A project whose <code>.luaurc</code> is
+still one Moud wrote gets the aliases the next time the types are written. A <code>.luaurc</code> you changed
+yourself is left alone: add <code>"plugins": "./plugins"</code> and <code>"moud": "./.moud"</code> to its <code>aliases</code>.</p>
+<h2 id="toolbar-buttons">Toolbar buttons<a class="anchor" href="#toolbar-buttons" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>plugin:<span class="syn-func">toolbar</span>(name: string): PluginToolbar
+toolbar:<span class="syn-func">button</span>(text: string, tooltip: string?, icon: string?): PluginButton</code></pre></div></div>
+<p>A toolbar is a group of buttons in the viewport toolbar, after the editor's own tools and set apart
+from them by a separator. Calling <code>plugin:toolbar</code> again with the same name gives back the same
+group. The name is not shown.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+<span class="syn-keyword">local</span> tools = plugin:<span class="syn-func">toolbar</span>(<span class="syn-string">&quot;Grid&quot;</span>)
+<span class="syn-keyword">local</span> stamp = tools:<span class="syn-func">button</span>(<span class="syn-string">&quot;Stamp&quot;</span>, <span class="syn-string">&quot;Place blocks by clicking&quot;</span>, <span class="syn-string">&quot;Grid&quot;</span>)
+
+stamp.click:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    stamp.active = <span class="syn-keyword">not</span> stamp.active
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>text</code></td>
+<td>the first argument</td>
+<td>shown on the button when it has no icon, and as the tooltip when <code>tooltip</code> is empty</td>
+</tr>
+<tr>
+<td><code>tooltip</code></td>
+<td><code>""</code></td>
+<td>shown while the mouse is over the button</td>
+</tr>
+<tr>
+<td><code>icon</code></td>
+<td><code>""</code></td>
+<td>an editor icon name. The button shows <code>text</code> instead when empty or unknown</td>
+</tr>
+<tr>
+<td><code>active</code></td>
+<td>false</td>
+<td>draws the button pressed in, for a mode that is on</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>true</td>
+<td>off: the button is greyed out and clicking it does nothing</td>
+</tr>
+<tr>
+<td><code>click</code></td>
+<td></td>
+<td>a signal, fired when the button is clicked</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>text</code> cannot be empty: <code>a button needs some text</code>. Each call to <code>button</code> adds another button, even
+with the same text.</p>
+<p>An icon is named after its file in the editor, and the case does not matter. An unknown name leaves
+a warning in the Output panel: <code>grid: there is no editor icon called 'Grids', the button shows its text</code>.
+The names are:</p>
+<p><code>Add</code>, <code>Remove</code>, <code>Edit</code>, <code>Duplicate</code>, <code>ActionCopy</code>, <code>ActionPaste</code>, <code>Save</code>, <code>Load</code>, <code>File</code>, <code>Folder</code>,
+<code>Play</code>, <code>Pause</code>, <code>Stop</code>, <code>Redo</code>, <code>Lock</code>, <code>Unlock</code>, <code>Grid</code>, <code>Snap</code>, <code>Line</code>, <code>Rectangle</code>, <code>Bucket</code>,
+<code>Eraser</code>, <code>ColorPick</code>, <code>ToolSelect</code>, <code>ToolMove</code>, <code>ToolRotate</code>, <code>ToolScale</code>, <code>ToolPivot</code>, <code>Script</code>,
+<code>Shader</code>, <code>Animation</code>, <code>AnimationPlayer</code>, <code>AudioStream</code>, <code>AudioStreamPlayer3D</code>,
+<code>AudioStreamMicrophone</code>, <code>AudioListener3D</code>, <code>Camera3D</code>, <code>DirectionalLight3D</code>, <code>OmniLight3D</code>,
+<code>SpotLight3D</code>, <code>PointLight2D</code>, <code>WorldEnvironment</code>, <code>FogVolume</code>, <code>Weather</code>, <code>LightmapProbe</code>, <code>Mesh</code>,
+<code>MeshInstance3D</code>, <code>Node2D</code>, <code>Node3D</code>, <code>Control</code>, <code>Container</code>, <code>CanvasLayer</code>, <code>CanvasGroup</code>,
+<code>StaticBody3D</code>, <code>RigidBody3D</code>, <code>RigidBody2D</code>, <code>CharacterBody3D</code>, <code>CharacterBody2D</code>,
+<code>CollisionShape3D</code>, <code>CollisionShape2D</code>, <code>HingeJoint3D</code>, <code>NavigationAgent3D</code>, <code>NavigationRegion3D</code>,
+<code>RemoteTransform3D</code>, <code>Label3D</code>, <code>Decal</code>, <code>GPUParticles3D</code>, <code>Sprite2D</code>, <code>AnimatedSprite2D</code>,
+<code>TileMap</code>, <code>TerrainConnect</code>, <code>TerrainMatchCorners</code>, <code>TerrainMatchCornersAndSides</code>,
+<code>TerrainMatchSides</code>, <code>PackedScene</code>, <code>StandardMaterial3D</code>, <code>Texture2D</code>, <code>AtlasTexture</code>,
+<code>GradientTexture1D</code>, <code>StyleBoxFlat</code>, <code>GraphEdit</code>, <code>GuiVisibilityHidden</code>, <code>GuiVisibilityVisible</code>,
+<code>LineEdit</code>, <code>ScrollContainer</code>, <code>VBoxContainer</code>, <code>GridContainer</code>, <code>MarginContainer</code>,
+<code>AspectRatioContainer</code>, <code>TextureButton</code>.</p>
+<h2 id="commands-and-shortcuts">Commands and shortcuts<a class="anchor" href="#commands-and-shortcuts" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>plugin:<span class="syn-func">command</span>(name: string, handler: () -&gt; ())
+plugin:<span class="syn-func">command</span>(name: string, shortcut: string?, handler: () -&gt; ())</code></pre></div></div>
+<p>A command is an entry in the <strong>Plugins</strong> menu, with its shortcut written next to it. Choosing it or
+pressing the shortcut calls <code>handler</code>. The shortcut can be left out, and the types accept both
+forms.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+plugin:<span class="syn-func">command</span>(<span class="syn-string">&quot;Select parts&quot;</span>, <span class="syn-string">&quot;Ctrl+Shift+P&quot;</span>, <span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> parts = {}
+    <span class="syn-keyword">for</span> _, child <span class="syn-keyword">in</span> game.world:<span class="syn-func">children</span>() <span class="syn-keyword">do</span>
+        <span class="syn-keyword">if</span> child:<span class="syn-func">isA</span>(<span class="syn-string">&quot;Part&quot;</span>) <span class="syn-keyword">then</span>
+            table.<span class="syn-func">insert</span>(parts, child)
+        <span class="syn-keyword">end</span>
+    <span class="syn-keyword">end</span>
+    plugin.selection:<span class="syn-func">set</span>(parts)
+<span class="syn-keyword">end</span>)
+
+plugin:<span class="syn-func">command</span>(<span class="syn-string">&quot;Clear selection&quot;</span>, <span class="syn-keyword">function</span>()
+    plugin.selection:<span class="syn-func">set</span>({})
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The name cannot be empty: <code>a command needs a name</code>.</li>
+<li>A second command with the same name from the same plugin replaces the first.</li>
+</ul>
+<p>A shortcut is up to three modifiers and one key, joined with <code>+</code>:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>Written</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>modifiers</td>
+<td><code>Ctrl</code> (or <code>Control</code>), <code>Shift</code>, <code>Alt</code>, in any order and any case</td>
+</tr>
+<tr>
+<td>key</td>
+<td>a letter <code>A</code> to <code>Z</code>, a digit <code>0</code> to <code>9</code>, or <code>F1</code> to <code>F12</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Ctrl+Shift+G</code>, <code>alt+1</code> and <code>F5</code> are shortcuts. The modifiers have to match exactly: <code>Ctrl+G</code> does
+not fire while <kbd>Shift</kbd> is also held. Anything else, like <code>Ctrl+Space</code> or <code>Cmd+G</code>, is not a
+shortcut. The command stays in the menu without one, and the Output panel says
+<code>grid: 'Ctrl+Space' is not a shortcut, use something like Ctrl+Shift+G or F5</code>.</p>
+<p>A letter is the key that types it on your keyboard, whatever the layout. On a French AZERTY
+keyboard, <code>Ctrl+Shift+A</code> fires on the key marked A, where a US keyboard has Q. The editor's own
+shortcuts work the same way.</p>
+<p>Shortcuts do nothing while you type in a text field or fly the viewport camera.</p>
+<p>The editor's own shortcuts come first. When a plugin picks one the editor already uses, such as
+<kbd>Ctrl</kbd>+<kbd>D</kbd>, pressing it duplicates as before and the command gets no shortcut. It
+stays in the menu, with nothing written next to it, and the Output panel says once
+<code>grid: Ctrl+D is the editor's Duplicate shortcut, so 'Align' gets no shortcut</code>.</p>
+<div class="demo" data-demo="plugins-shortcut"></div>
+<h2 id="panels">Panels<a class="anchor" href="#panels" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>plugin:<span class="syn-func">panel</span>(title: string, options: PanelOptions?): PluginPanel
+panel:<span class="syn-func">onDraw</span>(draw: (ui: PanelUi) -&gt; ())</code></pre></div></div>
+<p>A panel is a window of the editor's own, drawn by your code. It is listed under <strong>Plugins</strong>, where
+choosing it shows or hides it, and its close button hides it too.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+<span class="syn-keyword">local</span> count = <span class="syn-num">3</span>
+
+plugin:<span class="syn-func">panel</span>(<span class="syn-string">&quot;Rows&quot;</span>, { dock = <span class="syn-string">&quot;right&quot;</span>, width = <span class="syn-num">280</span>, height = <span class="syn-num">160</span> }):<span class="syn-func">onDraw</span>(<span class="syn-keyword">function</span>(ui)
+    ui:<span class="syn-func">heading</span>(<span class="syn-string">&quot;Rows&quot;</span>)
+    count = ui:<span class="syn-func">number</span>(<span class="syn-string">&quot;Count&quot;</span>, count, <span class="syn-num">1</span>)
+    <span class="syn-keyword">if</span> ui:<span class="syn-func">button</span>(<span class="syn-string">&quot;Print&quot;</span>) <span class="syn-keyword">then</span>
+        <span class="syn-func">print</span>(count)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>width</code></td>
+<td>320</td>
+<td>pixels, at the editor's scale. At least 1</td>
+</tr>
+<tr>
+<td><code>height</code></td>
+<td>240</td>
+<td>pixels, at the editor's scale. At least 1</td>
+</tr>
+<tr>
+<td><code>dock</code></td>
+<td><code>"float"</code></td>
+<td><code>"float"</code>, <code>"left"</code>, <code>"right"</code> or <code>"bottom"</code>: where the panel first appears</td>
+</tr>
+</tbody>
+</table></div>
+<p>The size and the dock only apply the first time the panel is shown. After that the panel stays where
+you move it, like the editor's own panels.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td>the window title. Cannot be empty: <code>a panel needs a title</code></td>
+</tr>
+<tr>
+<td><code>visible</code></td>
+<td>whether the panel is shown. True when the panel is made, unless you closed it</td>
+</tr>
+</tbody>
+</table></div>
+<p>Two panels from one plugin may share a title. Each is its own window.</p>
+<p>The editor remembers which panels you closed or opened, by plugin and title. A panel you closed stays
+closed when its plugin runs again, after a save or <strong>Reload Plugins</strong>, until you open it from the
+<strong>Plugins</strong> menu. The editor forgets this when the game closes.</p>
+<h3 id="drawing-a-panel">Drawing a panel<a class="anchor" href="#drawing-a-panel" title="Permanent link">#</a></h3>
+<p>The panel calls its draw function every frame it is on screen, from the top, and draws what the
+function asks for as it asks for it. Nothing is kept between frames except what your code keeps: a
+widget is given the current value and returns the value it shows now, which is either the same one
+or what the user just changed it to. Store it and pass it back in the next frame.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+<span class="syn-keyword">local</span> label = <span class="syn-string">&quot;door&quot;</span>
+<span class="syn-keyword">local</span> open = <span class="syn-const">false</span>
+
+plugin:<span class="syn-func">panel</span>(<span class="syn-string">&quot;Door&quot;</span>):<span class="syn-func">onDraw</span>(<span class="syn-keyword">function</span>(ui)
+    label = ui:<span class="syn-func">input</span>(<span class="syn-string">&quot;Label&quot;</span>, label)
+    open = ui:<span class="syn-func">checkbox</span>(<span class="syn-string">&quot;Open&quot;</span>, open)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Calling <code>onDraw</code> again replaces the draw function. <code>ui</code> only works while its panel draws: keeping it
+and calling it later, from a command say, fails with <code>the panel ui can only be used while its panel
+draws</code>.</p>
+<h3 id="widgets">Widgets<a class="anchor" href="#widgets" title="Permanent link">#</a></h3>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Call</th>
+<th>Returns</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ui:heading(text)</code></td>
+<td></td>
+<td>a section title</td>
+</tr>
+<tr>
+<td><code>ui:text(text)</code></td>
+<td></td>
+<td>text, wrapped at the panel's edge</td>
+</tr>
+<tr>
+<td><code>ui:muted(text)</code></td>
+<td></td>
+<td>text in the dimmer colour</td>
+</tr>
+<tr>
+<td><code>ui:separator()</code></td>
+<td></td>
+<td>a line across the panel</td>
+</tr>
+<tr>
+<td><code>ui:sameLine()</code></td>
+<td></td>
+<td>puts the next widget on the same line as the last one</td>
+</tr>
+<tr>
+<td><code>ui:button(label)</code></td>
+<td><code>boolean</code></td>
+<td>true in the frame the button is clicked</td>
+</tr>
+<tr>
+<td><code>ui:input(label, value)</code></td>
+<td><code>string</code></td>
+<td>a one-line text field</td>
+</tr>
+<tr>
+<td><code>ui:number(label, value, step?)</code></td>
+<td><code>number</code></td>
+<td>a number field. <code>step</code> is how much one drag step changes it, 0.1 when left out</td>
+</tr>
+<tr>
+<td><code>ui:slider(label, value, min, max)</code></td>
+<td><code>number</code></td>
+<td>a number between <code>min</code> and <code>max</code>, both included</td>
+</tr>
+<tr>
+<td><code>ui:checkbox(label, value)</code></td>
+<td><code>boolean</code></td>
+<td>a switch</td>
+</tr>
+<tr>
+<td><code>ui:color(label, value)</code></td>
+<td><code>Color</code></td>
+<td>a colour swatch that opens a picker, alpha included</td>
+</tr>
+<tr>
+<td><code>ui:choice(label, value, options)</code></td>
+<td><code>string</code></td>
+<td>a drop-down list of <code>options</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>text</code>, <code>muted</code> and <code>heading</code> take any value and show it the way <code>print</code> would.</p>
+<ul>
+<li><code>input</code> keeps up to 1023 characters and returns the text as it is being typed, keystroke by
+  keystroke. While the field has the cursor, a different <code>value</code> passed in does not overwrite what
+  is being typed.</li>
+<li><code>number</code> and <code>slider</code> show single precision. A value the user did not touch comes back exactly as
+  it went in. One they changed comes back as the digits the field shows: dragging <code>1</code> up by <code>0.1</code>
+  gives <code>1.1</code>, not <code>1.100000023841858</code>.</li>
+<li><code>slider</code> fails with <code>a slider needs its max above its min</code> when <code>max</code> is not above <code>min</code>.</li>
+<li><code>choice</code> fails with <code>a choice needs at least one option</code> for an empty list. A <code>value</code> that is not
+  one of the options is still shown.</li>
+</ul>
+<p>Every widget but <code>button</code> draws its label on the left and the control on the right. The label is
+also what tells two widgets apart. To give two widgets the same label, add <code>##</code> and an id after it:
+only what comes before <code>##</code> is shown.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+<span class="syn-keyword">local</span> width, depth = <span class="syn-num">1</span>, <span class="syn-num">1</span>
+
+plugin:<span class="syn-func">panel</span>(<span class="syn-string">&quot;Box&quot;</span>):<span class="syn-func">onDraw</span>(<span class="syn-keyword">function</span>(ui)
+    width = ui:<span class="syn-func">number</span>(<span class="syn-string">&quot;Size##width&quot;</span>, width)
+    depth = ui:<span class="syn-func">number</span>(<span class="syn-string">&quot;Size##depth&quot;</span>, depth)
+    <span class="syn-keyword">if</span> ui:<span class="syn-func">button</span>(<span class="syn-string">&quot;Reset##box&quot;</span>) <span class="syn-keyword">then</span>
+        width, depth = <span class="syn-num">1</span>, <span class="syn-num">1</span>
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Both fields read <code>Size</code>, and each keeps its own value while it is being dragged or typed in.</p>
+<h2 id="the-selection">The selection<a class="anchor" href="#the-selection" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>plugin.selection:<span class="syn-func">get</span>(): { Instance }
+plugin.selection:<span class="syn-func">set</span>(instances: { Instance })
+plugin.selection.changed: AnySignal</code></pre></div></div>
+<p><code>get</code> returns what is selected in the editor. <code>set</code> replaces the selection, and <code>set({})</code> clears
+it.</p>
+<p><code>changed</code> fires once per frame in which the selection is different from the frame before, whoever
+changed it. A plugin's own <code>set</code> fires it in the next frame.</p>
+<p><code>set</code> refuses:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Given</th>
+<th>Error</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>something other than an instance in the list</td>
+<td><code>selection:set expects a list of instances</code></td>
+</tr>
+<tr>
+<td>a destroyed instance</td>
+<td><code>cannot select brick, it has been destroyed</code></td>
+</tr>
+<tr>
+<td><code>game.world</code>, the preview folder, or anything else outside the scene</td>
+<td><code>cannot select brick, it is not part of the scene</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>A new instance the plugin added in the same call can be selected: its copy is selected when it
+lands. See <a href="#new-instances">New instances</a>. A new instance moved out of the scene again before the
+call ends, into the preview say, is not going to land, and <code>set</code> refuses it with
+<code>cannot select marker, it is not part of the scene</code>.</p>
+<h2 id="changing-the-scene">Changing the scene<a class="anchor" href="#changing-the-scene" title="Permanent link">#</a></h2>
+<p>A plugin changes the scene with the same Luau as any script. The editor sees each change to an
+instance in the scene, applies it, sends it to the server, and keeps it for undo. The new value can be
+read back straight away.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+<span class="syn-keyword">for</span> _, chosen <span class="syn-keyword">in</span> plugin.selection:<span class="syn-func">get</span>() <span class="syn-keyword">do</span>
+    <span class="syn-keyword">if</span> chosen:<span class="syn-func">isA</span>(<span class="syn-string">&quot;Part&quot;</span>) <span class="syn-keyword">then</span>
+        <span class="syn-keyword">local</span> part = chosen :: Part
+        part.anchored = <span class="syn-const">true</span>
+        part.position += <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>An instance is in the scene when the editor lets you select it. <code>game.world</code>, the plugin's preview
+folder and characters are not. These become edits:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>In the plugin</th>
+<th>In the editor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>part.color = ...</code>, and any other property</td>
+<td>a property change</td>
+</tr>
+<tr>
+<td><code>position</code>, <code>rotation</code>, <code>worldCframe</code>, <code>pivotTo</code></td>
+<td>a change of <code>cframe</code></td>
+</tr>
+<tr>
+<td><code>part.name = ...</code></td>
+<td>a rename</td>
+</tr>
+<tr>
+<td><code>part.parent = other</code>, with <code>other</code> in the scene or <code>game.world</code></td>
+<td>a move</td>
+</tr>
+<tr>
+<td><code>part:destroy()</code>, <code>folder:clearAllChildren()</code></td>
+<td>a delete</td>
+</tr>
+<tr>
+<td><code>addTag</code>, <code>removeTag</code></td>
+<td>a tag change. Adding a tag it already has, or removing one it does not have, does nothing</td>
+</tr>
+<tr>
+<td><code>setAttribute</code></td>
+<td>an attribute change</td>
+</tr>
+<tr>
+<td><code>add</code>, <code>addAll</code> or <code>clone</code> into the scene, or <code>parent =</code> a new instance into it</td>
+<td>an addition. See <a href="#new-instances">New instances</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>Instances outside the scene, such as the preview folder and whatever is in it, are written directly
+and nothing is recorded.</p>
+<h3 id="new-instances">New instances<a class="anchor" href="#new-instances" title="Permanent link">#</a></h3>
+<p>A new instance in the scene is first made like any other: it is returned, its properties can be set,
+and children can be added to it. When the call that made it ends, the editor saves it with
+everything under it, destroys it, and asks the server to add that copy to the scene. The copy shows
+up in the scene a moment later, when the server answers.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>A new instance is only good until the end of the call that made it. After that the variable holds
+a destroyed instance, and the one in the scene is a different instance that arrives a moment later.
+To reach it again, find it in the scene when you need it, or select it in the same call.</p></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+plugin:<span class="syn-func">command</span>(<span class="syn-string">&quot;Add marker&quot;</span>, <span class="syn-keyword">function</span>()
+    plugin:<span class="syn-func">recording</span>(<span class="syn-string">&quot;Add marker&quot;</span>, <span class="syn-keyword">function</span>()
+        <span class="syn-keyword">local</span> marker = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+            name = <span class="syn-string">&quot;marker&quot;</span>,
+            anchored = <span class="syn-const">true</span>,
+            size = <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+        }) :: Part
+        marker.color = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.2</span>)
+        plugin.selection:<span class="syn-func">set</span>({ marker })
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>The marker is selected once it lands. <code>set</code> can mix new instances with ones already in the scene: the
+ones in the scene are selected at once and each new copy joins them as it lands, so in the end
+everything in the list is selected.</p>
+<p>A call is one of these, and changes made in it are kept together:</p>
+<ul>
+<li>the plugin file running from the top</li>
+<li>a toolbar button's <code>click</code></li>
+<li>a command</li>
+<li>one panel drawing one frame</li>
+<li>a viewport click reaching <code>plugin.viewportClicked</code></li>
+<li>the selection changing, reaching <code>plugin.selection.changed</code></li>
+<li>one editor frame of <code>game.renderStepped</code> connections and <code>task</code> callbacks</li>
+</ul>
+<h3 id="what-is-refused">What is refused<a class="anchor" href="#what-is-refused" title="Permanent link">#</a></h3>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Doing</th>
+<th>Error</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pointing an instance property of a scene instance at something outside the scene</td>
+<td><code>&lt;name&gt;.&lt;property&gt; can only point at something in the scene, and &lt;target&gt; is not in it yet</code></td>
+</tr>
+<tr>
+<td>moving a scene instance out of the scene, into the preview or into a new instance</td>
+<td><code>&lt;name&gt; can only move to somewhere in the scene, and &lt;parent&gt; is not</code></td>
+</tr>
+<tr>
+<td>renaming a scene instance to <code>""</code></td>
+<td><code>a name can not be empty</code></td>
+</tr>
+<tr>
+<td>an empty tag</td>
+<td><code>a tag can not be empty</code></td>
+</tr>
+<tr>
+<td>changing, renaming or destroying <code>game.world</code> itself</td>
+<td><code>that instance is not part of the scene</code></td>
+</tr>
+<tr>
+<td>writing a read-only property</td>
+<td><code>&lt;Class&gt;.&lt;property&gt; is read-only</code></td>
+</tr>
+<tr>
+<td>a tween on a scene instance</td>
+<td><code>a plugin cannot tween brick, it is part of the scene. Set its properties instead</code></td>
+</tr>
+<tr>
+<td><code>setOwner</code> on a scene instance</td>
+<td><code>a plugin cannot set the owner of brick, it is part of the scene</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Setting an instance property to <code>nil</code> is allowed.</p>
+<p>Only the calls in the first table are edits. A tween would write the instance every frame without the
+editor, so it is refused on anything in the scene. Tweens on the preview folder and what is in it
+work as in any script. To animate a scene instance and keep the result, set the property yourself.</p>
+<h2 id="undo">Undo<a class="anchor" href="#undo" title="Permanent link">#</a></h2>
+<p>Everything a plugin changes in the scene during one call is one entry in the editor's undo history,
+named after the plugin. <kbd>Ctrl</kbd>+<kbd>Z</kbd> takes the whole call back at once. Two plugins
+never share an entry: when <code>game.renderStepped</code> connections or tasks from two plugins change the scene
+in the same frame, each plugin's changes are an entry of their own, named after it.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>plugin:<span class="syn-func">recording</span>(name: string, changes: () -&gt; ())</code></pre></div></div>
+<p><code>recording</code> gives the changes a name of your own, the one shown in <strong>Edit &gt; Undo</strong>:</p>
+<ol>
+<li>Whatever the call had already changed is closed as its own entry.</li>
+<li><code>changes</code> runs.</li>
+<li>Everything it changed becomes one entry called <code>name</code>.</li>
+</ol>
+<p>A <code>recording</code> inside another <code>recording</code> joins the outer one, under the outer name.</p>
+<p>An error inside <code>changes</code> reaches the code that called <code>recording</code>, the same as calling <code>changes</code>
+directly: it stops there, unless it is caught with <code>pcall</code>. The changes made before the error are not
+undone. They stay in the scene as one entry called <code>name</code>.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+<span class="syn-keyword">local</span> ok, why = <span class="syn-func">pcall</span>(<span class="syn-keyword">function</span>()
+    plugin:<span class="syn-func">recording</span>(<span class="syn-string">&quot;Rename all&quot;</span>, <span class="syn-keyword">function</span>()
+        <span class="syn-keyword">for</span> _, chosen <span class="syn-keyword">in</span> plugin.selection:<span class="syn-func">get</span>() <span class="syn-keyword">do</span>
+            chosen.name = <span class="syn-string">&quot;&quot;</span>
+        <span class="syn-keyword">end</span>
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>)
+<span class="syn-keyword">if</span> <span class="syn-keyword">not</span> ok <span class="syn-keyword">then</span>
+    <span class="syn-func">print</span>(<span class="syn-string">`stopped: {why}`</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>A panel's draw function is no exception: a <code>recording</code> that errors while the panel draws stops the
+panel like any other error in its draw function.</p>
+<p>While the mouse button is held, or while a field in a panel is being used, entries that set the same
+properties on the same instances merge into one. Dragging a slider that sets a part's <code>transparency</code>
+every frame is one undo step, not one per frame.</p>
+<div class="demo" data-demo="plugins-undo"></div>
+<h2 id="the-mouse-and-the-viewport">The mouse and the viewport<a class="anchor" href="#the-mouse-and-the-viewport" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>plugin:<span class="syn-func">mouse</span>(): PluginMouse
+plugin.viewportClicked: PluginMouseSignal
+plugin:<span class="syn-func">activate</span>(on: boolean)
+plugin.active: boolean</code></pre></div></div>
+<p><code>plugin:mouse()</code> casts a ray from the viewport camera through the mouse, whether or not the mouse is
+over the viewport, and returns a table:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>origin</code></td>
+<td>where the ray starts, at the camera</td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td>which way it goes</td>
+</tr>
+<tr>
+<td><code>hit</code></td>
+<td>the point it hit, or nil</td>
+</tr>
+<tr>
+<td><code>normal</code></td>
+<td>the face it hit, pointing out of it, or nil</td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td>the scene instance it hit, or nil for a block or nothing</td>
+</tr>
+<tr>
+<td><code>over</code></td>
+<td>whether the mouse is over the viewport</td>
+</tr>
+</tbody>
+</table></div>
+<p>The ray hits scene parts and blocks up to 256 metres away, whichever is nearer. It does not hit the
+preview folder, <code>game.world</code> or anything else outside the scene. While the viewport has no size, as
+before it is first drawn, <code>origin</code> and <code>direction</code> are both <code>vec3(0, 0, 0)</code> and <code>over</code> is false.</p>
+<p><code>plugin.viewportClicked</code> fires with the same table when the left mouse button goes down in the
+viewport. It does not fire while a gizmo is being dragged, while the camera is looking around, or
+with <kbd>Alt</kbd> held. It fires for every plugin, active or not.</p>
+<p><code>plugin:activate(true)</code> tells the editor this plugin wants viewport clicks for itself. While any
+plugin is active, a click in the viewport picks nothing and starts no box selection. <code>activate(false)</code>
+gives the clicks back, and so does the plugin being unloaded. <code>plugin.active</code> reads the current state.</p>
+<p>The table's type is <code>PluginMouse</code>, and the options <code>plugin:panel</code> takes are <code>PanelOptions</code>. Both can
+be written in your own code:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">describe</span>(mouse: PluginMouse): string
+    <span class="syn-keyword">return</span> <span class="syn-keyword">if</span> mouse.target <span class="syn-keyword">then</span> mouse.target.name <span class="syn-keyword">else</span> <span class="syn-string">&quot;nothing&quot;</span>
+<span class="syn-keyword">end</span>
+
+plugin.viewportClicked:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(mouse)
+    <span class="syn-func">print</span>(<span class="syn-func">describe</span>(mouse))
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<h2 id="the-preview-folder">The preview folder<a class="anchor" href="#the-preview-folder" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>plugin.preview: Instance</code></pre></div></div>
+<p><code>plugin.preview</code> is a folder in the world that belongs to the plugin and not to the scene: a ghost
+of what a tool will place, a guide line, a marker. It is called <code>grid preview</code> for a plugin named
+<code>grid</code>.</p>
+<ul>
+<li>It is made the first time it is read, and made again if it was destroyed.</li>
+<li>What is in it is not part of the scene. It is not saved, not sent to the server, not in undo, not
+  selectable and not hit by <code>plugin:mouse()</code>.</li>
+<li>It is destroyed when the plugin is unloaded or runs again.</li>
+</ul>
+<p>A part in the preview is written directly, so it is cheap to move every frame.</p>
+<h2 id="settings">Settings<a class="anchor" href="#settings" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>plugin:<span class="syn-func">setting</span>(key: string): any
+plugin:<span class="syn-func">setSetting</span>(key: string, value: any)</code></pre></div></div>
+<p>Settings are values a plugin keeps between editor sessions. They are kept per plugin, in
+<code>~/.moud/plugin-settings.json</code>, and shared by every project: a <code>grid</code> plugin in two projects reads
+the same settings. A plugin in <code>~/.moud/plugins/</code> keeps its own, under <code>~/grid</code> in the file, so a
+project plugin and a user plugin that share a name never read each other's settings.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+<span class="syn-keyword">local</span> saved = plugin:<span class="syn-func">setting</span>(<span class="syn-string">&quot;step&quot;</span>)
+<span class="syn-keyword">local</span> step: number = <span class="syn-keyword">if</span> <span class="syn-keyword">type</span>(saved) == <span class="syn-string">&quot;number&quot;</span> <span class="syn-keyword">then</span> saved <span class="syn-keyword">else</span> <span class="syn-num">1</span>
+
+plugin:<span class="syn-func">panel</span>(<span class="syn-string">&quot;Step&quot;</span>):<span class="syn-func">onDraw</span>(<span class="syn-keyword">function</span>(ui)
+    <span class="syn-keyword">local</span> picked = ui:<span class="syn-func">number</span>(<span class="syn-string">&quot;Step&quot;</span>, step, <span class="syn-num">0.25</span>)
+    <span class="syn-keyword">if</span> picked ~= step <span class="syn-keyword">then</span>
+        step = picked
+        plugin:<span class="syn-func">setSetting</span>(<span class="syn-string">&quot;step&quot;</span>, step)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>setting</code> returns nil for a key that was never set.</li>
+<li><code>setSetting(key, nil)</code> removes the key.</li>
+<li>A value is a string, a number, a boolean, or a table of those. A table's keys are all strings or it
+  is a list. Anything else fails: <code>settings keep strings, numbers, booleans and tables of them, not a
+  Vector3</code>, or <code>settings keep tables with string keys</code>.</li>
+<li><code>setting</code> reads back what <code>setSetting</code> set at once. The file is written at most once a second, and
+  again when plugins stop, a plugin is unloaded or the game closes, so calling <code>setSetting</code> every
+  frame is harmless.</li>
+</ul>
+<h2 id="a-plugins-name">A plugin's name<a class="anchor" href="#a-plugins-name" title="Permanent link">#</a></h2>
+<p><code>plugin.name</code> is the plugin's name, its file name without <code>.luau</code>. It, <code>plugin.active</code> and
+<code>plugin.preview</code> can be read, not written: assigning one fails with <code>Plugin.name cannot be assigned</code>.
+The types mark them <code>read</code>, which the type checker enforces when its new solver is on.</p>
+<h2 id="a-grid-tool">A grid tool<a class="anchor" href="#a-grid-tool" title="Permanent link">#</a></h2>
+<p><code>plugins/grid.luau</code> snaps the selected parts to a grid, and stamps new blocks onto the grid where you
+click. It has a toolbar button for the stamp mode, a command with a shortcut for aligning, and a
+panel that sets the grid step and keeps it between sessions.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-keyword">local</span> plugin = <span class="syn-func">require</span>(<span class="syn-string">&quot;@moud/plugin&quot;</span>)
+
+<span class="syn-keyword">local</span> saved = plugin:<span class="syn-func">setting</span>(<span class="syn-string">&quot;step&quot;</span>)
+<span class="syn-keyword">local</span> step: number = <span class="syn-keyword">if</span> <span class="syn-keyword">type</span>(saved) == <span class="syn-string">&quot;number&quot;</span> <span class="syn-keyword">then</span> saved <span class="syn-keyword">else</span> <span class="syn-num">1</span>
+<span class="syn-keyword">local</span> stamping = <span class="syn-const">false</span>
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">snap</span>(at: Vector3): Vector3
+    <span class="syn-keyword">return</span> <span class="syn-func">vec3</span>(
+        math.<span class="syn-func">round</span>(at.x / step) * step,
+        math.<span class="syn-func">round</span>(at.y / step) * step,
+        math.<span class="syn-func">round</span>(at.z / step) * step
+    )
+<span class="syn-keyword">end</span>
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">align</span>()
+    plugin:<span class="syn-func">recording</span>(<span class="syn-string">&quot;Align to grid&quot;</span>, <span class="syn-keyword">function</span>()
+        <span class="syn-keyword">for</span> _, chosen <span class="syn-keyword">in</span> plugin.selection:<span class="syn-func">get</span>() <span class="syn-keyword">do</span>
+            <span class="syn-keyword">if</span> chosen:<span class="syn-func">isA</span>(<span class="syn-string">&quot;Part&quot;</span>) <span class="syn-keyword">then</span>
+                <span class="syn-keyword">local</span> part = chosen :: Part
+                part.position = <span class="syn-func">snap</span>(part.position)
+            <span class="syn-keyword">end</span>
+        <span class="syn-keyword">end</span>
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>
+
+<span class="syn-keyword">local</span> ghost = plugin.preview:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;ghost&quot;</span>,
+    anchored = <span class="syn-const">true</span>,
+    collides = <span class="syn-const">false</span>,
+    transparency = <span class="syn-num">0.6</span>,
+    visible = <span class="syn-const">false</span>,
+}) :: Part
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">stampAt</span>(mouse: PluginMouse): Vector3?
+    <span class="syn-keyword">local</span> hit, normal = mouse.hit, mouse.normal
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> hit <span class="syn-keyword">or</span> <span class="syn-keyword">not</span> normal <span class="syn-keyword">then</span>
+        <span class="syn-keyword">return</span> <span class="syn-const">nil</span>
+    <span class="syn-keyword">end</span>
+    <span class="syn-keyword">return</span> <span class="syn-func">snap</span>(hit + normal * (step / <span class="syn-num">2</span>))
+<span class="syn-keyword">end</span>
+
+<span class="syn-keyword">local</span> stampButton = plugin:<span class="syn-func">toolbar</span>(<span class="syn-string">&quot;Grid&quot;</span>):<span class="syn-func">button</span>(<span class="syn-string">&quot;Stamp&quot;</span>, <span class="syn-string">&quot;Click in the viewport to place a block&quot;</span>, <span class="syn-string">&quot;Grid&quot;</span>)
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">setStamping</span>(on: boolean)
+    stamping = on
+    stampButton.active = on
+    plugin:<span class="syn-func">activate</span>(on)
+    ghost.visible = <span class="syn-const">false</span>
+<span class="syn-keyword">end</span>
+
+stampButton.click:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-func">setStamping</span>(<span class="syn-keyword">not</span> stamping)
+<span class="syn-keyword">end</span>)
+
+plugin:<span class="syn-func">command</span>(<span class="syn-string">&quot;Align to grid&quot;</span>, <span class="syn-string">&quot;Ctrl+Shift+G&quot;</span>, align)
+plugin:<span class="syn-func">command</span>(<span class="syn-string">&quot;Stop stamping&quot;</span>, <span class="syn-keyword">function</span>()
+    <span class="syn-func">setStamping</span>(<span class="syn-const">false</span>)
+<span class="syn-keyword">end</span>)
+
+game.renderStepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> stamping <span class="syn-keyword">then</span>
+        <span class="syn-keyword">return</span>
+    <span class="syn-keyword">end</span>
+    <span class="syn-keyword">local</span> mouse = plugin:<span class="syn-func">mouse</span>()
+    <span class="syn-keyword">local</span> at = <span class="syn-keyword">if</span> mouse.over <span class="syn-keyword">then</span> <span class="syn-func">stampAt</span>(mouse) <span class="syn-keyword">else</span> <span class="syn-const">nil</span>
+    ghost.visible = at ~= <span class="syn-const">nil</span>
+    <span class="syn-keyword">if</span> at <span class="syn-keyword">then</span>
+        ghost.size = <span class="syn-func">vec3</span>(step, step, step)
+        ghost.position = at
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)
+
+plugin.viewportClicked:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(mouse)
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> stamping <span class="syn-keyword">then</span>
+        <span class="syn-keyword">return</span>
+    <span class="syn-keyword">end</span>
+    <span class="syn-keyword">local</span> at = <span class="syn-func">stampAt</span>(mouse)
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> at <span class="syn-keyword">then</span>
+        <span class="syn-keyword">return</span>
+    <span class="syn-keyword">end</span>
+    plugin:<span class="syn-func">recording</span>(<span class="syn-string">&quot;Stamp block&quot;</span>, <span class="syn-keyword">function</span>()
+        game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+            name = <span class="syn-string">&quot;block&quot;</span>,
+            anchored = <span class="syn-const">true</span>,
+            size = <span class="syn-func">vec3</span>(step, step, step),
+            position = at,
+        })
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>)
+
+plugin:<span class="syn-func">panel</span>(<span class="syn-string">&quot;Grid&quot;</span>, { dock = <span class="syn-string">&quot;right&quot;</span>, height = <span class="syn-num">160</span> }):<span class="syn-func">onDraw</span>(<span class="syn-keyword">function</span>(ui)
+    <span class="syn-keyword">local</span> picked = ui:<span class="syn-func">number</span>(<span class="syn-string">&quot;Step&quot;</span>, step, <span class="syn-num">0.25</span>)
+    <span class="syn-keyword">if</span> picked ~= step <span class="syn-keyword">and</span> picked &gt; <span class="syn-num">0</span> <span class="syn-keyword">then</span>
+        step = picked
+        plugin:<span class="syn-func">setSetting</span>(<span class="syn-string">&quot;step&quot;</span>, step)
+    <span class="syn-keyword">end</span>
+    ui:<span class="syn-func">muted</span>(<span class="syn-string">`{#plugin.selection:get()} selected`</span>)
+    <span class="syn-keyword">if</span> ui:<span class="syn-func">button</span>(<span class="syn-string">&quot;Align selection&quot;</span>) <span class="syn-keyword">then</span>
+        <span class="syn-func">align</span>()
+    <span class="syn-keyword">end</span>
+    ui:<span class="syn-func">sameLine</span>()
+    <span class="syn-keyword">if</span> ui:<span class="syn-func">button</span>(<span class="syn-keyword">if</span> stamping <span class="syn-keyword">then</span> <span class="syn-string">&quot;Stop stamping&quot;</span> <span class="syn-keyword">else</span> <span class="syn-string">&quot;Stamp&quot;</span>) <span class="syn-keyword">then</span>
+        <span class="syn-func">setStamping</span>(<span class="syn-keyword">not</span> stamping)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>ghost</code> lives in the preview, so moving it every frame records nothing and the mouse ray passes
+  through it to the scene behind.</li>
+<li>The ghost sits half a step out of the face under the mouse, so a block stamped on top of another
+  lands on it rather than inside it.</li>
+<li><code>plugin:activate(on)</code> keeps a stamping click from also selecting what is under the mouse.</li>
+<li>Each stamp is its own undo entry called <code>Stamp block</code>, and each align is one entry called
+  <code>Align to grid</code> however many parts moved.</li>
+<li>The new block is not kept in a variable: the one <code>add</code> returns is gone by the end of the click.</li>
+</ul>
+<div class="demo" data-demo="plugins-grid"></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="editor.html"><span>Previous</span>Building in the editor</a><a class="next" href="physics.html"><span>Next</span>Physics</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#where-plugins-live">Where plugins live</a></li><li><a href="#when-plugins-run">When plugins run</a></li><li><a href="#toolbar-buttons">Toolbar buttons</a></li><li><a href="#commands-and-shortcuts">Commands and shortcuts</a></li><li><a href="#panels">Panels</a></li><li><a href="#the-selection">The selection</a></li><li><a href="#changing-the-scene">Changing the scene</a></li><li><a href="#undo">Undo</a></li><li><a href="#the-mouse-and-the-viewport">The mouse and the viewport</a></li><li><a href="#the-preview-folder">The preview folder</a></li><li><a href="#settings">Settings</a></li><li><a href="#a-plugins-name">A plugin's name</a></li><li><a href="#a-grid-tool">A grid tool</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

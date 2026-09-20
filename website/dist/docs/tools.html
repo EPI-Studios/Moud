@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tools | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html" class="active"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="tools">Tools<a class="anchor" href="#tools" title="Permanent link">#</a></h1>
+<p>A <code>Tool</code> is an instance a body carries and holds: a sword, a torch, a wand. Tools sit in a body's
+<code>backpack</code>, the player sees them in Minecraft's hotbar, and the slot they select is the tool the body
+holds. Clicking with a held tool fires its <code>activated</code> signal, which is where you write what the tool
+does.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> sword = body.backpack:<span class="syn-func">add</span>(<span class="syn-string">&quot;Tool&quot;</span>, { name = <span class="syn-string">&quot;sword&quot;</span>, item = <span class="syn-string">&quot;minecraft:iron_sword&quot;</span> })
+body.humanoid:<span class="syn-func">equipTool</span>(sword)</code></pre></div></div>
+<ul>
+<li><code>body.backpack:add("Tool", { ... })</code> creates the tool and parents it to that body's backpack, so
+  that body carries it and nobody else does.</li>
+<li><code>item</code> is the Minecraft item drawn in the hotbar slot and in the hand.</li>
+<li><code>humanoid:equipTool(sword)</code> puts the tool in the body's hand straight away, instead of waiting for
+  the player to select its slot.</li>
+</ul>
+<h2 id="carried-and-held">Carried and held<a class="anchor" href="#carried-and-held" title="Permanent link">#</a></h2>
+<p>Every body has a <code>backpack</code>. Where a tool sits in the tree is what says what the body does with it:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>The tool is in</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>body.backpack</code></td>
+<td>carried</td>
+</tr>
+<tr>
+<td><code>body</code> itself</td>
+<td>held, or equipped. A body holds one tool at a time</td>
+</tr>
+<tr>
+<td>anywhere else</td>
+<td>lying in the world, or kept somewhere by the place</td>
+</tr>
+</tbody>
+</table></div>
+<p>A carried tool is out of the world: its <code>Handle</code> is not drawn, has no physics and is not found by
+casts. Scripts inside it still run, so a tool can sit in the backpack waiting for <code>equipped</code>.</p>
+<p>Equipping moves the tool out of the backpack into the body. Unequipping moves it back.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Use <code>humanoid:equipTool</code> rather than setting <code>parent</code>. A server script that moves the tool itself
+fires no events, and a player's hotbar selection puts back what it points at on the next tick.</p></div></div>
+<div class="demo" data-demo="tools-hotbar"></div>
+<h2 id="a-tools-properties">A tool's properties<a class="anchor" href="#a-tools-properties" title="Permanent link">#</a></h2>
+<p>Each property has a default that already works, so a tool created with only a <code>name</code> and an <code>item</code> is
+usable as it stands. You set the rest when you want the tool to behave differently from that:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>true</td>
+<td>off: clicking with the tool does nothing, and neither does <code>tool:activate()</code></td>
+</tr>
+<tr>
+<td><code>item</code></td>
+<td><code>""</code></td>
+<td>the Minecraft item shown in the hotbar and in the hand, like <code>minecraft:iron_sword</code>. A stick when empty or unknown</td>
+</tr>
+<tr>
+<td><code>toolTip</code></td>
+<td><code>""</code></td>
+<td>the name shown in the hotbar. The tool's <code>name</code> when empty</td>
+</tr>
+<tr>
+<td><code>grip</code></td>
+<td>no turn, no offset</td>
+<td>where the hand holds the <code>Handle</code>, in the Handle's own frame</td>
+</tr>
+<tr>
+<td><code>requiresHandle</code></td>
+<td>false</td>
+<td>the tool can only be equipped while it has a part named <code>Handle</code></td>
+</tr>
+<tr>
+<td><code>canBeDropped</code></td>
+<td>true</td>
+<td>the drop key leaves the tool in the world</td>
+</tr>
+<tr>
+<td><code>manualActivationOnly</code></td>
+<td>false</td>
+<td>clicking does not activate the tool; only <code>tool:activate()</code> does</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>enabled</code> and <code>manualActivationOnly</code> both stop a click from doing anything, and they differ in what
+else they stop. With <code>enabled</code> off the tool is dead: even a script calling <code>tool:activate()</code> gets
+nothing. With <code>manualActivationOnly</code> on, the player's click is ignored and your script's
+<code>tool:activate()</code> still works, which is how you drive a tool from a cooldown or a menu instead of
+from the mouse.</p>
+<div class="demo" data-demo="tools-activation"></div>
+<p>A tool has four signals:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Fires with</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>equipped</code></td>
+<td>the tool</td>
+<td>when it moves into a body</td>
+</tr>
+<tr>
+<td><code>unequipped</code></td>
+<td>the tool</td>
+<td>when it leaves a body, into the backpack or the world</td>
+</tr>
+<tr>
+<td><code>activated</code></td>
+<td>the tool</td>
+<td>when the holder presses the left mouse button, or on <code>tool:activate()</code></td>
+</tr>
+<tr>
+<td><code>deactivated</code></td>
+<td>the tool</td>
+<td>when the holder lets go, or on <code>tool:deactivate()</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>tool:activate()</code> and <code>tool:deactivate()</code> fire the events on the side that calls them. They do
+nothing while the tool is not held or <code>enabled</code> is off. Call them from a server script when the body
+holding the tool has no player to click for it.</p>
+<h2 id="the-hotbar">The hotbar<a class="anchor" href="#the-hotbar" title="Permanent link">#</a></h2>
+<p>A player sees the tools they carry in Minecraft's hotbar. Each tool takes the first free slot, up to
+nine, and keeps that slot until it leaves. The one they hold stays in its slot too. A Minecraft item
+already in that slot is replaced.</p>
+<ul>
+<li>Selecting a slot with the number keys or the mouse wheel equips its tool.</li>
+<li>Selecting an empty slot unequips.</li>
+<li>A tool's item cannot be moved out of the hotbar. A copy anywhere else in the inventory is removed.</li>
+</ul>
+<p>With <code>hotbar = false</code> in place.toml the bar is hidden, and the number keys still pick tools. Use that
+when you draw your own selection interface and want the vanilla bar out of the way.</p>
+<h2 id="the-handle">The Handle<a class="anchor" href="#the-handle" title="Permanent link">#</a></h2>
+<p>A part named <code>Handle</code> directly inside a tool is what the hand holds. While the tool is equipped, the
+engine moves the Handle to the right hand's grip every tick. The server does it for every body, with
+or without a player, and unanchors the Handle; every client does it too.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> sword = body.backpack:<span class="syn-func">add</span>(<span class="syn-string">&quot;Tool&quot;</span>, { name = <span class="syn-string">&quot;sword&quot;</span>, grip = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, -<span class="syn-num">0.5</span>, <span class="syn-num">0</span>) })
+sword:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;Handle&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.1</span>, <span class="syn-num">1.2</span>, <span class="syn-num">0.1</span>), color = <span class="syn-func">color</span>(<span class="syn-num">0.8</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.85</span>) })</code></pre></div></div>
+<p><code>grip</code> is where the hand holds the Handle, in the Handle's own space. <code>cframe(0, -0.5, 0)</code> holds the
+part half a metre below its middle, so most of it stands out of the fist. Turn it with <code>cframe.angles</code>
+until the tool points the way you want.</p>
+<div class="demo" data-demo="tools-grip"></div>
+<p>Only the Handle is moved. Other parts in the tool stay where they are, so build a tool from one
+Handle or <a href="physics.html#welds">weld</a> the rest to it.</p>
+<p>A tool without a Handle still works: it sits in the hotbar, it is held, and it activates. It just has
+nothing to hold but its <code>item</code>.</p>
+<p>A player's body draws the <code>item</code> in its hand as well, because the tool really is in their hotbar. To
+show only the Handle, take the item out of the hand while the tool is held:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre><pre><code><span class="syn-comment">-- server, in a Script inside the tool</span>
+<span class="syn-keyword">local</span> tool = script.parent :: Tool
+<span class="syn-keyword">local</span> holder: Character? = <span class="syn-const">nil</span>
+
+tool.equipped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    holder = tool.parent :: Character
+    holder.rightItemOverride = <span class="syn-string">&quot;minecraft:air&quot;</span>
+<span class="syn-keyword">end</span>)
+
+tool.unequipped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">if</span> holder <span class="syn-keyword">then</span> holder.rightItemOverride = <span class="syn-string">&quot;&quot;</span> <span class="syn-keyword">end</span>
+    holder = <span class="syn-const">nil</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Setting <code>rightItemOverride</code> to <code>"minecraft:air"</code> empties the drawn hand, and setting it back to <code>""</code>
+lets the body draw whatever it is really holding again. The script keeps the body in <code>holder</code> because
+by the time <code>unequipped</code> fires the tool's parent is no longer that body.</p>
+<h2 id="clicking">Clicking<a class="anchor" href="#clicking" title="Permanent link">#</a></h2>
+<p>While a player holds a tool, pressing the left mouse button fires <code>activated</code> and letting go fires
+<code>deactivated</code>. They fire in the server's scripts and in the <code>LocalScript</code>s of the player holding it.
+Other players' clients do not see the click.</p>
+<p>Nothing happens while a Minecraft screen, like the inventory or the chat, is open, or while the
+tool's <code>enabled</code> is off or its <code>manualActivationOnly</code> is on.</p>
+<p>The click is the tool's alone. While a tool is held, Minecraft never sees the button: the arm does
+not swing, no block is broken and nothing under the crosshair is hit. Swing the arm yourself with an
+animation, as the sword below does.</p>
+<h2 id="a-sword">A sword<a class="anchor" href="#a-sword" title="Permanent link">#</a></h2>
+<p>The sword is a Handle, a server <code>Script</code> that hurts what it hits, and a <code>LocalScript</code> that swings the
+arm.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+<span class="syn-keyword">local</span> pack = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;StarterPack&quot;</span>)
+
+<span class="syn-keyword">local</span> sword = pack:<span class="syn-func">add</span>(<span class="syn-string">&quot;Tool&quot;</span>, {
+    name = <span class="syn-string">&quot;sword&quot;</span>,
+    toolTip = <span class="syn-string">&quot;Sword&quot;</span>,
+    item = <span class="syn-string">&quot;minecraft:iron_sword&quot;</span>,
+    grip = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, -<span class="syn-num">0.5</span>, <span class="syn-num">0</span>),
+})
+sword:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;Handle&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.1</span>, <span class="syn-num">1.2</span>, <span class="syn-num">0.1</span>), color = <span class="syn-func">color</span>(<span class="syn-num">0.8</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.85</span>) })
+sword:<span class="syn-func">add</span>(<span class="syn-string">&quot;Animation&quot;</span>, { name = <span class="syn-string">&quot;swing&quot;</span>, animationId = <span class="syn-string">&quot;res://animations/swing.anim&quot;</span> })
+sword:<span class="syn-func">add</span>(<span class="syn-string">&quot;Script&quot;</span>, { name = <span class="syn-string">&quot;damage&quot;</span>, source = <span class="syn-string">&quot;res://server/sword.luau&quot;</span> })
+sword:<span class="syn-func">add</span>(<span class="syn-string">&quot;LocalScript&quot;</span>, { name = <span class="syn-string">&quot;swing&quot;</span>, source = <span class="syn-string">&quot;res://client/swing.luau&quot;</span> })</code></pre></div></div>
+<p>Everything the sword needs is inside the tool, so the copy in each player's backpack carries its own
+Handle, its own animation and its own scripts.</p>
+<p>The server script casts a short ray from the holder's head along where they look. It runs in every
+copy of the sword, and only the copy that is held fires <code>activated</code>.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code><span class="syn-comment">-- server/sword.luau</span>
+<span class="syn-keyword">local</span> tool = script.parent :: Tool
+
+tool.activated:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> body = tool.parent :: Character
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> cooldown:<span class="syn-func">ready</span>(body, <span class="syn-string">&quot;sword&quot;</span>, <span class="syn-num">0.4</span>) <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+
+    <span class="syn-keyword">local</span> hit = game.world:<span class="syn-func">raycast</span>(body.head.position, body:<span class="syn-func">lookDirection</span>(), <span class="syn-num">3</span>, { exclude = { body } })
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> hit <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+
+    <span class="syn-keyword">local</span> target = hit:<span class="syn-func">firstAncestorOfClass</span>(<span class="syn-string">&quot;Character&quot;</span>) :: Character?
+    <span class="syn-keyword">if</span> target <span class="syn-keyword">then</span>
+        target.humanoid:<span class="syn-func">takeDamage</span>(<span class="syn-num">4</span>)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>tool.parent</code> is the body holding the tool, because a held tool is parented to the body itself.</li>
+<li><code>exclude = { body }</code> keeps the ray from hitting the swinger's own limbs at point blank.</li>
+<li>A ray hits limbs, so the part it returns is inside the body it struck. <code>firstAncestorOfClass</code> walks
+  up from that limb to the <code>Character</code> it belongs to.</li>
+</ul>
+<p>See <a href="queries.html">Queries</a> for the other casts and the lag compensation a fast game wants.</p>
+<p>The swing, as a <code>.anim</code> file:</p>
+<div class="doc-code"><span class="code-lang">json</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code>{
+  &quot;length&quot;: 0.3,
+  &quot;priority&quot;: 2,
+  &quot;keyframes&quot;: [
+    { &quot;time&quot;: 0,    &quot;poses&quot;: { &quot;rightArm&quot;: { &quot;angles&quot;: [150, 0, 0], &quot;easing&quot;: &quot;quad&quot;, &quot;direction&quot;: &quot;out&quot; } } },
+    { &quot;time&quot;: 0.15, &quot;poses&quot;: { &quot;rightArm&quot;: { &quot;angles&quot;: [40, 0, -20], &quot;easing&quot;: &quot;sine&quot; } } },
+    { &quot;time&quot;: 0.3,  &quot;poses&quot;: { &quot;rightArm&quot;: { &quot;angles&quot;: [0, 0, 0] } } }
+  ]
+}</code></pre></div></div>
+<p>The <code>LocalScript</code> loads it into the holder's animator the first time the sword is used, and plays it
+on every click:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-comment">-- client/swing.luau</span>
+<span class="syn-keyword">local</span> tool = script.parent :: Tool
+<span class="syn-keyword">local</span> swing = tool:<span class="syn-func">find</span>(<span class="syn-string">&quot;swing&quot;</span>) :: Animation
+<span class="syn-keyword">local</span> track: AnimationTrack? = <span class="syn-const">nil</span>
+
+tool.activated:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> body = tool.parent :: Character
+    <span class="syn-keyword">local</span> playing = track <span class="syn-keyword">or</span> body.animator:<span class="syn-func">loadAnimation</span>(swing)
+    track = playing
+    playing:<span class="syn-func">play</span>(<span class="syn-num">0.05</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>The <code>track</code> variable keeps the loaded track so the second click reuses it instead of loading the
+animation again, and <code>play(0.05)</code> fades the swing in over five hundredths of a second.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>A track a <code>LocalScript</code> loads is only seen by that client. It answers the click at once, with no
+round trip, and other players see nothing. To show the swing to everyone, load and play it in the
+server script instead. See <a href="animation.html">Animations</a>.</p></div></div>
+<h2 id="a-starter-pack">A starter pack<a class="anchor" href="#a-starter-pack" title="Permanent link">#</a></h2>
+<p>A <code>StarterPack</code> holds the tools every body starts with. When a player gets a new body, every tool in
+every <code>StarterPack</code> in the scene is copied into its backpack, scripts and all. That happens on the
+first spawn and again on each respawn, since a new body starts with an empty backpack.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> pack = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;StarterPack&quot;</span>)
+pack:<span class="syn-func">add</span>(<span class="syn-string">&quot;Tool&quot;</span>, { name = <span class="syn-string">&quot;torch&quot;</span>, item = <span class="syn-string">&quot;minecraft:torch&quot;</span> })
+pack:<span class="syn-func">add</span>(<span class="syn-string">&quot;Tool&quot;</span>, { name = <span class="syn-string">&quot;map&quot;</span>, item = <span class="syn-string">&quot;minecraft:filled_map&quot;</span>, toolTip = <span class="syn-string">&quot;Map&quot;</span> })</code></pre></div></div>
+<p>Put it in a scene in the editor or add it from a script. Only tools directly inside it are copied.
+Adding a tool to a pack later does not reach bodies that already exist, so a tool you want an
+existing player to have goes into their backpack directly.</p>
+<p>A pack is a <a href="containers.html">container</a>: its tools are not in the world, so their Handles are not
+drawn and nobody walks into one to pick it up, and the scripts inside them do not run. They run in
+each copy instead.</p>
+<p>The pack is copied before <code>game.players.spawned</code> fires, so a spawned handler already finds the tools:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>game.players.spawned:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-keyword">local</span> body = player.character :: Character
+    <span class="syn-keyword">local</span> torch = body.backpack:<span class="syn-func">find</span>(<span class="syn-string">&quot;torch&quot;</span>) :: Tool?
+    <span class="syn-keyword">if</span> torch <span class="syn-keyword">then</span> torch.toolTip = player.name .. <span class="syn-string">&quot;&#x27;s torch&quot;</span> <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>That is where you change a copy for one player. The tool in the pack keeps its own <code>toolTip</code>, and the
+next player to spawn gets a fresh copy of it.</p>
+<h2 id="dropping-and-picking-up">Dropping and picking up<a class="anchor" href="#dropping-and-picking-up" title="Permanent link">#</a></h2>
+<p>Pressing the drop key while holding a tool takes it out of the hand:</p>
+<ul>
+<li>With <code>canBeDropped</code> on and a <code>Handle</code>, the tool is put in the world, its Handle 2 metres in front
+  of the body. <code>unequipped</code> fires.</li>
+<li>With <code>canBeDropped</code> off, nothing is dropped and the tool stays in the hand.</li>
+<li>A tool without a <code>Handle</code> is never dropped: the key does nothing.</li>
+</ul>
+<p>A player whose body walks within 2.5 metres of a tool's Handle picks it up into their backpack. That
+counts any tool with a Handle that is not held, not carried and not in a container, so a tool placed
+in a scene is picked up the same way. A dead body picks up nothing, and neither does a body without a
+player.</p>
+<p>A dropped tool waits before it is picked up again: one second for anyone, four seconds for the player
+who dropped it. Without that it would go straight back into the hand it left.</p>
+<p>The hotbar and the inventory stay in step with what the body carries. A tool's item cannot be thrown
+out of the inventory screen, and dropping never leaves a copy behind or takes a tool away twice.</p>
+<p>A dropped Handle that collides falls and lands. One with <code>collides = false</code> stays in the air where it
+was left.</p>
+<div class="demo" data-demo="tools-pickup"></div>
+<p>To drop a tool from a script, move it into the world and place its Handle:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">drop</span>(body: Character, tool: Tool)
+    body.humanoid:<span class="syn-func">unequipTools</span>()
+    tool.parent = game.world
+    <span class="syn-keyword">local</span> handle = tool:<span class="syn-func">find</span>(<span class="syn-string">&quot;Handle&quot;</span>) :: Part
+    handle.position = body.position + body:<span class="syn-func">lookDirection</span>() * <span class="syn-num">4</span> + <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<div class="alert alert-warning"><i class="alert-icon ph-fill ph-warning"></i><div class="alert-body"><p>A tool put down this way has no waiting time, so place its Handle out of the body's 2.5 metres or
+it is picked straight back up. The four metres in front used above clears that.</p></div></div>
+<h2 id="equipping-from-a-script">Equipping from a script<a class="anchor" href="#equipping-from-a-script" title="Permanent link">#</a></h2>
+<p><code>humanoid:equipTool(tool)</code> and <code>humanoid:unequipTools()</code> run in server scripts. A <code>LocalScript</code>
+calling either gets an error.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">-- server</span>
+game.players.spawned:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-keyword">local</span> body = player.character :: Character
+    <span class="syn-keyword">local</span> sword = body.backpack:<span class="syn-func">find</span>(<span class="syn-string">&quot;sword&quot;</span>) :: Tool?
+    <span class="syn-keyword">if</span> sword <span class="syn-keyword">then</span> body.humanoid:<span class="syn-func">equipTool</span>(sword) <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>equipTool</code> puts away whatever the body holds, then holds the tool. It fires <code>unequipped</code> on the old
+  one and <code>equipped</code> on the new one.</li>
+<li>The tool can be anywhere: in the backpack, in the world, in another body's backpack. It is moved
+  into the body.</li>
+<li>A tool with <code>requiresHandle</code> and no Handle is not equipped, and nothing fires.</li>
+<li><code>unequipTools</code> moves the held tool back to the backpack. It does nothing when nothing is held.</li>
+<li>Each fires its events once, however the hotbar looked when it was called.</li>
+<li>On a player's body, <code>equipTool</code> moves the hotbar selection to the tool's slot. <code>unequipTools</code>
+  leaves the selection where it is and the body empty-handed, even when all nine slots are full; the
+  player equips again by picking another slot.</li>
+</ul>
+<p>Giving a tool is putting one in a backpack:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> sword = pack:<span class="syn-func">find</span>(<span class="syn-string">&quot;sword&quot;</span>) :: Tool
+sword:<span class="syn-func">clone</span>(body.backpack)</code></pre></div></div>
+<p><code>clone</code> copies the tool and everything inside it, so the new backpack gets its own Handle and its own
+scripts. The tool in the pack is untouched.</p>
+<p>A body without a player holds tools too. It has no hotbar and no clicks, so a script equips the tool
+and calls <code>tool:activate()</code> for it.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> guard = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Character&quot;</span>, { name = <span class="syn-string">&quot;guard&quot;</span>, cframe = <span class="syn-func">cframe</span>(<span class="syn-num">4</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>) })
+<span class="syn-keyword">local</span> spear = guard.backpack:<span class="syn-func">add</span>(<span class="syn-string">&quot;Tool&quot;</span>, { name = <span class="syn-string">&quot;spear&quot;</span> })
+spear:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;Handle&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.1</span>, <span class="syn-num">2</span>, <span class="syn-num">0.1</span>) })
+guard.humanoid:<span class="syn-func">equipTool</span>(spear)
+
+task.<span class="syn-func">every</span>(<span class="syn-num">2</span>, <span class="syn-keyword">function</span>()
+    spear:<span class="syn-func">activate</span>()
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Every two seconds the guard's spear fires <code>activated</code>, and any script inside the tool runs the same
+code it would run for a player's click.</p>
+<h2 id="while-editing">While editing<a class="anchor" href="#while-editing" title="Permanent link">#</a></h2>
+<p>Tools do nothing while you edit a scene: the hotbar is not updated, clicks do not activate, Handles
+are not held and nothing is picked up. It all starts when the place plays.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="players.html"><span>Previous</span>Players and bodies</a><a class="next" href="movement.html"><span>Next</span>Movement, collision and input</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#carried-and-held">Carried and held</a></li><li><a href="#a-tools-properties">A tool's properties</a></li><li><a href="#the-hotbar">The hotbar</a></li><li><a href="#the-handle">The Handle</a></li><li><a href="#clicking">Clicking</a></li><li><a href="#a-sword">A sword</a></li><li><a href="#a-starter-pack">A starter pack</a></li><li><a href="#dropping-and-picking-up">Dropping and picking up</a></li><li><a href="#equipping-from-a-script">Equipping from a script</a></li><li><a href="#while-editing">While editing</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

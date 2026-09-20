@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Characters | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html" class="active"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="characters">Characters<a class="anchor" href="#characters" title="Permanent link">#</a></h1>
+<p>A <code>Character</code> is a body in the world: a rig of boxes held together by joints, with health, a pose, a
+skin and somewhere to keep its tools. Every player gets one when they spawn, and a place creates as
+many of its own as it likes. A body a player drives and a body a place made are the same class and
+obey the same rules.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> statue = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Character&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">6</span>, <span class="syn-num">64.5</span>, <span class="syn-num">0</span>), scale = <span class="syn-num">2</span> })</code></pre></div></div>
+<p><code>cframe</code> puts the body where you want it, and <code>scale</code> builds the rig at twice its usual size. From
+that line on the body stands there with nobody driving it, and every property below works on it.</p>
+<h2 id="what-a-body-is-made-of">What a body is made of<a class="anchor" href="#what-a-body-is-made-of" title="Permanent link">#</a></h2>
+<p>A character builds its own rig the moment it exists, so you never add the head, the joints or the
+backpack yourself:</p>
+<div class="doc-code"><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code>character
+  head  torso  leftArm  rightArm  leftLeg  rightLeg    each with an `overlay` child
+  root                                                  the frame the whole body hangs from
+  hitbox                                                the volume it really collides with
+  humanoid                                              health, state, how it moves
+  animator                                              the tracks it is playing
+  backpack                                              the tools it carries
+  appearance                                            the sheet, and what you see of your own
+  armour   wings                                        what it is wearing
+  joints
+    root  head  torso  leftArm  rightArm  leftLeg  rightLeg</code></pre></div></div>
+<p>Four of those are separate classes on purpose. The <code>Character</code> is the shape, the <code>Humanoid</code> decides
+how it moves, the <code>Appearance</code> decides what it is drawn in, and the <code>Animator</code> decides what it is
+posed as. One class holding all of it was on its way to existing: <code>Character</code> reached sixty-five
+properties and the engine refused to build it.</p>
+<p>The geometry is the game's own, converted once: the pivots, the boxes hung off them, and how far
+each shell stands proud of the box under it. An arm turns two pixels below its own top, the legs
+pivot at ±1.9, and a box sits off-centre from its pivot. Those numbers are exact, down to the pixel.</p>
+<h2 id="posing-joints-not-limbs">Posing: joints, not limbs<a class="anchor" href="#posing-joints-not-limbs" title="Permanent link">#</a></h2>
+<p>A limb's <code>cframe</code> is engine output. The engine composes it every tick from where the rig says the
+joint stands and the turn your script wrote at that joint. Writing the limb writes the output, and
+the next tick overwrites it.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- wrong: writing the output</span>
+character.rightArm.cframe = cframe.<span class="syn-func">angles</span>(math.pi, <span class="syn-num">0</span>, <span class="syn-num">0</span>)
+
+<span class="syn-comment">-- right: the turn at the joint</span>
+character.joints.rightArm.transform = cframe.<span class="syn-func">angles</span>(math.pi, <span class="syn-num">0</span>, <span class="syn-num">0</span>)</code></pre></div></div>
+<p>To pose a body, write <code>transform</code> on the joint that holds the limb you want to move. A <code>Joint</code> holds
+one thing onto another:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>part0</code></td>
+<td>what it hangs off</td>
+</tr>
+<tr>
+<td><code>part1</code></td>
+<td>what hangs off it</td>
+</tr>
+<tr>
+<td><code>c0</code></td>
+<td>where the joint sits on <code>part0</code>: the engine's, and it moves when the body is rescaled</td>
+</tr>
+<tr>
+<td><code>c1</code></td>
+<td>where it sits on <code>part1</code>, usually nothing</td>
+</tr>
+<tr>
+<td><code>transform</code></td>
+<td>the turn at the joint. <strong>this is the one a place writes</strong></td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td>how big the limb it holds is drawn, over the body's own scale</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>joints.root</code> is the body's own joint. Its <code>transform</code> tilts the whole body, which is how a body
+lies down without any limb knowing it did.</p>
+<p><code>scale</code> on a joint grows the limb <strong>away from its joint</strong> rather than about the middle of its box,
+so a head at <code>vec3(2, 2, 2)</code> is still joined at the neck:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>character.joints.head.scale = <span class="syn-func">vec3</span>(<span class="syn-num">2.2</span>, <span class="syn-num">2.2</span>, <span class="syn-num">2.2</span>)</code></pre></div></div>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>The engine never writes a property you can write, and you never write one it composes. If a pose
+you set disappears on the next tick, you wrote a limb where you meant to write its joint.</p></div></div>
+<div class="demo" data-demo="character-joints"></div>
+<h2 id="adding-a-limb">Adding a limb<a class="anchor" href="#adding-a-limb" title="Permanent link">#</a></h2>
+<p>A body is six boxes because the model is six boxes. The engine holds as many as you hang on it. Put
+a seventh on a joint of your own and it is composed like the rest. It is not animated, because there
+is no walk cycle for a tail.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-keyword">local</span> tail = character:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;tail&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.2</span>, <span class="syn-num">0.2</span>, <span class="syn-num">0.8</span>), collides = <span class="syn-const">false</span> })
+character.joints:<span class="syn-func">add</span>(<span class="syn-string">&quot;Joint&quot;</span>, { name = <span class="syn-string">&quot;tail&quot;</span>, part0 = character, part1 = tail,
+                                c0 = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.2</span>) })</code></pre></div></div>
+<ul>
+<li><code>collides = false</code> keeps the tail out of the physics, so it does not push the body around or catch
+  on walls while it swings.</li>
+<li><code>c0</code> is where the joint sits on <code>part0</code>, so this one hangs the tail off the body 0.8 m up and
+  0.2 m forward.</li>
+<li>The tail's <code>cframe</code> is now engine output like every other limb's. Turn it by writing <code>transform</code>
+  on <code>character.joints.tail</code>.</li>
+</ul>
+<p>A <code>Part</code> hung on a joint is drawn flat in its own colour. To have the new box cut out of a skin
+sheet instead, add a <code>Limb</code>. See <a href="#limbs-and-adding-one">Limbs, and adding one</a> below.</p>
+<h2 id="who-owns-the-limbs">Who owns the limbs<a class="anchor" href="#who-owns-the-limbs" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>character.animate = <span class="syn-const">false</span></code></pre></div></div>
+<p>With <code>animate</code> on, the engine poses the body every tick from the animation state below. With it off
+the engine stops writing the joints entirely and your place has the rig to itself.</p>
+<p>You do not have to choose all or nothing. The state below is a set of plain properties, so you can
+set where a body looks or whether it crouches without taking a single limb away from the engine.</p>
+<p>Animation tracks are laid over either one. With <code>animate</code> off they are the only thing moving the
+joints. See <a href="animation.html">Animations</a>.</p>
+<h2 id="the-animation-state">The animation state<a class="anchor" href="#the-animation-state" title="Permanent link">#</a></h2>
+<p>Everything the body is doing, all writable:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lookPitch</code> <code>lookYaw</code></td>
+<td>where the head looks, relative to the body</td>
+</tr>
+<tr>
+<td><code>moveDistance</code> <code>moveSpeed</code></td>
+<td>how far it has walked and how fast: <strong>distance, not time</strong></td>
+</tr>
+<tr>
+<td><code>speedValue</code></td>
+<td>what the limb swing is divided by: a longer stride swings <em>less</em></td>
+</tr>
+<tr>
+<td><code>crouching</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>attackTime</code> <code>attackLeft</code></td>
+<td>the swing, zero to one, and which arm it belongs to</td>
+</tr>
+<tr>
+<td><code>rightArmPose</code> <code>leftArmPose</code></td>
+<td><code>empty</code> <code>item</code> <code>block</code> <code>bow</code> <code>trident</code> <code>crossbowCharge</code> <code>crossbowHold</code> <code>spyglass</code> <code>horn</code> <code>brush</code></td>
+</tr>
+<tr>
+<td><code>usingItem</code> <code>useLeftHand</code> <code>mainLeft</code></td>
+<td>which arm is posed first, and whether the other gets its own pose</td>
+</tr>
+<tr>
+<td><code>chargeProgress</code></td>
+<td>how far through winding a crossbow</td>
+</tr>
+<tr>
+<td><code>swimAmount</code> <code>inWater</code> <code>crawling</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>riding</code></td>
+<td>folds the legs; a player's body sets it while riding or while its humanoid sits</td>
+</tr>
+<tr>
+<td><code>flying</code> <code>flyingTime</code> <code>flyingYaw</code></td>
+<td>under an elytra: the tilt and the bank</td>
+</tr>
+<tr>
+<td><code>sleeping</code> <code>bedYaw</code></td>
+<td>lies the body along the bed</td>
+</tr>
+<tr>
+<td><code>deathTime</code></td>
+<td>twenty ticks from upright to flat</td>
+</tr>
+<tr>
+<td><code>spinning</code> <code>frozen</code> <code>upsideDown</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>hurt</code> <code>whiteFlash</code></td>
+<td>washes the body red, or white</td>
+</tr>
+</tbody>
+</table></div>
+<p>The walk runs on <strong>distance walked</strong>, not on time, so a body animates the same however long the
+frame took. To walk a body the engine does not drive, feed it ground:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>game.stepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(dt)
+    clock += dt
+    mannequin.moveDistance = clock * <span class="syn-num">8</span>
+    mannequin.moveSpeed = <span class="syn-num">1</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>moveDistance</code> is the total distance the body has covered. Add to it every tick and the legs swing.
+  Stop adding to it and the legs stop where they are.</li>
+<li><code>moveSpeed</code> tells the walk how fast that ground is going by, which is what decides how far each
+  swing goes.</li>
+</ul>
+<div class="demo" data-demo="character-walk"></div>
+<h2 id="what-a-body-is-drawn-in">What a body is drawn in<a class="anchor" href="#what-a-body-is-drawn-in" title="Permanent link">#</a></h2>
+<p>A body is <strong>never</strong> drawn as flat boxes. The engine takes the first sheet it finds, in this order:
+what the place asked for, then the skin of the player who drives the body, then the game's own.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>statue.appearance.skin = <span class="syn-string">&quot;minecraft:textures/entity/player/wide/alex.png&quot;</span>
+statue.appearance.slim = <span class="syn-const">true</span></code></pre></div></div>
+<p>The skin lives on the <code>appearance</code>, not on the body, because the sheet is a thing a client can see
+and the server cannot. <code>slim</code> is the sheet's business too: the arms are drawn a texel narrower and
+nothing about what the body collides with changes.</p>
+<p>The unwrap is the game's own, read out of how it builds a cube's six quads rather than guessed at.
+Each face gets the rect the skin format puts it in, the right way round.</p>
+<p>Per-limb tint <strong>multiplies</strong> the texture rather than replacing it, so a grey statue is a grey skin
+rather than a grey box:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-keyword">for</span> _, limb <span class="syn-keyword">in</span> <span class="syn-func">ipairs</span>({ <span class="syn-string">&quot;head&quot;</span>, <span class="syn-string">&quot;torso&quot;</span>, <span class="syn-string">&quot;leftArm&quot;</span>, <span class="syn-string">&quot;rightArm&quot;</span>, <span class="syn-string">&quot;leftLeg&quot;</span>, <span class="syn-string">&quot;rightLeg&quot;</span> }) <span class="syn-keyword">do</span>
+    statue[limb].color = <span class="syn-func">color</span>(<span class="syn-num">0.55</span>, <span class="syn-num">0.55</span>, <span class="syn-num">0.62</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>Transparency is per limb too, and the second layer over each limb is yours to switch off:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>character.head.overlay.visible = <span class="syn-const">false</span>
+character.leftArm.transparency = <span class="syn-num">0.5</span></code></pre></div></div>
+<h2 id="shape-and-display">Shape and display<a class="anchor" href="#shape-and-display" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>character.scale = <span class="syn-num">2</span>                     <span class="syn-comment">-- rebuilds the rig rather than stretching what is drawn</span>
+character.radius = <span class="syn-num">0.4</span>                  <span class="syn-comment">-- the capsule it collides with, which scale does not follow</span>
+character.height = <span class="syn-num">2.4</span>
+character.appearance.display = <span class="syn-string">&quot;hitbox&quot;</span> <span class="syn-comment">-- &quot;model&quot;, &quot;hitbox&quot; or &quot;hidden&quot;</span></code></pre></div></div>
+<ul>
+<li><strong><code>scale</code></strong> rebuilds the rig at a new size, so the joints move with it and the body keeps its
+  proportions. Leave it alone and the body is the size the game's model is.</li>
+<li><strong><code>radius</code></strong> and <strong><code>height</code></strong> are the capsule the body collides with. <code>scale</code> does not follow them,
+  which is deliberate: a place that wants a bigger character says so on both, on purpose.</li>
+<li><strong><code>display</code></strong> is a render policy. It is read where the body is drawn rather than written into the
+  limbs, so it does not forget which limbs you hid, and it says nothing about what a ray can reach.
+  A body drawn as its collision volume is still a body standing there.</li>
+</ul>
+<p>The <code>hitbox</code> child is engine output, like every limb is. The engine writes it from <code>radius</code> and
+<code>height</code>, and writing it back does nothing. It is also a box where the collision is a capsule, so in
+<code>hitbox</code> mode you are looking at the capsule's bounds rather than the capsule.</p>
+<h2 id="what-you-see-of-your-own-body">What you see of your own body<a class="anchor" href="#what-you-see-of-your-own-body" title="Permanent link">#</a></h2>
+<p>The game has one answer to what a player sees of themselves, and it is a hand. The body picks what
+its player sees, so a place with a person and a spider in it does not have to pick one answer for
+both.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>body.appearance.firstPerson = <span class="syn-string">&quot;arm&quot;</span>   <span class="syn-comment">-- the game&#x27;s own arm, in the player&#x27;s skin (the default)</span>
+body.appearance.firstPerson = <span class="syn-string">&quot;hand&quot;</span>  <span class="syn-comment">-- the same as &quot;arm&quot;</span>
+body.appearance.firstPerson = <span class="syn-string">&quot;body&quot;</span>  <span class="syn-comment">-- all of it, from inside its own head</span>
+body.appearance.firstPerson = <span class="syn-string">&quot;none&quot;</span>  <span class="syn-comment">-- nothing</span></code></pre></div></div>
+<ul>
+<li><code>"arm"</code> and <code>"hand"</code> both draw the game's own first person arm, with its animations and what the
+  player really holds, in the player's own skin.</li>
+<li><code>"none"</code> hides the arm, unless the place turns the <code>hand</code> switch on in <code>[features]</code>. With that
+  switch on the arm always shows, for <code>"none"</code> too. See <a href="place.html">the place file</a>.</li>
+<li><code>"body"</code> hides the arm even with the switch on, because the body is drawn instead.</li>
+<li>A player with no body sees no arm, unless the <code>hand</code> switch is on.</li>
+</ul>
+<div class="demo" data-demo="character-firstperson"></div>
+<p><code>"body"</code> is the one the game has never had: look down and you are standing there. It needs nothing
+special of the renderer. The camera sits in the head, and a box seen from the inside shows nothing
+because its faces point away.</p>
+<h2 id="limbs-and-adding-one">Limbs, and adding one<a class="anchor" href="#limbs-and-adding-one" title="Permanent link">#</a></h2>
+<p>Every box a body is drawn from is a <code>Limb</code>: the six, the second layer over each, the cape, the
+wings, each plate of armour, a worn head, the ears. A <code>Limb</code> carries its own cut out of a sheet:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>u</code>, <code>v</code></td>
+<td>where on the sheet the box is cut from, in texels</td>
+</tr>
+<tr>
+<td><code>texels</code></td>
+<td>how big the box is <em>on the sheet</em>, not how big it is drawn</td>
+</tr>
+<tr>
+<td><code>sheetWidth</code>, <code>sheetHeight</code></td>
+<td>how big that sheet is (a skin is 64×64, an elytra 64×32)</td>
+</tr>
+<tr>
+<td><code>sheet</code></td>
+<td>which sheet, or empty for the body's own</td>
+</tr>
+<tr>
+<td><code>mirrored</code></td>
+<td>the same rect read the other way round in x</td>
+</tr>
+<tr>
+<td><code>cutout</code></td>
+<td>a blank texel is nothing rather than black</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>texels</code> and <code>size</code> are deliberately separate. The game grows a wing by a texel on every side and
+leaves its rect sized for the box before it grew, so a renderer that derives its rect from the drawn
+size is wrong on every grown box there is.</p>
+<p>A seventh limb is a limb:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-keyword">local</span> tail = body.torso:<span class="syn-func">add</span>(<span class="syn-string">&quot;Limb&quot;</span>, {
+    name = <span class="syn-string">&quot;tail&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">0.125</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0.125</span>),
+    texels = <span class="syn-func">vec3</span>(<span class="syn-num">2</span>, <span class="syn-num">8</span>, <span class="syn-num">2</span>),
+    u = <span class="syn-num">0</span>, v = <span class="syn-num">56</span>,
+    collides = <span class="syn-const">false</span>,
+})
+
+body.joints:<span class="syn-func">add</span>(<span class="syn-string">&quot;Motor&quot;</span>, {
+    name = <span class="syn-string">&quot;tail&quot;</span>, part0 = body.torso, part1 = tail, c0 = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, -<span class="syn-num">0.35</span>, <span class="syn-num">0.15</span>),
+})</code></pre></div></div>
+<ul>
+<li><code>size</code> is how big the tail is in the world, in metres. <code>texels</code> is how big its rect is on the
+  sheet. The two describe different things and you set both.</li>
+<li><code>u = 0, v = 56</code> reads that rect out of the bottom-left of a 64×64 skin.</li>
+<li>The <code>Motor</code> hangs the tail off the torso, so the tail follows the torso's pose.</li>
+</ul>
+<p>It is drawn through the sheet like the rest, and the engine leaves what it did not build alone,
+including the joint holding it.</p>
+<p>A <code>Part</code> that is <em>not</em> a limb (a sword in a hand, a torch on a grip) is drawn flat in its own
+colour. That is where the line falls. It used to be a table of six names, which is why everything
+the table did not name was drawn twice.</p>
+<h2 id="armour">Armour<a class="anchor" href="#armour" title="Permanent link">#</a></h2>
+<p>Four slots, ten boxes. Each plate is the limb it covers again, a little bigger, sharing its middle,
+so it swings and crouches with the limb without being posed.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>body.armour.head = <span class="syn-string">&quot;minecraft:textures/entity/equipment/humanoid/diamond.png&quot;</span>
+body.armour.chest = <span class="syn-string">&quot;minecraft:textures/entity/equipment/humanoid/iron.png&quot;</span>
+body.armour.legs = <span class="syn-string">&quot;minecraft:textures/entity/equipment/humanoid_leggings/iron.png&quot;</span>
+body.armour.feet = <span class="syn-string">&quot;minecraft:textures/entity/equipment/humanoid/gold.png&quot;</span>
+body.armour.hat = <span class="syn-string">&quot;minecraft:textures/entity/skeleton/skeleton.png&quot;</span>  <span class="syn-comment">-- takes the helmet&#x27;s place</span></code></pre></div></div>
+<p>Four different sheets on one body is normal, and each lands in its own batch. The growth per piece
+is the game's: a whole texel on head, chest and boots, half on leggings, and a tenth taken back off
+anything covering a leg. That is exactly what stops each piece coming through the one under it.</p>
+<h2 id="dressing-a-body-in-one-go">Dressing a body in one go<a class="anchor" href="#dressing-a-body-in-one-go" title="Permanent link">#</a></h2>
+<p><code>applyDescription</code> writes a whole look, and what walks around in it, from one table. It runs in a
+server script.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-comment">-- server</span>
+body.humanoid:<span class="syn-func">applyDescription</span>({
+    skin = <span class="syn-string">&quot;res://skins/guard.png&quot;</span>,
+    slim = <span class="syn-const">false</span>,
+    hat = <span class="syn-string">&quot;minecraft:textures/entity/skeleton/skeleton.png&quot;</span>,
+    chest = <span class="syn-string">&quot;minecraft:textures/entity/equipment/humanoid/iron.png&quot;</span>,
+    scale = <span class="syn-num">1.2</span>,
+    walkSpeed = <span class="syn-num">8</span>,
+    jumpPower = <span class="syn-num">9</span>,
+    maxHealth = <span class="syn-num">40</span>,
+    health = <span class="syn-num">40</span>,
+})</code></pre></div></div>
+<p>Each key lands on the instance that owns it:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Key</th>
+<th>Where it lands</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>skin</code>, <code>slim</code>, <code>ears</code></td>
+<td>the body's <code>appearance</code></td>
+</tr>
+<tr>
+<td><code>hat</code>, <code>head</code>, <code>chest</code>, <code>legs</code>, <code>feet</code>, <code>hatLayered</code></td>
+<td>the body's <code>armour</code></td>
+</tr>
+<tr>
+<td><code>walkSpeed</code>, <code>jumpPower</code>, <code>health</code>, <code>maxHealth</code></td>
+<td>the <code>humanoid</code></td>
+</tr>
+<tr>
+<td><code>scale</code>, <code>height</code>, <code>radius</code></td>
+<td>the body itself</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>A key that is not one of these is an error that names it, so a typo is caught rather than ignored.</li>
+<li>It is the same as writing those properties one at a time. Nothing is remembered as a description:
+  changing <code>body.appearance.skin</code> afterwards is not undone by anything.</li>
+<li><code>getAppliedDescription()</code> reads a table back: <code>skin</code>, <code>slim</code>, <code>ears</code>, <code>scale</code>, <code>height</code>, <code>radius</code>,
+  <code>walkSpeed</code>, <code>jumpPower</code> and <code>maxHealth</code>. The armour and the current <code>health</code> are not in it.</li>
+<li><code>health</code> and <code>maxHealth</code> in the same call are both in place before the next tick, so raising both
+  at once works whichever way round the table is read.</li>
+</ul>
+<div class="demo" data-demo="character-description"></div>
+<p>A description is a plain table applied once, not an instance you keep and apply again.</p>
+<h2 id="riding-something-that-moves">Riding something that moves<a class="anchor" href="#riding-something-that-moves" title="Permanent link">#</a></h2>
+<p>A body standing on a part that moves is <strong>hung off that part</strong>. Its <code>parent</code> becomes the part, and
+its <code>cframe</code> becomes a frame stated against the part. Step off and it goes back under the world.</p>
+<p>That reparenting is the whole of being carried. What gets interpolated between ticks is a <strong>local</strong>
+frame, so a body hanging off a turning deck has a frame that is not moving at all, and the arc comes
+out of the deck's own rotation being interpolated as a rotation. A body left at the top of the tree
+is interpolated in a straight line through the world, which for anything carried round is the chord
+of an arc: right at both ends of a tick, wrong in the middle, wrong again twenty times a second.</p>
+<p>The engine only does this for a body a player is bound to, because that is the only one it is told
+about. A character a place made and wants carried is parented by the place:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> deck = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;deck&quot;</span>, ... })
+<span class="syn-keyword">local</span> rider = deck:<span class="syn-func">add</span>(<span class="syn-string">&quot;Character&quot;</span>, { cframe = <span class="syn-func">cframe</span>(-<span class="syn-num">2</span>, <span class="syn-num">0.25</span>, -<span class="syn-num">2</span>) })</code></pre></div></div>
+<p>Because <code>rider</code> is a child of <code>deck</code>, its <code>cframe</code> is stated against the deck, and it rides along
+when the deck moves or turns.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>Positions crossing the API are <strong>world</strong> positions either way (<code>player:spawn</code>, <code>humanoid.walkTo</code>,
+<code>worldCframe</code>) and are converted through whatever the body hangs off. Only <code>cframe</code> is local,
+which is true of every instance.</p></div></div>
+<h2 id="who-writes-what">Who writes what<a class="anchor" href="#who-writes-what" title="Permanent link">#</a></h2>
+<p>Every property has exactly <strong>one</strong> writer. Where the engine has to compute something a place also
+wants hold of, they are two properties rather than one.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th>You write</th>
+<th>The engine writes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A joint</td>
+<td><code>transform</code>, the turn at it</td>
+<td><code>c0</code>, where it stands, which moves when the body grows</td>
+</tr>
+<tr>
+<td>A limb's size</td>
+<td><code>scale</code> on its joint</td>
+<td>the box, derived from both scales</td>
+</tr>
+<tr>
+<td>A limb's look</td>
+<td><code>visible</code>, <code>color</code>, <code>transparency</code></td>
+<td>nothing</td>
+</tr>
+<tr>
+<td>A limb's frame</td>
+<td>nothing</td>
+<td><code>cframe</code>, composed from the joint</td>
+</tr>
+<tr>
+<td>The volume</td>
+<td><code>radius</code>, <code>height</code></td>
+<td>the <code>hitbox</code> part</td>
+</tr>
+</tbody>
+</table></div>
+<p>The engine never writes a property you can write. That is what lets you take a limb away, recolour
+one, or hold a pose of your own without the next tick putting it all back:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>body.leftArm:<span class="syn-func">destroy</span>()               <span class="syn-comment">-- and it stays gone</span>
+body.head.visible = <span class="syn-const">false</span>            <span class="syn-comment">-- and it stays hidden</span>
+body.joints.head.scale = <span class="syn-func">vec3</span>(<span class="syn-num">2</span>,<span class="syn-num">2</span>,<span class="syn-num">2</span>) <span class="syn-comment">-- a big head, still joined at the neck</span></code></pre></div></div>
+<h2 id="movement">Movement<a class="anchor" href="#movement" title="Permanent link">#</a></h2>
+<p>The movement profile is in metres and seconds, and the engine converts to whatever the tick rate is.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code>character.walkSpeed = <span class="syn-num">6</span>
+character.jumpPower = <span class="syn-num">9</span>        <span class="syn-comment">-- the speed you leave the ground at, not a height</span>
+character.gravityScale = <span class="syn-num">1</span>
+character.groundAcceleration = <span class="syn-num">36</span>
+character.airDrag = <span class="syn-num">0.667</span>      <span class="syn-comment">-- the fraction of speed a second of air leaves you with</span>
+character.stepHeight = <span class="syn-num">0.6</span>
+character.slopeLimit = <span class="syn-num">45</span>
+character.coyoteTime = <span class="syn-num">0.15</span></code></pre></div></div>
+<ul>
+<li><strong><code>walkSpeed</code></strong> is metres a second. At 6 the body crosses six metres in a second whatever the tick
+  rate is.</li>
+<li><strong><code>jumpPower</code></strong> is the speed the body leaves the ground at. Raise it and the body goes higher,
+  because how high it gets falls out of that speed and the gravity pulling it back.</li>
+<li><strong><code>gravityScale</code></strong> is this body's own share of the pull. Leave it at 1 and the body falls the way
+  the place falls.</li>
+<li><strong><code>stepHeight</code></strong> is how tall a ledge the body walks up without jumping, and <strong><code>slopeLimit</code></strong> is how
+  steep a slope it walks up at all, in degrees.</li>
+<li><strong><code>coyoteTime</code></strong> is how long after walking off an edge a jump still counts.</li>
+</ul>
+<p>The full profile, the states a body can be in and the events it fires are in
+<a href="movement.html">Movement, collision and input</a>.</p>
+<h2 id="finding-your-own">Finding your own<a class="anchor" href="#finding-your-own" title="Permanent link">#</a></h2>
+<p>On the client only:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> body = game.players:<span class="syn-func">me</span>()   <span class="syn-comment">-- nil until one arrives</span></code></pre></div></div>
+<p>It is a call rather than a field because a respawn and a reload both hand out a new body, and a
+reference held across either points at something destroyed. Call it again where you need it.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="tree.html"><span>Previous</span>Working with the tree</a><a class="next" href="animation.html"><span>Next</span>Animations</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#what-a-body-is-made-of">What a body is made of</a></li><li><a href="#posing-joints-not-limbs">Posing: joints, not limbs</a></li><li><a href="#adding-a-limb">Adding a limb</a></li><li><a href="#who-owns-the-limbs">Who owns the limbs</a></li><li><a href="#the-animation-state">The animation state</a></li><li><a href="#what-a-body-is-drawn-in">What a body is drawn in</a></li><li><a href="#shape-and-display">Shape and display</a></li><li><a href="#what-you-see-of-your-own-body">What you see of your own body</a></li><li><a href="#limbs-and-adding-one">Limbs, and adding one</a></li><li><a href="#armour">Armour</a></li><li><a href="#dressing-a-body-in-one-go">Dressing a body in one go</a></li><li><a href="#riding-something-that-moves">Riding something that moves</a></li><li><a href="#who-writes-what">Who writes what</a></li><li><a href="#movement">Movement</a></li><li><a href="#finding-your-own">Finding your own</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

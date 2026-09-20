@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memory stores | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html" class="active"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Scripting</span></nav>
+    <article class="doc">
+<h1 id="memory-stores">Memory stores<a class="anchor" href="#memory-stores" title="Permanent link">#</a></h1>
+<p><code>memory</code> is a global that keeps small, short lived data in the server's memory: who is waiting for a
+match, the scores of the current event, a lock that should let go on its own. Everything written to it
+has an expiration and goes away when that runs out. Nothing is written to disk.</p>
+<p>Use a <a href="saving.html">store</a> for what has to be there tomorrow. Use <code>memory</code> for what only matters for
+minutes or days, and for what several scripts need to share quickly.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">local</span> waiting = memory:<span class="syn-func">hashMap</span>(<span class="syn-string">&quot;waiting&quot;</span>)
+
+waiting:<span class="syn-func">set</span>(player.name, { joined = <span class="syn-func">clock</span>() }, <span class="syn-num">60</span>)   <span class="syn-comment">-- gone after 60 seconds</span>
+<span class="syn-keyword">local</span> entry = waiting:<span class="syn-func">get</span>(player.name)                <span class="syn-comment">-- nil once it has expired</span></code></pre></div></div>
+<p>There are three kinds:</p>
+<ul>
+<li><code>memory:hashMap(name)</code> is keys and values.</li>
+<li><code>memory:sortedMap(name)</code> is keys and values kept in order, which you read in pages.</li>
+<li><code>memory:queue(name, invisibilityTimeout?)</code> is a line of values that scripts take from.</li>
+</ul>
+<p>A name is 1 to 128 characters. Every server script that asks for the same kind with the same name
+gets the same data. A hash map and a sorted map with the same name are two different things.</p>
+<h2 id="what-they-share">What they share<a class="anchor" href="#what-they-share" title="Permanent link">#</a></h2>
+<ul>
+<li><strong>Server only.</strong> <code>memory</code> works in a server <code>Script</code>. In a <code>LocalScript</code> every call errors with
+  "memory stores are used from a server Script".</li>
+<li><strong>Every write has an expiration.</strong> It is a number of seconds, more than 0 and up to 3,888,000 (45
+  days). There is no default, and leaving it out is an error. Writing a key again starts its
+  expiration over. Expirations count real time, so a paused singleplayer game does not stop them.</li>
+<li><strong>Keys</strong> are strings of 1 to 128 characters.</li>
+<li><strong>Values</strong> are what a <a href="saving.html">store</a> takes: numbers, strings, booleans and tables of them,
+  nested up to 32 deep. A value is at most 32 KB once encoded. <code>nil</code> is an error; remove the key
+  instead. What you read back is a copy, so changing it changes nothing until you write it again.</li>
+<li><strong>How long it lasts.</strong> Everything is cleared when the place stops and when it goes back to editing.
+  A hot reload keeps it, like <a href="saving.html#gamepersist"><code>game.persist</code></a>.</li>
+<li><strong>One server.</strong> The data lives in this server. Nothing is shared with another server.</li>
+</ul>
+<div class="demo" data-demo="memory-expiration"></div>
+<h2 id="hash-maps">Hash maps<a class="anchor" href="#hash-maps" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-keyword">local</span> locks = memory:<span class="syn-func">hashMap</span>(<span class="syn-string">&quot;locks&quot;</span>)
+
+locks:<span class="syn-func">set</span>(<span class="syn-string">&quot;door&quot;</span>, player.name, <span class="syn-num">10</span>)
+<span class="syn-func">print</span>(locks:<span class="syn-func">get</span>(<span class="syn-string">&quot;door&quot;</span>))
+
+<span class="syn-keyword">local</span> count = locks:<span class="syn-func">update</span>(<span class="syn-string">&quot;visits&quot;</span>, <span class="syn-keyword">function</span>(old)
+    <span class="syn-keyword">return</span> (old <span class="syn-keyword">or</span> <span class="syn-num">0</span>) + <span class="syn-num">1</span>
+<span class="syn-keyword">end</span>, <span class="syn-num">3600</span>)
+
+locks:<span class="syn-func">remove</span>(<span class="syn-string">&quot;door&quot;</span>)
+<span class="syn-func">print</span>(locks:<span class="syn-func">list</span>(<span class="syn-num">50</span>))</code></pre></div></div>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Method</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get(key)</code></td>
+<td>the value, or <code>nil</code> when there is none or it has expired</td>
+</tr>
+<tr>
+<td><code>set(key, value, expiration)</code></td>
+<td>writes the value. Returns <code>true</code></td>
+</tr>
+<tr>
+<td><code>update(key, transform, expiration)</code></td>
+<td>calls <code>transform(old)</code> with the value or <code>nil</code>, and writes what it returns. Returns the new value</td>
+</tr>
+<tr>
+<td><code>remove(key)</code></td>
+<td>deletes the key. Removing a key that is not there is fine</td>
+</tr>
+<tr>
+<td><code>list(pageSize?)</code></td>
+<td>the keys, in alphabetical order, up to <code>pageSize</code> of them. 1 to 1000, default 1000</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>If <code>transform</code> returns <code>nil</code>, nothing is written and <code>update</code> returns <code>nil</code>. Use that to leave the
+  value as it is.</li>
+<li><code>list</code> returns only the first page. There is no next page, so a map with more than 1000 keys cannot
+  be listed whole.</li>
+<li>Hash maps have no size call.</li>
+</ul>
+<h2 id="sorted-maps">Sorted maps<a class="anchor" href="#sorted-maps" title="Permanent link">#</a></h2>
+<p>A sorted map keeps each key with a value and an optional sort key, and reads them back in order.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-keyword">local</span> scores = memory:<span class="syn-func">sortedMap</span>(<span class="syn-string">&quot;event&quot;</span>)
+
+scores:<span class="syn-func">set</span>(player.name, { name = player.name }, <span class="syn-num">3600</span>, <span class="syn-num">42</span>)
+<span class="syn-keyword">local</span> value, sortKey = scores:<span class="syn-func">get</span>(player.name)
+
+<span class="syn-keyword">local</span> top = scores:<span class="syn-func">getRange</span>(<span class="syn-string">&quot;descending&quot;</span>, <span class="syn-num">10</span>)
+<span class="syn-keyword">for</span> i, row <span class="syn-keyword">in</span> top <span class="syn-keyword">do</span>
+    <span class="syn-func">print</span>(i, row.key, row.sortKey)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Method</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>get(key)</code></td>
+<td>the value and its sort key, or <code>nil</code></td>
+</tr>
+<tr>
+<td><code>set(key, value, expiration, sortKey?)</code></td>
+<td>writes them. Returns <code>true</code> if the key was new, <code>false</code> if it replaced one</td>
+</tr>
+<tr>
+<td><code>update(key, transform, expiration)</code></td>
+<td>calls <code>transform(value, sortKey)</code>, and writes the value and sort key it returns. Returns them</td>
+</tr>
+<tr>
+<td><code>remove(key)</code></td>
+<td>deletes the key</td>
+</tr>
+<tr>
+<td><code>getRange(direction, count, exclusiveLowerBound?, exclusiveUpperBound?)</code></td>
+<td>up to <code>count</code> rows, <code>"ascending"</code> or <code>"descending"</code>. <code>count</code> is 1 to 200</td>
+</tr>
+<tr>
+<td><code>getSize()</code></td>
+<td>how many keys there are</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>A sort key is a number or a string of up to 128 characters. A number must be finite.</li>
+<li>If <code>transform</code> returns <code>nil</code>, nothing is written and <code>update</code> returns <code>nil</code>. If it returns only a
+  value, the key loses its sort key.</li>
+<li><code>getRange</code> returns a list of <code>{ key = ..., value = ..., sortKey = ... }</code>. <code>sortKey</code> is missing on
+  a row that has none.</li>
+</ul>
+<h3 id="the-order">The order<a class="anchor" href="#the-order" title="Permanent link">#</a></h3>
+<p>Ascending order is:</p>
+<ol>
+<li>keys with a number sort key, smallest first,</li>
+<li>then keys with a string sort key, in alphabetical order,</li>
+<li>then keys with no sort key.</li>
+</ol>
+<p>Keys with the same sort key, or with none, are in alphabetical order of the key. Alphabetical order
+compares characters, so capitals come before small letters. Descending is the same order backwards.</p>
+<h3 id="bounds">Bounds<a class="anchor" href="#bounds" title="Permanent link">#</a></h3>
+<p>A bound is a table <code>{ key = ..., sortKey = ... }</code> with one or both. The rows returned are strictly
+after the lower bound and strictly before the upper bound, in the order above. Use the last row of a
+page as the lower bound of the next page:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-keyword">local</span> page = scores:<span class="syn-func">getRange</span>(<span class="syn-string">&quot;ascending&quot;</span>, <span class="syn-num">100</span>)
+<span class="syn-keyword">local</span> last = page[#page]
+<span class="syn-keyword">local</span> following = scores:<span class="syn-func">getRange</span>(<span class="syn-string">&quot;ascending&quot;</span>, <span class="syn-num">100</span>, { key = last.key, sortKey = last.sortKey })</code></pre></div></div>
+<ul>
+<li>A bound with only a <code>sortKey</code> leaves out every key with that sort key.</li>
+<li>A bound with only a <code>key</code> counts as having no sort key, so it sits among the keys with none. As a
+  lower bound it leaves out every key that has a sort key.</li>
+</ul>
+<div class="demo" data-demo="memory-sorted"></div>
+<h2 id="queues">Queues<a class="anchor" href="#queues" title="Permanent link">#</a></h2>
+<p>A queue hands values out to whichever script reads first. A value read is hidden, not removed. The
+reader removes it once it is done. If the reader never does, the value shows up again after the
+invisibility timeout, so another script can try.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-keyword">local</span> jobs = memory:<span class="syn-func">queue</span>(<span class="syn-string">&quot;jobs&quot;</span>, <span class="syn-num">30</span>)
+
+jobs:<span class="syn-func">addAsync</span>({ map = <span class="syn-string">&quot;desert&quot;</span> }, <span class="syn-num">600</span>)
+jobs:<span class="syn-func">addAsync</span>({ map = <span class="syn-string">&quot;castle&quot;</span> }, <span class="syn-num">600</span>, <span class="syn-num">10</span>)    <span class="syn-comment">-- higher priority, read first</span>
+
+task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">while</span> <span class="syn-const">true</span> <span class="syn-keyword">do</span>
+        <span class="syn-keyword">local</span> values, id = jobs:<span class="syn-func">readAsync</span>(<span class="syn-num">1</span>)
+        <span class="syn-func">startMatch</span>(values[<span class="syn-num">1</span>])
+        jobs:<span class="syn-func">removeAsync</span>(id)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>memory:queue(name, invisibilityTimeout?)</code> takes the seconds a value stays hidden after it is read,
+more than 0 and up to 45 days. The default is 30. The timeout belongs to the object you got, so two
+calls with the same name and different timeouts read the same queue with different timeouts.</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Method</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>addAsync(value, expiration, priority?)</code></td>
+<td>adds the value. <code>priority</code> is a finite number, default 0</td>
+</tr>
+<tr>
+<td><code>readAsync(count, allOrNothing?, waitTimeout?)</code></td>
+<td>reads up to <code>count</code> values, 1 to 100. Returns the values and a read id</td>
+</tr>
+<tr>
+<td><code>removeAsync(id)</code></td>
+<td>removes the values of that read</td>
+</tr>
+<tr>
+<td><code>getSize(excludeInvisible?)</code></td>
+<td>how many values there are. <code>true</code> leaves out the hidden ones</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Higher priority is read first. The same priority is read in the order it was added.</li>
+<li><code>readAsync</code> takes only values that are not hidden. With <code>allOrNothing</code> it takes nothing until
+  <code>count</code> values are there.</li>
+<li>When nothing can be read, <code>readAsync</code> waits. It checks again every tick. <code>waitTimeout</code> is how many
+  seconds it waits; <code>-1</code>, the default, waits until something comes. When it gives up it returns an
+  empty table and <code>nil</code>. <code>0</code> returns at once. It yields, so call it inside <code>task.spawn</code> or a function
+  that may yield.</li>
+<li><code>removeAsync</code> removes only values still hidden by that read. Once a value shows up again, the old
+  id no longer removes it, and a new read gives it a new id.</li>
+</ul>
+<div class="demo" data-demo="memory-queue"></div>
+<h2 id="limits">Limits<a class="anchor" href="#limits" title="Permanent link">#</a></h2>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>What</th>
+<th>Limit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>name</td>
+<td>1 to 128 characters</td>
+</tr>
+<tr>
+<td>key</td>
+<td>1 to 128 characters</td>
+</tr>
+<tr>
+<td>string sort key</td>
+<td>up to 128 characters</td>
+</tr>
+<tr>
+<td>value</td>
+<td>32 KB once encoded</td>
+</tr>
+<tr>
+<td>expiration and invisibility</td>
+<td>more than 0, up to 45 days</td>
+</tr>
+<tr>
+<td><code>list</code> page</td>
+<td>1 to 1000 keys</td>
+</tr>
+<tr>
+<td><code>getRange</code></td>
+<td>1 to 200 rows</td>
+</tr>
+<tr>
+<td><code>readAsync</code></td>
+<td>1 to 100 values</td>
+</tr>
+</tbody>
+</table></div>
+<p>There is no limit on how many keys a map holds or how often you call it. All of it is in the
+server's memory, so keep it small.</p>
+<p>Nothing is throttled and nothing counts against a quota, so calls do not fail for being too many,
+and there is no need to retry them.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="saving.html"><span>Previous</span>Saving</a><a class="next" href="http.html"><span>Next</span>Reaching websites</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#what-they-share">What they share</a></li><li><a href="#hash-maps">Hash maps</a></li><li><a href="#sorted-maps">Sorted maps</a></li><li><a href="#queues">Queues</a></li><li><a href="#limits">Limits</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

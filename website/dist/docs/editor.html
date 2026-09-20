@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building in the editor | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html" class="active"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="building-in-the-editor">Building in the editor<a class="anchor" href="#building-in-the-editor" title="Permanent link">#</a></h1>
+<p>The editor is where you lay out a scene by hand: parts, lights, zones, cameras and the joints between
+them. What you build is saved into the scene's <code>.scene</code> file and loaded like anything a script adds.
+See <a href="place.html#scenes">Places, modules, scenes and scripts</a> for the files, and
+<a href="physics.html">Physics</a> for what each joint does once the place plays.</p>
+<p>This page covers joining parts. Each other editor feature is described on the page of the thing it
+builds.</p>
+<h2 id="joining-parts">Joining parts<a class="anchor" href="#joining-parts" title="Permanent link">#</a></h2>
+<p>The <strong>constraint tool</strong> joins two parts by clicking them. Open it with the hinge button in the
+viewport toolbar, with <kbd>J</kbd> while the viewport has the mouse, or with
+<strong>Edit &gt; Constraint Tool</strong>.</p>
+<p>While the tool is on, a button next to it names the kind of joint it makes. Click it to pick another:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Makes</th>
+<th>What the two clicks mean</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>WeldConstraint</code></td>
+<td>one weld</td>
+<td>the two parts. They stay together as they are</td>
+</tr>
+<tr>
+<td><code>HingeConstraint</code></td>
+<td>two attachments and a hinge</td>
+<td>the second part turns about the first point, on the axis sticking out of the face you clicked</td>
+</tr>
+<tr>
+<td><code>PrismaticConstraint</code></td>
+<td>two attachments and a slider</td>
+<td>the second part slides along the axis sticking out of the first face</td>
+</tr>
+<tr>
+<td><code>BallSocketConstraint</code></td>
+<td>two attachments and a ball socket</td>
+<td>the second part turns any way about the first point</td>
+</tr>
+<tr>
+<td><code>RopeConstraint</code></td>
+<td>two attachments and a rope</td>
+<td>the two points may get no further apart than they are now</td>
+</tr>
+<tr>
+<td><code>SpringConstraint</code></td>
+<td>two attachments and a spring</td>
+<td>the two points are pulled or pushed back to the distance they are at now</td>
+</tr>
+<tr>
+<td><code>RodConstraint</code></td>
+<td>two attachments and a rod</td>
+<td>the two points stay exactly as far apart as they are now</td>
+</tr>
+</tbody>
+</table></div>
+<p>Picking another kind drops a first click you had made.</p>
+<h3 id="the-two-clicks">The two clicks<a class="anchor" href="#the-two-clicks" title="Permanent link">#</a></h3>
+<ol>
+<li>Click the first part. For a weld the part is all that counts. For every other kind, where you click
+   on it is the first point.</li>
+<li>Click the second part. The joint is made, and the tool is ready for the next pair.</li>
+</ol>
+<p>A line follows the mouse from the first point, and the text by the cursor says what the next click
+does. The part under the mouse is highlighted, and so is the point you would click, with a short line
+out of the face it is on.</p>
+<ul>
+<li>Clicking the first part again does nothing. The point turns red and the text asks for a different
+  part.</li>
+<li><kbd>Escape</kbd> drops the first click. Pressed again, with nothing clicked, it leaves the tool for
+  Move.</li>
+<li>Clicking in the constraint tool does not change the selection. A click with <kbd>Alt</kbd> held, or
+  while you are turning the camera, is ignored.</li>
+<li>Locked parts cannot be clicked, and neither can parts a script made, since they are not part of the
+  scene.</li>
+<li>Nothing stops you joining an anchored part. As in a script, the joint pins that end to the world,
+  and a joint between two anchored parts does nothing while the place plays. See
+  <a href="physics.html#constraints">the rules every constraint follows</a>.</li>
+</ul>
+<h3 id="where-the-points-go">Where the points go<a class="anchor" href="#where-the-points-go" title="Permanent link">#</a></h3>
+<p>Each click puts an <code>Attachment</code> inside the part you clicked, where you clicked on its surface. The
+constraint goes inside the first part, next to its attachment. The attachments are named
+<code>Attachment</code>, <code>Attachment2</code> and so on, and the constraint after its class, so nothing already in the
+part is renamed or replaced.</p>
+<p>An attachment's X axis, its <code>rightVector</code>, points straight out of the face you clicked. Its Y axis
+follows the part's own up, or the part's back when you clicked the top or bottom face. The editor
+draws the X axis long and the Y axis short and faint.</p>
+<div class="demo" data-demo="editor-attachment"></div>
+<p>How the second point is turned depends on the kind:</p>
+<ul>
+<li><strong>Hinge, slider and ball socket.</strong> The second attachment takes the first one's rotation, so both
+  share the axis. Its position is where you clicked the second part. When the place plays, the joint
+  pulls that point onto the first one, so click the second part where the two should meet.</li>
+<li><strong>Rope, spring and rod.</strong> Each attachment faces out of its own face. The length is the distance
+  between the two points when you clicked: <code>length</code> for a rope and a rod, <code>freeLength</code> for a spring.
+  A rope is made just taut, a rod keeps that exact gap, and a spring rests at it.</li>
+</ul>
+<p>With the <strong>Snap</strong> button on, the point jumps to the grid step across the face you are on, and stays
+inside it. Holding <kbd>Ctrl</kbd> turns snapping the other way, as it does when you move a part. A
+slanted or curved face is not snapped. When the mouse is over a part that casts do not hit, the point is the
+middle of the part, with its X axis toward the camera.</p>
+<p>A new constraint is selected, so the Properties panel shows it at once. Set a hinge's motor or a
+rope's <code>thickness</code> there. Every property is described in <a href="physics.html#constraints">Physics</a>.</p>
+<h3 id="welding-the-selection">Welding the selection<a class="anchor" href="#welding-the-selection" title="Permanent link">#</a></h3>
+<p><strong>Ctrl+W</strong>, or <strong>Edit &gt; Weld Selected</strong>, welds the selected parts together without the tool:</p>
+<ul>
+<li>The part selected first is the one the others are welded to. Each other part gets one
+  <code>WeldConstraint</code>, inside the first part.</li>
+<li>A pair that already has a weld between them is skipped. With every pair welded, nothing is made and
+  the editor says so.</li>
+<li>Only parts count. A model or a folder in the selection is not looked into, and fewer than two parts
+  is refused.</li>
+<li>Locked parts are welded too; locking only stops clicks in the viewport.</li>
+<li>The selection stays as it was.</li>
+</ul>
+<p>To weld one part to several, click it first and add the rest with <kbd>Ctrl</kbd> or <kbd>Shift</kbd> click. A box
+selection picks up parts in no order you control.</p>
+<div class="demo" data-demo="editor-weld"></div>
+<h3 id="undo">Undo<a class="anchor" href="#undo" title="Permanent link">#</a></h3>
+<p>Each joint is one step in the history, labelled with what it made: <strong>Add HingeConstraint</strong>, <strong>Weld</strong>,
+<strong>Weld 3</strong>. Undo removes the constraint and both its attachments together. Redo puts all three back
+and points the constraint at the attachments again.</p>
+<h3 id="seeing-constraints">Seeing constraints<a class="anchor" href="#seeing-constraints" title="Permanent link">#</a></h3>
+<p>Joints are drawn in pink over the viewport:</p>
+<ul>
+<li>a weld as a line between the middles of its two parts, with a circle at each end,</li>
+<li>any other constraint as a line between its two attachments, with a circle at each end, and hinges
+  and sliders with their axis through attachment0,</li>
+<li>every attachment inside a part as its two axes.</li>
+</ul>
+<p>A selected joint or attachment is drawn brighter.</p>
+<p><strong>Helpers</strong> (<kbd>H</kbd>) shows these along with zones, lights, sounds, cameras and spawns. The
+<strong>Constraints</strong> toggle beside it shows only the joints and attachments, for when the other helpers are
+in the way. They always show while the constraint tool is on. Neither toggle is kept when you close
+the editor.</p>
+<p>This drawing is for editing. To see a rope, spring or rod while the place plays, turn on its
+<code>visible</code>; see <a href="physics.html#constraints">Physics</a>.</p>
+<h3 id="the-same-joints-from-a-script">The same joints from a script<a class="anchor" href="#the-same-joints-from-a-script" title="Permanent link">#</a></h3>
+<p>The tool writes nothing a script cannot. These make the same kinds of joint:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26</pre><pre><code><span class="syn-comment">--!strict</span>
+<span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> world = game.world
+<span class="syn-keyword">local</span> cart = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;cart&quot;</span>) :: Part
+<span class="syn-keyword">local</span> wheel = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;wheel&quot;</span>) :: Part
+<span class="syn-keyword">local</span> seat = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;seat&quot;</span>) :: Part
+<span class="syn-keyword">local</span> beam = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;beam&quot;</span>) :: Part
+<span class="syn-keyword">local</span> lamp = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;lamp&quot;</span>) :: Part
+
+<span class="syn-comment">-- Weld, or Ctrl+W: one weld inside the first part</span>
+cart:<span class="syn-func">add</span>(<span class="syn-string">&quot;WeldConstraint&quot;</span>, { part0 = cart, part1 = seat })
+
+<span class="syn-comment">-- Hinge: the cart&#x27;s right face points along +X, so the point needs no turn,</span>
+<span class="syn-comment">-- and the wheel&#x27;s point takes the same rotation at the same spot</span>
+<span class="syn-keyword">local</span> a0 = cart:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">1</span>, -<span class="syn-num">0.2</span>, <span class="syn-num">1.1</span>) }) :: Attachment
+<span class="syn-keyword">local</span> a1 = wheel:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = wheel.worldCframe:<span class="syn-func">inverse</span>() * a0.worldCframe }) :: Attachment
+cart:<span class="syn-func">add</span>(<span class="syn-string">&quot;HingeConstraint&quot;</span>, { attachment0 = a0, attachment1 = a1 })
+
+<span class="syn-comment">-- Rope: each point faces out of its own face, and the length is the gap between them</span>
+<span class="syn-keyword">local</span> under = beam:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, -<span class="syn-num">0.25</span>, <span class="syn-num">0</span>) * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, -math.pi / <span class="syn-num">2</span>) }) :: Attachment
+<span class="syn-keyword">local</span> over = lamp:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">0.25</span>, <span class="syn-num">0</span>) * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, math.pi / <span class="syn-num">2</span>) }) :: Attachment
+beam:<span class="syn-func">add</span>(<span class="syn-string">&quot;RopeConstraint&quot;</span>, {
+    attachment0 = under,
+    attachment1 = over,
+    length = under.worldCframe.position:<span class="syn-func">distance</span>(over.worldCframe.position),
+})</code></pre></div></div>
+<ul>
+<li><code>wheel.worldCframe:inverse() * a0.worldCframe</code> is the first point's place and rotation seen from
+  the wheel, which is what the tool gives a hinge's second point when both clicks land on the same
+  spot.</li>
+<li>The two rope points are turned a quarter turn about Z, one down out of the beam's bottom and one up
+  out of the lamp's top.</li>
+</ul>
+<p>See <a href="physics.html#welds">Welds</a> and <a href="physics.html#constraints">Constraints</a> for every property these
+take.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="movement.html"><span>Previous</span>Movement, collision and input</a><a class="next" href="plugins.html"><span>Next</span>Editor plugins</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

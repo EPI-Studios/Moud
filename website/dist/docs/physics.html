@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Physics | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html" class="active"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="physics">Physics<a class="anchor" href="#physics" title="Permanent link">#</a></h1>
+<p>A part with <code>anchored = false</code> is a real body. While the place plays, it falls, lands, tumbles over
+edges, bounces and knocks into other parts. Its <code>cframe</code> is written by the simulation and replicates
+like any other property, so every player watches the part land in the same spot. The server
+simulates it, or the client of a player standing next to it; see
+<a href="#who-simulates-a-part">Who simulates a part</a>.</p>
+<p>Nothing moves while you edit a scene. Parts start falling when the place plays.</p>
+<p>You make a falling part by setting <code>anchored = false</code> when you create it, or by writing the property
+later:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> crate = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;crate&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">70</span>, <span class="syn-num">0</span>) * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0.4</span>, <span class="syn-num">0</span>, <span class="syn-num">0.3</span>),
+    color = <span class="syn-func">color</span>(<span class="syn-num">0.6</span>, <span class="syn-num">0.4</span>, <span class="syn-num">0.2</span>),
+    anchored = <span class="syn-const">false</span>,
+})</code></pre></div></div>
+<p>Four rules decide which parts the simulation touches and how you may move them:</p>
+<ul>
+<li>A part that does not collide has no body. It stays where it is, even unanchored.</li>
+<li>Each unanchored part is its own body. An unanchored part inside another part does not ride along
+  with it; join them with a <a href="#welds">weld</a>.</li>
+<li>Writing <code>cframe</code> or <code>position</code> on an unanchored part teleports it.</li>
+<li>Parts inside a viewport frame are never simulated.</li>
+</ul>
+<h2 id="shapes">Shapes<a class="anchor" href="#shapes" title="Permanent link">#</a></h2>
+<p><code>shape</code> says what a part is. It starts a <code>"block"</code>, which is the box everything used to be. You
+change it when a part has to roll, slope or round off, and leaving it alone gives you the box that
+<code>size</code> describes.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th><code>shape</code></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"block"</code></td>
+<td>the whole box, as <code>size</code> gives it</td>
+</tr>
+<tr>
+<td><code>"ball"</code></td>
+<td>a sphere as wide as the part's smallest side</td>
+</tr>
+<tr>
+<td><code>"cylinder"</code></td>
+<td>lies along the part's X axis, as round as the smaller of Y and Z</td>
+</tr>
+<tr>
+<td><code>"wedge"</code></td>
+<td>tall at the back, sloping down to the bottom front edge</td>
+</tr>
+<tr>
+<td><code>"cornerWedge"</code></td>
+<td>peaks at the top front right corner and falls away from it</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> ramp = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;ramp&quot;</span>,
+    shape = <span class="syn-string">&quot;wedge&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">4</span>, <span class="syn-num">2</span>, <span class="syn-num">6</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, -<span class="syn-num">8</span>),
+    anchored = <span class="syn-const">true</span>,
+})</code></pre></div></div>
+<p>A wedge's tall face is its back, <code>+Z</code>, and the slope runs down to the front, <code>-Z</code>, so a body walks up
+it from in front. Turn the part to aim the ramp. A corner wedge is the same slope cut in two, with
+its high corner at <code>+X, +Y, -Z</code>.</p>
+<p>A ball and a cylinder are drawn as wide as the sides they are round across, and the rest of <code>size</code> is
+left empty: a ball in a part sized <code>vec3(4, 1, 1)</code> is a one metre ball with three metres of nothing
+around it.</p>
+<div class="demo" data-demo="physics-shapes"></div>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>Give round parts even sizes. A ball in a part sized <code>vec3(1, 1, 1)</code> fills the part, so the box you
+drag in the editor is the ball you get in the game.</p></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">-- a ball that rolls down the ramp</span>
+<span class="syn-keyword">local</span> ball = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    shape = <span class="syn-string">&quot;ball&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">70</span>, -<span class="syn-num">10</span>),
+    anchored = <span class="syn-const">false</span>,
+    elasticity = <span class="syn-num">0.4</span>,
+    friction = <span class="syn-num">0.8</span>,
+})</code></pre></div></div>
+<p>The shape is the real thing for rays, overlaps, nearest points, touches and collision, and for
+drawing in the world, in a viewport, under a highlight and in the editor's selection. A ray meets a
+ball where the ball is round and passes through the corners it does not fill, and a box beside the
+empty half of a wedge does not touch it.</p>
+<p>Where it is not exact:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a falling ball</td>
+<td>a real sphere to the simulation, so it rolls</td>
+</tr>
+<tr>
+<td>a falling cylinder or wedge</td>
+<td>a hull through its points, and a cylinder has 16 sides</td>
+</tr>
+<tr>
+<td>an anchored shaped part</td>
+<td>triangles, 8 sides and 4 rings of them, and they carry no collision group</td>
+</tr>
+<tr>
+<td>standing on a shaped part while it moves</td>
+<td>a stack of 8 boxes under your feet</td>
+</tr>
+<tr>
+<td><code>blockcast</code></td>
+<td>the box around the shape</td>
+</tr>
+<tr>
+<td>a ball or a cylinder drawn</td>
+<td>flat faces, so the shading is faceted</td>
+</tr>
+</tbody>
+</table></div>
+<p>In the Explorer, <strong>Insert &gt; Shapes</strong> adds a Ball, Cylinder, Wedge or CornerWedge. The collision view
+(<strong>F7</strong>) draws the shape a part really collides as, see <a href="debug.html#seeing-collisions">Debugging</a>.</p>
+<h2 id="gravity">Gravity<a class="anchor" href="#gravity" title="Permanent link">#</a></h2>
+<p><code>game.gravity</code> is how hard everything falls, in metres per second squared. It starts at 32, which is
+Minecraft's own, and is set on the server.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-comment">-- server</span>
+game.gravity = <span class="syn-num">32</span> / <span class="syn-num">6</span>      <span class="syn-comment">-- the moon</span></code></pre></div></div>
+<p>What writing it does:</p>
+<ul>
+<li>It pulls straight down, and a change takes effect at once: on parts already falling, and on bodies
+  already in the air.</li>
+<li>It also scales how heavy every body feels, on top of each humanoid's own <code>gravityScale</code>. A
+  humanoid at <code>gravityScale = 2</code> in a place at <code>game.gravity = 16</code> falls at 32 again. See
+  <a href="movement.html#humanoid">Movement</a>.</li>
+<li>Constraints, springs and welds all feel it, so a rope bridge sags less on the moon.</li>
+<li><code>0</code> leaves unanchored parts hanging where they are, and a negative number pushes them up. It goes
+  from -500 to 500; anything else is an error that says so.</li>
+<li>It survives a hot reload. Set it from <code>server/main.luau</code> if a place wants it back at 32 every run.</li>
+</ul>
+<h2 id="mass-and-surfaces">Mass and surfaces<a class="anchor" href="#mass-and-surfaces" title="Permanent link">#</a></h2>
+<p>Four properties give a part its weight and decide how it behaves against the surfaces it meets. Two
+more are written back by the simulation for you to read.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>density</code></td>
+<td>1</td>
+<td>mass is <code>density</code> times the part's volume</td>
+</tr>
+<tr>
+<td><code>friction</code></td>
+<td>0.5</td>
+<td>how much it grips what it slides on; 0 is ice</td>
+</tr>
+<tr>
+<td><code>elasticity</code></td>
+<td>0</td>
+<td>how much it bounces, from 0 (lands dead) to 1 (bounces back as high)</td>
+</tr>
+<tr>
+<td><code>massless</code></td>
+<td>false</td>
+<td>weighs nothing, so welding it to something does not make that heavier</td>
+</tr>
+<tr>
+<td><code>velocity</code></td>
+<td></td>
+<td>metres per second, written by the simulation</td>
+</tr>
+<tr>
+<td><code>angularVelocity</code></td>
+<td></td>
+<td>radians per second about each axis, written by the simulation</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-keyword">local</span> ball = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0.5</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">75</span>, <span class="syn-num">0</span>),
+                                 anchored = <span class="syn-const">false</span>, elasticity = <span class="syn-num">0.8</span>, density = <span class="syn-num">0.3</span> })
+<span class="syn-func">print</span>(ball:<span class="syn-func">getMass</span>())      <span class="syn-comment">-- 0.0375, which is 0.3 * 0.5 * 0.5 * 0.5</span></code></pre></div></div>
+<p><code>getMass</code> multiplies <code>density</code> by the volume <code>size</code> gives, which is why a part twice as wide in every
+direction weighs eight times as much at the same density.</p>
+<p>Changing these while the place plays takes effect at once. There are no named physical materials
+yet; set the numbers.</p>
+<p>Writing <code>velocity</code> or <code>angularVelocity</code> sets how fast the part moves, and is the same as calling <code>setVelocity</code> or <code>setAngularVelocity</code>. On a
+part a player simulates, the player's next report writes over it.</p>
+<h2 id="pushing-a-part">Pushing a part<a class="anchor" href="#pushing-a-part" title="Permanent link">#</a></h2>
+<p>You move an unanchored part by giving it an impulse or by replacing its velocity outright. Both are
+methods on the part.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>These only work from a server <code>Script</code>. A <code>LocalScript</code> calling them gets an error, and so does
+calling them on a part that is anchored, does not collide, or was handed to a player by a script.</p></div></div>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>part:applyImpulse(impulse)</code></td>
+<td>pushes at the centre</td>
+</tr>
+<tr>
+<td><code>part:applyImpulseAtPosition(impulse, position)</code></td>
+<td>pushes at a world point, so it also spins</td>
+</tr>
+<tr>
+<td><code>part:applyAngularImpulse(impulse)</code></td>
+<td>spins it about each axis</td>
+</tr>
+<tr>
+<td><code>part:setVelocity(v)</code></td>
+<td>replaces how fast it moves</td>
+</tr>
+<tr>
+<td><code>part:setAngularVelocity(v)</code></td>
+<td>replaces how fast it spins</td>
+</tr>
+<tr>
+<td><code>part:getVelocityAtPosition(position)</code></td>
+<td>how fast that world point of the part moves</td>
+</tr>
+<tr>
+<td><code>part:getMass()</code></td>
+<td>its mass; works on the client too</td>
+</tr>
+</tbody>
+</table></div>
+<p>An impulse is mass times the change in velocity. The same push moves a
+light part further than a heavy one. To change a part's speed by a fixed amount whatever it weighs,
+multiply by its mass:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- server: kick the crate away from whoever touches it</span>
+crate.touched:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(other)
+    <span class="syn-keyword">local</span> away = (crate.position - other.position).unit
+    crate:<span class="syn-func">applyImpulse</span>((away * <span class="syn-num">6</span> + <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">4</span>, <span class="syn-num">0</span>)) * crate:<span class="syn-func">getMass</span>())
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>(crate.position - other.position).unit</code> points from whatever touched the crate towards the crate
+  and is one metre long, so the crate always leaves in the direction it was hit from.</li>
+<li><code>away * 6 + vec3(0, 4, 0)</code> asks for six metres a second outwards and four upwards, which lifts the
+  crate off the floor instead of scraping it along.</li>
+<li>Multiplying by <code>crate:getMass()</code> makes a dense crate and a light one leave at the same speed.</li>
+</ul>
+<div class="demo" data-demo="physics-impulse"></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>crate:<span class="syn-func">applyImpulseAtPosition</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, -<span class="syn-num">5</span>), crate.position + <span class="syn-func">vec3</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0</span>))   <span class="syn-comment">-- push and flip</span>
+crate:<span class="syn-func">setVelocity</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>))                                                  <span class="syn-comment">-- stop dead</span>
+crate:<span class="syn-func">setAngularVelocity</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>))</code></pre></div></div>
+<p>Pushing at a point half a metre off the centre is what makes the crate flip: the same impulse through
+the centre would slide it without turning it.</p>
+<h3 id="walking-into-a-part">Walking into a part<a class="anchor" href="#walking-into-a-part" title="Permanent link">#</a></h3>
+<p>A body walking into a loose part shoves it. How hard depends on how fast the body walks into it, and
+a part heavier than 20 is pushed as if it weighed 20, so a player can still move a heavy crate, only
+slowly.</p>
+<p>Walking into the side of a part shoves it flat along the ground, at the height of its middle. It
+slides and can turn about its upright axis, but it does not tip over or lift. A side is any face
+within about 45 degrees of upright. A flatter face, such as the top of a part or a gentle slope, is
+pushed straight away from the face at the point the body touches it.</p>
+<p>You can push a part in the same tick you add it. Reading <code>velocity</code> right after a push still gives
+the old value until the next tick.</p>
+<p>A part a player's client is simulating is handled differently when the server pushes it. See
+<a href="#who-simulates-a-part">Who simulates a part</a>.</p>
+<h2 id="who-simulates-a-part">Who simulates a part<a class="anchor" href="#who-simulates-a-part" title="Permanent link">#</a></h2>
+<p>Each loose part is simulated in one place: the server, or one player's client. That place is the
+part's network owner, and <code>part.networkOwner</code> holds it: the owning player's id, or <code>""</code> for the
+server. It replicates, so server and client scripts can both read it and listen for it changing:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">local</span> cart = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;cart&quot;</span>) :: Part
+cart:<span class="syn-func">getPropertyChangedSignal</span>(<span class="syn-string">&quot;networkOwner&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-func">print</span>(<span class="syn-keyword">if</span> cart.networkOwner == <span class="syn-string">&quot;&quot;</span> <span class="syn-keyword">then</span> <span class="syn-string">&quot;the server simulates the cart&quot;</span> <span class="syn-keyword">else</span> <span class="syn-string">&quot;a player simulates the cart&quot;</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Choose an owner with the methods under <a href="#choosing-the-owner-from-a-script">Choosing the owner from a script</a>,
+not by writing <code>networkOwner</code>: it is read-only for scripts, and the engine works the owner out every tick.</p>
+<p>This exists so that pushing things feels right. When the server simulates a crate and you walk into
+it, your client sends your movement up, the server moves the crate, and the new position comes back.
+You feel that round trip as a crate that is soft and late. When your own client simulates the crate,
+it moves the moment you touch it and it stops you like a solid object.</p>
+<p>The owning client simulates the part and sends its position, rotation and speed to the server about
+twenty times a second. The server copies that onto the part, and it replicates to everyone else from
+there. The owner is not sent its own part's <code>cframe</code>, <code>velocity</code> and <code>angularVelocity</code> back. While
+the reports keep coming, the server's copy of the body no longer falls on its own: it follows the
+reported position so other server bodies still bump into it.</p>
+<p>Parts joined by welds or constraints form an <strong>assembly</strong>, and an assembly has one owner. A car's
+chassis, its welded seat and its wheels on hinges are all simulated in the same place, so the joints
+between them run in one simulation. See <a href="#assemblies-and-vehicles">Assemblies and vehicles</a>.</p>
+<p><code>setOwner</code> is something else. It lets a client script write an instance's properties on its own
+copy, and it does not change who simulates anything. See <a href="movement.html#who-may-write-what">Who may write what</a>.</p>
+<h3 id="the-automatic-rule">The automatic rule<a class="anchor" href="#the-automatic-rule" title="Permanent link">#</a></h3>
+<p>By default the engine picks the owner of each assembly every tick, in this order:</p>
+<ol>
+<li>A player whose body sits in a <code>Seat</code> or <code>VehicleSeat</code> of the assembly takes it.</li>
+<li>An owner who is still connected but has no living body, such as a player waiting to respawn,
+   keeps it.</li>
+<li>The owner keeps it while their body is within 14 metres of the centre of a part of the
+   assembly.</li>
+<li>Otherwise the nearest player whose body is alive and within 10 metres of the centre of a part of
+   the assembly takes it. The gap between 10 and 14 stops an assembly from flicking between two players standing
+   near each other.</li>
+<li>With no player close enough, the server has it.</li>
+</ol>
+<p>The 10 and 14 metre distances are fixed. There is no setting for them.</p>
+<p>A part joined to nothing is an assembly of one, so all of this works the same for a single crate.</p>
+<div class="demo" data-demo="physics-ownership"></div>
+<p>A new owner has 100 ticks (five seconds) to send its first report. Once it has reported, 40 quiet
+ticks (two seconds) is enough. Either way, a silent owner loses the assembly, and the server keeps it
+for 100 ticks before the automatic rule may hand it out again. One silent part is enough to take back
+the whole assembly.</p>
+<p>The server does not take a report on trust. It drops a report for a part that player does not own,
+one with a number that is not finite or a rotation that is not close to a unit quaternion, one that
+puts the part more than 64 metres from the owner's body, and one faster than 400 metres a second.
+Anything inside those limits is accepted, so an owner can move its parts wherever it likes within
+them. Do not give a player a part whose position decides who wins.</p>
+<p>Ownership only happens while the place plays. Opening the editor gives every part back to the server
+and forgets every owner a script chose.</p>
+<h3 id="what-stays-with-the-server">What stays with the server<a class="anchor" href="#what-stays-with-the-server" title="Permanent link">#</a></h3>
+<p>These parts are never owned by a player, automatically or by a script:</p>
+<ul>
+<li>an anchored part,</li>
+<li>a part that does not collide (but see below for one inside an assembly),</li>
+<li>a part in <code>ServerStorage</code>, <code>ReplicatedStorage</code>, a <code>Backpack</code> or the <code>StarterPack</code>,</li>
+<li>a part whose parent is a body (<code>Character</code>).</li>
+</ul>
+<p>An assembly with one of these in it stays with the server as a whole. Joining a loose part to an
+anchored one keeps the whole assembly on the server, and so does welding a part kept in storage or
+inside a body to it.</p>
+<p>A loose part with <code>collides</code> off is the exception: it is left out when the engine decides, so
+welding one to a car does not keep the car on the server. It has no body, though, so it does not
+ride along with the car either.</p>
+<p>If a part becomes one of these while a player owns it, the server takes the whole assembly back.</p>
+<h3 id="choosing-the-owner-from-a-script">Choosing the owner from a script<a class="anchor" href="#choosing-the-owner-from-a-script" title="Permanent link">#</a></h3>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>part:setNetworkOwner(player)</code></td>
+<td>hands the part's assembly to a player, and stops the automatic rule for it</td>
+</tr>
+<tr>
+<td><code>part:setNetworkOwner(nil)</code></td>
+<td>keeps the part's assembly on the server, and stops the automatic rule for it</td>
+</tr>
+<tr>
+<td><code>part:setNetworkOwnershipAuto()</code></td>
+<td>puts the part's assembly back on the automatic rule</td>
+</tr>
+<tr>
+<td><code>part:isNetworkOwnershipAuto()</code></td>
+<td>whether the automatic rule is choosing</td>
+</tr>
+<tr>
+<td><code>part:canSetNetworkOwnership()</code></td>
+<td><code>true</code>, or <code>false</code> and the reason</td>
+</tr>
+<tr>
+<td><code>part:getNetworkOwner()</code></td>
+<td>the owning <code>Player</code>, or <code>nil</code> for the server</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>setNetworkOwner</code> and <code>setNetworkOwnershipAuto</code> work only from a server <code>Script</code>. <code>setNetworkOwner</code>
+takes a <code>Player</code>, a body that has a player, or <code>nil</code>. It is an error on a part that can not be owned;
+<code>canSetNetworkOwnership</code> tells you first and says why:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-keyword">local</span> ok, why = wall:<span class="syn-func">canSetNetworkOwnership</span>()
+<span class="syn-comment">-- false, &quot;an anchored part is always the server&#x27;s&quot;</span>
+
+<span class="syn-keyword">local</span> ok, why = wheel:<span class="syn-func">canSetNetworkOwnership</span>()
+<span class="syn-comment">-- false, &quot;it is joined to an anchored part, which keeps the whole assembly on the server&quot;</span></code></pre></div></div>
+<p>Call these on any part of an assembly. The choice applies to every part of it, and a part joined to
+the assembly later takes the same owner.</p>
+<p>A player chosen by a script keeps the assembly however far away they walk, and while their body is
+dead. If they leave the game, it goes back to the automatic rule. If they stop reporting, they keep
+ownership and the server simulates it in the meantime.</p>
+<p>A thrown ball is the usual case. The server throws it, then hands it to the thrower so it flies
+without delay on their screen, and takes it back once it lands:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> throw = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Remote&quot;</span>, { name = <span class="syn-string">&quot;throw&quot;</span>, accepts = <span class="syn-string">&quot;vec3&quot;</span> })
+
+throw.onServer:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(body, aim)
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> body <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">local</span> ball = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+        shape = <span class="syn-string">&quot;ball&quot;</span>,
+        size = <span class="syn-func">vec3</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0.5</span>),
+        position = body.position + <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">1.5</span>, <span class="syn-num">0</span>) + aim.unit,
+        anchored = <span class="syn-const">false</span>,
+    })
+    ball:<span class="syn-func">applyImpulse</span>(aim.unit * <span class="syn-num">25</span> * ball:<span class="syn-func">getMass</span>())
+    ball:<span class="syn-func">setNetworkOwner</span>(body)
+
+    task.<span class="syn-func">delay</span>(<span class="syn-num">3</span>, <span class="syn-keyword">function</span>()
+        ball:<span class="syn-func">setNetworkOwner</span>(<span class="syn-const">nil</span>)
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The push comes before <code>setNetworkOwner</code>. Once a script has handed a part to a player, pushing it
+  from the server is an error.</li>
+<li><code>setNetworkOwner(nil)</code> keeps the ball on the server for good. Call <code>setNetworkOwnershipAuto()</code>
+  instead to let whoever walks up to it take it again.</li>
+</ul>
+<p><code>getNetworkOwner</code> also works on a client, but a client only knows about itself. It answers with the
+local player when you own the part and <code>nil</code> for anyone else, including another player.
+<code>networkOwner</code> has the owner's id on every client.</p>
+<h3 id="pushing-a-part-a-player-owns">Pushing a part a player owns<a class="anchor" href="#pushing-a-part-a-player-owns" title="Permanent link">#</a></h3>
+<p>A server push is <code>applyImpulse</code>, <code>applyImpulseAtPosition</code>, <code>applyAngularImpulse</code>, <code>setVelocity</code> or
+<code>setAngularVelocity</code>.</p>
+<ul>
+<li>On a part the automatic rule gave to a player, a push takes its whole assembly back to the server
+  at once and keeps it there for 40 ticks (two seconds), so the push is not undone by the player's
+  next report. Then the automatic rule picks again. This holds for a driver too: a pushed car is the
+  server's for two seconds, then goes back to whoever sits in it.</li>
+<li>Any push on an automatic part holds its assembly on the server for those 40 ticks, owned or not.</li>
+<li>On a part whose assembly a script gave to a player, a push is an error. Give it back first with
+  <code>setNetworkOwner(nil)</code> or <code>setNetworkOwnershipAuto()</code>.</li>
+</ul>
+<p>Writing <code>cframe</code> or <code>position</code> on the server does not take a part back. The owner is not sent the
+new position and its next report puts the part back where the owner has it. <code>velocity</code> and
+<code>angularVelocity</code> go the same way. To teleport an owned part, give it to the server first.</p>
+<p>Anchoring a part, turning its <code>collides</code> off or moving it into storage takes its whole assembly back
+at once, because such a part can not be owned.</p>
+<h3 id="assemblies-and-vehicles">Assemblies and vehicles<a class="anchor" href="#assemblies-and-vehicles" title="Permanent link">#</a></h3>
+<p>An assembly is every part linked to another by an enabled <code>WeldConstraint</code>, or by an enabled
+constraint whose two attachments are inside parts. Hinges, sliders, ball sockets, ropes, springs and
+rods all count. Parts in the same <code>Model</code> that are not joined are separate assemblies. The server
+works the assemblies out again every tick, so welding or unwelding a part moves it in or out at once.</p>
+<p>The owner's client simulates the whole assembly, joints included. It builds each weld and constraint
+between two parts it simulates and runs it in its own physics. The server stops running those joints
+while the client has them, and reports them <code>active</code>.</p>
+<ul>
+<li>A motor on a hinge or slider still follows the properties the server writes, such as
+  <code>angularVelocity</code>. They reach the owner by replication, so a driver's key press goes to the server
+  and back before the wheels answer it.</li>
+<li>While a client simulates a joint, the numbers it reads out are not written: <code>currentAngle</code>,
+  <code>currentPosition</code>, <code>currentDistance</code> and <code>currentLength</code> keep the last value the server wrote.
+  Read them while the server has the assembly.</li>
+<li>A winch keeps winding while a client has the rope: the server still moves <code>length</code> towards
+  <code>winchTarget</code> and the owner follows it. It does not check <code>winchForce</code> then, so it reels in
+  whatever hangs on it.</li>
+<li>A bouncy rope bounces in the owner's simulation, the same way it does on the server.</li>
+<li>A client whose window draws few frames or none, because it is hidden or in the background, still
+  steps its physics every game tick, so what it simulates does not freeze for everyone else.</li>
+<li>When a client starts simulating a part, the part starts where the server had it, so it does not
+  jump.</li>
+<li>Whichever side takes an assembly over builds its joints again from where the parts are at that
+  moment. A weld keeps the offset the parts have then. Hinges, sliders and ball sockets are built
+  from their attachments, so their angles and positions don't change on a handover.</li>
+</ul>
+<p>A car is an assembly with a seat in it. The player in the seat owns it however far the other players
+are, unless a script chose the owner or a server push is holding it, so the car answers their
+steering on their own screen, and everyone else sees it through their reports. While the driver's
+client simulates the seat, the server no longer holds the driver onto the seat; the driver's client
+does, and moves the player with the seat every tick. See <a href="movement.html#driving">Driving</a> for a whole
+car.</p>
+<h2 id="pivots">Pivots<a class="anchor" href="#pivots" title="Permanent link">#</a></h2>
+<p>Every <code>Spatial</code> has a pivot: the frame it moves about. You read it with <code>getPivot</code> and move the thing
+by it with <code>pivotTo</code>.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> frame = thing:<span class="syn-func">getPivot</span>()
+thing:<span class="syn-func">pivotTo</span>(<span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">80</span>, <span class="syn-num">0</span>) * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, math.<span class="syn-func">rad</span>(<span class="syn-num">90</span>), <span class="syn-num">0</span>))</code></pre></div></div>
+<p><code>pivotTo</code> moves the thing so its pivot lands exactly on the frame you give, and everything inside it
+comes along. For a part the pivot is its own world frame.</p>
+<h2 id="models">Models<a class="anchor" href="#models" title="Permanent link">#</a></h2>
+<p>A <code>Model</code> is a spatial group of parts that moves, measures and scales as one. You put parts in one
+when you want to place, turn or resize them together.</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>primaryPart</code></td>
+<td>the part the model pivots about</td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td>the model's current scale; change it with <code>scaleTo</code></td>
+</tr>
+<tr>
+<td><code>model:getPivot()</code> / <code>model:pivotTo(frame)</code></td>
+<td>read and move the pivot</td>
+</tr>
+<tr>
+<td><code>model:getBoundingBox()</code></td>
+<td>a box around every part inside</td>
+</tr>
+<tr>
+<td><code>model:scaleTo(n)</code> / <code>model:getScale()</code></td>
+<td>grow or shrink the whole model</td>
+</tr>
+</tbody>
+</table></div>
+<p>With a <code>primaryPart</code> the pivot is that part's world frame. Without one it is the model's own frame,
+which is wherever the model was made, not the middle of its parts.</p>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>Set <code>primaryPart</code> whenever you plan to move a model with <code>pivotTo</code>. A model built at the origin
+still pivots about the origin however far away its parts have since been placed, which is what
+makes a <code>pivotTo</code> fling everything off somewhere unexpected.</p></div></div>
+<p>While the place plays, moving a model carries the unanchored parts inside it too. This goes for any
+<code>Spatial</code>: writing its <code>cframe</code>, <code>position</code> or <code>pivot</code>, calling <code>pivotTo</code>, or moving it to a new parent
+teleports every part inside it along with it.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-comment">-- server: put the ship on the pad, facing along the pad</span>
+<span class="syn-keyword">local</span> ship = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;ship&quot;</span>) :: Model
+ship.primaryPart = ship.hull
+ship:<span class="syn-func">pivotTo</span>(pad.worldCframe * <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">3</span>, <span class="syn-num">0</span>))</code></pre></div></div>
+<p>Setting <code>primaryPart</code> to the hull makes the hull's frame the pivot, so <code>pivotTo</code> lands the hull on the
+frame you pass and brings the rest of the ship with it. <code>pad.worldCframe * cframe(0, 3, 0)</code> is three
+metres above the pad, turned the way the pad is turned, so the ship faces along the pad.</p>
+<p><code>getBoundingBox</code> returns a frame and a size. The box is turned like the pivot, so a model turned 45
+degrees gets a tight box, not one grown to fit the world axes. A model with no parts gives its pivot
+and a size of zero.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> frame, size = ship:<span class="syn-func">getBoundingBox</span>()
+<span class="syn-keyword">local</span> top = frame.position + frame.upVector * (size.y / <span class="syn-num">2</span>)</code></pre></div></div>
+<p><code>frame.upVector</code> is the box's own up rather than the world's, so <code>top</code> stays on the middle of the
+model's top face even when the model is tilted.</p>
+<p><code>scaleTo</code> sets an absolute scale, not a multiplier: <code>scaleTo(2)</code> twice leaves the model at 2. It
+resizes every part inside and moves every offset in it, attachments included, then keeps the pivot
+where it was. With a <code>primaryPart</code> that part stays put and the rest grows or shrinks around it.
+Assigning <code>scale</code> directly only changes the number; use <code>scaleTo</code>.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>ship:<span class="syn-func">scaleTo</span>(<span class="syn-num">0.5</span>)
+<span class="syn-func">print</span>(ship:<span class="syn-func">getScale</span>())    <span class="syn-comment">-- 0.5</span></code></pre></div></div>
+<p>A rope's <code>length</code> or a spring's <code>freeLength</code> does not scale with the model, so a shrunk model hangs
+on the rope it always had. Set those lengths yourself after scaling.</p>
+<p>In the editor, select parts and press <strong>Ctrl+G</strong> to group them into a Model. A selection with guis
+or scripts in it still goes into a Folder.</p>
+<h2 id="welds">Welds<a class="anchor" href="#welds" title="Permanent link">#</a></h2>
+<p>A <code>WeldConstraint</code> holds two parts together so they move as one body. Use it when a handle, a lid or
+a plate has to travel with the part it sits on.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>part0</code>, <code>part1</code></td>
+<td>the two parts</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>on by default</td>
+</tr>
+<tr>
+<td><code>active</code></td>
+<td>read only: on while the weld really holds</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> handle = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">0.2</span>, <span class="syn-num">0.6</span>, <span class="syn-num">0.2</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">70.8</span>, <span class="syn-num">0</span>), anchored = <span class="syn-const">false</span> })
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;WeldConstraint&quot;</span>, { part0 = crate, part1 = handle })</code></pre></div></div>
+<p>The parts keep the offset they had when the weld starts. To weld
+at a different offset, move the part first, then enable the weld. Welding an unanchored part to an
+anchored one pins it in place.</p>
+<h2 id="constraints">Constraints<a class="anchor" href="#constraints" title="Permanent link">#</a></h2>
+<p>The other joints are attachment based. Put an <code>Attachment</code> inside each of the two parts and point the
+constraint at both. The constraint itself can live anywhere in the tree; what matters is which two
+attachments it holds.</p>
+<p>Every constraint has:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>attachment0</code>, <code>attachment1</code></td>
+<td>an <code>Attachment</code> inside each part</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>on by default</td>
+</tr>
+<tr>
+<td><code>collideConnected</code></td>
+<td>lets the two parts still collide with each other; off by default</td>
+</tr>
+<tr>
+<td><code>visible</code></td>
+<td>draws the constraint in the world; off by default</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td>the colour it is drawn in, a <code>Color</code>; grey by default</td>
+</tr>
+<tr>
+<td><code>active</code></td>
+<td>read only: on while the constraint is really holding its parts</td>
+</tr>
+</tbody>
+</table></div>
+<p>These rules apply to every constraint on this page:</p>
+<ul>
+<li>At least one of the two parts must be unanchored. Joining to an anchored part pins that end to the
+  world.</li>
+<li><code>active</code> is false when an attachment or its part is missing, a part does not collide, or both
+  parts are anchored.</li>
+<li>A hinge or ball socket pulls attachment1 onto attachment0. A slider pulls attachment1 onto the
+  line through attachment0 along its axis. Put the two attachments where the parts meet: if the parts
+  have drifted apart by the time the joint starts, it drags them back together.</li>
+<li>A hinge's angle and a ball socket's twist count from the attachments: 0 when attachment1 is turned
+  the same way as attachment0. A slider's position is how far attachment1 is from
+  attachment0 along the axis. <code>currentAngle</code>, <code>currentPosition</code>, <code>currentDistance</code>, <code>currentLength</code>
+  and <code>active</code> are read-only for scripts.</li>
+<li>Constraints only run while the place plays.</li>
+</ul>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Where the attachments are is read when the constraint starts. Moving an attachment afterwards does
+nothing until you turn <code>enabled</code> off and on again.</p></div></div>
+<p>The editor draws joints in pink over the viewport: each constraint as a line between its two ends
+with a circle at each end, hinges and sliders with their axis through attachment0, and every
+attachment inside a part as its X axis with a shorter, fainter line for its Y axis. They show with
+<strong>Helpers</strong> on, with the <strong>Constraints</strong> toggle beside it on, and always while the constraint tool
+is on. See <a href="editor.html#joining-parts">Joining parts</a> for the tool that makes them by clicking two parts.</p>
+<p>A constraint with <code>visible</code> on is drawn for every player, in the editor and while the place plays,
+in its <code>color</code> and lit by the light around it:</p>
+<ul>
+<li>A rope is a round tube <code>thickness</code> wide. Taut, it runs straight; slack, it hangs down in a curve so
+  that its drawn length is about <code>length</code>.</li>
+<li>A spring is a coil of wire, <code>coils</code> turns of <code>radius</code> round a line between its ends.</li>
+<li>A rod is a straight round tube <code>thickness</code> wide.</li>
+<li>A hinge or slider draws its axis through attachment0, 1.2 metres long, and a thin line between its
+  two ends. So does a ball socket, without the axis.</li>
+</ul>
+<p>A disabled constraint is not drawn.</p>
+<h3 id="hinges">Hinges<a class="anchor" href="#hinges" title="Permanent link">#</a></h3>
+<p>A <code>HingeConstraint</code> turns about attachment0's X axis, its <code>rightVector</code>. In the editor that is the
+longer of the two pink lines drawn out of the attachment.</p>
+<p><code>actuatorType</code> decides what turns it. At <code>"none"</code> the hinge swings under gravity and whatever pushes
+it. At <code>"motor"</code> it spins at <code>angularVelocity</code> for as long as it is enabled. At <code>"servo"</code> it turns to
+<code>targetAngle</code> and holds there.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>actuatorType</code></td>
+<td><code>"none"</code></td>
+<td><code>"none"</code> swings freely, <code>"motor"</code> spins at a speed, <code>"servo"</code> turns to an angle</td>
+</tr>
+<tr>
+<td><code>angularVelocity</code></td>
+<td>0</td>
+<td>motor speed, in radians per second</td>
+</tr>
+<tr>
+<td><code>motorMaxTorque</code></td>
+<td>10000</td>
+<td>how hard the motor may push</td>
+</tr>
+<tr>
+<td><code>targetAngle</code></td>
+<td>0</td>
+<td>servo target, in degrees</td>
+</tr>
+<tr>
+<td><code>angularSpeed</code></td>
+<td>3</td>
+<td>the fastest the servo turns, in radians per second</td>
+</tr>
+<tr>
+<td><code>servoMaxTorque</code></td>
+<td>10000</td>
+<td>how hard the servo may push</td>
+</tr>
+<tr>
+<td><code>limitsEnabled</code></td>
+<td>false</td>
+<td>stops it between <code>lowerAngle</code> and <code>upperAngle</code></td>
+</tr>
+<tr>
+<td><code>lowerAngle</code>, <code>upperAngle</code></td>
+<td>-45, 45</td>
+<td>degrees</td>
+</tr>
+<tr>
+<td><code>currentAngle</code></td>
+<td></td>
+<td>read only: the angle now, in degrees</td>
+</tr>
+</tbody>
+</table></div>
+<p>A door on a servo, opened and closed by a prompt:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> frame = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;doorFrame&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.2</span>, <span class="syn-num">2.2</span>, <span class="syn-num">0.2</span>),
+                                  cframe = <span class="syn-func">cframe</span>(<span class="syn-num">10</span>, <span class="syn-num">65.1</span>, <span class="syn-num">0</span>), anchored = <span class="syn-const">true</span> })
+<span class="syn-keyword">local</span> door = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;door&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">2</span>, <span class="syn-num">0.1</span>),
+                                 cframe = <span class="syn-func">cframe</span>(<span class="syn-num">10.6</span>, <span class="syn-num">65.1</span>, <span class="syn-num">0</span>), anchored = <span class="syn-const">false</span> })
+
+<span class="syn-keyword">local</span> up = cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, math.pi / <span class="syn-num">2</span>)            <span class="syn-comment">-- turns the X axis to point up</span>
+<span class="syn-keyword">local</span> a0 = frame:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0.1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>) * up })
+<span class="syn-keyword">local</span> a1 = door:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(-<span class="syn-num">0.5</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>) * up })
+
+<span class="syn-keyword">local</span> hinge = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;HingeConstraint&quot;</span>, {
+    attachment0 = a0, attachment1 = a1,
+    actuatorType = <span class="syn-string">&quot;servo&quot;</span>, angularSpeed = <span class="syn-num">2</span>,
+    limitsEnabled = <span class="syn-const">true</span>, lowerAngle = <span class="syn-num">0</span>, upperAngle = <span class="syn-num">100</span>,
+})
+
+<span class="syn-keyword">local</span> prompt = door:<span class="syn-func">add</span>(<span class="syn-string">&quot;ProximityPrompt&quot;</span>, { actionText = <span class="syn-string">&quot;Open&quot;</span>, keys = <span class="syn-string">&quot;e&quot;</span> })
+prompt.triggered:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(body)
+    <span class="syn-keyword">local</span> open = hinge.targetAngle == <span class="syn-num">0</span>
+    hinge.targetAngle = open <span class="syn-keyword">and</span> <span class="syn-num">90</span> <span class="syn-keyword">or</span> <span class="syn-num">0</span>
+    prompt.actionText = open <span class="syn-keyword">and</span> <span class="syn-string">&quot;Close&quot;</span> <span class="syn-keyword">or</span> <span class="syn-string">&quot;Open&quot;</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The frame is anchored and the door is not, so the hinge pins one end to the world and leaves the
+  door free to swing.</li>
+<li>A hinge turns about attachment0's X axis, which points sideways. <code>up</code> turns both attachments a
+  quarter turn about Z so that X points up and the door swings the way a door does.</li>
+<li>The two attachment offsets put the hinge on the inner face of the frame and on the edge of the
+  door, which is where the two meet.</li>
+<li>The limits stop the swing between 0 and 100 degrees, so the door cannot carry on round through the
+  wall.</li>
+<li>Writing <code>targetAngle</code> is all it takes to move the door. The servo turns it there at <code>angularSpeed</code>
+  and holds it, and every player sees the same swing because the server does the simulating.</li>
+</ul>
+<p>If the door swings the wrong way, use -90 and swap the limits to -100 and 0.</p>
+<p>A wheel on a motor. The chassis and the wheels are all unanchored, so the whole thing drives off:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> chassis = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;cart&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">2</span>, <span class="syn-num">0.4</span>, <span class="syn-num">3</span>),
+                                    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">66</span>, <span class="syn-num">20</span>), anchored = <span class="syn-const">false</span> })
+
+<span class="syn-keyword">local</span> wheels = {}
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">wheel</span>(x, z)
+    <span class="syn-keyword">local</span> w = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { shape = <span class="syn-string">&quot;cylinder&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.3</span>, <span class="syn-num">0.9</span>, <span class="syn-num">0.9</span>),
+                                  cframe = chassis.worldCframe * <span class="syn-func">cframe</span>(x, -<span class="syn-num">0.2</span>, z), anchored = <span class="syn-const">false</span> })
+    <span class="syn-keyword">local</span> side = x &gt; <span class="syn-num">0</span> <span class="syn-keyword">and</span> <span class="syn-num">1</span> <span class="syn-keyword">or</span> -<span class="syn-num">1</span>
+    <span class="syn-keyword">local</span> a0 = chassis:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(x - <span class="syn-num">0.15</span> * side, -<span class="syn-num">0.2</span>, z) })
+    <span class="syn-keyword">local</span> a1 = w:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(-<span class="syn-num">0.15</span> * side, <span class="syn-num">0</span>, <span class="syn-num">0</span>) })
+    <span class="syn-keyword">local</span> hinge = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;HingeConstraint&quot;</span>, {
+        attachment0 = a0, attachment1 = a1,
+        actuatorType = <span class="syn-string">&quot;motor&quot;</span>, motorMaxTorque = <span class="syn-num">50</span>,
+    })
+    table.<span class="syn-func">insert</span>(wheels, hinge)
+<span class="syn-keyword">end</span>
+
+<span class="syn-func">wheel</span>(<span class="syn-num">1.15</span>, <span class="syn-num">1.1</span>)   <span class="syn-func">wheel</span>(-<span class="syn-num">1.15</span>, <span class="syn-num">1.1</span>)
+<span class="syn-func">wheel</span>(<span class="syn-num">1.15</span>, -<span class="syn-num">1.1</span>)  <span class="syn-func">wheel</span>(-<span class="syn-num">1.15</span>, -<span class="syn-num">1.1</span>)
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">drive</span>(speed)
+    <span class="syn-keyword">for</span> _, hinge <span class="syn-keyword">in</span> wheels <span class="syn-keyword">do</span> hinge.angularVelocity = speed <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>
+<span class="syn-func">drive</span>(<span class="syn-num">4</span>)</code></pre></div></div>
+<p>The attachments keep the chassis' rotation, so their X axis runs along the axle, which is also the
+axis a cylinder lies along. <code>side</code> flips the offset for the wheels on the left, which puts each
+attachment on the chassis' own side face rather than in its middle. <code>drive</code> writes <code>angularVelocity</code>
+on all four hinges at once, and <code>drive(0)</code> stops the cart.</p>
+<p>A cylinder rolls on 16 flat sides, so the cart hums a little on a smooth floor. For a cart a player
+drives, sit them in a <a href="movement.html#seats">VehicleSeat</a>.</p>
+<h3 id="sliders">Sliders<a class="anchor" href="#sliders" title="Permanent link">#</a></h3>
+<p>A <code>PrismaticConstraint</code> slides along attachment0's X axis and cannot turn. Its three actuator types
+match the hinge's: free, a motor that slides at <code>velocity</code>, and a servo that moves to
+<code>targetPosition</code>.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>actuatorType</code></td>
+<td><code>"none"</code></td>
+<td><code>"none"</code>, <code>"motor"</code> or <code>"servo"</code></td>
+</tr>
+<tr>
+<td><code>velocity</code></td>
+<td>0</td>
+<td>motor speed along the axis, in metres per second</td>
+</tr>
+<tr>
+<td><code>motorMaxForce</code></td>
+<td>10000</td>
+<td>how hard the motor may push</td>
+</tr>
+<tr>
+<td><code>targetPosition</code></td>
+<td>0</td>
+<td>servo target along the axis, in metres</td>
+</tr>
+<tr>
+<td><code>speed</code></td>
+<td>2</td>
+<td>the fastest the servo moves, in metres per second</td>
+</tr>
+<tr>
+<td><code>servoMaxForce</code></td>
+<td>10000</td>
+<td>how hard the servo may push</td>
+</tr>
+<tr>
+<td><code>limitsEnabled</code></td>
+<td>false</td>
+<td>stops it between <code>lowerLimit</code> and <code>upperLimit</code></td>
+</tr>
+<tr>
+<td><code>lowerLimit</code>, <code>upperLimit</code></td>
+<td>-5, 5</td>
+<td>metres</td>
+</tr>
+<tr>
+<td><code>currentPosition</code></td>
+<td></td>
+<td>read only: how far along the axis it is now</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">-- a lift platform: X axis turned to point up, servo between floors</span>
+<span class="syn-keyword">local</span> lift = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;PrismaticConstraint&quot;</span>, {
+    attachment0 = shaft:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, math.pi / <span class="syn-num">2</span>) }),
+    attachment1 = platform:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, math.pi / <span class="syn-num">2</span>) }),
+    actuatorType = <span class="syn-string">&quot;servo&quot;</span>, speed = <span class="syn-num">1.5</span>,
+    limitsEnabled = <span class="syn-const">true</span>, lowerLimit = <span class="syn-num">0</span>, upperLimit = <span class="syn-num">8</span>,
+})
+lift.targetPosition = <span class="syn-num">8</span></code></pre></div></div>
+<p>Both attachments are turned a quarter turn about Z, which points the slide axis up. The position is
+the height of the platform's middle above the shaft's middle, so the limits keep the platform between
+level with the shaft and eight metres above it, and writing <code>targetPosition</code> sends it to a floor at
+one and a half metres a second. Set <code>targetPosition</code> back to 0 to bring the lift down. The slider
+also pulls the platform's middle onto the line straight up from the shaft's middle, so build the
+platform there.</p>
+<h3 id="ball-sockets">Ball sockets<a class="anchor" href="#ball-sockets" title="Permanent link">#</a></h3>
+<p>A <code>BallSocketConstraint</code> lets the parts turn any way about attachment0, like a shoulder. Turn the
+limits on when you want the swing kept inside a cone instead.</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>limitsEnabled</code></td>
+<td>false</td>
+<td>keeps the swing inside a cone</td>
+</tr>
+<tr>
+<td><code>upperAngle</code></td>
+<td>45</td>
+<td>the cone's half angle, in degrees</td>
+</tr>
+<tr>
+<td><code>twistLimitsEnabled</code></td>
+<td>false</td>
+<td>limits how far the part may twist</td>
+</tr>
+<tr>
+<td><code>twistLowerAngle</code>, <code>twistUpperAngle</code></td>
+<td>-45, 45</td>
+<td>degrees</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="ropes">Ropes<a class="anchor" href="#ropes" title="Permanent link">#</a></h3>
+<p>A <code>RopeConstraint</code> keeps its two attachments at most <code>length</code> apart. Below that the rope is slack and
+the parts move freely; at it, the rope is taut and pulls.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>length</code></td>
+<td>5</td>
+<td>metres</td>
+</tr>
+<tr>
+<td><code>restitution</code></td>
+<td>0</td>
+<td>how fast the load bounces back when the rope snaps taut, from 0 (stops dead) to 1</td>
+</tr>
+<tr>
+<td><code>thickness</code></td>
+<td>0.1</td>
+<td>how thick it is drawn, in metres</td>
+</tr>
+<tr>
+<td><code>mesh</code></td>
+<td></td>
+<td>a model drawn repeated along the rope instead of the tube</td>
+</tr>
+<tr>
+<td><code>meshLength</code></td>
+<td>0</td>
+<td>how far apart the models are, in metres; 0 uses the model's own length</td>
+</tr>
+<tr>
+<td><code>meshTwist</code></td>
+<td>0</td>
+<td>degrees each model turns about the rope from the one before</td>
+</tr>
+<tr>
+<td><code>winchEnabled</code></td>
+<td>false</td>
+<td>reels <code>length</code> towards <code>winchTarget</code></td>
+</tr>
+<tr>
+<td><code>winchTarget</code></td>
+<td>5</td>
+<td>the length the winch reels to, in metres</td>
+</tr>
+<tr>
+<td><code>winchSpeed</code></td>
+<td>2</td>
+<td>the fastest the winch changes <code>length</code>, in metres per second</td>
+</tr>
+<tr>
+<td><code>winchForce</code></td>
+<td>10000</td>
+<td>the heaviest pull the winch still reels in against</td>
+</tr>
+<tr>
+<td><code>winchResponsiveness</code></td>
+<td>45</td>
+<td>how sharply the winch slows as it nears the target, 0 to 200</td>
+</tr>
+<tr>
+<td><code>currentDistance</code></td>
+<td></td>
+<td>read only: how far apart the attachments are now</td>
+</tr>
+</tbody>
+</table></div>
+<p>A lamp swinging from a beam:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> beam = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">4</span>, <span class="syn-num">0.3</span>, <span class="syn-num">0.3</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">72</span>, -<span class="syn-num">10</span>), anchored = <span class="syn-const">true</span> })
+<span class="syn-keyword">local</span> lamp = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">0.4</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0.4</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">69</span>, -<span class="syn-num">10</span>),
+                                 anchored = <span class="syn-const">false</span>, color = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.9</span>, <span class="syn-num">0.6</span>) })
+lamp:<span class="syn-func">add</span>(<span class="syn-string">&quot;PointLight&quot;</span>, { color = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.5</span>), brightness = <span class="syn-num">2</span>, range = <span class="syn-num">10</span> })
+
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;RopeConstraint&quot;</span>, {
+    attachment0 = beam:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, -<span class="syn-num">0.15</span>, <span class="syn-num">0</span>) }),
+    attachment1 = lamp:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">0.25</span>, <span class="syn-num">0</span>) }),
+    length = <span class="syn-num">3</span>,
+})
+
+task.<span class="syn-func">wait</span>(<span class="syn-num">1</span>)
+lamp:<span class="syn-func">applyImpulse</span>(<span class="syn-func">vec3</span>(<span class="syn-num">2</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>) * lamp:<span class="syn-func">getMass</span>())    <span class="syn-comment">-- set it swinging</span></code></pre></div></div>
+<ul>
+<li>The beam is anchored and the lamp is not, so the top of the rope is fixed and the lamp hangs from
+  it.</li>
+<li>The attachments sit on the underside of the beam and the top of the lamp, so the rope runs between
+  the two faces instead of between the middles of the parts.</li>
+<li><code>length = 3</code> is the furthest the lamp may get from the beam. It falls until the rope is taut and
+  then swings under it.</li>
+<li>The impulse is multiplied by the lamp's mass, so the lamp leaves at two metres a second sideways
+  whatever its density is.</li>
+</ul>
+<p>Turn <code>visible</code> on to see the rope. It hangs in a curve while the lamp swings inwards and runs
+straight while the rope is taut.</p>
+<h4 id="bouncing">Bouncing<a class="anchor" href="#bouncing" title="Permanent link">#</a></h4>
+<p>At <code>restitution</code> 0 a rope that snaps taut stops its load dead. Above 0 it throws the load back:
+the ends leave each other at <code>restitution</code> times the speed they were coming apart at. A bungee cord
+is a rope at about 0.5.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">-- server: a weight dropped on a bungee cord</span>
+<span class="syn-keyword">local</span> beam = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">2</span>, <span class="syn-num">0.3</span>, <span class="syn-num">0.3</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">6</span>, <span class="syn-num">80</span>, -<span class="syn-num">10</span>), anchored = <span class="syn-const">true</span> })
+<span class="syn-keyword">local</span> weight = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">0.6</span>, <span class="syn-num">0.6</span>, <span class="syn-num">0.6</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">6</span>, <span class="syn-num">79.5</span>, -<span class="syn-num">10</span>), anchored = <span class="syn-const">false</span> })
+
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;RopeConstraint&quot;</span>, {
+    attachment0 = beam:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, -<span class="syn-num">0.15</span>, <span class="syn-num">0</span>) }),
+    attachment1 = weight:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">0.3</span>, <span class="syn-num">0</span>) }),
+    length = <span class="syn-num">6</span>, restitution = <span class="syn-num">0.5</span>, visible = <span class="syn-const">true</span>,
+})</code></pre></div></div>
+<p>The weight starts right under the beam with six metres of slack, falls until the rope snaps taut,
+flies back up at half the speed it fell at, and bounces a little lower each time.</p>
+<div class="demo" data-demo="physics-bungee"></div>
+<ul>
+<li>The bounce is worked out on every physics substep: the engine notes how fast the ends are coming
+  apart just before a slack rope reaches <code>length</code>, and sets them moving together at <code>restitution</code>
+  times that speed once the step is done.</li>
+<li>Ends coming apart slower than half a metre a second do not bounce, so a load resting on a taut
+  rope stays still instead of jittering.</li>
+<li>The push is shared out by mass. An anchored end does not move, so the loose end takes all of it.</li>
+<li>It works the same when a player's client simulates the rope. See
+  <a href="#assemblies-and-vehicles">Assemblies and vehicles</a>.</li>
+</ul>
+<h4 id="winches">Winches<a class="anchor" href="#winches" title="Permanent link">#</a></h4>
+<p>With <code>winchEnabled</code> on, the engine moves <code>length</code> towards <code>winchTarget</code> every tick. Writing <code>length</code>
+yourself only moves the starting point: the winch carries on from there towards <code>winchTarget</code>. The rope pays out or reels in at up to <code>winchSpeed</code>
+metres a second, and slows down as it gets close: the speed is the distance still to go times
+<code>winchResponsiveness</code> divided by 10, capped at <code>winchSpeed</code>. At the defaults it keeps full speed
+until it is about 45 centimetres from the target. At 0 it does not slow down and runs at
+<code>winchSpeed</code> all the way.</p>
+<p>Reeling in stops while the rope pulls on its load harder than <code>winchForce</code>, and starts again when the
+load drops back under it. Paying out always carries on. <code>length</code> replicates, so every player sees
+the rope change.</p>
+<p>A crane hook, lowered and raised by a prompt:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> jib = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;jib&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">6</span>, <span class="syn-num">0.4</span>, <span class="syn-num">0.4</span>),
+                                cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">80</span>, <span class="syn-num">30</span>), anchored = <span class="syn-const">true</span> })
+<span class="syn-keyword">local</span> hook = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;hook&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0.6</span>, <span class="syn-num">0.5</span>),
+                                 cframe = <span class="syn-func">cframe</span>(<span class="syn-num">2.5</span>, <span class="syn-num">78</span>, <span class="syn-num">30</span>), anchored = <span class="syn-const">false</span> })
+
+<span class="syn-keyword">local</span> cable = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;RopeConstraint&quot;</span>, {
+    attachment0 = jib:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">2.5</span>, -<span class="syn-num">0.2</span>, <span class="syn-num">0</span>) }),
+    attachment1 = hook:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">0.3</span>, <span class="syn-num">0</span>) }),
+    length = <span class="syn-num">2</span>, visible = <span class="syn-const">true</span>, thickness = <span class="syn-num">0.06</span>, color = <span class="syn-func">color</span>(<span class="syn-num">0.2</span>, <span class="syn-num">0.2</span>, <span class="syn-num">0.22</span>),
+    winchEnabled = <span class="syn-const">true</span>, winchTarget = <span class="syn-num">2</span>, winchSpeed = <span class="syn-num">1.5</span>,
+})
+
+<span class="syn-keyword">local</span> prompt = jib:<span class="syn-func">add</span>(<span class="syn-string">&quot;ProximityPrompt&quot;</span>, { actionText = <span class="syn-string">&quot;Lower&quot;</span>, keys = <span class="syn-string">&quot;e&quot;</span> })
+prompt.triggered:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(body)
+    <span class="syn-keyword">local</span> down = cable.winchTarget &lt; <span class="syn-num">8</span>
+    cable.winchTarget = down <span class="syn-keyword">and</span> <span class="syn-num">12</span> <span class="syn-keyword">or</span> <span class="syn-num">2</span>
+    prompt.actionText = down <span class="syn-keyword">and</span> <span class="syn-string">&quot;Raise&quot;</span> <span class="syn-keyword">or</span> <span class="syn-string">&quot;Lower&quot;</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The jib is anchored and the hook is not, so the hook hangs from the end of the jib.</li>
+<li><code>winchTarget</code> starts equal to <code>length</code>, so the winch holds still until the prompt changes it.</li>
+<li>Setting <code>winchTarget</code> to 12 pays the cable out at a metre and a half a second and the hook follows
+  it down; setting it back to 2 reels it in again.</li>
+<li>Weld a load to the hook and the winch lifts it too, unless the load pulls harder than <code>winchForce</code>.</li>
+</ul>
+<h4 id="drawing-a-rope-as-a-model">Drawing a rope as a model<a class="anchor" href="#drawing-a-rope-as-a-model" title="Permanent link">#</a></h4>
+<p>Set <code>mesh</code> and the rope is drawn as a model repeated along it instead of as a plain tube, which is
+how you make a chain. <code>mesh</code> takes any id a <code>MeshPart</code> takes: a <code>res://</code> path to a <code>.gltf</code>, <code>.glb</code>,
+<code>.ammesh</code> or <code>.bbmodel</code> file, or a resource pack id. <code>.obj</code> files are not supported.</p>
+<ul>
+<li>The model is laid along its own Z axis and centred on its bounds, so build one link pointing down
+  Z.</li>
+<li><code>meshLength</code> is the distance from one link to the next. At 0 it is the model's length along Z.
+  The model is scaled evenly to fit that spacing, so a shorter <code>meshLength</code> makes smaller links, not
+  overlapping ones.</li>
+<li><code>meshTwist</code> turns each link that many degrees about the rope from the one before. 90 makes a
+  chain, with every other link on its side.</li>
+<li>The links follow the same sag as the tube, so a slack chain hangs in a curve.</li>
+<li>The plain tube is drawn until the model has loaded, then the links replace it.</li>
+<li>Links are fitted to the rope: their spacing is stretched a little so the chain reaches both ends. A rope draws at most 512 links; past that, fewer, longer links cover it.</li>
+<li><code>thickness</code> and <code>color</code> are for the tube only. The links keep the model's own size and colours.</li>
+</ul>
+<p>A chain between two posts:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> left = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">0.4</span>, <span class="syn-num">3</span>, <span class="syn-num">0.4</span>), cframe = <span class="syn-func">cframe</span>(-<span class="syn-num">3</span>, <span class="syn-num">66.5</span>, <span class="syn-num">0</span>), anchored = <span class="syn-const">true</span> })
+<span class="syn-keyword">local</span> right = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">0.4</span>, <span class="syn-num">3</span>, <span class="syn-num">0.4</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">3</span>, <span class="syn-num">66.5</span>, <span class="syn-num">0</span>), anchored = <span class="syn-const">true</span> })
+
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;RopeConstraint&quot;</span>, {
+    attachment0 = left:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0.2</span>, <span class="syn-num">1.3</span>, <span class="syn-num">0</span>) }),
+    attachment1 = right:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(-<span class="syn-num">0.2</span>, <span class="syn-num">1.3</span>, <span class="syn-num">0</span>) }),
+    length = <span class="syn-num">6.5</span>, visible = <span class="syn-const">true</span>,
+    mesh = <span class="syn-string">&quot;res://models/chain_link.gltf&quot;</span>, meshLength = <span class="syn-num">0.6</span>, meshTwist = <span class="syn-num">90</span>,
+})</code></pre></div></div>
+<ul>
+<li>The posts are 5.6 metres apart at the attachments and the rope is 6.5 long, so the chain sags.</li>
+<li>Each link is scaled so the next one starts 0.6 metres along, and every link turns a quarter turn
+  from the last.</li>
+</ul>
+<h3 id="springs">Springs<a class="anchor" href="#springs" title="Permanent link">#</a></h3>
+<p>A <code>SpringConstraint</code> pulls its attachments towards <code>freeLength</code> apart and lets them bounce about it.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>freeLength</code></td>
+<td>2</td>
+<td>the length it rests at, in metres</td>
+</tr>
+<tr>
+<td><code>stiffness</code></td>
+<td>50</td>
+<td>how hard it pulls back, in newtons per metre</td>
+</tr>
+<tr>
+<td><code>damping</code></td>
+<td>2</td>
+<td>how quickly it stops bouncing</td>
+</tr>
+<tr>
+<td><code>limitsEnabled</code></td>
+<td>false</td>
+<td>stops it between <code>minLength</code> and <code>maxLength</code></td>
+</tr>
+<tr>
+<td><code>minLength</code>, <code>maxLength</code></td>
+<td>0, 5</td>
+<td>metres</td>
+</tr>
+<tr>
+<td><code>coils</code></td>
+<td>5</td>
+<td>how many turns it is drawn with, 0 to 50</td>
+</tr>
+<tr>
+<td><code>radius</code></td>
+<td>0.4</td>
+<td>how wide the drawn coil is, in metres</td>
+</tr>
+<tr>
+<td><code>thickness</code></td>
+<td>0.1</td>
+<td>how thick the drawn wire is, in metres</td>
+</tr>
+<tr>
+<td><code>currentLength</code></td>
+<td></td>
+<td>read only: its length now</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SpringConstraint&quot;</span>, {
+    attachment0 = ground:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0</span>) }),
+    attachment1 = pad:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>),
+    freeLength = <span class="syn-num">1</span>, stiffness = <span class="syn-num">400</span>, damping = <span class="syn-num">10</span>,
+})</code></pre></div></div>
+<p>That spring rests with the pad one metre from the ground attachment. The <code>stiffness</code> of 400 is eight
+times the default, which holds a heavy pad up instead of letting it squash flat, and the <code>damping</code> of
+10 takes the wobble out of it after something lands.</p>
+<p>A heavier part sags further on the same spring; raise <code>stiffness</code> with its mass.</p>
+<p><code>coils</code>, <code>radius</code> and <code>thickness</code> only change how the spring is drawn when <code>visible</code> is on. A spring
+with <code>coils</code> or <code>radius</code> at 0 is drawn as a straight wire.</p>
+<h3 id="rods">Rods<a class="anchor" href="#rods" title="Permanent link">#</a></h3>
+<p>A <code>RodConstraint</code> holds its two attachments exactly <code>length</code> apart, like a stiff bar with a ball
+joint at each end. It neither stretches nor goes slack, and the parts turn freely about each end.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>length</code></td>
+<td>5</td>
+<td>the distance it holds the ends at, in metres</td>
+</tr>
+<tr>
+<td><code>thickness</code></td>
+<td>0.1</td>
+<td>how thick it is drawn, in metres</td>
+</tr>
+<tr>
+<td><code>currentDistance</code></td>
+<td></td>
+<td>read only: how far apart the attachments are now</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code><span class="syn-comment">-- server: a pendulum that swings on a rigid arm</span>
+<span class="syn-keyword">local</span> pivot = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">0.3</span>, <span class="syn-num">0.3</span>, <span class="syn-num">0.3</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">75</span>, <span class="syn-num">40</span>), anchored = <span class="syn-const">true</span> })
+<span class="syn-keyword">local</span> bob = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { shape = <span class="syn-string">&quot;ball&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.6</span>, <span class="syn-num">0.6</span>, <span class="syn-num">0.6</span>),
+                                cframe = <span class="syn-func">cframe</span>(<span class="syn-num">3</span>, <span class="syn-num">75</span>, <span class="syn-num">40</span>), anchored = <span class="syn-const">false</span> })
+
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;RodConstraint&quot;</span>, {
+    attachment0 = pivot:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>),
+    attachment1 = bob:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>),
+    length = <span class="syn-num">3</span>, visible = <span class="syn-const">true</span>,
+})</code></pre></div></div>
+<p>The bob starts level with the pivot and three metres from it. A rope would let it fall straight down
+until it went taut; the rod keeps it three metres away the whole time, so it swings down in an arc
+and back up the other side.</p>
+<p>Writing <code>length</code> while the place plays moves the ends to the new distance.</p>
+<h2 id="not-in-yet">Not in yet<a class="anchor" href="#not-in-yet" title="Permanent link">#</a></h2>
+<ul>
+<li>Movers such as <code>AlignPosition</code> or <code>VectorForce</code>. Push with the methods above each step instead.</li>
+<li>Physical materials by name. Set <code>density</code>, <code>friction</code> and <code>elasticity</code>.</li>
+</ul>
+    </article>
+    <div class="doc-pager"><a class="prev" href="plugins.html"><span>Previous</span>Editor plugins</a><a class="next" href="camera-and-input.html"><span>Next</span>Camera and input</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#shapes">Shapes</a></li><li><a href="#gravity">Gravity</a></li><li><a href="#mass-and-surfaces">Mass and surfaces</a></li><li><a href="#pushing-a-part">Pushing a part</a></li><li><a href="#who-simulates-a-part">Who simulates a part</a></li><li><a href="#pivots">Pivots</a></li><li><a href="#models">Models</a></li><li><a href="#welds">Welds</a></li><li><a href="#constraints">Constraints</a></li><li><a href="#not-in-yet">Not in yet</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

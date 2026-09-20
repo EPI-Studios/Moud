@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Particles, beams, trails, highlights and decals | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html" class="active"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Screen and sound</span></nav>
+    <article class="doc">
+<h1 id="particles-beams-trails-highlights-and-decals">Particles, beams, trails, highlights and decals<a class="anchor" href="#particles-beams-trails-highlights-and-decals" title="Permanent link">#</a></h1>
+<p>Effects are instances that draw something the world does not have geometry for: sparks, flame, a
+laser, a glow around a crate, a picture on a wall. Put one in the tree and every client draws it. Take
+it out and it is gone. They draw in play and in the editor viewport. In the Explorer,
+<strong>Insert &gt; Effects</strong> lists all twelve.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Goes inside</th>
+<th>What it draws</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ParticleEmitter</code></td>
+<td>a part, a model or an attachment</td>
+<td>particles you describe</td>
+</tr>
+<tr>
+<td><code>Fire</code></td>
+<td>a part or an attachment</td>
+<td>flames</td>
+</tr>
+<tr>
+<td><code>Smoke</code></td>
+<td>a part or an attachment</td>
+<td>rising puffs</td>
+</tr>
+<tr>
+<td><code>Sparkles</code></td>
+<td>a part or an attachment</td>
+<td>glints falling out every way</td>
+</tr>
+<tr>
+<td><code>Beam</code></td>
+<td>anywhere</td>
+<td>a ribbon between two attachments</td>
+</tr>
+<tr>
+<td><code>Trail</code></td>
+<td>anywhere</td>
+<td>a ribbon left behind two moving attachments</td>
+</tr>
+<tr>
+<td><code>Highlight</code></td>
+<td>anything, or set <code>adornee</code></td>
+<td>a fill and outline over parts, mesh parts, models and characters</td>
+</tr>
+<tr>
+<td><code>Decal</code></td>
+<td>a part</td>
+<td>an image on one face</td>
+</tr>
+<tr>
+<td><code>Texture</code></td>
+<td>a part</td>
+<td>an image tiled across one face</td>
+</tr>
+<tr>
+<td><code>SelectionBox</code></td>
+<td>anything, or set <code>adornee</code></td>
+<td>a box around it, always on top</td>
+</tr>
+<tr>
+<td><code>SelectionSphere</code></td>
+<td>anything, or set <code>adornee</code></td>
+<td>a sphere around it, always on top</td>
+</tr>
+<tr>
+<td><code>Explosion</code></td>
+<td>the world</td>
+<td>a blast that pushes parts and kills bodies</td>
+</tr>
+</tbody>
+</table></div>
+<p>The <strong>Goes inside</strong> column is what you parent the effect to, and it decides where the effect draws.
+An emitter inside a part sends particles out of that part, and a decal inside a part puts an image on
+that part's face.</p>
+<p>Sizes and distances are metres. Colours are 0 to 1. <code>transparency</code> is 0 solid and 1 gone.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>Unlike the rest of Moud, <code>spreadAngle</code> and particle rotations are <strong>degrees</strong>. A <code>spreadAngle</code> of
+25 is 25 degrees, and <code>rotSpeedMin = 90</code> is a quarter turn a second.</p></div></div>
+<h2 id="images">Images<a class="anchor" href="#images" title="Permanent link">#</a></h2>
+<p><code>texture</code> on a particle emitter, beam, trail, decal or texture takes:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Value</th>
+<th>Image</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"res://effects/spark.png"</code></td>
+<td>an image in the place</td>
+</tr>
+<tr>
+<td><code>"flame"</code>, <code>"glint"</code>, <code>"big_smoke_0"</code></td>
+<td>a Minecraft particle, from <code>textures/particle/</code></td>
+</tr>
+<tr>
+<td><code>"minecraft:block/stone"</code></td>
+<td>any other game texture, by its path under <code>textures/</code></td>
+</tr>
+<tr>
+<td><code>canvas.uri</code></td>
+<td>an image a script drew or loaded, see <a href="images.html">Images</a></td>
+</tr>
+<tr>
+<td><code>""</code></td>
+<td>a soft round dot on emitters, a plain colour on beams and trails</td>
+</tr>
+</tbody>
+</table></div>
+<p>Game textures keep their pixels sharp. Images in the place are smoothed. An image that cannot be
+found draws the dot, and is looked for again a second later, so a file you add while the place is
+running appears without a reload.</p>
+<h2 id="light">Light<a class="anchor" href="#light" title="Permanent link">#</a></h2>
+<p>Particles, beams and trails share three numbers that decide how bright they are drawn:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>brightness</code></td>
+<td>multiplies the colour; above 1 glows</td>
+</tr>
+<tr>
+<td><code>lightEmission</code></td>
+<td>0 blends normally, 1 adds its light to what is behind it, like fire or a laser</td>
+</tr>
+<tr>
+<td><code>lightInfluence</code></td>
+<td>0 is always fully bright, 1 darkens in shadow and at night like a block</td>
+</tr>
+</tbody>
+</table></div>
+<p>Raise <code>brightness</code> and <code>lightEmission</code> for anything that is meant to be a source of light itself, such
+as sparks or a laser. Raise <code>lightInfluence</code> for anything that is meant to sit in the world, such as
+dust or falling leaves, so it goes dark at night with everything around it.</p>
+<p>None of them light up the world. Add a <a href="rendering.html#lights">light</a> next to the effect for that.</p>
+<h2 id="a-campfire">A campfire<a class="anchor" href="#a-campfire" title="Permanent link">#</a></h2>
+<p>Most effects are one <code>add</code> call with a table of properties. A campfire is four of them in the same
+part:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25</pre><pre><code><span class="syn-keyword">local</span> pit = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;campfire&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">0.2</span>, <span class="syn-num">1</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">64.1</span>, <span class="syn-num">0</span>),
+    color = <span class="syn-func">color</span>(<span class="syn-num">0.25</span>, <span class="syn-num">0.18</span>, <span class="syn-num">0.12</span>),
+})
+
+pit:<span class="syn-func">add</span>(<span class="syn-string">&quot;Fire&quot;</span>, { size = <span class="syn-num">2</span>, heat = <span class="syn-num">12</span> })
+pit:<span class="syn-func">add</span>(<span class="syn-string">&quot;Smoke&quot;</span>, { size = <span class="syn-num">1.5</span>, opacity = <span class="syn-num">0.25</span>, riseVelocity = <span class="syn-num">2</span>, color = <span class="syn-func">color</span>(<span class="syn-num">0.35</span>, <span class="syn-num">0.35</span>, <span class="syn-num">0.35</span>) })
+pit:<span class="syn-func">add</span>(<span class="syn-string">&quot;PointLight&quot;</span>, { color = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.6</span>, <span class="syn-num">0.3</span>), brightness = <span class="syn-num">2</span>, range = <span class="syn-num">10</span> })
+
+pit:<span class="syn-func">add</span>(<span class="syn-string">&quot;ParticleEmitter&quot;</span>, {
+    name = <span class="syn-string">&quot;embers&quot;</span>,
+    texture = <span class="syn-string">&quot;spark_4&quot;</span>,
+    rate = <span class="syn-num">6</span>,
+    lifetimeMin = <span class="syn-num">0.8</span>, lifetimeMax = <span class="syn-num">1.6</span>,
+    speedMin = <span class="syn-num">2</span>, speedMax = <span class="syn-num">4</span>,
+    spreadAngle = <span class="syn-num">25</span>,
+    acceleration = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, -<span class="syn-num">3</span>, <span class="syn-num">0</span>),
+    drag = <span class="syn-num">1</span>,
+    sizeStart = <span class="syn-num">0.15</span>, sizeEnd = <span class="syn-num">0</span>,
+    colorStart = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.3</span>), colorEnd = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.3</span>, <span class="syn-num">0.1</span>),
+    brightness = <span class="syn-num">2</span>,
+    lightEmission = <span class="syn-num">1</span>,
+})</code></pre></div></div>
+<ul>
+<li>The <code>Fire</code> and the <code>Smoke</code> draw the flames and the puffs. Neither one lights anything, which is why
+  the <code>PointLight</code> is there as well.</li>
+<li>The emitter sends six embers a second, each living between 0.8 and 1.6 seconds and leaving at
+  between 2 and 4 metres a second. <code>spreadAngle = 25</code> lets each one stray up to 25 degrees from
+  straight up, so they rise in a loose cone.</li>
+<li><code>acceleration</code> pulls them back down at three metres a second squared, and <code>drag</code> slows them as they
+  go, which is what makes an ember arc over and fade rather than fly off.</li>
+<li><code>sizeStart</code> and <code>sizeEnd</code> shrink each ember to nothing, while <code>colorStart</code> and <code>colorEnd</code> cool it
+  from yellow to red over the same life.</li>
+</ul>
+<h2 id="particle-emitters">Particle emitters<a class="anchor" href="#particle-emitters" title="Permanent link">#</a></h2>
+<p>A <code>ParticleEmitter</code> sends particles out of what it is inside. From a part they start inside its box.
+From an attachment or a model they start at its point. Inside anything else an emitter sends nothing.</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>true</td>
+<td>off stops the steady flow; particles already out finish, and <code>emit</code> still works</td>
+</tr>
+<tr>
+<td><code>texture</code></td>
+<td><code>""</code></td>
+<td>see <a href="#images">Images</a></td>
+</tr>
+<tr>
+<td><code>rate</code></td>
+<td>20</td>
+<td>particles a second</td>
+</tr>
+<tr>
+<td><code>lifetimeMin</code>, <code>lifetimeMax</code></td>
+<td>5, 10</td>
+<td>seconds; each particle picks between the two</td>
+</tr>
+<tr>
+<td><code>speedMin</code>, <code>speedMax</code></td>
+<td>5, 5</td>
+<td>metres a second as it leaves</td>
+</tr>
+<tr>
+<td><code>spreadAngle</code></td>
+<td>0</td>
+<td>degrees a particle may stray from <code>emissionDirection</code>, the same in every direction; 180 sends them every way</td>
+</tr>
+<tr>
+<td><code>emissionDirection</code></td>
+<td><code>"top"</code></td>
+<td>which face they leave from, in the frame of what the emitter is inside</td>
+</tr>
+<tr>
+<td><code>shapeStyle</code></td>
+<td><code>"volume"</code></td>
+<td><code>volume</code> starts them anywhere in the part, <code>surface</code> only on its faces</td>
+</tr>
+<tr>
+<td><code>acceleration</code></td>
+<td>0, 0, 0</td>
+<td>a pull in world space, metres a second squared; gravity is <code>vec3(0, -9.8, 0)</code></td>
+</tr>
+<tr>
+<td><code>drag</code></td>
+<td>0</td>
+<td>a particle loses half its speed every <code>1 / drag</code> seconds</td>
+</tr>
+<tr>
+<td><code>rotationMin</code>, <code>rotationMax</code></td>
+<td>0, 0</td>
+<td>starting angle, degrees</td>
+</tr>
+<tr>
+<td><code>rotSpeedMin</code>, <code>rotSpeedMax</code></td>
+<td>0, 0</td>
+<td>spin, degrees a second</td>
+</tr>
+<tr>
+<td><code>sizeStart</code>, <code>sizeEnd</code></td>
+<td>1, 1</td>
+<td>width in metres when born and when it dies</td>
+</tr>
+<tr>
+<td><code>transparencyStart</code>, <code>transparencyEnd</code></td>
+<td>0, 0</td>
+<td></td>
+</tr>
+<tr>
+<td><code>colorStart</code>, <code>colorEnd</code></td>
+<td>white, white</td>
+<td></td>
+</tr>
+<tr>
+<td><code>brightness</code>, <code>lightEmission</code>, <code>lightInfluence</code></td>
+<td>1, 0, 0</td>
+<td>see <a href="#light">Light</a></td>
+</tr>
+<tr>
+<td><code>orientation</code></td>
+<td><code>"facingCamera"</code></td>
+<td>see below</td>
+</tr>
+<tr>
+<td><code>lockedToPart</code></td>
+<td>false</td>
+<td>on, particles move with the part after they leave; off, they stay in the world</td>
+</tr>
+<tr>
+<td><code>timeScale</code></td>
+<td>1</td>
+<td>1 is normal speed, 0 freezes them</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every curve is a start and an end value, with no points in between. The value blends from one to the
+other over the particle's life, so a particle with <code>sizeStart = 1</code> and <code>sizeEnd = 0</code> is half a metre
+wide when it is halfway through.</p>
+<p>Because <code>emissionDirection</code> is read in the frame of whatever the emitter is inside, turning that part
+turns the spray. An emitter in a part you tip on its side sprays sideways.</p>
+<p><code>orientation</code> decides which way each particle faces the camera:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th><code>orientation</code></th>
+<th>Each particle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>facingCamera</code></td>
+<td>turns fully to the camera</td>
+</tr>
+<tr>
+<td><code>facingCameraWorldUp</code></td>
+<td>turns to the camera but stays upright</td>
+</tr>
+<tr>
+<td><code>velocityParallel</code></td>
+<td>stands along where it is going, turned towards the camera</td>
+</tr>
+<tr>
+<td><code>velocityPerpendicular</code></td>
+<td>faces where it is going</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>velocityParallel</code> is what makes a spark look like a streak, because the image is stretched along the
+direction the particle is travelling.</p>
+<p>One emitter holds at most 8192 particles at once. <code>rate</code> times the longest lifetime tells you how many
+an emitter keeps alive, so at <code>rate = 20</code> and <code>lifetimeMax = 10</code> an emitter carries 200.</p>
+<div class="demo" data-demo="effects-emitter"></div>
+<h2 id="bursts">Bursts<a class="anchor" href="#bursts" title="Permanent link">#</a></h2>
+<p><code>emitter:emit(count)</code> sends out <code>count</code> particles at once, 16 when you leave it out, up to 10000.
+Set <code>rate = 0</code> for an emitter that only bursts.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17</pre><pre><code><span class="syn-comment">-- server: a crate that bursts when clicked</span>
+<span class="syn-keyword">local</span> crate = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;Crate&quot;</span>) :: Part
+<span class="syn-keyword">local</span> burst = crate:<span class="syn-func">add</span>(<span class="syn-string">&quot;ParticleEmitter&quot;</span>, {
+    rate = <span class="syn-num">0</span>,
+    speedMin = <span class="syn-num">3</span>, speedMax = <span class="syn-num">7</span>,
+    spreadAngle = <span class="syn-num">180</span>,
+    lifetimeMin = <span class="syn-num">0.4</span>, lifetimeMax = <span class="syn-num">0.9</span>,
+    acceleration = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, -<span class="syn-num">9.8</span>, <span class="syn-num">0</span>),
+    sizeStart = <span class="syn-num">0.2</span>, sizeEnd = <span class="syn-num">0</span>,
+    colorStart = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.9</span>, <span class="syn-num">0.4</span>),
+    lightEmission = <span class="syn-num">1</span>,
+})
+<span class="syn-keyword">local</span> detector = crate:<span class="syn-func">add</span>(<span class="syn-string">&quot;ClickDetector&quot;</span>, {})
+
+detector.mouseClick:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    burst:<span class="syn-func">emit</span>(<span class="syn-num">40</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>rate = 0</code> means the emitter never sends anything by itself. It sits in the crate doing nothing
+  until a click calls <code>emit</code>.</li>
+<li><code>spreadAngle = 180</code> sends the 40 particles in every direction rather than out of one face.</li>
+<li><code>acceleration = vec3(0, -9.8, 0)</code> pulls them down at the usual gravity, so the burst arcs and falls.</li>
+<li>Every particle is gone within 0.9 seconds, which is <code>lifetimeMax</code>.</li>
+</ul>
+<p>How a burst reaches the other players:</p>
+<ul>
+<li>On the server, <code>emit</code> adds to <code>emitted</code>. That count replicates, and every client emits the
+  difference. A client that reaches the emitter late (joining, or being sent a branch it did not
+  have) starts from the count it arrives with, so it never replays bursts from before it was
+  there.</li>
+<li>On a client, <code>emit</code> happens only on that client.</li>
+</ul>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Leave <code>emitted</code> alone; it only exists to carry bursts across. Writing it yourself makes clients
+emit the difference between the old value and the new one.</p></div></div>
+<h2 id="fire-smoke-and-sparkles">Fire, smoke and sparkles<a class="anchor" href="#fire-smoke-and-sparkles" title="Permanent link">#</a></h2>
+<p><code>Fire</code>, <code>Smoke</code> and <code>Sparkles</code> are ready-made emitters with fewer knobs. Reach for one when you want
+the usual look and do not want to set fifteen properties.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Properties</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Fire</code></td>
+<td><code>enabled</code>, <code>size</code> (0.2 to 30), <code>heat</code> (0 to 25, how fast the flames rise), <code>color</code>, <code>secondaryColor</code> (what the flames fade to), <code>timeScale</code></td>
+</tr>
+<tr>
+<td><code>Smoke</code></td>
+<td><code>enabled</code>, <code>size</code> (0.1 to 100), <code>opacity</code>, <code>riseVelocity</code> (-25 to 25, negative sinks), <code>color</code>, <code>timeScale</code></td>
+</tr>
+<tr>
+<td><code>Sparkles</code></td>
+<td><code>enabled</code>, <code>sparkleColor</code>, <code>timeScale</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Turning one off stops new flames, puffs or glints. What is already out finishes, so a fire you switch
+off burns down over the next moment rather than vanishing.</p>
+<h2 id="a-laser">A laser<a class="anchor" href="#a-laser" title="Permanent link">#</a></h2>
+<p>A <code>Beam</code> draws a ribbon from <code>attachment0</code> to <code>attachment1</code>. Any part or attachment works as either end.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17</pre><pre><code><span class="syn-keyword">local</span> turret = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;Turret&quot;</span>) :: Part
+<span class="syn-keyword">local</span> target = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;Target&quot;</span>) :: Part
+
+turret:<span class="syn-func">add</span>(<span class="syn-string">&quot;Beam&quot;</span>, {
+    attachment0 = turret:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, -<span class="syn-num">0.5</span>) }),
+    attachment1 = target:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, {}),
+    texture = <span class="syn-string">&quot;res://effects/laser.png&quot;</span>,
+    textureMode = <span class="syn-string">&quot;wrap&quot;</span>,
+    textureLength = <span class="syn-num">0.5</span>,
+    textureSpeed = <span class="syn-num">4</span>,
+    colorStart = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>), colorEnd = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.4</span>, <span class="syn-num">0.2</span>),
+    transparencyStart = <span class="syn-num">0</span>, transparencyEnd = <span class="syn-num">0</span>,
+    width0 = <span class="syn-num">0.15</span>, width1 = <span class="syn-num">0.15</span>,
+    faceCamera = <span class="syn-const">true</span>,
+    brightness = <span class="syn-num">2</span>,
+    lightEmission = <span class="syn-num">1</span>,
+})</code></pre></div></div>
+<ul>
+<li>The two attachments are the ends. One sits half a metre out of the front of the turret and the
+  other in the middle of the target, and the beam follows them: move either part and the beam moves
+  with it on the next frame.</li>
+<li><code>textureMode = "wrap"</code> with <code>textureLength = 0.5</code> repeats the image every half metre, so a long beam
+  and a short one have the same sized markings.</li>
+<li><code>textureSpeed = 4</code> scrolls the image four lengths a second from the turret towards the target, which
+  is what makes the laser look like it is flowing.</li>
+<li><code>faceCamera = true</code> turns the ribbon's flat side towards each player, so the beam never goes
+  edge-on and disappears.</li>
+<li><code>brightness = 2</code> with <code>lightEmission = 1</code> adds the beam's colour to whatever is behind it, which is
+  what gives it the glow.</li>
+</ul>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>true</td>
+<td></td>
+</tr>
+<tr>
+<td><code>attachment0</code>, <code>attachment1</code></td>
+<td></td>
+<td>where it starts and ends; with either missing, nothing draws</td>
+</tr>
+<tr>
+<td><code>texture</code></td>
+<td><code>""</code></td>
+<td>see <a href="#images">Images</a></td>
+</tr>
+<tr>
+<td><code>textureMode</code></td>
+<td><code>"stretch"</code></td>
+<td><code>stretch</code> fits the image to the whole beam and scrolls it; <code>wrap</code> repeats it every <code>textureLength</code> metres and scrolls it; <code>static</code> repeats it the same way and holds it still from <code>attachment0</code></td>
+</tr>
+<tr>
+<td><code>textureLength</code></td>
+<td>1</td>
+<td><code>stretch</code>: how many times the image repeats; otherwise metres per repeat</td>
+</tr>
+<tr>
+<td><code>textureSpeed</code></td>
+<td>1</td>
+<td>image lengths a second the image scrolls, from <code>attachment0</code> towards <code>attachment1</code>; <code>static</code> ignores it</td>
+</tr>
+<tr>
+<td><code>colorStart</code>, <code>colorEnd</code></td>
+<td>white, white</td>
+<td>at <code>attachment0</code> and at <code>attachment1</code></td>
+</tr>
+<tr>
+<td><code>transparencyStart</code>, <code>transparencyEnd</code></td>
+<td>0.5, 0.5</td>
+<td></td>
+</tr>
+<tr>
+<td><code>width0</code>, <code>width1</code></td>
+<td>1, 1</td>
+<td>metres at each end</td>
+</tr>
+<tr>
+<td><code>curveSize0</code>, <code>curveSize1</code></td>
+<td>0, 0</td>
+<td>how far the beam bows out of each attachment, along its X axis</td>
+</tr>
+<tr>
+<td><code>segments</code></td>
+<td>10</td>
+<td>straight pieces the curve is drawn with, 1 to 1000</td>
+</tr>
+<tr>
+<td><code>faceCamera</code></td>
+<td>false</td>
+<td>on, it turns its flat side to the camera; off, it lies flat facing the attachments' up axis</td>
+</tr>
+<tr>
+<td><code>brightness</code>, <code>lightEmission</code>, <code>lightInfluence</code></td>
+<td>1, 0, 0</td>
+<td>see <a href="#light">Light</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>With both curve sizes 0 the beam is straight. Otherwise it is a curve that leaves <code>attachment0</code> along
+its X axis and arrives at <code>attachment1</code> along its X axis, so turning the attachments shapes it. Raise
+<code>segments</code> when a tight curve looks like a run of straight lines.</p>
+<div class="demo" data-demo="effects-beam"></div>
+<h2 id="a-sword-trail">A sword trail<a class="anchor" href="#a-sword-trail" title="Permanent link">#</a></h2>
+<p>A <code>Trail</code> follows two attachments and leaves a ribbon across the gap between them. You put both
+attachments on the same moving part, one at each edge of the shape you want the ribbon to be as wide
+as.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre><pre><code><span class="syn-keyword">local</span> blade = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;Sword&quot;</span>) :: Part
+<span class="syn-keyword">local</span> trail = blade:<span class="syn-func">add</span>(<span class="syn-string">&quot;Trail&quot;</span>, {
+    attachment0 = blade:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, -<span class="syn-num">1</span>, <span class="syn-num">0</span>) }),
+    attachment1 = blade:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>) }),
+    enabled = <span class="syn-const">false</span>,
+    lifetime = <span class="syn-num">0.25</span>,
+    colorStart = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>), colorEnd = <span class="syn-func">color</span>(<span class="syn-num">0.6</span>, <span class="syn-num">0.8</span>, <span class="syn-num">1</span>),
+    transparencyStart = <span class="syn-num">0.2</span>, transparencyEnd = <span class="syn-num">1</span>,
+    widthScaleEnd = <span class="syn-num">0.3</span>,
+    lightEmission = <span class="syn-num">1</span>,
+})
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">swing</span>()
+    trail:<span class="syn-func">clear</span>()
+    trail.enabled = <span class="syn-const">true</span>
+    <span class="syn-comment">-- turn the blade here</span>
+    task.<span class="syn-func">delay</span>(<span class="syn-num">0.3</span>, <span class="syn-keyword">function</span>() trail.enabled = <span class="syn-const">false</span> <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<ul>
+<li>The attachments are two metres apart along the blade, so the ribbon is as wide as the blade is long.</li>
+<li><code>enabled = false</code> at creation means the trail lays nothing until a swing starts. Without it the
+  sword would smear a ribbon behind the player as they walk.</li>
+<li><code>trail:clear()</code> before each swing wipes whatever is left of the last one, so the first swing and the
+  tenth look the same.</li>
+<li><code>lifetime = 0.25</code> means each piece of the ribbon fades out a quarter of a second after it is laid,
+  and <code>widthScaleEnd = 0.3</code> narrows the ribbon to a third of its width as it goes.</li>
+</ul>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>true</td>
+<td>off lays no new points; what is left fades away</td>
+</tr>
+<tr>
+<td><code>attachment0</code>, <code>attachment1</code></td>
+<td></td>
+<td>the two edges; with either missing, the trail is wiped</td>
+</tr>
+<tr>
+<td><code>texture</code>, <code>textureLength</code></td>
+<td><code>""</code>, 1</td>
+<td>as on a beam</td>
+</tr>
+<tr>
+<td><code>textureMode</code></td>
+<td><code>"stretch"</code></td>
+<td><code>stretch</code> fits the image to the whole trail; <code>wrap</code> repeats it by distance and keeps it still against the attachments; <code>static</code> repeats it by distance and leaves each repeat where it was laid in the world</td>
+</tr>
+<tr>
+<td><code>lifetime</code></td>
+<td>2</td>
+<td>seconds a piece lasts, up to 20</td>
+</tr>
+<tr>
+<td><code>minLength</code></td>
+<td>0.1</td>
+<td>how far the attachments must move before a new point is laid</td>
+</tr>
+<tr>
+<td><code>maxLength</code></td>
+<td>0</td>
+<td>the longest it gets, in metres; 0 is no limit</td>
+</tr>
+<tr>
+<td><code>colorStart</code>, <code>colorEnd</code></td>
+<td>white, white</td>
+<td>where it is new and where it is about to vanish</td>
+</tr>
+<tr>
+<td><code>transparencyStart</code>, <code>transparencyEnd</code></td>
+<td>0, 1</td>
+<td></td>
+</tr>
+<tr>
+<td><code>widthScaleStart</code>, <code>widthScaleEnd</code></td>
+<td>1, 1</td>
+<td>scales the gap between the attachments along its life</td>
+</tr>
+<tr>
+<td><code>faceCamera</code></td>
+<td>false</td>
+<td>on, it turns its flat side to the camera</td>
+</tr>
+<tr>
+<td><code>brightness</code>, <code>lightEmission</code>, <code>lightInfluence</code></td>
+<td>1, 0, 0</td>
+<td>see <a href="#light">Light</a></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>trail:clear()</code> wipes what is behind it. Like <code>emit</code>, on the server it adds to <code>clears</code> and every
+client wipes; on a client it wipes only there. A client that reaches the trail late starts from the
+count it arrives with, so an old wipe never happens twice.</p>
+<h2 id="highlighting-what-the-pointer-is-on">Highlighting what the pointer is on<a class="anchor" href="#highlighting-what-the-pointer-is-on" title="Permanent link">#</a></h2>
+<p>A <code>Highlight</code> lays a colour over parts and draws an outline around them. It covers <code>adornee</code>, or its
+parent when <code>adornee</code> is empty, and every part inside it, so one highlight covers a whole model or
+character.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-comment">-- client: glow the crate the pointer is on</span>
+<span class="syn-keyword">for</span> _, crate <span class="syn-keyword">in</span> world:<span class="syn-func">byTag</span>(<span class="syn-string">&quot;crate&quot;</span>) <span class="syn-keyword">do</span>
+    <span class="syn-keyword">local</span> detector = crate:<span class="syn-func">find</span>(<span class="syn-string">&quot;ClickDetector&quot;</span>) :: ClickDetector
+    <span class="syn-keyword">local</span> glow = crate:<span class="syn-func">add</span>(<span class="syn-string">&quot;Highlight&quot;</span>, {
+        enabled = <span class="syn-const">false</span>,
+        fillColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.9</span>, <span class="syn-num">0.3</span>), fillTransparency = <span class="syn-num">0.8</span>,
+        outlineColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.9</span>, <span class="syn-num">0.3</span>),
+        depthMode = <span class="syn-string">&quot;occluded&quot;</span>,
+    })
+    detector.mouseHoverEnter:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() glow.enabled = <span class="syn-const">true</span> <span class="syn-keyword">end</span>)
+    detector.mouseHoverLeave:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() glow.enabled = <span class="syn-const">false</span> <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<ul>
+<li>One highlight is made per crate and left switched off, and the hover events only flip <code>enabled</code>.
+  Creating the highlight once is cheaper than adding and destroying one on every hover.</li>
+<li><code>fillTransparency = 0.8</code> lets most of the crate's own colour through, so the glow reads as a tint
+  rather than as paint.</li>
+<li><code>depthMode = "occluded"</code> hides the parts of the glow that are behind something else, so a crate
+  round a corner does not shine through the wall.</li>
+</ul>
+<p>The highlight is made on the client, so only that player sees it. The hover events are in
+<a href="zones-and-triggers.html#click-detectors">Click detectors</a>.</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>true</td>
+<td></td>
+</tr>
+<tr>
+<td><code>adornee</code></td>
+<td>empty</td>
+<td>what it covers; empty uses its parent</td>
+</tr>
+<tr>
+<td><code>fillColor</code>, <code>fillTransparency</code></td>
+<td>red, 0.5</td>
+<td>the colour laid over it; 1 leaves the inside as it is</td>
+</tr>
+<tr>
+<td><code>outlineColor</code>, <code>outlineTransparency</code></td>
+<td>white, 0</td>
+<td>the line around it; 1 hides the line</td>
+</tr>
+<tr>
+<td><code>depthMode</code></td>
+<td><code>"alwaysOnTop"</code></td>
+<td><code>alwaysOnTop</code> shows it through walls, <code>occluded</code> hides what is behind something</td>
+</tr>
+</tbody>
+</table></div>
+<p>Invisible parts and parts with <code>transparency = 1</code> are left out.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>There is no limit on how many highlights a scene has, but each one is its own pass over the screen.
+Switch them off with <code>enabled</code> rather than keeping hundreds on at once.</p></div></div>
+<h2 id="a-sign-and-a-tiled-floor">A sign and a tiled floor<a class="anchor" href="#a-sign-and-a-tiled-floor" title="Permanent link">#</a></h2>
+<p>A <code>Decal</code> stretches an image over one face of its parent part. A <code>Texture</code> is a decal that tiles.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-keyword">local</span> board = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;sign&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">2</span>, <span class="syn-num">1</span>, <span class="syn-num">0.1</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">3</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>) })
+board:<span class="syn-func">add</span>(<span class="syn-string">&quot;Decal&quot;</span>, { texture = <span class="syn-string">&quot;res://decals/shop.png&quot;</span>, face = <span class="syn-string">&quot;front&quot;</span> })
+
+<span class="syn-keyword">local</span> floor = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;floor&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">12</span>, <span class="syn-num">0.2</span>, <span class="syn-num">12</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">63.9</span>, <span class="syn-num">0</span>) })
+floor:<span class="syn-func">add</span>(<span class="syn-string">&quot;Texture&quot;</span>, {
+    texture = <span class="syn-string">&quot;minecraft:block/oak_planks&quot;</span>,
+    face = <span class="syn-string">&quot;top&quot;</span>,
+    studsPerTileU = <span class="syn-num">1</span>, studsPerTileV = <span class="syn-num">1</span>,
+})</code></pre></div></div>
+<p>The decal fills the sign's whole front face however big the part is. The texture on the floor repeats
+the plank image once every metre, so the twelve metre floor is covered by 144 copies of it, and
+widening the floor adds more copies instead of stretching the ones it has.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>texture</code></td>
+<td><code>""</code></td>
+<td>see <a href="#images">Images</a>; empty draws nothing</td>
+</tr>
+<tr>
+<td><code>face</code></td>
+<td><code>"front"</code></td>
+<td><code>front</code>, <code>back</code>, <code>left</code>, <code>right</code>, <code>top</code> or <code>bottom</code></td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td>white</td>
+<td>tints the image</td>
+</tr>
+<tr>
+<td><code>transparency</code></td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td><code>zIndex</code></td>
+<td>1</td>
+<td>higher draws over lower on the same face</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>Texture</code> adds:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>studsPerTileU</code>, <code>studsPerTileV</code></td>
+<td>1, 1</td>
+<td>metres one copy of the image covers across and down the face</td>
+</tr>
+<tr>
+<td><code>offsetStudsU</code>, <code>offsetStudsV</code></td>
+<td>0, 0</td>
+<td>slides the image across and down, in metres</td>
+</tr>
+</tbody>
+</table></div>
+<p>A decal takes the light of its part and shades like a block face. It only draws inside a part.</p>
+<h2 id="selection-boxes-and-spheres">Selection boxes and spheres<a class="anchor" href="#selection-boxes-and-spheres" title="Permanent link">#</a></h2>
+<p>A <code>SelectionBox</code> draws the edges of a box around what it is on, and a <code>SelectionSphere</code> draws a
+sphere. Both always draw on top of everything and ignore light, so they read as markers over the world
+rather than as objects in it.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> box = crate:<span class="syn-func">add</span>(<span class="syn-string">&quot;SelectionBox&quot;</span>, { color = <span class="syn-func">color</span>(<span class="syn-num">0.2</span>, <span class="syn-num">0.6</span>, <span class="syn-num">1</span>), lineThickness = <span class="syn-num">0.04</span> })
+<span class="syn-keyword">local</span> ring = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SelectionSphere&quot;</span>, { adornee = crate, surfaceTransparency = <span class="syn-num">0.8</span> })</code></pre></div></div>
+<p>The box is inside the crate, so it goes around the crate. The sphere is in the world and reaches the
+crate through <code>adornee</code>, which is how you mark something you cannot or do not want to add children to.</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>visible</code></td>
+<td>true</td>
+<td></td>
+</tr>
+<tr>
+<td><code>adornee</code></td>
+<td>empty</td>
+<td>what it goes around; empty uses its parent</td>
+</tr>
+<tr>
+<td><code>color</code>, <code>transparency</code></td>
+<td>blue, 0</td>
+<td>the edges, or the rings of a sphere</td>
+</tr>
+<tr>
+<td><code>surfaceColor</code>, <code>surfaceTransparency</code></td>
+<td>blue, 1</td>
+<td>the faces; 1 leaves them empty</td>
+</tr>
+<tr>
+<td><code>lineThickness</code></td>
+<td>0.05</td>
+<td><code>SelectionBox</code> only, metres</td>
+</tr>
+</tbody>
+</table></div>
+<p>Around a model the box wraps every part inside, turned with the model. The sphere passes through the
+corners of that box, so it is wider than the model rather than tight to it.</p>
+<h2 id="explosions">Explosions<a class="anchor" href="#explosions" title="Permanent link">#</a></h2>
+<p>An <code>Explosion</code> goes off. Adding one to the world from a server <code>Script</code> sets a blast at <code>position</code>,
+and the explosion takes itself out of the tree afterwards, so you never destroy one yourself. Nothing
+goes off while you edit a scene.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23</pre><pre><code><span class="syn-comment">-- server: a grenade that goes off three seconds after it is thrown</span>
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">grenade</span>(from, velocity)
+    <span class="syn-keyword">local</span> bomb = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+        name = <span class="syn-string">&quot;grenade&quot;</span>, shape = <span class="syn-string">&quot;ball&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.4</span>, <span class="syn-num">0.4</span>, <span class="syn-num">0.4</span>),
+        cframe = <span class="syn-func">cframe</span>(from), anchored = <span class="syn-const">false</span>, color = <span class="syn-func">color</span>(<span class="syn-num">0.2</span>, <span class="syn-num">0.25</span>, <span class="syn-num">0.2</span>),
+    })
+    bomb:<span class="syn-func">applyImpulse</span>(velocity * bomb:<span class="syn-func">getMass</span>())
+
+    task.<span class="syn-func">delay</span>(<span class="syn-num">3</span>, <span class="syn-keyword">function</span>()
+        <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> bomb.parent <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+        <span class="syn-keyword">local</span> blast = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Explosion&quot;</span>, {
+            position = bomb.worldCframe.position,
+            blastRadius = <span class="syn-num">8</span>,
+            blastPressure = <span class="syn-num">400000</span>,
+            destroyJointRadiusPercent = <span class="syn-num">0.4</span>,
+            explosionType = <span class="syn-string">&quot;noCraters&quot;</span>,
+        })
+        blast.hit:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(part, distance)
+            <span class="syn-func">print</span>(<span class="syn-string">&quot;caught&quot;</span>, part.name, <span class="syn-string">&quot;at&quot;</span>, distance)
+        <span class="syn-keyword">end</span>)
+        bomb:<span class="syn-func">destroy</span>()
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<ul>
+<li>The bomb is an unanchored ball, so it flies and rolls. Multiplying <code>velocity</code> by its mass gives it
+  the speed you asked for whatever its density is. See <a href="physics.html#pushing-a-part">Physics</a>.</li>
+<li><code>if not bomb.parent then return end</code> covers the case where something destroyed the grenade during
+  those three seconds. Without it the next line reads a position off an instance that is gone.</li>
+<li><code>position</code> is taken from <code>bomb.worldCframe.position</code> at the moment it goes off, which is wherever
+  the grenade rolled to, not where it was thrown from.</li>
+<li><code>destroyJointRadiusPercent = 0.4</code> kills anything with a humanoid inside 3.2 metres, which is 40 per
+  cent of the eight metre radius. Things further out are thrown but survive.</li>
+<li><code>explosionType = "noCraters"</code> leaves the blocks alone, so the blast does not chew a hole in your
+  map.</li>
+</ul>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>position</code></td>
+<td>0, 0, 0</td>
+<td>where it goes off, in world coordinates</td>
+</tr>
+<tr>
+<td><code>blastRadius</code></td>
+<td>4</td>
+<td>how far it reaches, in metres; nothing outside is touched</td>
+</tr>
+<tr>
+<td><code>blastPressure</code></td>
+<td>500000</td>
+<td>how hard it throws things</td>
+</tr>
+<tr>
+<td><code>destroyJointRadiusPercent</code></td>
+<td>1</td>
+<td>the share of the radius that kills</td>
+</tr>
+<tr>
+<td><code>explosionType</code></td>
+<td><code>"craters"</code></td>
+<td><code>craters</code> breaks the blocks it reaches, <code>noCraters</code> leaves them alone</td>
+</tr>
+<tr>
+<td><code>visible</code></td>
+<td>true</td>
+<td>players see the blast and hear it</td>
+</tr>
+<tr>
+<td><code>hit</code></td>
+<td></td>
+<td>fires with the part it caught and how far that part was</td>
+</tr>
+</tbody>
+</table></div>
+<p>It goes off on the next tick, not while your script is still running, so connecting <code>hit</code> right after
+you add the explosion still catches everything.</p>
+<p>What the blast does when it goes off:</p>
+<ul>
+<li>Every part within the radius fires <code>hit</code>, and the distance is measured from the part's nearest face
+  rather than its middle. Anchored parts and parts that do not collide fire it too; they just are not
+  pushed.</li>
+<li>Loose parts and player bodies are thrown straight away from the centre. The push fades to nothing
+  at the edge: at 500000 a part right on the centre leaves at 20 metres a second, and one halfway out
+  at 10.</li>
+<li>Anything with a humanoid closer in than <code>destroyJointRadiusPercent</code> of the radius dies. A
+  <a href="movement.html#force-fields"><code>ForceField</code></a> inside the body still saves it.</li>
+<li>A body is measured from its own position, where it stands, and not from its nearest point.</li>
+<li><code>craters</code> breaks blocks within the radius, never further than 24 metres out however big the radius
+  is. It skips blast-resistant blocks like obsidian and bedrock, and nothing drops.</li>
+<li><code>hit</code> does not fire for the limbs of a character, and the blast does not damage the game's own mobs.</li>
+</ul>
+<div class="demo" data-demo="effects-explosion"></div>
+<h2 id="server-and-client">Server and client<a class="anchor" href="#server-and-client" title="Permanent link">#</a></h2>
+<p>Where you create an effect decides who sees it, and where you put it decides whether it draws at all:</p>
+<ul>
+<li>Effects the server adds show on every client. Effects a client adds show only there.</li>
+<li>Particles and trails move on each client, so two players do not see the same particles in the
+  same places.</li>
+<li>A property you write shows on the next frame. Colour, size, transparency and acceleration also
+  change particles already out; lifetime, speed and direction only reach new ones.</li>
+<li>Nothing inside a <code>ViewportFrame</code> draws.</li>
+<li>Nothing kept out of the world draws: an emitter, beam or trail inside <code>ServerStorage</code>,
+  <code>ReplicatedStorage</code>, a starter folder or a backpack sends nothing, and drops the particles it
+  already had when it is moved in. Cloning it out into the world starts it clean. See
+  <a href="containers.html">Containers</a>.</li>
+</ul>
+    </article>
+    <div class="doc-pager"><a class="prev" href="lighting.html"><span>Previous</span>Lighting, sky, weather and presets</a><a class="next" href="mixins.html"><span>Next</span>Mixins, Java and shader patches</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#images">Images</a></li><li><a href="#light">Light</a></li><li><a href="#a-campfire">A campfire</a></li><li><a href="#particle-emitters">Particle emitters</a></li><li><a href="#bursts">Bursts</a></li><li><a href="#fire-smoke-and-sparkles">Fire, smoke and sparkles</a></li><li><a href="#a-laser">A laser</a></li><li><a href="#a-sword-trail">A sword trail</a></li><li><a href="#highlighting-what-the-pointer-is-on">Highlighting what the pointer is on</a></li><li><a href="#a-sign-and-a-tiled-floor">A sign and a tiled floor</a></li><li><a href="#selection-boxes-and-spheres">Selection boxes and spheres</a></li><li><a href="#explosions">Explosions</a></li><li><a href="#server-and-client">Server and client</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instances | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html" class="active"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="instances">Instances<a class="anchor" href="#instances" title="Permanent link">#</a></h1>
+<p>An instance is one object in the tree that the engine draws, collides and replicates for you. Parts,
+characters, lights, gui widgets, sounds and scripts are all instances, and everything a place makes
+hangs off <code>game.world</code>. The class you give an instance, such as <code>Part</code> or <code>PointLight</code>, decides which
+properties, methods and signals it has. Everything else on this page works the same on all of them.</p>
+<h2 id="making-things">Making things<a class="anchor" href="#making-things" title="Permanent link">#</a></h2>
+<p>You create an instance with <code>add</code>. It takes the class name and a table of properties, parents the new
+instance to whatever you called it on, and returns it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> part = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;plate&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">6</span>, <span class="syn-num">1</span>, <span class="syn-num">6</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">66</span>, <span class="syn-num">12</span>),
+    color = <span class="syn-func">color</span>(<span class="syn-num">0.85</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0.2</span>),
+    anchored = <span class="syn-const">true</span>,
+})</code></pre></div></div>
+<p>The properties in that table are the same properties you could assign one at a time afterwards, so
+the part above is the part you would get by creating an empty one and filling it in. Leaving a
+property out gives it the class default.</p>
+<p>For a field of things, <code>addAll</code> makes them in one call instead of one call each:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-keyword">local</span> rows = {}
+<span class="syn-keyword">for</span> n = <span class="syn-num">1</span>, <span class="syn-num">200</span> <span class="syn-keyword">do</span>
+    rows[n] = { name = <span class="syn-string">&quot;tile&quot;</span> .. n, size = <span class="syn-func">vec3</span>(<span class="syn-num">2</span>, <span class="syn-num">0.06</span>, <span class="syn-num">2</span>), cframe = <span class="syn-func">cframe</span>(n * <span class="syn-num">2</span>, <span class="syn-num">64.5</span>, <span class="syn-num">0</span>) }
+<span class="syn-keyword">end</span>
+world:<span class="syn-func">addAll</span>(<span class="syn-string">&quot;Part&quot;</span>, rows)</code></pre></div></div>
+<p>Each entry in the list is a property table, exactly what you would hand to <code>add</code>. Every instance in
+one <code>addAll</code> is the same class.</p>
+<h2 id="finding-things">Finding things<a class="anchor" href="#finding-things" title="Permanent link">#</a></h2>
+<p>A child is reachable by name as a field, which is the short way to walk down a branch you know
+exists:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> torch = player.character.rightArm.torch</code></pre></div></div>
+<p>Use <code>find</code> when you want to ask whether a child is there at all. It answers <code>nil</code> instead of raising
+an error:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> maybe = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;statue&quot;</span>)   <span class="syn-comment">-- nil rather than an error</span></code></pre></div></div>
+<p><code>children()</code> returns a list of the direct children, <code>isA</code> asks whether an instance is of a class, and
+<code>destroy</code> removes an instance along with everything under it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-keyword">for</span> _, thing <span class="syn-keyword">in</span> <span class="syn-func">ipairs</span>(world:<span class="syn-func">children</span>()) <span class="syn-keyword">do</span>
+    <span class="syn-keyword">if</span> thing:<span class="syn-func">isA</span>(<span class="syn-string">&quot;Character&quot;</span>) <span class="syn-keyword">then</span> thing.display = <span class="syn-string">&quot;hitbox&quot;</span> <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span></code></pre></div></div>
+<h2 id="the-hierarchy-carries-everything">The hierarchy carries everything<a class="anchor" href="#the-hierarchy-carries-everything" title="Permanent link">#</a></h2>
+<p>A child is positioned relative to its parent. Move the parent and the whole subtree comes along, and
+nothing under it is told where the parent is a second time:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> deck = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;deck&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">7</span>, <span class="syn-num">0.5</span>, <span class="syn-num">7</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">12</span>) })
+<span class="syn-keyword">local</span> post = deck:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;post&quot;</span>, cframe = <span class="syn-func">cframe</span>(<span class="syn-num">2</span>, <span class="syn-num">1.5</span>, <span class="syn-num">2</span>) })
+post:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;lantern&quot;</span>, cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">1.4</span>, <span class="syn-num">0</span>) })
+
+game.stepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(dt)
+    deck.cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">12</span>) * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, dt, <span class="syn-num">0</span>)   <span class="syn-comment">-- all three turn</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>post</code> is created on <code>deck</code>, and <code>lantern</code> on <code>post</code>, so the three form one branch.</li>
+<li>Writing <code>deck.cframe</code> each tick turns the deck. The post and the lantern keep their own frames,
+  which are stated against their parent, so they turn with it.</li>
+</ul>
+<div class="demo" data-demo="instances-hierarchy"></div>
+<p><code>parent</code> is assignable, and writing it is how you move an instance somewhere else in the tree. To
+remove an instance you call <code>destroy</code>, so there is one way to take something out rather than two that
+mean different things.</p>
+<h2 id="frames">Frames<a class="anchor" href="#frames" title="Permanent link">#</a></h2>
+<p>Every <code>Spatial</code> carries a frame. There are four ways to read and write it, and they are views on one
+thing:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What it holds</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cframe</code></td>
+<td>the whole local frame, position and rotation</td>
+</tr>
+<tr>
+<td><code>position</code></td>
+<td>just the position, relative to the parent</td>
+</tr>
+<tr>
+<td><code>rotation</code></td>
+<td>just the rotation, turning without moving</td>
+</tr>
+<tr>
+<td><code>worldCframe</code></td>
+<td>read only: the frame composed through every parent</td>
+</tr>
+<tr>
+<td><code>pivot</code></td>
+<td>the point the frame turns about, from the middle outward</td>
+</tr>
+</tbody>
+</table></div>
+<p>You set <code>pivot</code> so that a door turns at its hinge instead of at its middle. Without it, a rig needs an
+empty frame at every joint just to carry that offset.</p>
+<div class="demo" data-demo="instances-pivot"></div>
+<h2 id="signals">Signals<a class="anchor" href="#signals" title="Permanent link">#</a></h2>
+<p>The tree tells you what happened to it, so you connect a function instead of checking every tick:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>part.changed:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(property)
+    <span class="syn-keyword">if</span> property == <span class="syn-string">&quot;color&quot;</span> <span class="syn-keyword">then</span> <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)
+
+folder.childAdded:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(child) <span class="syn-keyword">end</span>)
+part.destroying:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(thing) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>changed</code> fires with the <strong>name</strong> of the property that changed, which lets one handler watch a whole
+instance. When you care about a single property, <code>getPropertyChangedSignal</code> gives you a signal for
+that one, and it fires with nothing:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>part:<span class="syn-func">getPropertyChangedSignal</span>(<span class="syn-string">&quot;size&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-func">print</span>(<span class="syn-string">&quot;now&quot;</span>, part.size)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Asking for a name the class does not have is an error, so a typo shows up the moment the line runs
+rather than as a handler that never fires.</p>
+<p>Five names that are not properties work as well:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Fires when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>it is renamed</td>
+</tr>
+<tr>
+<td><code>parent</code></td>
+<td>it moves to another parent</td>
+</tr>
+<tr>
+<td><code>position</code></td>
+<td>where it stands in the world changes</td>
+</tr>
+<tr>
+<td><code>rotation</code></td>
+<td>how it is turned in the world changes</td>
+</tr>
+<tr>
+<td><code>worldCframe</code></td>
+<td>either of those changes</td>
+</tr>
+</tbody>
+</table></div>
+<p>The last three are the world values, so they fire when an ancestor moves too. A part welded inside a
+model that drives away fires <code>position</code> without anyone writing to the part:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>door:<span class="syn-func">getPropertyChangedSignal</span>(<span class="syn-string">&quot;worldCframe&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-func">print</span>(<span class="syn-string">&quot;the door is now at&quot;</span>, door.worldCframe.position)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>Those five only exist on something with a place in the world. Asking a <code>Folder</code> for <code>position</code> is
+an error.</p></div></div>
+<div class="demo" data-demo="instances-signals"></div>
+<h2 id="attributes">Attributes<a class="anchor" href="#attributes" title="Permanent link">#</a></h2>
+<p>An attribute is a named value you put on any instance, without a class declaring it. Use one to mark
+things for your own scripts: a door that is locked, a crate worth 20 coins, a team colour.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> door = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;door&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">3</span>, <span class="syn-num">2</span>), anchored = <span class="syn-const">true</span> })
+door:<span class="syn-func">setAttribute</span>(<span class="syn-string">&quot;locked&quot;</span>, <span class="syn-const">true</span>)
+<span class="syn-keyword">local</span> prompt = door:<span class="syn-func">add</span>(<span class="syn-string">&quot;ProximityPrompt&quot;</span>, { actionText = <span class="syn-string">&quot;Lock or unlock&quot;</span>, keys = <span class="syn-string">&quot;e&quot;</span> })
+
+door:<span class="syn-func">getAttributeChangedSignal</span>(<span class="syn-string">&quot;locked&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> locked = door:<span class="syn-func">getAttribute</span>(<span class="syn-string">&quot;locked&quot;</span>)
+    door.color = <span class="syn-keyword">if</span> locked <span class="syn-keyword">then</span> <span class="syn-func">color</span>(<span class="syn-num">0.8</span>, <span class="syn-num">0.2</span>, <span class="syn-num">0.2</span>) <span class="syn-keyword">else</span> <span class="syn-func">color</span>(<span class="syn-num">0.3</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.3</span>)
+<span class="syn-keyword">end</span>)
+
+prompt.triggered:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(body)
+    door:<span class="syn-func">setAttribute</span>(<span class="syn-string">&quot;locked&quot;</span>, <span class="syn-keyword">not</span> door:<span class="syn-func">getAttribute</span>(<span class="syn-string">&quot;locked&quot;</span>))
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The prompt handler only flips the attribute. It does not touch the colour.</li>
+<li>The colour is written by the handler on <code>getAttributeChangedSignal("locked")</code>, so the door turns
+  red or green whatever set the attribute, including a script somewhere else.</li>
+</ul>
+<div class="demo" data-demo="instances-attributes"></div>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Call</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>setAttribute(name, value)</code></td>
+<td>sets one; <code>nil</code> removes it</td>
+</tr>
+<tr>
+<td><code>getAttribute(name)</code></td>
+<td>its value, or <code>nil</code></td>
+</tr>
+<tr>
+<td><code>getAttributes()</code></td>
+<td>every attribute, as a table keyed by name</td>
+</tr>
+<tr>
+<td><code>getAttributeChangedSignal(name)</code></td>
+<td>fires with nothing when that one changes</td>
+</tr>
+<tr>
+<td><code>attributeChanged</code></td>
+<td>fires with the name of any attribute that changes</td>
+</tr>
+</tbody>
+</table></div>
+<p>Setting the value it already holds fires nothing, so writing the same value every tick costs you no
+handlers.</p>
+<ul>
+<li>A value is <code>nil</code>, a boolean, a number, text, a <code>Vector3</code>, a <code>Color</code>, a <code>CFrame</code> or a <code>UDim2</code>.
+  Anything else, like a table or an instance, is an error.</li>
+<li>A name uses letters, digits and <code>_</code>, and is at most 100 characters.</li>
+<li>Attributes replicate, so a client reads the server's and hears it change. A vector, colour, frame
+  or <code>UDim2</code> crosses at float precision.</li>
+<li>They are saved in scene files, and <code>clone</code> copies them.</li>
+</ul>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>A client may only set attributes on an instance it made or one it owns, and the change stays on
+that client. Nothing a client writes reaches the server or any other player.</p></div></div>
+<p>In the editor, the Properties panel has an <strong>Attributes</strong> section: name one, pick its kind, edit its
+value in place, and right-click or press <strong>x</strong> to remove it. The section below it, <strong>Values</strong>, lists
+the value children read by <code>instance:values()</code>.</p>
+<h2 id="raycasts">Raycasts<a class="anchor" href="#raycasts" title="Permanent link">#</a></h2>
+<p>A raycast fires a line from a point along a direction and tells you the first part it meets:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">local</span> part, at, distance = world:<span class="syn-func">raycast</span>(from, direction, <span class="syn-num">50</span>)
+<span class="syn-keyword">if</span> part <span class="syn-keyword">then</span>
+    <span class="syn-func">print</span>(part.name .. <span class="syn-string">&quot; at &quot;</span> .. distance)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>You get three answers rather than one table: the part that was hit, the point where the line met it,
+and how far along the line that was. When you only want to know which part, take the first and drop
+the rest. The range defaults to 100 when you leave it out.</p>
+<p>A raycast asks about the tree, so it answers about the tree. It tests every part under the instance
+you called it on, turned boxes included. Whether a body can walk into that part is a separate
+question with a separate answer, and it is not the one asked here: a character's limbs do not
+collide with anything, and a ray still hits them. That is what lets you ask which limb was shot:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-comment">-- which limb was shot</span>
+<span class="syn-keyword">local</span> limb = character:<span class="syn-func">raycast</span>(eye, look, <span class="syn-num">30</span>)</code></pre></div></div>
+<h2 id="where-a-thing-is">Where a thing is<a class="anchor" href="#where-a-thing-is" title="Permanent link">#</a></h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>position</code>, <code>rotation</code></td>
+<td><strong>where it actually is, in the world</strong></td>
+</tr>
+<tr>
+<td><code>cframe</code></td>
+<td>the frame <em>stated against its parent</em>: the field itself</td>
+</tr>
+<tr>
+<td><code>worldCframe</code></td>
+<td>the whole composed frame, pivot included</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>position</code> is a world question and is answered in the world. That matters
+because the engine reparents things you did not ask it to: a body standing on something that moves is
+hung off it, so a place reading <code>position</code> would otherwise start getting deck-relative numbers without
+ever mentioning a parent.</p>
+<p>Writing <code>position</code> puts the instance there in the world too, converted through whatever it hangs off.
+Writing <code>rotation</code> turns it and leaves it where it is, which is why an arm keeps its shoulder.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="containers.html"><span>Previous</span>Containers</a><a class="next" href="tree.html"><span>Next</span>Working with the tree</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#making-things">Making things</a></li><li><a href="#finding-things">Finding things</a></li><li><a href="#the-hierarchy-carries-everything">The hierarchy carries everything</a></li><li><a href="#frames">Frames</a></li><li><a href="#signals">Signals</a></li><li><a href="#attributes">Attributes</a></li><li><a href="#raycasts">Raycasts</a></li><li><a href="#where-a-thing-is">Where a thing is</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

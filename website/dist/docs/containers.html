@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Containers | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html" class="active"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Start</span></nav>
+    <article class="doc">
+<h1 id="containers">Containers<a class="anchor" href="#containers" title="Permanent link">#</a></h1>
+<p>A container is a folder with a rule attached to it. Where you put an instance normally only decides
+where you find it again, but inside a container it also decides three things: whether players are
+sent that instance, whether the scripts inside it run, and whether its parts are in the world.</p>
+<p>You use containers to keep things the game is going to need later without having them in the game
+yet. A coin you clone once every three seconds, a map you load at the start of a round, a table of
+prices both sides read, the tools a player starts with: each of those wants to exist before it is
+used, and none of them should be standing in the world in the meantime.</p>
+<p>None of them exists until you add it. Insert one from the Explorer in the editor, or add it from a
+server script. An added instance is named after its class, so <code>game.world:add("ServerStorage")</code> is
+found again as <code>game.world.ServerStorage</code>.</p>
+<h2 id="what-each-one-does">What each one does<a class="anchor" href="#what-each-one-does" title="Permanent link">#</a></h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Container</th>
+<th>Sent to players</th>
+<th>Scripts inside run</th>
+<th>Parts inside are in the world</th>
+<th>Also</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ServerStorage</code></td>
+<td>no</td>
+<td>no</td>
+<td>no</td>
+<td></td>
+</tr>
+<tr>
+<td><code>ServerScriptService</code></td>
+<td>no</td>
+<td><code>Script</code>s do</td>
+<td>no</td>
+<td></td>
+</tr>
+<tr>
+<td><code>ReplicatedStorage</code></td>
+<td>yes</td>
+<td>no</td>
+<td>no</td>
+<td></td>
+</tr>
+<tr>
+<td><code>StarterPack</code></td>
+<td>yes</td>
+<td>no</td>
+<td>no</td>
+<td>its tools are copied into every new body's backpack</td>
+</tr>
+<tr>
+<td><code>StarterCharacterScripts</code></td>
+<td>yes</td>
+<td>no</td>
+<td>no</td>
+<td>its children are copied into every new body</td>
+</tr>
+<tr>
+<td><code>StarterGui</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>an ordinary container</td>
+</tr>
+<tr>
+<td><code>StarterPlayerScripts</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>yes</td>
+<td>an ordinary container</td>
+</tr>
+<tr>
+<td><code>Backpack</code></td>
+<td>yes</td>
+<td>yes</td>
+<td>no</td>
+<td>every body has one, see <a href="tools.html">Tools</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>The rule holds for everything below the container, however deep. A part ten levels down inside a
+<code>ServerStorage</code> is as absent from the world as one sitting directly in it.</p>
+<p>Here is what each of the three columns means:</p>
+<ul>
+<li><strong>Not sent to players</strong> means a client's mirror never holds it. A client cannot find it, require
+  it or read its <code>code</code>. While you edit, the editor is sent it too, so you can see and change what
+  is inside.</li>
+<li><strong>Scripts do not run</strong> means a <code>Script</code> or <code>LocalScript</code> inside is only kept, on either side. A
+  copy moved out of the container runs.</li>
+<li><strong>Not in the world</strong> means a part inside is not drawn, does not collide, does not fall, is not
+  found by casts and overlaps, and never starts a touch. A zone, a prompt, a click detector, a light
+  or a particle emitter inside does nothing either. Nor does a <code>ScreenGui</code>, <code>BillboardGui</code> or
+  <code>SurfaceGui</code> draw, or a <code>Sound</code> play. Take a copy out and the copy does all of it.</li>
+</ul>
+<p>Everything else still works on what is inside: finding, reading and setting properties, attributes,
+tags, <code>clone</code> and <code>require</code>.</p>
+<div class="demo" data-demo="containers-rules"></div>
+<p>A <code>ModuleScript</code>'s <code>code</code> has a rule of its own on top of this: it only reaches clients from inside
+a <code>LocalScript</code>, <code>ReplicatedStorage</code>, <code>StarterGui</code>, <code>StarterPlayerScripts</code> or
+<code>StarterCharacterScripts</code>, or when its <code>source</code> is a file under <code>client/</code> or <code>shared/</code>. See
+<a href="place.html#modulescript">ModuleScript</a>.</p>
+<div class="demo" data-demo="containers-module"></div>
+<h2 id="serverstorage">ServerStorage<a class="anchor" href="#serverstorage" title="Permanent link">#</a></h2>
+<p><code>ServerStorage</code> is where the server keeps what it builds from: a coin, an enemy, a map it loads
+later. Nobody else is sent it, and nothing in it runs or stands anywhere. Taking a copy out puts the
+copy in the world.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+<span class="syn-keyword">local</span> storage = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;ServerStorage&quot;</span>)
+
+<span class="syn-keyword">local</span> coin = storage:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;coin&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">0.6</span>, <span class="syn-num">0.6</span>, <span class="syn-num">0.1</span>),
+    color = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.2</span>),
+    anchored = <span class="syn-const">true</span>,
+    collides = <span class="syn-const">false</span>,
+})
+coin:<span class="syn-func">add</span>(<span class="syn-string">&quot;Script&quot;</span>, { name = <span class="syn-string">&quot;collect&quot;</span>, source = <span class="syn-string">&quot;res://server/coin.luau&quot;</span> })
+
+task.<span class="syn-func">every</span>(<span class="syn-num">3</span>, <span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> copy = coin:<span class="syn-func">clone</span>(game.world) :: Part
+    copy.position = <span class="syn-func">vec3</span>(random.<span class="syn-func">range</span>(-<span class="syn-num">10</span>, <span class="syn-num">10</span>), <span class="syn-num">66</span>, random.<span class="syn-func">range</span>(-<span class="syn-num">10</span>, <span class="syn-num">10</span>))
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">-- server/coin.luau</span>
+<span class="syn-keyword">local</span> coin = script.parent :: Part
+
+coin.touched:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(other)
+    <span class="syn-keyword">if</span> other:<span class="syn-func">firstAncestorOfClass</span>(<span class="syn-string">&quot;Character&quot;</span>) <span class="syn-keyword">then</span>
+        coin:<span class="syn-func">destroy</span>()
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The coin in the storage is a template. No player is sent it, it is not drawn, and the <code>collect</code>
+  script inside it never runs.</li>
+<li><code>coin:clone(game.world)</code> makes a copy and parents it to the world in one call. That copy is sent
+  to every player, drawn, touched, and runs its own copy of the script.</li>
+<li><code>script.parent</code> inside <code>coin.luau</code> is the copy the script came with, so each coin listens for its
+  own <code>touched</code> and destroys itself.</li>
+</ul>
+<div class="demo" data-demo="containers-clone"></div>
+<p><code>coin:clone()</code> without a parent puts the copy beside the original, which is still inside the storage,
+so the copy is as inert as the coin it came from. Pass the parent you want, or set <code>parent</code> straight
+afterwards.</p>
+<p>A scene saves its containers like anything else, so the coin is usually built in the editor and only
+cloned from the script: <code>game.world.ServerStorage.coin:clone(game.world)</code>.</p>
+<h2 id="serverscriptservice">ServerScriptService<a class="anchor" href="#serverscriptservice" title="Permanent link">#</a></h2>
+<p><code>ServerScriptService</code> is where server scripts go. A <code>Script</code> inside runs as it would anywhere, and
+players are never sent it, so its <code>code</code> stays on the server. Parts inside are not in the world.</p>
+<p>A <code>ModuleScript</code> that only the server requires can go here or in <code>ServerStorage</code>, for the same
+reason.</p>
+<h2 id="replicatedstorage">ReplicatedStorage<a class="anchor" href="#replicatedstorage" title="Permanent link">#</a></h2>
+<p><code>ReplicatedStorage</code> holds what both sides need but neither should run or see standing in the world:
+templates a client copies for itself, and <code>ModuleScript</code>s. <code>require</code> takes a <code>ModuleScript</code> wherever
+it is, so one in <code>ReplicatedStorage</code> is required by the server and by every client.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-comment">-- prices, a ModuleScript in game.world.ReplicatedStorage</span>
+<span class="syn-keyword">local</span> prices = {
+    sword = <span class="syn-num">50</span>,
+    shield = <span class="syn-num">30</span>,
+}
+
+<span class="syn-keyword">function</span> prices.<span class="syn-func">canAfford</span>(coins: number, item: string): boolean
+    <span class="syn-keyword">local</span> price = prices[item]
+    <span class="syn-keyword">return</span> <span class="syn-keyword">typeof</span>(price) == <span class="syn-string">&quot;number&quot;</span> <span class="syn-keyword">and</span> coins &gt;= price
+<span class="syn-keyword">end</span>
+
+<span class="syn-keyword">return</span> prices</code></pre></div></div>
+<p>The server requires it to decide whether a purchase goes through:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">-- server/main.luau, with buy and coins from Talking across the boundary</span>
+<span class="syn-keyword">local</span> prices = <span class="syn-func">require</span>(game.world.ReplicatedStorage.prices)
+
+buy.onServerInvoke = <span class="syn-keyword">function</span>(player, item)
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> prices.<span class="syn-func">canAfford</span>(coins[player.id] <span class="syn-keyword">or</span> <span class="syn-num">0</span>, item) <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-const">false</span> <span class="syn-keyword">end</span>
+    coins[player.id] -= prices[item]
+    <span class="syn-keyword">return</span> <span class="syn-const">true</span>
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>The client requires the same module to fill a label with the same number:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">-- client/main.luau</span>
+task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> storage = game.world:<span class="syn-func">waitForChild</span>(<span class="syn-string">&quot;ReplicatedStorage&quot;</span>)
+    <span class="syn-keyword">local</span> prices = <span class="syn-func">require</span>(storage:<span class="syn-func">waitForChild</span>(<span class="syn-string">&quot;prices&quot;</span>))
+    label.text = <span class="syn-string">&quot;Sword: &quot;</span> .. prices.sword
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The client waits for both the container and the module with <code>waitForChild</code>, because the server
+  builds them and the client's mirror fills in after it connects. <code>waitForChild</code> yields, which is
+  why it runs inside a <code>task.spawn</code>.</li>
+<li>The module runs once on the server and once on each client, as <a href="place.html#require">require</a> says.</li>
+<li>The server still checks the price itself. A client holding the same module could be lying about
+  what it can afford.</li>
+</ul>
+<p>A client that clones from <code>ReplicatedStorage</code> makes a copy only it has. See
+<a href="talking.html">Talking across the boundary</a>.</p>
+<h2 id="startergui">StarterGui<a class="anchor" href="#startergui" title="Permanent link">#</a></h2>
+<p><code>StarterGui</code> is a place for guis. It is an ordinary container: a <code>ScreenGui</code> inside draws for every
+player, and a <code>LocalScript</code> inside runs on each client.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p><code>StarterGui</code> is not copied into each player when they spawn. There is no <code>PlayerGui</code>, no player
+owns a copy, and nothing in it resets on respawn.</p></div></div>
+<p>What that means when you write one:</p>
+<ul>
+<li>There is one gui, the one in <code>StarterGui</code>, and every client draws its mirror of it.</li>
+<li>A <code>LocalScript</code> changing a label changes it on that client only, because what a client changes
+  stays on that client. Each player still sees their own text.</li>
+<li>A server script changing a label changes it for everyone.</li>
+<li>Nothing resets when a body dies. Put it back yourself on <code>game.players.spawned</code> if you want that.</li>
+</ul>
+<h2 id="starterplayerscripts">StarterPlayerScripts<a class="anchor" href="#starterplayerscripts" title="Permanent link">#</a></h2>
+<p><code>StarterPlayerScripts</code> is a place for <code>LocalScript</code>s that belong to the player rather than to a part.
+It is an ordinary container: each client runs a <code>LocalScript</code> inside, exactly as it would one
+anywhere else. It is there to keep them together.</p>
+<h2 id="startercharacterscripts">StarterCharacterScripts<a class="anchor" href="#startercharacterscripts" title="Permanent link">#</a></h2>
+<p><code>StarterCharacterScripts</code> holds children that are copied into every new body a player gets: on the
+first spawn and on each respawn, before <code>game.players.spawned</code> fires. The originals inside it do not
+run. Bodies without a player get nothing.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+<span class="syn-keyword">local</span> scripts = game.world:<span class="syn-func">add</span>(<span class="syn-string">&quot;StarterCharacterScripts&quot;</span>)
+scripts:<span class="syn-func">add</span>(<span class="syn-string">&quot;Script&quot;</span>, { name = <span class="syn-string">&quot;limp&quot;</span>, source = <span class="syn-string">&quot;res://server/limp.luau&quot;</span> })</code></pre></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-comment">-- server/limp.luau</span>
+<span class="syn-keyword">local</span> body = script.parent :: Character
+<span class="syn-keyword">local</span> humanoid = body.humanoid
+
+humanoid.healthChanged:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    humanoid.walkSpeed = <span class="syn-keyword">if</span> humanoid.health &lt; <span class="syn-num">30</span> <span class="syn-keyword">then</span> <span class="syn-num">3</span> <span class="syn-keyword">else</span> <span class="syn-num">6</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Every player who spawns gets their own copy of <code>limp</code>, whose <code>script.parent</code> is their own body, so
+each player slows down on their own wounds. The copy dies with the body, so it stops with it, and the
+next respawn brings a fresh one.</p>
+<p>A <code>LocalScript</code> copied into a body runs on every client, not only the one wearing the body. Check
+whose body it is first:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-comment">-- client/sprint.luau, copied into every body</span>
+<span class="syn-keyword">local</span> body = script.parent :: Character
+<span class="syn-keyword">if</span> body ~= game.players:<span class="syn-func">me</span>() <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span></code></pre></div></div>
+<p><code>game.players:me()</code> is the local player's own body, so the comparison stops the script early on every
+client except the one that owns it.</p>
+<h2 id="starterpack">StarterPack<a class="anchor" href="#starterpack" title="Permanent link">#</a></h2>
+<p><code>StarterPack</code> holds tools that are copied into every new body's backpack. The tools inside it are not
+in the world and cannot be picked up, and their scripts do not run. See
+<a href="tools.html#a-starter-pack">Tools</a>.</p>
+<h2 id="backpack">Backpack<a class="anchor" href="#backpack" title="Permanent link">#</a></h2>
+<p>A <code>Backpack</code> holds the tools a body is carrying, and every body has one. Their <code>Handle</code> is not drawn
+and not simulated, and nobody picks them up. Scripts inside carried tools still run, so a tool can
+listen for <code>equipped</code> while it waits in the backpack. See <a href="tools.html">Tools</a>.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="place.html"><span>Previous</span>Places, modules, scenes and scripts</a><a class="next" href="instances.html"><span>Next</span>Instances</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#what-each-one-does">What each one does</a></li><li><a href="#serverstorage">ServerStorage</a></li><li><a href="#serverscriptservice">ServerScriptService</a></li><li><a href="#replicatedstorage">ReplicatedStorage</a></li><li><a href="#startergui">StarterGui</a></li><li><a href="#starterplayerscripts">StarterPlayerScripts</a></li><li><a href="#startercharacterscripts">StarterCharacterScripts</a></li><li><a href="#starterpack">StarterPack</a></li><li><a href="#backpack">Backpack</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

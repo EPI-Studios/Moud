@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pausing, quitting, settings and screens | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html" class="active"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="pausing-quitting-settings-and-screens">Pausing, quitting, settings and screens<a class="anchor" href="#pausing-quitting-settings-and-screens" title="Permanent link">#</a></h1>
+<p>A place draws its own pause menu, its own settings screen and its own loading screen instead of
+Minecraft's. The globals that do it are <code>settings</code> and <code>ui</code>, along with a few members of <code>game</code>. They
+read and write one player's own game, so you use them from <code>client/</code> scripts, the same place <code>camera</code>
+and <code>input</code> live.</p>
+<h2 id="escape-and-pausing">Escape and pausing<a class="anchor" href="#escape-and-pausing" title="Permanent link">#</a></h2>
+<p><code>game.pauseRequested</code> is a signal that fires when the player presses <kbd>Escape</kbd>, or when the
+game window loses focus. You connect to it to open your own menu:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-keyword">local</span> menu = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;PauseMenu&quot;</span>) :: ScreenGui
+
+game.pauseRequested:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(reason)
+    <span class="syn-comment">-- reason is &quot;escape&quot; or &quot;focusLost&quot;</span>
+    <span class="syn-keyword">if</span> reason == <span class="syn-string">&quot;focusLost&quot;</span> <span class="syn-keyword">and</span> menu.enabled <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    menu.enabled = <span class="syn-keyword">not</span> menu.enabled
+    game.paused = menu.enabled
+    <span class="syn-keyword">if</span> menu.enabled <span class="syn-keyword">then</span> input:<span class="syn-func">releaseMouse</span>() <span class="syn-keyword">else</span> input:<span class="syn-func">lockMouse</span>() <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>reason</code> is the string <code>"escape"</code> or <code>"focusLost"</code>, so you can treat the two differently. The line
+  above leaves an already open menu alone when the player alt-tabs away, and only toggles it on a real
+  <kbd>Escape</kbd>.</li>
+<li><code>game.paused = true</code> freezes the world the way the vanilla pause menu does: the server stops
+  ticking, and bodies and physics stop. Client scripts keep running, so your menu can still animate.
+  It only freezes a single player game. On a server with other players, writing it does nothing.</li>
+<li><code>input:releaseMouse()</code> gives the pointer back so the player can click the menu, and
+  <code>input:lockMouse()</code> hands it to the camera again when the menu closes.</li>
+</ul>
+<p>With no script connected, <kbd>Escape</kbd> opens the pause menu as before: Minecraft's own while you
+are developing, and a plain Resume / Settings / Quit menu in an exported game. The <code>pauseMenu</code> feature
+in <code>place.toml</code> turns that off entirely.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>If any script is connected to <code>game.pauseRequested</code>, the vanilla pause menu does not open. Your
+connection is the pause menu, so if it does not show anything, <kbd>Escape</kbd> appears to do
+nothing.</p></div></div>
+<h2 id="quitting">Quitting<a class="anchor" href="#quitting" title="Permanent link">#</a></h2>
+<p><code>game:quit()</code> leaves the place. Where the player ends up depends on how the place is running:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>game:<span class="syn-func">quit</span>()</code></pre></div></div>
+<ul>
+<li>In an exported game, the game closes.</li>
+<li>During a playtest in the editor, it goes back to editing.</li>
+<li>Otherwise it leaves to the project hub.</li>
+</ul>
+<p><code>game.exported</code> is true inside an exported game. Read it when a menu should offer <strong>Quit to desktop</strong>
+in the shipped game and <strong>Back to the hub</strong> while you work on it.</p>
+<p><code>game:bindToClose(handler)</code> runs something as the place stops, on either side. See
+<a href="tweens-and-timing.html#when-the-place-stops">Tweens and timing</a>.</p>
+<h2 id="settings">Settings<a class="anchor" href="#settings" title="Permanent link">#</a></h2>
+<p><code>settings</code> reads and writes the player's own Minecraft options, so a place can build its own settings
+screen instead of sending them to Minecraft's. Changes apply straight away, and <code>settings:save()</code>
+keeps them for next time.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code>settings.fov = <span class="syn-num">90</span>                  <span class="syn-comment">-- 30 to 110</span>
+settings.sensitivity = <span class="syn-num">0.5</span>         <span class="syn-comment">-- 0 to 1</span>
+settings.fullscreen = <span class="syn-const">true</span>
+settings.vsync = <span class="syn-const">false</span>
+settings.maxFps = <span class="syn-num">144</span>              <span class="syn-comment">-- 10 to 260, 260 is unlimited</span>
+settings.guiScale = <span class="syn-num">3</span>              <span class="syn-comment">-- 0 is automatic</span>
+settings.renderDistance = <span class="syn-num">12</span>       <span class="syn-comment">-- 2 to 32 chunks</span></code></pre></div></div>
+<p>Volumes and key binds are lists rather than fixed properties, because Minecraft has several of each:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code>settings:<span class="syn-func">volumes</span>()                 <span class="syn-comment">-- { &quot;master&quot;, &quot;music&quot;, &quot;record&quot;, &quot;weather&quot;, &quot;block&quot;, ... }</span>
+settings:<span class="syn-func">volume</span>(<span class="syn-string">&quot;master&quot;</span>)          <span class="syn-comment">-- 0 to 1</span>
+settings:<span class="syn-func">setVolume</span>(<span class="syn-string">&quot;music&quot;</span>, <span class="syn-num">0.3</span>)
+
+settings:<span class="syn-func">actions</span>()                 <span class="syn-comment">-- { &quot;forward&quot;, &quot;back&quot;, &quot;left&quot;, &quot;right&quot;, &quot;jump&quot;, &quot;sneak&quot;, &quot;sprint&quot;, &quot;attack&quot;, &quot;use&quot;, &quot;chat&quot;, &quot;playerList&quot; }</span>
+settings:<span class="syn-func">keyOf</span>(<span class="syn-string">&quot;jump&quot;</span>)             <span class="syn-comment">-- &quot;space&quot;</span>
+settings:<span class="syn-func">bind</span>(<span class="syn-string">&quot;jump&quot;</span>, <span class="syn-string">&quot;f&quot;</span>)         <span class="syn-comment">-- a letter, a digit, space, enter, tab, f1 to f12, the arrows,</span>
+                                   <span class="syn-comment">-- leftshift, rightcontrol..., mousebutton1 to mousebutton3</span>
+settings:<span class="syn-func">save</span>()
+
+game:<span class="syn-func">openSettings</span>()                <span class="syn-comment">-- Minecraft&#x27;s own options screen, for everything else</span></code></pre></div></div>
+<ul>
+<li><code>settings:volumes()</code> and <code>settings:actions()</code> give you the names to build a screen out of, so you
+  can loop over them instead of writing a row per option by hand.</li>
+<li><code>settings:keyOf(action)</code> tells you what a <strong>Press a key</strong> row should currently show, and
+  <code>settings:bind(action, key)</code> changes it.</li>
+<li><code>game:openSettings()</code> opens Minecraft's own options screen. Use it for everything <code>settings</code> does
+  not cover, rather than rebuilding all of Minecraft's options.</li>
+</ul>
+<h2 id="the-core-interface">The core interface<a class="anchor" href="#the-core-interface" title="Permanent link">#</a></h2>
+<p><code>ui</code> turns the pieces of Minecraft's own interface on and off for this client, while the place runs.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-comment">-- client</span>
+ui.<span class="syn-func">setCoreGuiEnabled</span>(<span class="syn-string">&quot;hotbar&quot;</span>, <span class="syn-const">false</span>)
+ui.<span class="syn-func">setCoreGuiEnabled</span>(<span class="syn-string">&quot;all&quot;</span>, <span class="syn-const">false</span>)
+<span class="syn-func">print</span>(ui.<span class="syn-func">getCoreGuiEnabled</span>(<span class="syn-string">&quot;chat&quot;</span>))</code></pre></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Name</th>
+<th>What it hides</th>
+<th>The <code>[features]</code> switch it flips</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>health</code></td>
+<td>the hearts</td>
+<td><code>healthBar</code></td>
+</tr>
+<tr>
+<td><code>hunger</code></td>
+<td>the drumsticks</td>
+<td><code>hungerBar</code></td>
+</tr>
+<tr>
+<td><code>hotbar</code></td>
+<td>the item bar</td>
+<td><code>hotbar</code></td>
+</tr>
+<tr>
+<td><code>chat</code></td>
+<td>the chat window</td>
+<td><code>chat</code></td>
+</tr>
+<tr>
+<td><code>playerList</code></td>
+<td>the Tab list</td>
+<td><code>tabList</code></td>
+</tr>
+<tr>
+<td><code>crosshair</code></td>
+<td>the crosshair</td>
+<td><code>crosshair</code></td>
+</tr>
+<tr>
+<td><code>experience</code></td>
+<td>the xp bar and level</td>
+<td><code>xpBar</code></td>
+</tr>
+<tr>
+<td><code>all</code></td>
+<td>all seven at once</td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>A name that is not one of these is an error that lists the ones that are.</li>
+<li><code>getCoreGuiEnabled("all")</code> is true only while every one of the seven is on. One hidden piece makes
+  it false.</li>
+<li>Reloading the place puts every one it touched back the way <code>place.toml</code> asked for it.</li>
+</ul>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>These are the same switches <code>[features]</code> in <code>place.toml</code> sets. Use <code>place.toml</code> to say what the
+place looks like for everyone, and <code>ui</code> to change it for one client, for a cutscene or a menu. See
+<a href="place.html#placetoml">Places</a>.</p></div></div>
+<h2 id="notifications">Notifications<a class="anchor" href="#notifications" title="Permanent link">#</a></h2>
+<p><code>ui.sendNotification</code> shows a toast in the top right corner of this client's screen:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code><span class="syn-comment">-- client</span>
+ui.<span class="syn-func">sendNotification</span>({
+    title = <span class="syn-string">&quot;Wave 3&quot;</span>,
+    text = <span class="syn-string">&quot;Hold the gate&quot;</span>,
+    icon = <span class="syn-string">&quot;res://ui/wave.png&quot;</span>,
+    duration = <span class="syn-num">8</span>,
+    button1 = <span class="syn-string">&quot;Ready&quot;</span>,
+    button2 = <span class="syn-string">&quot;Later&quot;</span>,
+    callback = <span class="syn-keyword">function</span>(button) <span class="syn-func">print</span>(button, <span class="syn-string">&quot;was pressed&quot;</span>) <span class="syn-keyword">end</span>,
+})</code></pre></div></div>
+<p>The toast fades over its last second and goes after <code>duration</code> seconds, 5 by default. Several stack
+down the corner in the order they were sent.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Key</th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td>required</td>
+<td>one line</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>optional</td>
+<td>wraps under the title</td>
+</tr>
+<tr>
+<td><code>icon</code></td>
+<td>optional</td>
+<td>a <code>res://</code> image, drawn 32 by 32 on the left</td>
+</tr>
+<tr>
+<td><code>duration</code></td>
+<td>optional</td>
+<td>seconds, more than 0</td>
+</tr>
+<tr>
+<td><code>button1</code>, <code>button2</code></td>
+<td>optional</td>
+<td>a button each, along the bottom</td>
+</tr>
+<tr>
+<td><code>callback</code></td>
+<td>optional</td>
+<td>gets the <strong>text</strong> of the button that was pressed</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>A notification with no title is an error, and so is a duration of 0 or less.</li>
+<li>The callback only runs when a button is pressed, and it is handed the button's text, so the example
+  above prints <code>Ready</code> or <code>Later</code>. A toast that runs out of time, or that a reload clears, never calls
+  it.</li>
+<li>Pressing either button closes the toast.</li>
+<li>The toast is built out of Moud's own <code>ScreenGui</code>, <code>Frame</code>, <code>TextLabel</code> and <code>TextButton</code> instances on
+  a local screen, so it draws over the place's own interface and disappears with it on a reload.</li>
+</ul>
+<div class="demo" data-demo="game-and-screens-toast"></div>
+<h2 id="the-loading-screen">The loading screen<a class="anchor" href="#the-loading-screen" title="Permanent link">#</a></h2>
+<p>Before a place's scripts can run, the world has to load. That means there is no script to configure
+the loading screen from, so you describe it in <code>place.toml</code>:</p>
+<div class="doc-code"><span class="code-lang">toml</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>[loading]
+background = &quot;res://ui/loading.png&quot;   # covers the screen, cropped to fit
+color = &quot;#12151c&quot;                     # behind the background, and alone without one
+logo = &quot;res://ui/logo.png&quot;            # in the middle; without one the place name is shown
+text = &quot;Loading&quot;                      # animated dots are added
+tips = [&quot;Crystals respawn after 10 seconds&quot;, &quot;Double jump off walls&quot;]   # one every 5 seconds</code></pre></div></div>
+<p>It replaces Minecraft's world loading, connecting and saving screens. While you are developing it
+shows once a <code>[loading]</code> table exists. An exported game always uses it, with the defaults when the
+table is missing.</p>
+<p>To fade in once the place is running, cover the screen with a <code>ScreenGui</code> in the start scene and tween
+it away from <code>client/main.luau</code>.</p>
+<h2 id="being-kicked-or-disconnected">Being kicked or disconnected<a class="anchor" href="#being-kicked-or-disconnected" title="Permanent link">#</a></h2>
+<p>The server decides who stays. Both calls take the reason the player is shown:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-comment">-- server</span>
+player:<span class="syn-func">kick</span>(<span class="syn-string">&quot;The round is over&quot;</span>)
+player:<span class="syn-func">ban</span>(<span class="syn-string">&quot;Flying&quot;</span>, <span class="syn-num">3600</span>)</code></pre></div></div>
+<p><code>ban</code> takes the reason and a number of seconds. It also writes the player into the Minecraft server's
+ban list, so they cannot come straight back. See
+<a href="players.html#arriving-spawning-and-respawning">Players and bodies</a>.</p>
+<p>In an exported game, a disconnected player sees the reason over the loading look, with <strong>Try again</strong>
+and <strong>Quit</strong>, instead of Minecraft's screen.</p>
+<h2 id="screens-an-exported-game-never-shows">Screens an exported game never shows<a class="anchor" href="#screens-an-exported-game-never-shows" title="Permanent link">#</a></h2>
+<p>An exported game starts straight in its place. It never shows Minecraft's title screen, singleplayer
+world list, multiplayer server list or Realms. Leaving the place closes the game.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="camera-and-input.html"><span>Previous</span>Camera and input</a><a class="next" href="window.html"><span>Next</span>Windows</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#escape-and-pausing">Escape and pausing</a></li><li><a href="#quitting">Quitting</a></li><li><a href="#settings">Settings</a></li><li><a href="#the-core-interface">The core interface</a></li><li><a href="#notifications">Notifications</a></li><li><a href="#the-loading-screen">The loading screen</a></li><li><a href="#being-kicked-or-disconnected">Being kicked or disconnected</a></li><li><a href="#screens-an-exported-game-never-shows">Screens an exported game never shows</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

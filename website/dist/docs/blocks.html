@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blocks | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html" class="active"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="blocks">Blocks<a class="anchor" href="#blocks" title="Permanent link">#</a></h1>
+<p>The level is the Minecraft world your place runs inside: the terrain, the buildings, everything made
+of blocks rather than of instances. <code>game.blocks</code> is how you read it and change it. Positions are
+<code>vec3</code> values floored to the block they are inside, so <code>vec3(0.7, 64.2, -3.1)</code> and <code>vec3(0, 64, -3)</code>
+name the same block.</p>
+<p>The server writes the level. A client reads its own copy of it, so a <code>LocalScript</code> can ask what a
+block is but cannot change one.</p>
+<h2 id="reading">Reading<a class="anchor" href="#reading" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> b = game.blocks
+b:<span class="syn-func">get</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">64</span>, <span class="syn-num">0</span>))           <span class="syn-comment">-- &quot;minecraft:oak_stairs[facing=north,half=bottom]&quot;</span>
+b:<span class="syn-func">isSolid</span>(at)  b:<span class="syn-func">isAir</span>(at)  b:<span class="syn-func">isFluid</span>(at)
+b:<span class="syn-func">lightAt</span>(at)                   <span class="syn-comment">-- 0 to 15</span>
+b:<span class="syn-func">topAt</span>(x, z)                   <span class="syn-comment">-- y of the highest block something stands on</span>
+b:<span class="syn-func">count</span>(<span class="syn-string">&quot;minecraft:stone&quot;</span>, from, to)
+<span class="syn-keyword">local</span> ores = b:<span class="syn-func">find</span>(<span class="syn-string">&quot;minecraft:diamond_ore&quot;</span>, centre, <span class="syn-num">20</span>, <span class="syn-num">10</span>)   <span class="syn-comment">-- block centres, nearest first, at most 10</span></code></pre></div></div>
+<ul>
+<li><code>get(at)</code> returns the block's name along with its state, in the game's own text form.</li>
+<li><code>isSolid</code>, <code>isAir</code> and <code>isFluid</code> answer the three questions you ask most often without your having
+  to read the name apart.</li>
+<li><code>lightAt(at)</code> is the light level at that block, from 0 to 15.</li>
+<li><code>topAt(x, z)</code> gives you the y of the highest block something stands on at that column, which is
+  what you want before dropping a part or a body onto the terrain.</li>
+<li><code>count(name, from, to)</code> counts the matching blocks in the box between the two corners.</li>
+<li><code>find(name, centre, radius, limit)</code> returns the centre of each matching block within <code>radius</code> of
+  <code>centre</code>, nearest first, and stops at <code>limit</code> of them.</li>
+</ul>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>A block name matches with or without its state. <code>minecraft:oak_stairs</code> matches every stair,
+whichever way it faces, and <code>minecraft:oak_stairs[facing=north,half=bottom]</code> matches only the ones
+facing north on the bottom half.</p></div></div>
+<div class="demo" data-demo="blocks-match"></div>
+<h2 id="raycasts">Raycasts<a class="anchor" href="#raycasts" title="Permanent link">#</a></h2>
+<p>A block raycast shoots a line through the level and tells you the first block it hits:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> block, at, distance, normal = b:<span class="syn-func">raycast</span>(from, direction, <span class="syn-num">50</span>, { fluids = <span class="syn-const">true</span> })</code></pre></div></div>
+<ul>
+<li><code>from</code> is where the line starts and <code>direction</code> is which way it goes. The <code>50</code> is how far it looks
+  before giving up.</li>
+<li><code>block</code> is the name of what it hit, <code>at</code> is where it hit, <code>distance</code> is how far along the line that
+  was, and <code>normal</code> is the face it came in through.</li>
+<li><code>{ fluids = true }</code> counts water and lava as something to hit. Leave it out and the ray goes
+  through them.</li>
+</ul>
+<p>This ray only sees blocks. To hit parts and bodies as well, use the casts in <a href="queries.html">Queries</a>.</p>
+<h2 id="writing">Writing<a class="anchor" href="#writing" title="Permanent link">#</a></h2>
+<p>These all run on the server, and every player sees the change:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code>b:<span class="syn-func">set</span>(at, <span class="syn-string">&quot;minecraft:stone&quot;</span>)
+b:<span class="syn-func">fill</span>(from, to, <span class="syn-string">&quot;minecraft:glass&quot;</span>)                    <span class="syn-comment">-- returns how many</span>
+b:<span class="syn-func">replace</span>(<span class="syn-string">&quot;minecraft:dirt&quot;</span>, <span class="syn-string">&quot;minecraft:grass_block&quot;</span>, from, to)
+b:<span class="syn-func">sphere</span>(centre, <span class="syn-num">5</span>, <span class="syn-string">&quot;minecraft:stone&quot;</span>, hollow)
+b:<span class="syn-func">cylinder</span>(base, <span class="syn-num">3</span>, <span class="syn-num">10</span>, <span class="syn-string">&quot;minecraft:quartz_block&quot;</span>, hollow)
+b:<span class="syn-func">line</span>(from, to, <span class="syn-string">&quot;minecraft:gold_block&quot;</span>)
+b:<span class="syn-func">hollowBox</span>(from, to, <span class="syn-string">&quot;minecraft:oak_planks&quot;</span>)</code></pre></div></div>
+<ul>
+<li><code>set(at, name)</code> changes one block.</li>
+<li><code>fill(from, to, name)</code> fills the box between two corners and returns how many blocks it changed,
+  which is how you tell a fill that did nothing from one that did.</li>
+<li><code>replace(from_name, to_name, from, to)</code> only touches the blocks in that box that already match the
+  first name, so you can turn every dirt block in a region to grass and leave the stone alone.</li>
+<li><code>sphere</code>, <code>cylinder</code>, <code>line</code> and <code>hollowBox</code> are the shapes you would otherwise write three nested
+  loops for. <code>hollow</code> on the sphere and the cylinder leaves the inside empty.</li>
+</ul>
+<div class="demo" data-demo="blocks-shapes"></div>
+<div class="alert alert-warning"><i class="alert-icon ph-fill ph-warning"></i><div class="alert-body"><p>One call changes at most 4,000,000 blocks. A bigger call is almost always two corners typed wrong.</p></div></div>
+<h2 id="copy-and-paste">Copy and paste<a class="anchor" href="#copy-and-paste" title="Permanent link">#</a></h2>
+<p><code>copy</code> reads a region of the level out into a table, and <code>paste</code> puts one back:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> house = b:<span class="syn-func">copy</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">64</span>, <span class="syn-num">0</span>), <span class="syn-func">vec3</span>(<span class="syn-num">8</span>, <span class="syn-num">70</span>, <span class="syn-num">8</span>))   <span class="syn-comment">-- { size, palette, blocks }</span>
+b:<span class="syn-func">paste</span>(house, <span class="syn-func">vec3</span>(<span class="syn-num">20</span>, <span class="syn-num">64</span>, <span class="syn-num">0</span>), <span class="syn-num">1</span>, <span class="syn-const">true</span>)                <span class="syn-comment">-- quarter turns clockwise, skip air</span></code></pre></div></div>
+<ul>
+<li><code>copy(from, to)</code> takes the two corners of the region and hands you a table of <code>size</code>, <code>palette</code> and
+  <code>blocks</code>.</li>
+<li><code>paste(data, at, rotation, skipAir)</code> puts it back down at <code>at</code>. <code>rotation</code> is a number of quarter
+  turns clockwise, so <code>1</code> is a quarter turn and <code>2</code> is a half turn. With <code>skipAir</code> true the
+  air in the copy leaves whatever is already there alone, which is what you want when you paste a
+  building onto ground you want to keep.</li>
+</ul>
+<div class="demo" data-demo="blocks-paste"></div>
+<p>A copy is plain data, so it can be saved with <code>store</code> (see <a href="saving.html">Saving</a>) or sent through a
+remote (see <a href="talking.html">Talking across the boundary</a>). Pasting turned rotates block states too, so
+stairs still face the right way.</p>
+<h2 id="hearing-changes">Hearing changes<a class="anchor" href="#hearing-changes" title="Permanent link">#</a></h2>
+<p><code>changed</code> fires for every block that changes, whoever changed it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>b.changed:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(at, block)
+    <span class="syn-func">print</span>(<span class="syn-string">&quot;now&quot;</span>, block, <span class="syn-string">&quot;at&quot;</span>, at)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>at</code> is the block's position and <code>block</code> is what it is now.</li>
+<li>It fires once a step for every block that changed, from anything: a place, a player or the game
+  itself. A player mining a block, a <code>set</code> call in your own script and a fire spreading all arrive
+  the same way.</li>
+</ul>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>A <code>fill</code> over a large region fires <code>changed</code> once for every block it touched. If you are counting
+or logging in the handler, a single call can hand you thousands of blocks in one step.</p></div></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="queries.html"><span>Previous</span>Queries</a><a class="next" href="zones-and-triggers.html"><span>Next</span>Zones, touches, tags, prompts and clicks</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#reading">Reading</a></li><li><a href="#raycasts">Raycasts</a></li><li><a href="#writing">Writing</a></li><li><a href="#copy-and-paste">Copy and paste</a></li><li><a href="#hearing-changes">Hearing changes</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

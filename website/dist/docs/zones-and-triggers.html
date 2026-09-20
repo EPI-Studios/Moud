@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zones, touches, tags, prompts and clicks | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html" class="active"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="zones-touches-tags-prompts-and-clicks">Zones, touches, tags, prompts and clicks<a class="anchor" href="#zones-touches-tags-prompts-and-clicks" title="Permanent link">#</a></h1>
+<p>This page covers the ways a place notices something without you checking for it every frame: a part
+that reports what runs into it, a region that knows what stands in it, a label you attach to
+instances so you can find them all at once, a "press E" prompt, and a part a player can click. The
+last two sections cover watching a pair of instances and turning a distance into a strength.</p>
+<h2 id="touched-and-touchended">touched and touchEnded<a class="anchor" href="#touched-and-touchended" title="Permanent link">#</a></h2>
+<p>Every part has a <code>touched</code> and a <code>touchEnded</code> signal. <code>touched</code> fires when another part starts
+overlapping it, and <code>touchEnded</code> when that part stops. Both hand you the other part:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>pad.touched:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(other) <span class="syn-keyword">end</span>)
+pad.touchEnded:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(other) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Touches are worked out once a tick, and only for parts that something listens on, so a part with no
+connection costs nothing. A trigger is an ordinary part with <code>collides = false</code> and
+<code>transparency = 1</code>: players walk through it and never see it, and it still reports what went past.
+<code>canTouch = false</code> opts a part out.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>A body walking along the edge of a part can start and end a touch several times a second, because
+each tick is worked out on its own. Use a <code>Zone</code> when you need a steady answer to "is this player
+in here".</p></div></div>
+<h2 id="zones">Zones<a class="anchor" href="#zones" title="Permanent link">#</a></h2>
+<p>A <code>Zone</code> is an instance that knows what is inside a shape you give it. It asks whether a point is
+inside that shape, which is cheaper and steadier than <code>touched</code>: a body standing on the edge does
+not flicker in and out.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16</pre><pre><code><span class="syn-keyword">local</span> safe = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Zone&quot;</span>, {
+    shape = <span class="syn-string">&quot;box&quot;</span>,                 <span class="syn-comment">-- box, sphere, cylinder, polygon</span>
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">20</span>, <span class="syn-num">6</span>, <span class="syn-num">20</span>),        <span class="syn-comment">-- sphere: diameter in x. cylinder: diameter in x, height in y</span>
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>),
+    trackPlayers = <span class="syn-const">true</span>,           <span class="syn-comment">-- bodies players wear</span>
+    trackTag = <span class="syn-string">&quot;&quot;</span>,                 <span class="syn-comment">-- and anything with this tag</span>
+    trackClass = <span class="syn-string">&quot;&quot;</span>,               <span class="syn-comment">-- and anything of this class</span>
+    cooldown = <span class="syn-num">0.5</span>,                <span class="syn-comment">-- seconds before the same thing can enter or leave again</span>
+    priority = <span class="syn-num">0</span>,
+})
+safe.entered:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(thing) <span class="syn-keyword">end</span>)
+safe.left:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(thing) <span class="syn-keyword">end</span>)
+
+safe:<span class="syn-func">players</span>()        <span class="syn-comment">-- the bodies inside</span>
+safe:<span class="syn-func">occupants</span>()      <span class="syn-comment">-- everything inside</span>
+safe:<span class="syn-func">contains</span>(position)</code></pre></div></div>
+<ul>
+<li><code>shape</code> and <code>size</code> make the region. A box is 20 by 6 by 20 metres here, centred on the <code>cframe</code>.</li>
+<li>The three <code>track</code> properties say what the zone watches. With <code>trackPlayers = true</code> it follows the
+  bodies players wear; fill <code>trackTag</code> or <code>trackClass</code> and it follows those as well.</li>
+<li><code>cooldown</code> is how long the same thing has to wait before it can enter or leave again, which keeps
+  a player hopping over the boundary from firing the signals repeatedly.</li>
+<li><code>entered</code> and <code>left</code> fire with the thing that moved. <code>players()</code>, <code>occupants()</code> and <code>contains()</code>
+  answer the same question at the moment you ask it, which is what you want inside a loop or when a
+  player presses a button.</li>
+</ul>
+<div class="demo" data-demo="zone"></div>
+<p><strong>Polygon zones</strong> use their <code>Attachment</code> children as the outline on the zone's floor, and are as
+tall as <code>size.y</code>:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-keyword">local</span> yard = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Zone&quot;</span>, { shape = <span class="syn-string">&quot;polygon&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">8</span>, <span class="syn-num">0</span>) })
+yard:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>) })
+yard:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">12</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>) })
+yard:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(<span class="syn-num">6</span>, <span class="syn-num">0</span>, <span class="syn-num">10</span>) })</code></pre></div></div>
+<p>The three attachments are the corners of a triangle, and <code>size.y</code> of 8 makes the zone eight metres
+tall. The x and z of <code>size</code> are unused, because the outline decides the footprint.</p>
+<p><strong>Where zones overlap</strong>, <code>game.zones:at(position)</code> lists every zone there with the winner first:
+highest <code>priority</code>, then the smallest.</p>
+<p><strong>A zone can change channels and sound</strong> without a script listening to it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Zone&quot;</span>, { size = <span class="syn-func">vec3</span>(<span class="syn-num">10</span>, <span class="syn-num">5</span>, <span class="syn-num">10</span>), textChannel = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;tavern&quot;</span>), soundId = <span class="syn-string">&quot;res://music/tavern.ogg&quot;</span>, volume = <span class="syn-num">0.6</span> })</code></pre></div></div>
+<ul>
+<li>A player inside is put in <code>textChannel</code>, and taken out when they leave.</li>
+<li><code>soundId</code> loops on that player's client while the zone is the winning one where they stand.</li>
+</ul>
+<h2 id="tags">Tags<a class="anchor" href="#tags" title="Permanent link">#</a></h2>
+<p>A tag is a name you attach to an instance so you can find every instance wearing it later. You use
+one where a class or a parent will not do, such as marking twenty scattered parts as lava.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code>lava:<span class="syn-func">addTag</span>(<span class="syn-string">&quot;lava&quot;</span>)
+lava:<span class="syn-func">hasTag</span>(<span class="syn-string">&quot;lava&quot;</span>)  lava:<span class="syn-func">removeTag</span>(<span class="syn-string">&quot;lava&quot;</span>)  lava:<span class="syn-func">getTags</span>()
+
+<span class="syn-keyword">for</span> _, part <span class="syn-keyword">in</span> game.tags:<span class="syn-func">tagged</span>(<span class="syn-string">&quot;lava&quot;</span>) <span class="syn-keyword">do</span> <span class="syn-keyword">end</span>
+game.tags:<span class="syn-func">added</span>(<span class="syn-string">&quot;lava&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(instance) <span class="syn-keyword">end</span>)
+game.tags:<span class="syn-func">removed</span>(<span class="syn-string">&quot;lava&quot;</span>):<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(instance) <span class="syn-keyword">end</span>)
+
+world:<span class="syn-func">byTag</span>(<span class="syn-string">&quot;lava&quot;</span>)        <span class="syn-comment">-- only the tagged instances under this one</span></code></pre></div></div>
+<ul>
+<li><code>addTag</code>, <code>removeTag</code>, <code>hasTag</code> and <code>getTags</code> work on any instance.</li>
+<li><code>game.tags:tagged(name)</code> gives every instance with the tag, wherever it is.</li>
+<li><code>game.tags:added</code> and <code>game.tags:removed</code> fire when an instance gains or loses the tag, so a
+  script can set a part up the moment it is marked instead of scanning for new ones.</li>
+<li><code>world:byTag(name)</code> narrows the search to the instances under the one you called it on.</li>
+</ul>
+<p>Tags replicate, so a tag the server adds reaches every client.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>A client can only tag what it owns or made itself. Tagging anything else belongs on the server.</p></div></div>
+<h2 id="proximity-prompts">Proximity prompts<a class="anchor" href="#proximity-prompts" title="Permanent link">#</a></h2>
+<p>A <code>ProximityPrompt</code> is an instance you put inside a part to get "Press E to open" with no interface
+to write. The engine draws the prompt, handles the key and the hold, and tells you when it was
+triggered.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17</pre><pre><code><span class="syn-keyword">local</span> prompt = door:<span class="syn-func">add</span>(<span class="syn-string">&quot;ProximityPrompt&quot;</span>, {
+    actionText = <span class="syn-string">&quot;Open&quot;</span>, objectText = <span class="syn-string">&quot;Door&quot;</span>,
+    keys = <span class="syn-string">&quot;e&quot;</span>, holdDuration = <span class="syn-num">0.5</span>,
+    maxActivationDistance = <span class="syn-num">8</span>, requiresLineOfSight = <span class="syn-const">true</span>,
+    offset = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>),
+    backgroundColor = <span class="syn-func">color</span>(<span class="syn-num">0.05</span>, <span class="syn-num">0.05</span>, <span class="syn-num">0.07</span>), backgroundTransparency = <span class="syn-num">0.25</span>,
+    textColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>), keyColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+})
+
+<span class="syn-comment">-- server: fires after checking the player really is close</span>
+prompt.triggered:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(body) door:<span class="syn-func">destroy</span>() <span class="syn-keyword">end</span>)
+prompt.holdBegan:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(body) <span class="syn-keyword">end</span>)
+prompt.holdEnded:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(body) <span class="syn-keyword">end</span>)
+
+<span class="syn-comment">-- client</span>
+prompt.shown:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)
+prompt.hidden:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>actionText</code> is what the player is offered to do and <code>objectText</code> names what they are doing it to.
+  The colour properties are what the box behind them looks like.</li>
+<li><code>holdDuration = 0.5</code> means the player holds the key for half a second. The engine draws the
+  progress bar while they hold, and <code>triggered</code> fires at the end of it.</li>
+<li><code>maxActivationDistance = 8</code> is how far away the prompt still works, and
+  <code>requiresLineOfSight = true</code> hides it when something is in the way.</li>
+<li><code>offset</code> moves the prompt off the centre of the part it is parented to, a metre up here.</li>
+<li><code>triggered</code>, <code>holdBegan</code> and <code>holdEnded</code> all fire with the body that did it, on the server, after
+  the engine has checked that the player really is close. <code>shown</code> and <code>hidden</code> fire on the client,
+  which is where you play a sound or change a cursor.</li>
+</ul>
+<p>A client shows the one prompt nearest to its player, floating over what it is parented to, with a
+progress bar while held. <code>keys</code> uses the same key names as <code>InputAction</code>.</p>
+<p>You can ask which prompt a body would use right now:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> prompt, distance = game.proximity:<span class="syn-func">closestInteractable</span>(body)</code></pre></div></div>
+<h2 id="click-detectors">Click detectors<a class="anchor" href="#click-detectors" title="Permanent link">#</a></h2>
+<p>A <code>ClickDetector</code> inside a part hears the player click it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13</pre><pre><code><span class="syn-comment">-- server: a lever that opens and closes a door</span>
+<span class="syn-keyword">local</span> lever = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;Lever&quot;</span>) :: Part
+<span class="syn-keyword">local</span> door = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;Door&quot;</span>) :: Part
+<span class="syn-keyword">local</span> detector = lever:<span class="syn-func">add</span>(<span class="syn-string">&quot;ClickDetector&quot;</span>, { maxActivationDistance = <span class="syn-num">6</span> })
+<span class="syn-keyword">local</span> open = <span class="syn-const">false</span>
+
+detector.mouseClick:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    open = <span class="syn-keyword">not</span> open
+    door.collides = <span class="syn-keyword">not</span> open
+    door.transparency = <span class="syn-keyword">if</span> open <span class="syn-keyword">then</span> <span class="syn-num">0.8</span> <span class="syn-keyword">else</span> <span class="syn-num">0</span>
+    lever.cframe = lever.cframe * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-keyword">if</span> open <span class="syn-keyword">then</span> <span class="syn-num">0.8</span> <span class="syn-keyword">else</span> -<span class="syn-num">0.8</span>)
+    <span class="syn-func">print</span>(player.name, <span class="syn-keyword">if</span> open <span class="syn-keyword">then</span> <span class="syn-string">&quot;opened&quot;</span> <span class="syn-keyword">else</span> <span class="syn-string">&quot;closed&quot;</span>, <span class="syn-string">&quot;the door&quot;</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The detector goes inside the part you want clicked, so <code>lever:add("ClickDetector", ...)</code> is what
+  makes the lever clickable.</li>
+<li><code>mouseClick</code> fires with the player who clicked, which is what <code>player.name</code> prints here.</li>
+<li>Because this runs on the server, the door opens for everybody: <code>collides</code>, <code>transparency</code> and
+  <code>cframe</code> are properties, and writing them replicates to every client.</li>
+</ul>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>maxActivationDistance</code></td>
+<td>how far the player's body may be, 32 by default</td>
+</tr>
+<tr>
+<td><code>cursorIcon</code></td>
+<td>the pointer while over it: empty for a hand, a cursor name like <code>"crosshair"</code>, or <code>"res://ui/lever.png"</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Fires with</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mouseClick</code></td>
+<td>the player</td>
+<td>a left click</td>
+</tr>
+<tr>
+<td><code>rightMouseClick</code></td>
+<td>the player</td>
+<td>a right click</td>
+</tr>
+<tr>
+<td><code>mouseHoverEnter</code></td>
+<td>the player</td>
+<td>the pointer comes onto it</td>
+</tr>
+<tr>
+<td><code>mouseHoverLeave</code></td>
+<td>the player</td>
+<td>the pointer leaves it</td>
+</tr>
+</tbody>
+</table></div>
+<p>What decides whether a click counts:</p>
+<ul>
+<li>The player aims with the crosshair, or with the mouse while the pointer is free. <code>cursorIcon</code>
+  only shows while the pointer is free.</li>
+<li>A detector inside a <code>Model</code> hears every part of the model. When detectors are nested, the one
+  closest to the part that was aimed at wins.</li>
+<li>Blocks in between stop it, and nothing inside a <code>ViewportFrame</code> counts.</li>
+<li>A click fires when the button is released over the same detector it was pressed on. The click
+  still reaches Minecraft; bind an action to <code>mousebutton1</code> to keep it from the game.</li>
+<li>Nothing is aimed at while a screen, the chat or the editor is open, so opening one fires
+  <code>mouseHoverLeave</code>. A click an interface took does not count.</li>
+<li>Distance is counted from the player's body to the part, less half its size.</li>
+</ul>
+<p>On the server each event fires after checking the player really is within <code>maxActivationDistance</code>,
+with two blocks to spare for lag. In a <code>LocalScript</code> they fire at once with the local player, where
+<code>name</code>, <code>id</code>, <code>character</code> and <code>controls</code> work, and <code>spawn</code> and <code>kick</code> are errors.</p>
+<p>Hover events are the ones you usually want on the client, because a hint only that player should see
+belongs on their own screen:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code><span class="syn-comment">-- client: a hint while the pointer is on the lever</span>
+<span class="syn-keyword">local</span> detector = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;Lever&quot;</span>).ClickDetector :: ClickDetector
+detector.mouseHoverEnter:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() hint.visible = <span class="syn-const">true</span> <span class="syn-keyword">end</span>)
+detector.mouseHoverLeave:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() hint.visible = <span class="syn-const">false</span> <span class="syn-keyword">end</span>)</code></pre></div></div>
+<h2 id="watching-two-things">Watching two things<a class="anchor" href="#watching-two-things" title="Permanent link">#</a></h2>
+<p>A watcher tells you when two instances come within a distance of each other, without you measuring
+it yourself every tick:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-keyword">local</span> watcher = game.proximity:<span class="syn-func">watch</span>(player, chest, <span class="syn-num">6</span>)
+watcher.entered:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(a, b) <span class="syn-keyword">end</span>)
+watcher.left:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(a, b) <span class="syn-keyword">end</span>)
+watcher.near       <span class="syn-comment">-- true while they are within range</span>
+watcher:<span class="syn-func">stop</span>()</code></pre></div></div>
+<p><code>entered</code> fires when they come within the six metres and <code>left</code> when they go back out, both with the
+two instances. Read <code>near</code> when you want the answer now rather than a signal. Call <code>stop()</code> when you
+are done with the watcher.</p>
+<h2 id="falloff">Falloff<a class="anchor" href="#falloff" title="Permanent link">#</a></h2>
+<p><code>falloff</code> turns a distance into a number between 1 and 0, which is what you multiply a volume or a
+strength by so it fades with range:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> volume = game.proximity.<span class="syn-func">falloff</span>(distance, <span class="syn-num">4</span>, <span class="syn-num">30</span>, <span class="syn-num">1.5</span>)   <span class="syn-comment">-- 1 inside 4 m, 0 past 30 m</span></code></pre></div></div>
+<p>The first three arguments are the distance you measured, the range that still counts as full
+strength, and the range past which there is nothing left. The fourth shapes the curve between them.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="blocks.html"><span>Previous</span>Blocks</a><a class="next" href="interface.html"><span>Next</span>Interface</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#touched-and-touchended">touched and touchEnded</a></li><li><a href="#zones">Zones</a></li><li><a href="#tags">Tags</a></li><li><a href="#proximity-prompts">Proximity prompts</a></li><li><a href="#click-detectors">Click detectors</a></li><li><a href="#watching-two-things">Watching two things</a></li><li><a href="#falloff">Falloff</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

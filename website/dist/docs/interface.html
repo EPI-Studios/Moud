@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interface | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html" class="active"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Screen and sound</span></nav>
+    <article class="doc">
+<h1 id="interface">Interface<a class="anchor" href="#interface" title="Permanent link">#</a></h1>
+<p>An interface in Moud is made of instances, the same as everything else in a place. You add a
+container to the tree, add widgets inside it, and set their properties. The engine reads the whole
+interface every frame, so a property you write shows on the next frame and there is nothing to
+refresh or redraw by hand.</p>
+<h2 id="three-containers">Three containers<a class="anchor" href="#three-containers" title="Permanent link">#</a></h2>
+<p>Every widget sits inside one of three containers. The container decides where the interface is drawn
+and what its sizes are measured against.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Where it draws</th>
+<th>Sized by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ScreenGui</code></td>
+<td>over the screen</td>
+<td>the screen</td>
+</tr>
+<tr>
+<td><code>BillboardGui</code></td>
+<td>floating over <code>adornee</code>, always facing the camera</td>
+<td>its <code>size</code></td>
+</tr>
+<tr>
+<td><code>SurfaceGui</code></td>
+<td>flat on one <code>face</code> of the part <code>adornee</code></td>
+<td>that face</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> hud = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;ScreenGui&quot;</span>, { name = <span class="syn-string">&quot;hud&quot;</span>, displayOrder = <span class="syn-num">1</span> })
+
+<span class="syn-comment">-- server or client</span>
+<span class="syn-keyword">local</span> tag = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;BillboardGui&quot;</span>, {
+    adornee = body, offset = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">2.3</span>, <span class="syn-num">0</span>),
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">2</span>, <span class="syn-num">0</span>, <span class="syn-num">0.4</span>, <span class="syn-num">0</span>),        <span class="syn-comment">-- metres: 2 wide, 0.4 tall</span>
+    pixelsPerMetre = <span class="syn-num">100</span>, maxDistance = <span class="syn-num">40</span>,
+})
+
+<span class="syn-keyword">local</span> sign = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SurfaceGui&quot;</span>, { adornee = deck, face = <span class="syn-string">&quot;top&quot;</span>, pixelsPerMetre = <span class="syn-num">100</span> })</code></pre></div></div>
+<ul>
+<li><strong><code>adornee</code></strong> is the instance a world gui hangs on. The billboard above follows <code>body</code> wherever it
+  walks, and the sign stays on <code>deck</code>.</li>
+<li><strong><code>offset</code></strong> shifts a billboard away from its adornee in metres, so <code>vec3(0, 2.3, 0)</code> puts a name
+  tag above a head instead of inside it.</li>
+<li><strong><code>face</code></strong> picks which side of the part a <code>SurfaceGui</code> lies on, <code>"top"</code> here.</li>
+<li><strong><code>pixelsPerMetre</code></strong> is how many pixels of interface go into a metre of the world. It turns the
+  pixel offsets you write inside the gui into a size on the wall, and a higher number fits more
+  interface into the same square of world.</li>
+<li><strong><code>maxDistance</code></strong> is how far away a player can be and still see a billboard.</li>
+<li><strong><code>displayOrder</code></strong> decides which <code>ScreenGui</code> draws over another when a place has several.</li>
+</ul>
+<p><code>alwaysOnTop</code> draws a world gui through walls. <code>enabled</code> hides a whole container. In-world guis are
+drawn straight into the world at screen resolution, so text stays sharp at any distance.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>A gui kept out of the world does not draw, whatever <code>enabled</code> says: one in <code>ServerStorage</code>,
+<code>ServerScriptService</code>, <code>ReplicatedStorage</code>, <code>StarterPack</code>, <code>StarterCharacterScripts</code> or a backpack
+is a template until a copy lands somewhere else. <code>StarterGui</code> and <code>StarterPlayerScripts</code> are
+ordinary containers, so a <code>ScreenGui</code> in either of them draws. See <a href="containers.html">Containers</a>.</p></div></div>
+<h2 id="widgets">Widgets<a class="anchor" href="#widgets" title="Permanent link">#</a></h2>
+<p>A widget is one piece of interface inside a container: a rectangle, a line of text, a button, a box
+to type into.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Frame</code></td>
+<td>a rectangle</td>
+</tr>
+<tr>
+<td><code>TextLabel</code></td>
+<td>text</td>
+</tr>
+<tr>
+<td><code>TextButton</code></td>
+<td>text you can click; fires <code>activated</code>, and reads <code>hovered</code> and <code>pressed</code></td>
+</tr>
+<tr>
+<td><code>TextBox</code></td>
+<td>text the player types into</td>
+</tr>
+<tr>
+<td><code>ImageLabel</code></td>
+<td>an image, from <code>image</code>, with no background unless you set <code>backgroundTransparency</code>. See <a href="images.html">Images</a></td>
+</tr>
+<tr>
+<td><code>ImageButton</code></td>
+<td>a texture you can click, with an image for hovered and one for held</td>
+</tr>
+<tr>
+<td><code>ScrollingFrame</code></td>
+<td>a frame whose children sit on a bigger canvas you scroll</td>
+</tr>
+<tr>
+<td><code>CanvasGroup</code></td>
+<td>a frame drawn with everything inside it as one picture, so it fades as one</td>
+</tr>
+</tbody>
+</table></div>
+<p>Every widget is a <code>GuiObject</code>, so all of them share the same placement, colour and mouse properties
+whatever class they are:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre><pre><code><span class="syn-keyword">local</span> panel = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;Frame&quot;</span>, {
+    position = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">12</span>, <span class="syn-num">0</span>, <span class="syn-num">12</span>),   <span class="syn-comment">-- xScale, xOffset, yScale, yOffset</span>
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">220</span>, <span class="syn-num">0</span>, <span class="syn-num">64</span>),
+    anchorX = <span class="syn-num">0</span>, anchorY = <span class="syn-num">0</span>,         <span class="syn-comment">-- which point of the widget sits on position</span>
+    backgroundColor = <span class="syn-func">color</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), backgroundTransparency = <span class="syn-num">0.4</span>,
+    cornerRadius = <span class="syn-num">6</span>, borderSize = <span class="syn-num">1</span>, borderColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+    clipsDescendants = <span class="syn-const">true</span>, zIndex = <span class="syn-num">1</span>,
+})
+
+<span class="syn-keyword">local</span> score = panel:<span class="syn-func">add</span>(<span class="syn-string">&quot;TextLabel&quot;</span>, {
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">20</span>), text = <span class="syn-string">&quot;Score: 0&quot;</span>,
+    textSize = <span class="syn-num">9</span>, textColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>), textShadow = <span class="syn-const">true</span>,
+    textXAlignment = <span class="syn-string">&quot;left&quot;</span>, textYAlignment = <span class="syn-string">&quot;center&quot;</span>, textWrapped = <span class="syn-const">true</span>,
+})
+
+<span class="syn-keyword">local</span> button = panel:<span class="syn-func">add</span>(<span class="syn-string">&quot;TextButton&quot;</span>, { position = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">30</span>), size = <span class="syn-func">udim2</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">24</span>), text = <span class="syn-string">&quot;Swing&quot;</span> })
+button.activated:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() score.text = <span class="syn-string">&quot;Swing!&quot;</span> <span class="syn-keyword">end</span>)
+button.mouseEnter:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() button.textColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.2</span>) <span class="syn-keyword">end</span>)
+button.mouseLeave:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() button.textColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><strong><code>position</code></strong> and <strong><code>size</code></strong> are <code>UDim2</code>s: a fraction of the parent plus a number of pixels, on each
+  axis. The panel above sits 12 pixels in from the top left of the screen and is 220 by 64 pixels,
+  while the label inside it is <code>udim2(1, 0, 0, 20)</code>, the full width of the panel and 20 pixels tall.</li>
+<li><strong><code>anchorX</code></strong> and <strong><code>anchorY</code></strong> say which point of the widget lands on <code>position</code>. They start at
+  <code>0</code>, the top left corner. Set both to <code>0.5</code> and <code>position</code> is the widget's centre, which is how you
+  centre something in the middle of the screen whatever size it is.</li>
+</ul>
+<div class="demo" data-demo="udim2"></div>
+<ul>
+<li><strong><code>backgroundColor</code></strong> and <strong><code>backgroundTransparency</code></strong> fill the rectangle. Transparency runs from
+  <code>0</code>, solid, to <code>1</code>, gone. Set it to <code>1</code> on a label so only the text shows.</li>
+<li><strong><code>cornerRadius</code></strong>, <strong><code>borderSize</code></strong> and <strong><code>borderColor</code></strong> round and outline the rectangle. For
+  more control, add a <code>UICorner</code> or a <code>UIStroke</code> child instead.</li>
+<li><strong><code>clipsDescendants</code></strong> cuts off anything that pokes out past the widget's edges. Leave it off and a
+  child that is bigger than its parent is drawn in full.</li>
+<li><strong><code>zIndex</code></strong> decides which widget draws on top when two overlap, highest last.</li>
+<li><strong><code>text</code></strong>, <strong><code>textSize</code></strong>, <strong><code>textColor</code></strong> and <strong><code>textShadow</code></strong> set what a label says and how it
+  looks. <strong><code>textXAlignment</code></strong> and <strong><code>textYAlignment</code></strong> place the text inside the widget, and
+  <strong><code>textWrapped</code></strong> breaks a long line at the widget's width instead of letting it run off the end.</li>
+<li><code>activated</code> fires when the button is clicked, and <code>mouseEnter</code> and <code>mouseLeave</code> fire as the pointer
+  comes and goes, which is how the button above lights up under the pointer.</li>
+</ul>
+<p>A client script may change any interface instance, even one the server made: the change is its own
+and never sent anywhere. Clicks and hovers happen on the client, so react to them in a <code>LocalScript</code>
+and tell the server through a <a href="talking.html">Remote</a>.</p>
+<p><code>textScaled = true</code> grows or shrinks the text to fill the widget; <code>textSize</code> is then ignored.</p>
+<p><strong>Rich text.</strong> <code>richText = true</code> reads a label's text as <a href="rich-text.html">rich text</a>, the same tags the
+chat takes: <code>&lt;b&gt;</code>, <code>&lt;color=gold&gt;</code>, <code>&lt;gradient&gt;</code>, <code>&lt;wave&gt;</code>, <code>&lt;img&gt;</code> and the rest. A rich text label
+wraps inside its size.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;TextLabel&quot;</span>, { text = <span class="syn-string">&quot;&lt;b&gt;Score&lt;/b&gt; &lt;color=gold&gt;120&lt;/color&gt;&quot;</span>, richText = <span class="syn-const">true</span> })</code></pre></div></div>
+<h2 id="layouts">Layouts<a class="anchor" href="#layouts" title="Permanent link">#</a></h2>
+<p>A layout is an instance you put inside a frame to place that frame's children for you. It ignores
+their <code>position</code>; their <code>size</code> still counts.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>What it does to its parent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UIListLayout</code></td>
+<td>lines the children up in a column or a row</td>
+</tr>
+<tr>
+<td><code>UIGridLayout</code></td>
+<td>puts every child in a cell of the same size</td>
+</tr>
+<tr>
+<td><code>UIPadding</code></td>
+<td>keeps space free inside the edges</td>
+</tr>
+<tr>
+<td><code>UIAspectRatioConstraint</code></td>
+<td>keeps the width a fixed multiple of the height</td>
+</tr>
+<tr>
+<td><code>UISizeConstraint</code></td>
+<td>keeps the size between a smallest and a biggest</td>
+</tr>
+<tr>
+<td><code>UIScale</code></td>
+<td>draws the parent and everything inside it bigger or smaller</td>
+</tr>
+</tbody>
+</table></div>
+<p>They are children like any other, and they work inside a <code>ScreenGui</code> too. Only the first
+<code>UIListLayout</code> or <code>UIGridLayout</code> in a frame counts. Inside a gui, <strong>Insert</strong> in the editor lists them.</p>
+<h3 id="a-menu-that-grows-with-its-buttons">A menu that grows with its buttons<a class="anchor" href="#a-menu-that-grows-with-its-buttons" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> hud = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;ScreenGui&quot;</span>, { name = <span class="syn-string">&quot;menu&quot;</span> })
+
+<span class="syn-keyword">local</span> menu = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;Frame&quot;</span>, {
+    position = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">20</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0</span>), anchorY = <span class="syn-num">0.5</span>,
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">180</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), automaticSize = <span class="syn-string">&quot;y&quot;</span>,
+    backgroundColor = <span class="syn-func">color</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), backgroundTransparency = <span class="syn-num">0.3</span>,
+})
+menu:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIListLayout&quot;</span>, { padding = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">6</span>) })
+menu:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIPadding&quot;</span>, {
+    paddingTop = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">10</span>), paddingBottom = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">10</span>),
+    paddingLeft = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">10</span>), paddingRight = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">10</span>),
+})
+
+<span class="syn-keyword">for</span> order, label <span class="syn-keyword">in</span> <span class="syn-func">ipairs</span>({ <span class="syn-string">&quot;Play&quot;</span>, <span class="syn-string">&quot;Settings&quot;</span>, <span class="syn-string">&quot;Quit&quot;</span> }) <span class="syn-keyword">do</span>
+    menu:<span class="syn-func">add</span>(<span class="syn-string">&quot;TextButton&quot;</span>, { name = label, text = label, layoutOrder = order, size = <span class="syn-func">udim2</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">24</span>) })
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>The menu is 180 pixels wide and 104 tall: 10 of padding, three buttons of 24 with 6 between them, and
+10 more. Add a fourth button and it grows. Each button is <code>udim2(1, 0, ...)</code> wide, so it fills the
+160 pixels the padding leaves.</p>
+<ul>
+<li><code>fillDirection</code> is <code>"vertical"</code> or <code>"horizontal"</code>.</li>
+<li><code>layoutOrder</code> sorts the children, lowest first. <code>sortOrder = "name"</code> sorts them by name instead.</li>
+<li>A child with <code>visible = false</code> takes no room.</li>
+<li><code>horizontalAlignment</code> (<code>"left"</code>, <code>"center"</code>, <code>"right"</code>) and <code>verticalAlignment</code> (<code>"top"</code>,
+  <code>"center"</code>, <code>"bottom"</code>) move the children inside the frame.</li>
+<li><code>wraps = true</code> starts a new column or row when the next child would not fit.</li>
+<li><code>padding</code> is the gap between children. A vertical list reads its y, a horizontal one its x. The
+  other axis is the gap between wrapped lines.</li>
+</ul>
+<div class="demo" data-demo="interface-list"></div>
+<h3 id="growing-to-fit">Growing to fit<a class="anchor" href="#growing-to-fit" title="Permanent link">#</a></h3>
+<p><code>automaticSize</code> grows a widget along <code>"x"</code>, <code>"y"</code> or <code>"xy"</code> to fit what it holds: its text, or its
+children with the layout and padding counted. It never shrinks below its <code>size</code>, which is why the
+menu above starts at a height of <code>0</code>.</p>
+<ul>
+<li>With no layout, a frame grows until it reaches its farthest child.</li>
+<li>A label with <code>textWrapped</code> and <code>automaticSize = "y"</code> wraps at its width and grows downward. With
+  <code>"x"</code> or <code>"xy"</code> it grows sideways and does not wrap.</li>
+</ul>
+<h3 id="an-inventory-grid-that-scrolls">An inventory grid that scrolls<a class="anchor" href="#an-inventory-grid-that-scrolls" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> bag = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;ScrollingFrame&quot;</span>, {
+    position = <span class="syn-func">udim2</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0</span>), anchorX = <span class="syn-num">0.5</span>, anchorY = <span class="syn-num">0.5</span>,
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">236</span>, <span class="syn-num">0</span>, <span class="syn-num">180</span>),
+    canvasSize = <span class="syn-func">udim2</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), automaticCanvasSize = <span class="syn-string">&quot;y&quot;</span>,
+    scrollingDirection = <span class="syn-string">&quot;y&quot;</span>, scrollBarThickness = <span class="syn-num">4</span>,
+    backgroundColor = <span class="syn-func">color</span>(<span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>),
+})
+bag:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIGridLayout&quot;</span>, { cellSize = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">40</span>, <span class="syn-num">0</span>, <span class="syn-num">40</span>), cellPadding = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">4</span>, <span class="syn-num">0</span>, <span class="syn-num">4</span>) })
+bag:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIPadding&quot;</span>, {
+    paddingTop = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">6</span>), paddingBottom = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">6</span>),
+    paddingLeft = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">6</span>), paddingRight = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">6</span>),
+})
+
+<span class="syn-keyword">for</span> slot = <span class="syn-num">1</span>, <span class="syn-num">40</span> <span class="syn-keyword">do</span>
+    bag:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageButton&quot;</span>, {
+        name = <span class="syn-string">&quot;slot&quot;</span> .. slot, layoutOrder = slot, image = <span class="syn-string">&quot;res://ui/slot.png&quot;</span>,
+        backgroundColor = <span class="syn-func">color</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), backgroundTransparency = <span class="syn-num">0.5</span>,
+    })
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>Five cells fit across, so the forty slots make eight rows. That is taller than the frame, so the
+canvas grows to fit them and the wheel scrolls it.</p>
+<ul>
+<li>Every child is given <code>cellSize</code>. Its own <code>size</code> is ignored.</li>
+<li><code>fillDirection</code> starts as <code>"horizontal"</code>: cells fill a row, left to right, then the next row.
+  <code>"vertical"</code> fills columns instead.</li>
+<li>As many cells go in a row as there is room for. <code>fillDirectionMaxCells</code> caps that; <code>0</code> does not.</li>
+<li><code>startCorner</code> is the corner the first cell goes in: <code>"topLeft"</code>, <code>"topRight"</code>, <code>"bottomLeft"</code> or
+  <code>"bottomRight"</code>.</li>
+<li><code>horizontalAlignment</code> and <code>verticalAlignment</code> move the whole block of cells.</li>
+<li>The scale part of <code>cellSize</code> and <code>cellPadding</code> is a fraction of the frame, inside its padding.</li>
+</ul>
+<div class="demo" data-demo="interface-grid"></div>
+<h3 id="scrolling">Scrolling<a class="anchor" href="#scrolling" title="Permanent link">#</a></h3>
+<p>A <code>ScrollingFrame</code> shows a window onto a canvas. Its children are placed on the canvas, and whatever
+falls outside the window is clipped.</p>
+<ul>
+<li><code>canvasSize</code> is how big the canvas is. Its scale is a fraction of the frame. It starts at
+  <code>udim2(0, 0, 2, 0)</code>, twice as tall as the frame.</li>
+<li>The canvas is never smaller than the window, so a child at <code>size = udim2(1, 0, 0, 40)</code> or a grid
+  gets the frame's width whatever <code>canvasSize</code> says across.</li>
+<li><code>automaticCanvasSize</code> grows the canvas along <code>"x"</code>, <code>"y"</code> or <code>"xy"</code> to fit the children.</li>
+<li><code>canvasPosition</code> is how far it is scrolled, in pixels, as a <code>Vector3</code> whose x and y count. Write it
+  to scroll. It is clamped to the canvas: as you write it, once the frame has been drawn once, and
+  again whenever the canvas or the window changes size. Reading it back gives where it really went.</li>
+<li>The wheel scrolls 40 pixels a notch, down and up when the canvas is taller than the frame and
+  sideways otherwise. Dragging the canvas moves it. Dragging within <code>scrollBarThickness</code> of the right
+  or bottom edge moves the bar.</li>
+<li><code>scrollingDirection</code> is <code>"x"</code>, <code>"y"</code> or <code>"xy"</code>.</li>
+<li><code>scrollingEnabled = false</code> stops the wheel and dragging. A script can still write
+  <code>canvasPosition</code>.</li>
+<li><code>scrollBarThickness</code> is in pixels; <code>0</code> hides the bars. <code>scrollBarImageColor</code> and
+  <code>scrollBarImageTransparency</code> colour them.</li>
+<li><code>absoluteCanvasSize</code> and <code>absoluteWindowSize</code> read how big the canvas and the window ended up, in
+  screen pixels like <code>absoluteSize</code>.</li>
+</ul>
+<p>To keep a chat log or a console pinned to its newest line, scroll to the bottom after you add to it:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>log.canvasPosition = <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, log.absoluteCanvasSize.y, <span class="syn-num">0</span>)   <span class="syn-comment">-- scroll to the bottom</span></code></pre></div></div>
+<p>That works because writing past the end stops at the end. <code>canvasPosition</code> counts in the canvas's
+own pixels, before the player's gui scale; <code>absoluteCanvasSize</code> and <code>absoluteWindowSize</code> are what
+ended up on the screen.</p>
+<h3 id="aspect-ratio-size-limits-and-scale">Aspect ratio, size limits and scale<a class="anchor" href="#aspect-ratio-size-limits-and-scale" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-keyword">local</span> portrait = panel:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, { size = <span class="syn-func">udim2</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>), image = <span class="syn-string">&quot;res://ui/hero.png&quot;</span> })
+portrait:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIAspectRatioConstraint&quot;</span>, { aspectRatio = <span class="syn-num">1</span> })
+
+<span class="syn-keyword">local</span> bar = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;Frame&quot;</span>, { size = <span class="syn-func">udim2</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">12</span>) })
+bar:<span class="syn-func">add</span>(<span class="syn-string">&quot;UISizeConstraint&quot;</span>, { minSize = <span class="syn-func">vec3</span>(<span class="syn-num">120</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), maxSize = <span class="syn-func">vec3</span>(<span class="syn-num">400</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>) })</code></pre></div></div>
+<ul>
+<li><code>aspectRatio</code> is the width divided by the height. With <code>aspectType = "fitWithinMaxSize"</code> the
+  widget shrinks along one side until it fits inside its size. With <code>"scaleWithParentSize"</code> it keeps
+  the side <code>dominantAxis</code> names (<code>"width"</code> or <code>"height"</code>) and works out the other.</li>
+<li><code>minSize</code> and <code>maxSize</code> are pixels, x and y. <code>0</code> in <code>maxSize</code> does not limit that axis.</li>
+<li>Automatic size comes first, then the aspect ratio, then the size limits.</li>
+<li>Children of a <code>UIGridLayout</code> take <code>cellSize</code> whatever these say.</li>
+</ul>
+<p><code>UIScale</code> draws its parent <code>scale</code> times bigger, around the parent's anchor point. Layouts and the
+widgets around it still use the size it had before scaling, so it never pushes anything aside.
+Clicks and hovers follow what is drawn. That makes it the one to use for a button that swells under
+the pointer:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-keyword">local</span> grow = button:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIScale&quot;</span>)
+button.mouseEnter:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() grow:<span class="syn-func">tween</span>({ scale = <span class="syn-num">1.1</span> }, { time = <span class="syn-num">0.1</span> }) <span class="syn-keyword">end</span>)
+button.mouseLeave:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() grow:<span class="syn-func">tween</span>({ scale = <span class="syn-num">1</span> }, { time = <span class="syn-num">0.1</span> }) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<h2 id="corners-outlines-and-gradients">Corners, outlines and gradients<a class="anchor" href="#corners-outlines-and-gradients" title="Permanent link">#</a></h2>
+<p>These three are children you add to a widget to change how its rectangle is drawn.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>What it does to its parent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UICorner</code></td>
+<td>rounds the corners</td>
+</tr>
+<tr>
+<td><code>UIStroke</code></td>
+<td>draws an outline</td>
+</tr>
+<tr>
+<td><code>UIGradient</code></td>
+<td>shades the background from one colour to another</td>
+</tr>
+</tbody>
+</table></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> card = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;Frame&quot;</span>, {
+    position = <span class="syn-func">udim2</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0</span>), anchorX = <span class="syn-num">0.5</span>, anchorY = <span class="syn-num">0.5</span>,
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">200</span>, <span class="syn-num">0</span>, <span class="syn-num">120</span>),
+    backgroundColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+})
+card:<span class="syn-func">add</span>(<span class="syn-string">&quot;UICorner&quot;</span>, { cornerRadius = <span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">12</span>) })
+card:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIStroke&quot;</span>, { color = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.3</span>), thickness = <span class="syn-num">2</span> })
+card:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIGradient&quot;</span>, { startColor = <span class="syn-func">color</span>(<span class="syn-num">0.3</span>, <span class="syn-num">0.2</span>, <span class="syn-num">0.6</span>), endColor = <span class="syn-func">color</span>(<span class="syn-num">0.05</span>, <span class="syn-num">0.05</span>, <span class="syn-num">0.15</span>), rotation = <span class="syn-num">90</span> })
+
+<span class="syn-keyword">local</span> title = card:<span class="syn-func">add</span>(<span class="syn-string">&quot;TextLabel&quot;</span>, {
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">30</span>), text = <span class="syn-string">&quot;Legendary&quot;</span>,
+    textColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.3</span>), backgroundTransparency = <span class="syn-num">1</span>,
+})
+title:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIStroke&quot;</span>, { color = <span class="syn-func">color</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), thickness = <span class="syn-num">1</span> })</code></pre></div></div>
+<p>The card's background is white because a gradient multiplies the colour underneath it, so leaving the
+frame white is what makes the gradient's own colours come out as written.</p>
+<p><strong>UICorner.</strong> <code>cornerRadius</code> reads the x of its <code>UDim2</code>. The offset is pixels; the scale is a fraction
+of the shorter side, so <code>udim(0.5, 0)</code> makes a pill. A corner is never rounder than half the shorter
+side. A <code>UICorner</code> wins over the widget's own <code>cornerRadius</code>.</p>
+<p><strong>UIStroke.</strong> With <code>applyStrokeMode = "contextual"</code> it outlines the text of a <code>TextLabel</code>,
+<code>TextButton</code> or <code>TextBox</code>, and the edge of anything else. <code>"border"</code> always outlines the edge. An
+edge outline is drawn outside the widget and follows its corners. <code>thickness</code> is pixels;
+<code>transparency</code> fades it and <code>enabled = false</code> turns it off.</p>
+<p><strong>UIGradient.</strong> It only shades the background: text, images and children are left alone.</p>
+<ul>
+<li>Its colours multiply <code>backgroundColor</code>, so keep the background white to see them as written.</li>
+<li><code>startTransparency</code> and <code>endTransparency</code> fade it on top of <code>backgroundTransparency</code>.</li>
+<li><code>rotation</code> is degrees. <code>0</code> runs left to right, <code>90</code> top to bottom.</li>
+<li><code>offset</code> slides it, as a fraction of the size, x and y.</li>
+<li><code>enabled = false</code> draws the plain background.</li>
+</ul>
+<div class="demo" data-demo="interface-gradient"></div>
+<p>For more than two colours, give it keypoints. Each is a time from <code>0</code> to <code>1</code>, a colour and an optional
+transparency. They win over the start and end values.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> rainbow = bar:<span class="syn-func">add</span>(<span class="syn-string">&quot;UIGradient&quot;</span>)
+rainbow:<span class="syn-func">setKeypoints</span>({
+    { <span class="syn-num">0</span>, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>) },
+    { <span class="syn-num">0.5</span>, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>), <span class="syn-num">0.2</span> },
+    { <span class="syn-num">1</span>, <span class="syn-func">color</span>(<span class="syn-num">0</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>) },
+})
+<span class="syn-func">print</span>(rainbow.keypoints)   <span class="syn-comment">-- 0 1 0 0 0, 0.5 1 1 0 0.2, 1 0 1 0 0</span></code></pre></div></div>
+<p><code>keypoints</code> is the same list written as text, "time r g b transparency" entries split by commas;
+that is what the editor and scene files hold. It takes at least two. <code>getKeypoints()</code> hands the list
+back, and with no keypoints it hands back the start and the end.</p>
+<h2 id="text-boxes">Text boxes<a class="anchor" href="#text-boxes" title="Permanent link">#</a></h2>
+<p>A <code>TextBox</code> is a <code>TextLabel</code> the player types into.</p>
+<p>What the player types only changes this client's copy of the box, so anything the rest of the game
+has to know about goes to the server. Here the server owns the names and decides whether one is
+allowed:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> setName = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;RemoteFunction&quot;</span>, { name = <span class="syn-string">&quot;setName&quot;</span>, accepts = <span class="syn-string">&quot;string&quot;</span> })
+<span class="syn-keyword">local</span> names = {}
+
+setName.onServerInvoke = <span class="syn-keyword">function</span>(player, name)
+    <span class="syn-keyword">if</span> #name &lt; <span class="syn-num">3</span> <span class="syn-keyword">or</span> #name &gt; <span class="syn-num">16</span> <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-const">false</span>, <span class="syn-string">&quot;3 to 16 letters&quot;</span> <span class="syn-keyword">end</span>
+    names[player.id] = name
+    <span class="syn-keyword">return</span> <span class="syn-const">true</span>, <span class="syn-string">&quot;hello, &quot;</span> .. name
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p>The client draws the box, sends what was typed when the player presses Enter, and shows the answer:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> entry = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;TextBox&quot;</span>, {
+    position = <span class="syn-func">udim2</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0</span>), anchorX = <span class="syn-num">0.5</span>, anchorY = <span class="syn-num">0.5</span>,
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">200</span>, <span class="syn-num">0</span>, <span class="syn-num">20</span>),
+    placeholderText = <span class="syn-string">&quot;Your name&quot;</span>, clearTextOnFocus = <span class="syn-const">false</span>, textXAlignment = <span class="syn-string">&quot;left&quot;</span>,
+    backgroundColor = <span class="syn-func">color</span>(<span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>), textColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+})
+<span class="syn-keyword">local</span> answer = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;TextLabel&quot;</span>, {
+    position = <span class="syn-func">udim2</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0</span>, <span class="syn-num">0.5</span>, <span class="syn-num">16</span>), anchorX = <span class="syn-num">0.5</span>,
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">200</span>, <span class="syn-num">0</span>, <span class="syn-num">12</span>), backgroundTransparency = <span class="syn-num">1</span>, textColor = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+})
+
+entry.focusLost:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(enterPressed)
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> enterPressed <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    task.<span class="syn-func">spawn</span>(<span class="syn-keyword">function</span>()
+        <span class="syn-keyword">local</span> ok, message = game.world.setName:<span class="syn-func">invokeServer</span>(entry.text)
+        answer.text = message
+        answer.textColor = <span class="syn-keyword">if</span> ok <span class="syn-keyword">then</span> <span class="syn-func">color</span>(<span class="syn-num">0.5</span>, <span class="syn-num">1</span>, <span class="syn-num">0.5</span>) <span class="syn-keyword">else</span> <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.4</span>, <span class="syn-num">0.4</span>)
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>)
+
+entry:<span class="syn-func">captureFocus</span>()</code></pre></div></div>
+<ul>
+<li><code>focusLost</code> hands you whether Enter finished the edit, so the handler returns early when the player
+  clicked away instead.</li>
+<li><code>invokeServer</code> waits for the answer, which is why the call sits inside a <code>task.spawn</code>. Send it with
+  a <a href="talking.html#asking-and-waiting-for-the-answer">RemoteFunction</a> and check it on the server.</li>
+<li><code>entry:captureFocus()</code> puts the caret in the box as soon as it appears, so the player can type
+  without clicking it first.</li>
+</ul>
+<p><strong>Focus.</strong></p>
+<ul>
+<li>Clicking into a box or calling <code>box:captureFocus()</code> focuses it and fires <code>focused</code>.</li>
+<li>Enter finishes and fires <code>focusLost(true)</code>. Escape, clicking anywhere else or <code>box:releaseFocus()</code>
+  fire <code>focusLost(false)</code>.</li>
+<li>Tab moves to the next text box shown on the screen, or in the same <code>SurfaceGui</code> or <code>BillboardGui</code>.</li>
+<li><code>box:isFocused()</code> answers whether it has focus.</li>
+<li><code>clearTextOnFocus</code> starts on, and empties the box each time it is focused.</li>
+</ul>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>While a box has focus it takes every key. The character stands still, bindings do not fire and
+Escape does not open the pause menu. Release the focus when you are done with the box.</p></div></div>
+<p><strong>Properties.</strong></p>
+<ul>
+<li><code>placeholderText</code> shows in <code>placeholderColor</code> while the box is empty.</li>
+<li><code>textEditable = false</code> lets the player select and copy the text, but not change it.</li>
+<li><code>multiLine = true</code> makes Enter start a new line instead of finishing. Only a multi-line box wraps,
+  and only with <code>textWrapped</code>. A single-line box slides sideways to keep the caret in view, and a
+  pasted line break becomes a space.</li>
+<li><code>cursorPosition</code> is where the caret is, counting from 1, and <code>-1</code> while the box has no focus.
+  <code>selectionStart</code> is the other end of the selection, and <code>-1</code> when nothing is selected. Both can be
+  written: setting <code>cursorPosition</code> moves the caret, and setting <code>selectionStart</code> selects from there
+  to the caret. <code>-1</code> clears the selection.</li>
+</ul>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>box:<span class="syn-func">captureFocus</span>()
+box.cursorPosition = #box.text + <span class="syn-num">1</span>       <span class="syn-comment">-- caret at the end</span>
+box.selectionStart = <span class="syn-num">1</span>                   <span class="syn-comment">-- and everything selected</span></code></pre></div></div>
+<p><strong>Keys.</strong> The player gets the editing keys they expect, and you do not connect anything to get them:</p>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Keys</th>
+<th>What they do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Left, Right</td>
+<td>move a character, or a word with Ctrl</td>
+</tr>
+<tr>
+<td>Up, Down</td>
+<td>move a line, keeping the column</td>
+</tr>
+<tr>
+<td>Home, End</td>
+<td>go to the start or end of the line, or of the whole text with Ctrl</td>
+</tr>
+<tr>
+<td>Shift with any of those</td>
+<td>grows the selection</td>
+</tr>
+<tr>
+<td>Backspace, Delete</td>
+<td>remove a character, or a word with Ctrl</td>
+</tr>
+<tr>
+<td>Ctrl+A, Ctrl+C, Ctrl+X, Ctrl+V</td>
+<td>select all, copy, cut, paste</td>
+</tr>
+<tr>
+<td>double click, drag</td>
+<td>select a word, select what you drag over</td>
+</tr>
+</tbody>
+</table></div>
+<p>On a Mac, Cmd takes Ctrl's place in shortcuts and Option moves by words. Shortcuts follow the
+keyboard layout: on AZERTY, Ctrl+A is the key marked A.</p>
+<h2 id="image-buttons">Image buttons<a class="anchor" href="#image-buttons" title="Permanent link">#</a></h2>
+<p>An <code>ImageButton</code> is a button whose face is a texture, and it can carry a second and a third texture
+for when the pointer is over it and while it is held down.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> play = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageButton&quot;</span>, {
+    size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">64</span>, <span class="syn-num">64</span>),
+    image = <span class="syn-string">&quot;res://ui/play.png&quot;</span>,
+    hoverImage = <span class="syn-string">&quot;res://ui/play_hover.png&quot;</span>,
+    pressedImage = <span class="syn-string">&quot;res://ui/play_down.png&quot;</span>,
+})
+play.activated:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() menu.visible = <span class="syn-const">false</span> <span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>activated</code> fires when the left button is pressed on the button and let go over it.</li>
+<li><code>hoverImage</code> shows while the pointer is over it, <code>pressedImage</code> while it is held. Either can stay
+  empty.</li>
+<li><code>autoButtonColor</code> starts on and darkens <code>image</code> while hovered, and more while held. It leaves
+  <code>hoverImage</code> and <code>pressedImage</code> as they are.</li>
+<li><code>hovered</code> and <code>pressed</code> read its state.</li>
+</ul>
+<h2 id="images">Images<a class="anchor" href="#images" title="Permanent link">#</a></h2>
+<p><a href="images.html">Images</a> has its own page: where an image can come from, how it fits its box, and how a
+script draws one. On an <code>ImageLabel</code> or <code>ImageButton</code>:</p>
+<ul>
+<li><code>scaleType</code> is <code>"stretch"</code>, <code>"fit"</code>, <code>"crop"</code>, <code>"tile"</code> or <code>"slice"</code>. <code>tileSize</code> sizes a tile.</li>
+<li><code>sliceMin</code>, <code>sliceMax</code> and <code>sliceScale</code> set up a nine-slice.</li>
+<li><code>imageRectOffset</code> and <code>imageRectSize</code> show one part of the image, for sprite sheets.</li>
+<li><code>resampleMode = "pixelated"</code> keeps pixel art sharp when it is scaled up.</li>
+</ul>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-comment">-- client</span>
+hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;ImageLabel&quot;</span>, {
+    size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">400</span>, <span class="syn-num">200</span>),
+    image = <span class="syn-string">&quot;res://ui/frame.png&quot;</span>,
+    scaleType = <span class="syn-string">&quot;slice&quot;</span>,
+    sliceMin = <span class="syn-func">vec3</span>(<span class="syn-num">8</span>, <span class="syn-num">8</span>, <span class="syn-num">0</span>),
+    sliceMax = <span class="syn-func">vec3</span>(<span class="syn-num">16</span>, <span class="syn-num">16</span>, <span class="syn-num">0</span>),
+})</code></pre></div></div>
+<h2 id="canvas-groups">Canvas groups<a class="anchor" href="#canvas-groups" title="Permanent link">#</a></h2>
+<p>Fade a frame's children one by one and you see them through each other where they overlap. A
+<code>CanvasGroup</code> draws itself and everything inside it into one picture first, then fades that. That is
+what you want for a panel that slides in and out:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> shop = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;CanvasGroup&quot;</span>, {
+    position = <span class="syn-func">udim2</span>(<span class="syn-num">0.5</span>, <span class="syn-num">0</span>, <span class="syn-num">0.5</span>, <span class="syn-num">0</span>), anchorX = <span class="syn-num">0.5</span>, anchorY = <span class="syn-num">0.5</span>,
+    size = <span class="syn-func">udim2</span>(<span class="syn-num">0</span>, <span class="syn-num">300</span>, <span class="syn-num">0</span>, <span class="syn-num">200</span>),
+    groupTransparency = <span class="syn-num">1</span>, visible = <span class="syn-const">false</span>,
+})
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">open</span>()
+    shop.visible = <span class="syn-const">true</span>
+    shop:<span class="syn-func">tween</span>({ groupTransparency = <span class="syn-num">0</span> }, { time = <span class="syn-num">0.25</span>, easing = <span class="syn-string">&quot;quad&quot;</span>, direction = <span class="syn-string">&quot;out&quot;</span> })
+<span class="syn-keyword">end</span>
+
+<span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">close</span>()
+    <span class="syn-keyword">local</span> fade = shop:<span class="syn-func">tween</span>({ groupTransparency = <span class="syn-num">1</span> }, { time = <span class="syn-num">0.25</span> })
+    fade.completed:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(finished)
+        <span class="syn-keyword">if</span> finished <span class="syn-keyword">then</span> shop.visible = <span class="syn-const">false</span> <span class="syn-keyword">end</span>
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<p><code>open</code> makes the group visible before the tween starts, and <code>close</code> waits for the tween to report
+that it finished before hiding it, so the panel is never switched off halfway through the fade.</p>
+<ul>
+<li><code>groupTransparency</code> fades the whole picture. <code>groupColor</code> tints it.</li>
+<li>A group always clips its children to its rectangle.</li>
+<li>At <code>groupTransparency = 1</code> the group is gone, so clicks and the wheel go through it to whatever is
+  behind. Anything below 1 takes them as usual. Setting <code>visible = false</code> as well is still tidier,
+  because a group that is out of the way stops being drawn at all.</li>
+</ul>
+<h2 id="mouse-events">Mouse events<a class="anchor" href="#mouse-events" title="Permanent link">#</a></h2>
+<p>Every widget has these. Frames and labels too, not only buttons.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Fires when</th>
+<th>Handler gets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mouseEnter</code></td>
+<td>the pointer comes over it</td>
+<td>the widget</td>
+</tr>
+<tr>
+<td><code>mouseLeave</code></td>
+<td>the pointer leaves it</td>
+<td>the widget</td>
+</tr>
+<tr>
+<td><code>mouseMoved</code></td>
+<td>the pointer moves while over it</td>
+<td><code>x, y</code></td>
+</tr>
+<tr>
+<td><code>mouseButton1Down</code></td>
+<td>the left button goes down over it</td>
+<td><code>x, y</code></td>
+</tr>
+<tr>
+<td><code>mouseButton1Up</code></td>
+<td>the left button comes up over it</td>
+<td><code>x, y</code></td>
+</tr>
+<tr>
+<td><code>mouseButton2Click</code></td>
+<td>the right button comes up over it</td>
+<td><code>x, y</code></td>
+</tr>
+<tr>
+<td><code>mouseWheelForward</code></td>
+<td>the wheel turns forward over it</td>
+<td><code>x, y</code></td>
+</tr>
+<tr>
+<td><code>mouseWheelBackward</code></td>
+<td>the wheel turns back over it</td>
+<td><code>x, y</code></td>
+</tr>
+</tbody>
+</table></div>
+<p><code>x</code> and <code>y</code> are in the same pixels as <code>absolutePosition</code>: from the top left of the screen, or of the
+<code>SurfaceGui</code> or <code>BillboardGui</code>. You can hand them straight to <code>udim2.fromOffset</code> to put something
+where the player clicked, which is how a context menu opens under the pointer:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- client</span>
+slot.mouseButton2Click:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(x, y)
+    menu.position = udim2.<span class="syn-func">fromOffset</span>(x, y)
+    menu.visible = <span class="syn-const">true</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li><code>mouseEnter</code>, <code>mouseLeave</code> and <code>mouseMoved</code> fire for everything under the pointer: the button, the
+  frame it sits in, and the frame that one sits in.</li>
+<li>Buttons and the wheel start at the widget drawn on top and go down through what is under it. They
+  stop at the first one that takes input: a <code>TextButton</code>, an <code>ImageButton</code>, a <code>TextBox</code>, or a
+  <code>ScrollingFrame</code> that can scroll. Frames and labels never stop them, and there is no <code>active</code>
+  property to make them.</li>
+<li>On the screen they only fire while the pointer is free. See
+  <a href="#clicking-with-the-pointer-locked">Clicking with the pointer locked</a>.</li>
+</ul>
+<div class="demo" data-demo="interface-mouse"></div>
+<h2 id="measured-size-and-position">Measured size and position<a class="anchor" href="#measured-size-and-position" title="Permanent link">#</a></h2>
+<p>Once a widget is laid out, it can tell you where it ended up. A <code>UDim2</code> says what you asked for;
+these five say what the screen got after the layout, the constraints and the player's gui scale had
+their say.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>What it reads</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>absolutePosition</code></td>
+<td>its top left corner, in pixels</td>
+</tr>
+<tr>
+<td><code>absoluteSize</code></td>
+<td>its size, in pixels, after automatic size, constraints and <code>UIScale</code></td>
+</tr>
+<tr>
+<td><code>textBounds</code></td>
+<td>on a label, the size its text takes</td>
+</tr>
+<tr>
+<td><code>absoluteCanvasSize</code></td>
+<td>on a <code>ScrollingFrame</code>, the size of the canvas</td>
+</tr>
+<tr>
+<td><code>absoluteWindowSize</code></td>
+<td>on a <code>ScrollingFrame</code>, the size of the window onto it</td>
+</tr>
+</tbody>
+</table></div>
+<p>They are <code>Vector3</code>s whose x and y count, and all five are measured on the screen, after the player's
+gui scale.</p>
+<p><code>textBounds</code> measures the text the way the box draws it. A <code>TextBox</code> that is not <code>multiLine</code> never
+wraps, so its bounds are the whole text on one line however narrow the box is.</p>
+<p>Read them when you want to place one widget against another, such as a tooltip under a button:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">-- client</span>
+button.mouseEnter:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> at, size = button.absolutePosition, button.absoluteSize
+    tip.position = udim2.<span class="syn-func">fromOffset</span>(at.x, at.y + size.y + <span class="syn-num">4</span>)
+    tip.visible = <span class="syn-const">true</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>They are read-only. Writing one raises <code>Frame.absoluteSize is read-only</code>, and tweening one raises
+  the same thing rather than easing towards nothing.</li>
+<li>The client works them out as it draws. They stay at zero on the server, and on a widget made this
+  frame until it has been drawn once.</li>
+<li><code>changed</code> fires when they move, so <code>getPropertyChangedSignal("absoluteSize")</code> watches one.</li>
+<li>They are never saved into a scene and never sent anywhere. The editor shows them greyed out.</li>
+</ul>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>A widget you created this frame reads zero for all five, because nothing has been drawn yet. Wait
+a frame, or connect <code>getPropertyChangedSignal("absoluteSize")</code> and place the other widget when the
+real size arrives.</p></div></div>
+<h2 id="previewing-screens-in-the-editor">Previewing screens in the editor<a class="anchor" href="#previewing-screens-in-the-editor" title="Permanent link">#</a></h2>
+<p>ScreenGuis draw in the editor viewport as they will in game. A place usually has several that are
+off until a script turns them on (a pause menu, a death screen, a shop), so the viewport toolbar has
+a <strong>Screens</strong> menu:</p>
+<ul>
+<li>Tick or untick a ScreenGui to show or hide it <strong>only while editing</strong>. The scene keeps its own
+  <code>enabled</code>; the menu says "(saved off)" next to one shown against its saved value.</li>
+<li><strong>Only</strong> shows that one and hides the others. <strong>As saved</strong> goes back to the scene's values.</li>
+<li><strong>Engine screens</strong> draws the loading screen from <code>[loading]</code> in place.toml, the pause menu an
+  exported game shows, or the disconnected screen, over the viewport.</li>
+</ul>
+<p>Play mode always uses the saved values, so nothing you tick here changes what a player sees.</p>
+<h2 id="udim2">UDim2<a class="anchor" href="#udim2" title="Permanent link">#</a></h2>
+<p>A <code>UDim2</code> is how you say where a widget goes and how big it is. Each axis is a fraction of the parent
+plus a number of pixels, so one value can say "half way across, and 50 pixels back from there".</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-func">udim2</span>(<span class="syn-num">0.5</span>, -<span class="syn-num">50</span>, <span class="syn-num">1</span>, -<span class="syn-num">30</span>)      <span class="syn-comment">-- centre minus 50 px, bottom minus 30 px</span>
+udim2.<span class="syn-func">fromScale</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>)        <span class="syn-comment">-- the whole parent</span>
+udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">200</span>, <span class="syn-num">40</span>)    <span class="syn-comment">-- 200 by 40 pixels</span>
+<span class="syn-func">udim</span>(<span class="syn-num">0</span>, <span class="syn-num">8</span>)                   <span class="syn-comment">-- udim2(0, 8, 0, 8), the same on both axes</span>
+<span class="syn-keyword">local</span> moved = a + b</code></pre></div></div>
+<p>The fraction is what keeps an interface the right shape on a screen you have not seen, and the pixels
+are what keeps a border a border. A panel at <code>udim2.fromScale(1, 1)</code> fills its parent at any window
+size, while a 24 pixel button stays 24 pixels tall.</p>
+<h3 id="details">Details<a class="anchor" href="#details" title="Permanent link">#</a></h3>
+<ul>
+<li>There is no <code>UDim</code>. A property that is one length takes a <code>UDim2</code> and reads the axis that fits
+  it:</li>
+</ul>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th>Reads</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UIPadding.paddingLeft</code>, <code>paddingRight</code></td>
+<td>x</td>
+</tr>
+<tr>
+<td><code>UIPadding.paddingTop</code>, <code>paddingBottom</code></td>
+<td>y</td>
+</tr>
+<tr>
+<td><code>UICorner.cornerRadius</code></td>
+<td>x, with the scale a fraction of the shorter side</td>
+</tr>
+<tr>
+<td><code>UIListLayout.padding</code></td>
+<td>y in a vertical list and x in a horizontal one; the other axis between wrapped lines</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>udim(scale, offset)</code> sets both axes, so you need not remember which one is read.
+- There is no <code>Vector2</code>. <code>canvasPosition</code>, <code>minSize</code>, <code>maxSize</code>, <code>UIGradient.offset</code> and the
+  measured values are <code>Vector3</code>s, and z is ignored.</p>
+<h2 id="text-and-fonts">Text and fonts<a class="anchor" href="#text-and-fonts" title="Permanent link">#</a></h2>
+<ul>
+<li>With no <code>font</code>, text uses <strong>Minecraft's own font</strong>, pixel for pixel, including every character
+  a resource pack adds.</li>
+<li><code>textSize</code> is the line height. <code>9</code> is the game's menu text; multiples of 9 keep pixels even.</li>
+<li><code>font</code> takes another game font like <code>minecraft:uniform</code> or <code>minecraft:alt</code>, a <code>.ttf</code> in the
+  place (<code>res://fonts/title.ttf</code>) or a <code>.ttf</code> in a resource pack.</li>
+<li>Set <code>font</code> once on a <code>ScreenGui</code>, <code>BillboardGui</code> or <code>SurfaceGui</code> and every text inside uses it.
+  A label's own <code>font</code> wins.</li>
+</ul>
+<h2 id="3d-inside-an-interface">3D inside an interface<a class="anchor" href="#3d-inside-an-interface" title="Permanent link">#</a></h2>
+<p>A <code>ViewportFrame</code> draws the parts and models inside it through its own camera. What is inside a
+viewport has left the world: it is not drawn there, does not collide, is never touched, and world
+queries and zones do not see it.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-keyword">local</span> view = hud:<span class="syn-func">add</span>(<span class="syn-string">&quot;ViewportFrame&quot;</span>, { size = udim2.<span class="syn-func">fromOffset</span>(<span class="syn-num">240</span>, <span class="syn-num">180</span>), backgroundTransparency = <span class="syn-num">0</span> })
+<span class="syn-keyword">local</span> sword = view:<span class="syn-func">add</span>(<span class="syn-string">&quot;MeshPart&quot;</span>, { meshId = <span class="syn-string">&quot;res://models/sword.glb&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">3</span>, <span class="syn-num">0.3</span>) })
+<span class="syn-keyword">local</span> eye = view:<span class="syn-func">add</span>(<span class="syn-string">&quot;Camera&quot;</span>, { cframe = cframe.<span class="syn-func">lookAt</span>(<span class="syn-func">vec3</span>(<span class="syn-num">3</span>, <span class="syn-num">2</span>, <span class="syn-num">3</span>), <span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>)) })
+view.camera = eye
+
+game.renderStepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(dt)
+    sword.cframe = sword.cframe * cframe.<span class="syn-func">angles</span>(<span class="syn-num">0</span>, dt, <span class="syn-num">0</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>The sword and the camera are added to the viewport rather than to the world, <code>view.camera</code> says which
+camera to look through, and multiplying the sword's <code>cframe</code> by a small rotation each frame turns it
+on the spot.</p>
+<ul>
+<li>With no <code>camera</code> it looks through the first <code>Camera</code> inside it, and with none frames what it holds.</li>
+<li><code>ambient</code>, <code>lightColor</code> and <code>lightDirection</code> light it; world lights do not reach inside.</li>
+<li><code>imageColor</code> and <code>imageTransparency</code> tint and fade what it drew.</li>
+<li><code>updateRate</code> draws it that many times a second, <code>0</code> every frame. <code>resolutionScale</code> below <code>1</code> draws
+  fewer pixels, above <code>1</code> more.</li>
+<li>A screen effect directly inside it runs on its 3D, with depth, so <code>OutlineEffect</code>, <code>FogEffect</code> and
+  <code>DepthOfFieldEffect</code> work there.</li>
+<li><code>view:pick(x, y)</code> answers the part and point under a spot of the viewport, <code>x</code> and <code>y</code> from <code>0</code> to
+  <code>1</code>, top left first. <code>view:screenRay(x, y)</code> answers the ray itself, and <code>view:raycast(from, direction)</code>
+  looks only at what is inside.</li>
+</ul>
+<h2 id="effects-on-an-interface">Effects on an interface<a class="anchor" href="#effects-on-an-interface" title="Permanent link">#</a></h2>
+<p>A screen effect (<code>FilmGrainEffect</code>, <code>BlurEffect</code>, <code>PixelateEffect</code>, a <code>PostShader</code>...) placed inside a
+<code>SurfaceGui</code> or <code>BillboardGui</code> only touches that interface. Inside a <code>Frame</code> it only touches that
+frame's rectangle, never the see-through parts. <code>order</code> sorts them, as on the screen.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-keyword">local</span> screen = wall:<span class="syn-func">add</span>(<span class="syn-string">&quot;SurfaceGui&quot;</span>, { pixelsPerMetre = <span class="syn-num">100</span> })
+<span class="syn-keyword">local</span> panel = screen:<span class="syn-func">add</span>(<span class="syn-string">&quot;Frame&quot;</span>, { size = udim2.<span class="syn-func">fromScale</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>) })
+panel:<span class="syn-func">add</span>(<span class="syn-string">&quot;FilmGrainEffect&quot;</span>, { amount = <span class="syn-num">0.2</span>, size = <span class="syn-num">3</span> })</code></pre></div></div>
+<p>An interface with effects is drawn into a texture first, so its text is only as sharp as
+<code>pixelsPerMetre</code>. Inside a <code>ScreenGui</code> an effect still covers the whole screen.</p>
+<h2 id="clicking-a-screen-in-the-world">Clicking a screen in the world<a class="anchor" href="#clicking-a-screen-in-the-world" title="Permanent link">#</a></h2>
+<p>A <code>SurfaceGui</code> or <code>BillboardGui</code> is aimed at with the camera's centre, or with the mouse cursor while
+the pointer is free.</p>
+<h2 id="clicking-with-the-pointer-locked">Clicking with the pointer locked<a class="anchor" href="#clicking-with-the-pointer-locked" title="Permanent link">#</a></h2>
+<p>While the mouse is captured, hold the <strong>pointer</strong> key (left Alt by default, rebindable under
+<em>Moud</em> in Controls) to free the pointer and click buttons. <code>input:down("pointer")</code> tells a script
+whether it is held.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="zones-and-triggers.html"><span>Previous</span>Zones, touches, tags, prompts and clicks</a><a class="next" href="chat.html"><span>Next</span>Chat</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#three-containers">Three containers</a></li><li><a href="#widgets">Widgets</a></li><li><a href="#layouts">Layouts</a></li><li><a href="#corners-outlines-and-gradients">Corners, outlines and gradients</a></li><li><a href="#text-boxes">Text boxes</a></li><li><a href="#image-buttons">Image buttons</a></li><li><a href="#images">Images</a></li><li><a href="#canvas-groups">Canvas groups</a></li><li><a href="#mouse-events">Mouse events</a></li><li><a href="#measured-size-and-position">Measured size and position</a></li><li><a href="#previewing-screens-in-the-editor">Previewing screens in the editor</a></li><li><a href="#udim2">UDim2</a></li><li><a href="#text-and-fonts">Text and fonts</a></li><li><a href="#3d-inside-an-interface">3D inside an interface</a></li><li><a href="#effects-on-an-interface">Effects on an interface</a></li><li><a href="#clicking-a-screen-in-the-world">Clicking a screen in the world</a></li><li><a href="#clicking-with-the-pointer-locked">Clicking with the pointer locked</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

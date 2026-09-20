@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debugging | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html" class="active"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Scripting</span></nav>
+    <article class="doc">
+<h1 id="debugging">Debugging<a class="anchor" href="#debugging" title="Permanent link">#</a></h1>
+<p>When a place does not do what you meant, you need to see what it actually did. Moud gives you five
+ways to look: printing to the log, drawing shapes in the world, watching values on the screen,
+measuring what queries and scripts cost, and the in-game overlay. Most of them hang off
+<code>game.debug</code>, which exists on both sides.</p>
+<h2 id="print">print<a class="anchor" href="#print" title="Permanent link">#</a></h2>
+<p><code>print</code> writes to the game log (<code>logs/latest.log</code>), marked <code>[server]</code> or <code>[client]</code>.</p>
+<p>The mark tells you which side ran the line, which is usually the first thing you want to know when a
+script exists on both sides.</p>
+<h2 id="drawing">Drawing<a class="anchor" href="#drawing" title="Permanent link">#</a></h2>
+<p>Drawing puts a shape or a label over the world so you can see a position, a direction or a box that
+your code is working with. Each call takes a number of seconds to stay up, and draws for one frame
+when you leave the time out. Called on the server, they show on every client.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code><span class="syn-keyword">local</span> d = game.debug
+d:<span class="syn-func">drawLine</span>(from, to, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>), <span class="syn-num">2</span>)
+d:<span class="syn-func">drawRay</span>(from, direction, <span class="syn-func">color</span>(<span class="syn-num">0</span>, <span class="syn-num">1</span>, <span class="syn-num">0</span>), <span class="syn-num">2</span>)
+d:<span class="syn-func">drawBox</span>(part.worldCframe, part.size, <span class="syn-const">nil</span>, <span class="syn-num">2</span>)
+d:<span class="syn-func">drawSphere</span>(position, <span class="syn-num">3</span>)
+d:<span class="syn-func">drawPoint</span>(position)
+d:<span class="syn-func">label</span>(position, <span class="syn-string">&quot;spawn&quot;</span>, <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>), <span class="syn-num">5</span>)
+d:<span class="syn-func">clear</span>()</code></pre></div></div>
+<ul>
+<li><code>drawLine</code> goes between two positions; <code>drawRay</code> goes from a position along a direction, which is
+  the one that matches what you handed <code>world:raycast</code>.</li>
+<li><code>drawBox</code> takes a frame and a size, so passing <code>part.worldCframe</code> and <code>part.size</code> draws exactly
+  where a part is, rotation included. Passing <code>nil</code> for the colour uses the default.</li>
+<li><code>label</code> writes text in the world at a position, for naming the thing you just drew.</li>
+<li><code>clear</code> removes everything currently drawn, without waiting for the times to run out.</li>
+</ul>
+<p>Drawing from a <code>renderStepped</code> or <code>stepped</code> handler with no time given gives you a shape that follows
+the thing every frame, because it is drawn again each time.</p>
+<div class="demo" data-demo="debug-draw"></div>
+<h2 id="watching-values">Watching values<a class="anchor" href="#watching-values" title="Permanent link">#</a></h2>
+<p><code>watch</code> puts a name and a value in a live list in the top right of the screen. Call it every tick
+with the same name and the row updates in place rather than scrolling past you, which is what <code>print</code>
+would do:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>game.stepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    game.debug:<span class="syn-func">watch</span>(<span class="syn-string">&quot;players&quot;</span>, game.players:<span class="syn-func">count</span>())
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Values watched on the server are marked <code>(server)</code>, so a name watched from both sides shows twice and
+you can see them disagree.</p>
+<div class="demo" data-demo="debug-watch"></div>
+<h2 id="what-queries-cost">What queries cost<a class="anchor" href="#what-queries-cost" title="Permanent link">#</a></h2>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code><span class="syn-keyword">local</span> stats = game.debug:<span class="syn-func">queryStats</span>()   <span class="syn-comment">-- { queries, partsTested } since the last call</span></code></pre></div></div>
+<p><code>queries</code> is how many casts and overlaps ran, and <code>partsTested</code> is how many parts they looked at
+between them. Both count from the last time you called it, so calling it on a timer gives you a rate.
+A <code>partsTested</code> that climbs while <code>queries</code> stays flat means each query is reaching further than you
+meant. See <a href="queries.html">Queries</a>.</p>
+<h2 id="profile">Profile<a class="anchor" href="#profile" title="Permanent link">#</a></h2>
+<p><code>profile</code> tells you how long each script's handlers and each callback took since the last call,
+slowest first:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>task.<span class="syn-func">every</span>(<span class="syn-num">5</span>, <span class="syn-keyword">function</span>()
+    <span class="syn-keyword">for</span> where, t <span class="syn-keyword">in</span> game.debug:<span class="syn-func">profile</span>() <span class="syn-keyword">do</span>
+        <span class="syn-func">print</span>(where, t.milliseconds, t.calls, t.worst)
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Each row gives you <code>milliseconds</code> spent in total, <code>calls</code> as how many times it ran, and <code>worst</code> as
+the slowest single call. A high total with many calls is different work from a high total caused by
+one slow call, and <code>worst</code> is what tells them apart.</p>
+<div class="demo" data-demo="debug-profile"></div>
+<p><code>main</code> is the place's own script; a <code>Script</code> instance shows under its name; a callback shows as
+<code>Class.name</code>, like <code>TextChannel.shouldDeliver</code>.</p>
+<h2 id="the-overlay">The overlay<a class="anchor" href="#the-overlay" title="Permanent link">#</a></h2>
+<p><kbd>Right Shift</kbd> opens the in-game overlay with script errors and what the renderer and physics
+currently think. Its <strong>mixins</strong> tab lists every hook a place put on the game, with calls and time per
+second, errors, and a switch to turn one off (see <a href="mixins.html">mixins</a>).</p>
+<div class="alert alert-tip"><i class="alert-icon ph-fill ph-lightbulb"></i><div class="alert-body"><p>The overlay is the quickest way to tell whether your place is wrong or the engine is. If your
+script raised, the error is listed there with the rest; if it did not, what the renderer and the
+physics report tells you where the value actually went.</p></div></div>
+<h2 id="seeing-collisions">Seeing collisions<a class="anchor" href="#seeing-collisions" title="Permanent link">#</a></h2>
+<p><kbd>F7</kbd> (rebindable in Controls, under Moud) draws what the physics collides against, over the
+world. Each colour is a different kind of collider, so the colour tells you which path the physics
+took for that part:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Colour</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>green</td>
+<td>a part's box exactly as the physics received it this tick</td>
+</tr>
+<tr>
+<td>green triangles</td>
+<td>the faces a <a href="physics.html#shapes">shaped part</a> collides as</td>
+</tr>
+<tr>
+<td>cyan</td>
+<td>a turned part colliding as its real turned box</td>
+</tr>
+<tr>
+<td>orange</td>
+<td>a turned part colliding as the upright box around it, because turned collision is unavailable</td>
+</tr>
+<tr>
+<td>grey</td>
+<td>a part with <code>collides = false</code></td>
+</tr>
+<tr>
+<td>white</td>
+<td>the collision shapes of blocks within 5 blocks of you</td>
+</tr>
+<tr>
+<td>yellow</td>
+<td>every body's capsule: players, mobs and the characters a place walks</td>
+</tr>
+</tbody>
+</table></div>
+<p>Orange is the one to look for: a part that should collide at an angle and shows orange is being
+collided against as an upright box, which is why something slides off it or catches on nothing.</p>
+<div class="demo" data-demo="debug-colliders"></div>
+<p>The top right says how many boxes, shape faces, turned parts, ghosts, block boxes and bodies are
+within 40 blocks. It is drawn over everything, walls included, so you can see a collider through the
+floor it sits under.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="talking.html"><span>Previous</span>Talking across the boundary</a><a class="next" href="reference.html"><span>Next</span>Reference</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#print">print</a></li><li><a href="#drawing">Drawing</a></li><li><a href="#watching-values">Watching values</a></li><li><a href="#what-queries-cost">What queries cost</a></li><li><a href="#profile">Profile</a></li><li><a href="#the-overlay">The overlay</a></li><li><a href="#seeing-collisions">Seeing collisions</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

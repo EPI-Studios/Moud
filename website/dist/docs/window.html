@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Windows | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html" class="active"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="windows">Windows<a class="anchor" href="#windows" title="Permanent link">#</a></h1>
+<p><code>window</code> is the game's own desktop window, and it is a client script global like <code>camera</code> and <code>input</code>.
+You read its size, move it, retitle it and watch it for changes. <code>window.open</code> opens further windows
+next to it, and <code>window.overlay</code> opens one that covers the whole screen.</p>
+<h2 id="the-game-window">The game window<a class="anchor" href="#the-game-window" title="Permanent link">#</a></h2>
+<h3 id="title-and-icon">Title and icon<a class="anchor" href="#title-and-icon" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>window.title = <span class="syn-string">&quot;Crystal Rush&quot;</span>
+window.icon = <span class="syn-string">&quot;res://ui/icon.png&quot;</span>        <span class="syn-comment">-- an exported game uses icon.png at the place root by default</span></code></pre></div></div>
+<p><code>title</code> is the text in the title bar and the taskbar. <code>icon</code> takes a <code>res://</code> image. An exported game
+already uses <code>icon.png</code> at the place root, so you only set <code>icon</code> to change it while the place runs.</p>
+<h3 id="size">Size<a class="anchor" href="#size" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>window.fullscreen = <span class="syn-const">true</span>                 <span class="syn-comment">-- for this session; settings.fullscreen is the saved option</span>
+window.width, window.height              <span class="syn-comment">-- read, in pixels</span>
+window:<span class="syn-func">resize</span>(<span class="syn-num">1280</span>, <span class="syn-num">720</span>)
+window.minWidth = <span class="syn-num">800</span>
+window.minHeight = <span class="syn-num">450</span>
+window.resizable = <span class="syn-const">false</span></code></pre></div></div>
+<ul>
+<li><strong><code>window.fullscreen</code></strong> switches this session only. The player's saved option is
+  <code>settings.fullscreen</code>, on <a href="game-and-screens.html#settings">the settings page</a>, and writing that one
+  outlives the place.</li>
+<li><strong><code>window.width</code></strong> and <strong><code>window.height</code></strong> are read only, in pixels. To change the size, call
+  <code>window:resize(width, height)</code>.</li>
+<li><strong><code>window.minWidth</code></strong> and <strong><code>window.minHeight</code></strong> stop the player dragging the window smaller than
+  your interface can cope with. Leave them alone and any size is allowed.</li>
+<li><strong><code>window.resizable = false</code></strong> takes the drag handles away.</li>
+</ul>
+<h3 id="position">Position<a class="anchor" href="#position" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>window.x, window.y                       <span class="syn-comment">-- read and write, in desktop pixels</span>
+window:<span class="syn-func">moveTo</span>(<span class="syn-num">200</span>, <span class="syn-num">120</span>)
+window:<span class="syn-func">center</span>()
+window.canMove                           <span class="syn-comment">-- false only where the system refuses to move windows</span></code></pre></div></div>
+<p><code>x</code> and <code>y</code> are in desktop pixels and you can both read and write them. <code>window:moveTo(x, y)</code> does the
+same in one call, and <code>window:center()</code> centres the window. <code>window.canMove</code> is false only on a system
+that refuses to move windows, and there a move does nothing.</p>
+<h3 id="state-cursor-and-screen">State, cursor and screen<a class="anchor" href="#state-cursor-and-screen" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code>window.focused                           <span class="syn-comment">-- read</span>
+window.minimized                         <span class="syn-comment">-- read</span>
+window.visible = <span class="syn-const">false</span>                   <span class="syn-comment">-- hide it, single player and exported games only</span>
+window.opacity = <span class="syn-num">0.85</span>                    <span class="syn-comment">-- needs a desktop that composites windows</span>
+
+window.cursor = <span class="syn-string">&quot;hand&quot;</span>                   <span class="syn-comment">-- arrow, hand, text, crosshair, resizeEW, resizeNS, resizeAll,</span>
+                                         <span class="syn-comment">-- notAllowed, or &quot;res://ui/cursor.png&quot;</span>
+window.cursorVisible = <span class="syn-const">false</span>             <span class="syn-comment">-- while the pointer is free</span>
+
+window.fps                               <span class="syn-comment">-- read</span>
+window.displayWidth, window.displayHeight   <span class="syn-comment">-- the monitor the window is on</span>
+window:<span class="syn-func">monitors</span>()                        <span class="syn-comment">-- { { name, x, y, width, height, workX, workY, workWidth, workHeight, refreshRate, primary } }</span>
+
+window:<span class="syn-func">flash</span>()                           <span class="syn-comment">-- blinks in the taskbar</span>
+window:<span class="syn-func">setClipboard</span>(<span class="syn-string">&quot;ABC-123&quot;</span>)           <span class="syn-comment">-- there is no reading the clipboard</span></code></pre></div></div>
+<ul>
+<li><strong><code>window.focused</code></strong> and <strong><code>window.minimized</code></strong> are read only. They tell you whether the player is
+  looking at the game right now.</li>
+<li><strong><code>window.visible = false</code></strong> hides the game window. It works in single player and exported games
+  only.</li>
+<li><strong><code>window.opacity</code></strong> makes the whole window see-through, and needs a desktop that composites
+  windows.</li>
+<li><strong><code>window.cursor</code></strong> takes one of the named cursors or a <code>res://</code> image of your own. Set it to
+  <code>"hand"</code> over a clickable thing and back to <code>"arrow"</code> when the pointer leaves.</li>
+<li><strong><code>window.cursorVisible</code></strong> applies while the pointer is free.</li>
+<li><strong><code>window.fps</code></strong> is the frame rate the game is running at, and <strong><code>window.displayWidth</code></strong> and
+  <strong><code>window.displayHeight</code></strong> are the size of the monitor the window is on. All three are read only.</li>
+<li><strong><code>window:monitors()</code></strong> returns one table per monitor, with its position and size, the work area
+  (<code>workX</code>, <code>workY</code>, <code>workWidth</code>, <code>workHeight</code>), its <code>refreshRate</code> and whether it is the <code>primary</code>
+  one.</li>
+<li><strong><code>window:flash()</code></strong> blinks the window in the taskbar, which gets the attention of a player who has
+  alt-tabbed away.</li>
+<li><strong><code>window:setClipboard(text)</code></strong> puts text on the system clipboard. There is no reading the
+  clipboard, so a place can never look at what the player copied elsewhere.</li>
+</ul>
+<h3 id="signals">Signals<a class="anchor" href="#signals" title="Permanent link">#</a></h3>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>window.resized:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(width, height) <span class="syn-keyword">end</span>)
+window.moved:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(x, y) <span class="syn-keyword">end</span>)
+window.focusChanged:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(focused) <span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>resized</code> and <code>moved</code> fire when the player drags the window and when a script changes it.
+<code>focusChanged</code> is handed true when the window takes focus and false when it loses it.</p>
+<p>Everything here goes back to normal when the scripts reload.</p>
+<h3 id="moving-the-window">Moving the window<a class="anchor" href="#moving-the-window" title="Permanent link">#</a></h3>
+<p>Moves apply on the frame they are asked for, and <code>window.x</code> and <code>window.y</code> answer what was set rather
+than the position the system last reported, so a script can move the window every frame. There is no
+shake function, because a shake is a move:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</pre><pre><code><span class="syn-keyword">local</span> <span class="syn-keyword">function</span> <span class="syn-func">shake</span>(strength: number, time: number)
+    <span class="syn-keyword">local</span> baseX, baseY = window.x, window.y
+    <span class="syn-keyword">local</span> left = time
+    <span class="syn-keyword">local</span> connection
+    connection = game.renderStepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(dt)
+        left -= dt
+        <span class="syn-keyword">if</span> left &lt;= <span class="syn-num">0</span> <span class="syn-keyword">then</span>
+            window:<span class="syn-func">moveTo</span>(baseX, baseY)
+            connection:<span class="syn-func">disconnect</span>()
+            <span class="syn-keyword">return</span>
+        <span class="syn-keyword">end</span>
+        <span class="syn-keyword">local</span> power = strength * (left / time)
+        window:<span class="syn-func">moveTo</span>(baseX + math.<span class="syn-func">random</span>(-power, power), baseY + math.<span class="syn-func">random</span>(-power, power))
+    <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span></code></pre></div></div>
+<ul>
+<li>The base position is read once, before the shake starts, so the window comes back to where it began.</li>
+<li><code>left</code> counts down by the frame's <code>dt</code>, and <code>power</code> shrinks with it, so the shake fades out instead
+  of stopping dead.</li>
+<li>The connection disconnects itself on the last frame. Without that, the handler would keep running
+  for the rest of the session.</li>
+</ul>
+<div class="demo" data-demo="window-shake"></div>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>Minecraft runs through XWayland on Wayland desktops, so moving works there too. A player who
+switched Minecraft to native Wayland gets <code>window.canMove == false</code>, and moves do nothing for them.</p></div></div>
+<h3 id="closing">Closing<a class="anchor" href="#closing" title="Permanent link">#</a></h3>
+<p><code>window.closing</code> fires when the player tries to close the game window. Calling <code>window:preventClose()</code>
+inside the handler keeps it open:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>window.closing:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    window:<span class="syn-func">preventClose</span>()
+    saveMenu.enabled = <span class="syn-const">true</span>               <span class="syn-comment">-- &quot;quit without saving?&quot;</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>A place can hold the window open once. Closing it again within 10 seconds always closes it, so a
+game can never trap the player.</p></div></div>
+<div class="demo" data-demo="window-closing"></div>
+<h2 id="more-windows">More windows<a class="anchor" href="#more-windows" title="Permanent link">#</a></h2>
+<p><code>window.open(properties)</code> opens another desktop window and returns it. The window is an instance of
+the <code>Window</code> class, so you set its properties whenever you like and tween them:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11</pre><pre><code><span class="syn-keyword">local</span> popup = window.<span class="syn-func">open</span>({
+    title = <span class="syn-string">&quot;Warning&quot;</span>,
+    width = <span class="syn-num">320</span>, height = <span class="syn-num">180</span>,
+    x = <span class="syn-num">200</span>, y = <span class="syn-num">200</span>,
+    decorated = <span class="syn-const">false</span>,       <span class="syn-comment">-- no title bar</span>
+    transparent = <span class="syn-const">true</span>,      <span class="syn-comment">-- see-through where nothing is drawn; only when opening</span>
+    alwaysOnTop = <span class="syn-const">true</span>,
+    resizable = <span class="syn-const">false</span>,
+    gui = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;WarningGui&quot;</span>),
+})
+popup:<span class="syn-func">center</span>()</code></pre></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>popup:<span class="syn-func">tween</span>({ x = popup.x + <span class="syn-num">600</span> }, { time = <span class="syn-num">0.4</span>, easing = <span class="syn-string">&quot;back&quot;</span>, direction = <span class="syn-string">&quot;out&quot;</span> })
+popup.opacity = <span class="syn-num">0.5</span>
+popup.title = <span class="syn-string">&quot;Still here&quot;</span></code></pre></div></div>
+<div class="table-wrap"><table class="long-first">
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code>, <code>x</code>, <code>y</code>, <code>width</code>, <code>height</code></td>
+<td>the player dragging or resizing it writes these back</td>
+</tr>
+<tr>
+<td><code>visible</code>, <code>decorated</code>, <code>alwaysOnTop</code>, <code>resizable</code>, <code>opacity</code></td>
+<td>applied straight away</td>
+</tr>
+<tr>
+<td><code>transparent</code></td>
+<td>only read when the window opens</td>
+</tr>
+<tr>
+<td><code>clickThrough</code></td>
+<td>the mouse passes through to whatever is behind</td>
+</tr>
+<tr>
+<td><code>clickable</code></td>
+<td>with <code>clickThrough</code>, a gui object inside <code>gui</code> that still catches the mouse</td>
+</tr>
+<tr>
+<td><code>focused</code></td>
+<td>read</td>
+</tr>
+<tr>
+<td><code>gui</code></td>
+<td>a <code>ScreenGui</code> drawn in the window instead of on the game screen, clicks and typing included</td>
+</tr>
+<tr>
+<td><code>camera</code></td>
+<td>a <code>Camera</code> whose view of the world's parts and models is drawn, with <code>gui</code> on top</td>
+</tr>
+<tr>
+<td><code>mirror</code></td>
+<td>shows what the game window shows</td>
+</tr>
+</tbody>
+</table></div>
+<p>Because the player writes <code>title</code>, <code>x</code>, <code>y</code>, <code>width</code> and <code>height</code> back by dragging, reading them tells
+you where the window ended up, not only where you put it. <code>transparent</code> is the one property the window
+only reads as it opens, so decide it in the table you pass to <code>window.open</code>.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</pre><pre><code>popup:<span class="syn-func">moveTo</span>(<span class="syn-num">900</span>, <span class="syn-num">400</span>)
+popup:<span class="syn-func">resize</span>(<span class="syn-num">400</span>, <span class="syn-num">240</span>)
+popup:<span class="syn-func">focus</span>()
+popup:<span class="syn-func">close</span>()                          <span class="syn-comment">-- or popup:destroy()</span>
+
+popup.moved:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)    <span class="syn-comment">-- the player dragged it</span>
+popup.resized:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)
+popup.closing:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    popup:<span class="syn-func">preventClose</span>()               <span class="syn-comment">-- same rule as the game window: the second close wins</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>What a window can show:</p>
+<ul>
+<li>A <code>gui</code> is cheap: it is drawn once more into the window.</li>
+<li>A <code>camera</code> draws the world's parts and models again from that camera, like a <code>ViewportFrame</code>.
+  Blocks are not drawn: Minecraft can only draw its world once per frame.</li>
+<li><code>mirror</code> is the cheapest: it shows the finished game frame.</li>
+</ul>
+<p>Windows a script opens close when the scripts reload.</p>
+<h2 id="overlays">Overlays<a class="anchor" href="#overlays" title="Permanent link">#</a></h2>
+<p>An overlay is a window that covers the whole primary monitor, has no title bar, is see-through and
+always on top, and lets the mouse through. It is how a character walks on the desktop or a hint floats
+over other programs.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> overlay = window.<span class="syn-func">overlay</span>({ gui = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;DesktopPet&quot;</span>) })
+overlay.clickable = world:<span class="syn-func">find</span>(<span class="syn-string">&quot;DesktopPet/Pet&quot;</span>)    <span class="syn-comment">-- only the pet catches clicks</span></code></pre></div></div>
+<p><code>window.overlay(properties)</code> is <code>window.open</code> with those settings filled in first. Anything you pass
+wins, so you can take one of them back. Setting <code>clickable</code> to a gui object inside <code>gui</code> carves a hole
+in the click-through: the pet above catches clicks while the rest of the screen still belongs to
+whatever program is behind it.</p>
+<div class="demo" data-demo="window-overlay"></div>
+<h2 id="limits">Limits<a class="anchor" href="#limits" title="Permanent link">#</a></h2>
+<ul>
+<li>Extra windows, overlays and hiding the game window only work in single player and exported games. On
+  a server with other players they are refused with a warning.</li>
+<li>See-through windows and opacity need a desktop that composites windows. Nearly every desktop does.
+  Without one they are drawn black where they should be see-through.</li>
+</ul>
+<div class="alert alert-warning"><i class="alert-icon ph-fill ph-warning"></i><div class="alert-body"><p><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Escape</kbd>, pressed in any of the game's windows, closes
+every extra window and overlay and shows the game window again. It is there for the player, and for
+you when an overlay covers the screen and the script that opened it has stopped answering.</p></div></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="game-and-screens.html"><span>Previous</span>Pausing, quitting, settings and screens</a><a class="next" href="queries.html"><span>Next</span>Queries</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#the-game-window">The game window</a></li><li><a href="#more-windows">More windows</a></li><li><a href="#overlays">Overlays</a></li><li><a href="#limits">Limits</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

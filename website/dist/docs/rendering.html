@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Models, lights, post effects and held items | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html" class="active"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>Screen and sound</span></nav>
+    <article class="doc">
+<h1 id="models-lights-post-effects-and-held-items">Models, lights, post effects and held items<a class="anchor" href="#models-lights-post-effects-and-held-items" title="Permanent link">#</a></h1>
+<p>Everything on this page is an instance you add to the tree, like a part. A <code>MeshPart</code> is a part drawn
+as a model file, a light is an instance that lights the world around it, a post effect is an instance
+that changes the finished picture, and a body's hands hold whatever you write into two properties. You
+add them with <code>add</code>, change them by writing properties, and take them away with <code>destroy</code>.</p>
+<h2 id="meshpart">MeshPart<a class="anchor" href="#meshpart" title="Permanent link">#</a></h2>
+<p>A <code>MeshPart</code> is a part that is drawn as a 3D model instead of a box:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code>world:<span class="syn-func">add</span>(<span class="syn-string">&quot;MeshPart&quot;</span>, {
+    meshId = <span class="syn-string">&quot;res://models/crate.glb&quot;</span>,    <span class="syn-comment">-- .gltf, .glb, .ammesh or .bbmodel, or a resource pack id</span>
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">1</span>, <span class="syn-num">1</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65</span>, <span class="syn-num">0</span>),
+    animation = <span class="syn-string">&quot;idle&quot;</span>, animationSpeed = <span class="syn-num">1</span>, animationLooped = <span class="syn-const">true</span>,
+})</code></pre></div></div>
+<ul>
+<li><strong><code>meshId</code></strong> is the model file. Moud reads <code>.gltf</code>, <code>.glb</code>, <code>.ammesh</code> and <code>.bbmodel</code>, and a resource
+  pack id works in its place.</li>
+<li><strong><code>size</code></strong> works as it does on any part, and the model is stretched to fill it. That means a
+  <code>MeshPart</code> moves, scales and turns like a part, and you never scale the model file itself.</li>
+<li><strong><code>animation</code></strong> names a clip inside the file, with <strong><code>animationSpeed</code></strong> and <strong><code>animationLooped</code></strong>
+  deciding how it plays. A name the file does not have is logged once, along with the names it does
+  have.</li>
+<li>A <code>MeshPart</code> with <code>Bone</code>s inside it is drawn posed by them instead, piece by piece, and ignores
+  <code>animation</code>. See <a href="animation.html#bone">Bones</a> and <a href="animation.html#importing-a-blockbench-model">importing a Blockbench model</a>.</li>
+<li>A <code>MeshPart</code> collides as its box, not as the shape of the model.</li>
+<li>Saving the model file reloads it while the game runs, so you can export from your modelling program
+  and see the new shape without touching the place.</li>
+</ul>
+<h2 id="lights">Lights<a class="anchor" href="#lights" title="Permanent link">#</a></h2>
+<p>A light is an instance you put in the world to light what is around it. There are four classes, and
+each one has a shape:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>world:<span class="syn-func">add</span>(<span class="syn-string">&quot;PointLight&quot;</span>, { color = <span class="syn-func">color</span>(<span class="syn-num">1</span>, <span class="syn-num">0.8</span>, <span class="syn-num">0.5</span>), brightness = <span class="syn-num">2</span>, range = <span class="syn-num">12</span> })
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SpotLight&quot;</span>, { innerAngle = <span class="syn-num">20</span>, outerAngle = <span class="syn-num">35</span>, cframe = cframe.<span class="syn-func">lookAt</span>(from, to) })
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;AreaLight&quot;</span>, { shape = <span class="syn-string">&quot;rectangle&quot;</span>, width = <span class="syn-num">2</span>, height = <span class="syn-num">1</span> })   <span class="syn-comment">-- or &quot;disc&quot;, width is the diameter</span>
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;TubeLight&quot;</span>, { length = <span class="syn-num">3</span> })                                    <span class="syn-comment">-- along its right axis</span></code></pre></div></div>
+<ul>
+<li>A <code>SpotLight</code> points down its own frame, so <code>cframe.lookAt(from, to)</code> aims it at something.</li>
+<li>An <code>AreaLight</code> takes <code>shape = "rectangle"</code> with <code>width</code> and <code>height</code>, or <code>shape = "disc"</code>, where
+  <code>width</code> is the diameter.</li>
+<li>A <code>TubeLight</code> runs along its right axis for <code>length</code> metres.</li>
+</ul>
+<div class="demo" data-demo="rendering-spot"></div>
+<p>Every light has the same set of properties, whichever class it is: <code>enabled</code>, <code>color</code>, <code>temperature</code>
+(kelvin; replaces <code>color</code> when above 0), <code>brightness</code>, <code>range</code>, <code>falloff</code> (<code>smooth</code>, <code>linear</code>,
+<code>inverseSquare</code>, <code>exponent</code>), <code>falloffExponent</code>, <code>shadows</code>, <code>shadowStrength</code>, <code>godrays</code>.</p>
+<div class="demo" data-demo="rendering-falloff"></div>
+<p>A light parented to a part moves with it, and faces down its frame's forward. Parent one to a lantern
+part and the light follows the lantern wherever physics or a tween takes it.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>The sun, the sky, the weather and the distance fog are not lights, and none of them have the
+properties above. They belong to a <code>Lighting</code> instance. See
+<a href="lighting.html">Lighting, sky, weather and presets</a>.</p></div></div>
+<h3 id="custom-light-shaders">Custom light shaders<a class="anchor" href="#custom-light-shaders" title="Permanent link">#</a></h3>
+<p><code>shader</code> names a GLSL file that changes how the light lands. The file is the body of a function that
+may change <code>color</code>, <code>atten</code> and <code>p</code>, and can read <code>lightPos</code>, <code>lightDir</code>, <code>stage</code> and <code>LightTime</code>:</p>
+<div class="doc-code"><span class="code-lang">glsl</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code>// res://lights/flicker.glsl
+color *= 0.8 + 0.2 * sin(LightTime * 23.0) * sin(LightTime * 7.0);</code></pre></div></div>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre><code>world:<span class="syn-func">add</span>(<span class="syn-string">&quot;PointLight&quot;</span>, { shader = <span class="syn-string">&quot;res://lights/flicker.glsl&quot;</span> })</code></pre></div></div>
+<p>There is no <code>main</code> and no uniform block to write. The file is the body, so the one line above is a
+whole shader. Editing the file relights the scene while the game runs.</p>
+<h2 id="post-effects">Post effects<a class="anchor" href="#post-effects" title="Permanent link">#</a></h2>
+<p>Post effects are instances. They apply while they are in the tree and <code>enabled</code>, on every client. Add
+one to the world to turn it on, and destroy it to turn it off.</p>
+<p><strong>Built on Amnetic.</strong> The first enabled one of each class is used. Removing it puts the setting back
+to how it was.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Properties</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BloomEffect</code></td>
+<td><code>intensity</code>, <code>threshold</code>, <code>knee</code>, <code>size</code>, <code>resolution</code>, <code>occlude</code></td>
+</tr>
+<tr>
+<td><code>ColorGradeEffect</code></td>
+<td><code>exposure</code>, <code>contrast</code>, <code>saturation</code>, <code>brightness</code>, <code>temperature</code>, <code>tint</code>, <code>gamma</code>, <code>lut</code>, <code>lutSize</code>, <code>lutIntensity</code></td>
+</tr>
+<tr>
+<td><code>AmbientOcclusionEffect</code></td>
+<td><code>radius</code>, <code>intensity</code>, <code>bias</code>, <code>power</code>, <code>resolution</code>, <code>temporal</code></td>
+</tr>
+<tr>
+<td><code>GlobalIlluminationEffect</code></td>
+<td><code>radius</code>, <code>intensity</code>, <code>resolution</code>, <code>history</code></td>
+</tr>
+<tr>
+<td><code>ReflectionEffect</code></td>
+<td><code>intensity</code>, <code>reflectivity</code>, <code>maxDistance</code>, <code>steps</code>, <code>thickness</code>, <code>edgeFade</code>, <code>resolution</code>, <code>temporal</code></td>
+</tr>
+<tr>
+<td><code>AntiAliasingEffect</code></td>
+<td><code>history</code>, <code>sharpness</code>, <code>clip</code></td>
+</tr>
+<tr>
+<td><code>VolumetricEffect</code></td>
+<td><code>strength</code>, <code>density</code>, <code>anisotropy</code>, <code>steps</code>, <code>resolution</code>, <code>shadows</code></td>
+</tr>
+<tr>
+<td><code>ContactShadowEffect</code></td>
+<td><code>distance</code>, <code>thickness</code>, <code>steps</code></td>
+</tr>
+<tr>
+<td><code>ShadowQuality</code></td>
+<td><code>resolution</code>, <code>sunResolution</code>, <code>sunCascades</code>, <code>sunDistance</code>, <code>maxDistance</code>, <code>softness</code>, <code>contactHardening</code>, <code>lightSize</code>, <code>entities</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>Adding a second <code>BloomEffect</code> does nothing while the first one is enabled. To swap settings, either
+write the properties of the one that is already there, or disable it so the next one takes over.</p></div></div>
+<p><strong>Screen effects.</strong> Any number of these stack. They are drawn in <code>order</code>, lowest first, and every one
+has <code>intensity</code> from 0 to 1.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Properties</th>
+<th>Default order</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FogEffect</code></td>
+<td><code>color</code>, <code>start</code>, <code>density</code>, <code>heightFalloff</code>, <code>baseHeight</code>, <code>sky</code></td>
+<td>0</td>
+</tr>
+<tr>
+<td><code>OutlineEffect</code></td>
+<td><code>color</code>, <code>thickness</code>, <code>threshold</code></td>
+<td>5</td>
+</tr>
+<tr>
+<td><code>DepthOfFieldEffect</code></td>
+<td><code>focusDistance</code>, <code>focusRange</code>, <code>falloff</code>, <code>size</code></td>
+<td>10</td>
+</tr>
+<tr>
+<td><code>MotionBlurEffect</code></td>
+<td><code>strength</code>, <code>samples</code></td>
+<td>20</td>
+</tr>
+<tr>
+<td><code>TonemapEffect</code></td>
+<td><code>tonemapper</code> (<code>aces</code>, <code>agx</code>, <code>reinhard</code>, <code>uncharted</code>, <code>none</code>), <code>exposure</code></td>
+<td>30</td>
+</tr>
+<tr>
+<td><code>BlurEffect</code></td>
+<td><code>size</code></td>
+<td>40</td>
+</tr>
+<tr>
+<td><code>ChromaticAberrationEffect</code></td>
+<td><code>amount</code></td>
+<td>50</td>
+</tr>
+<tr>
+<td><code>VignetteEffect</code></td>
+<td><code>radius</code>, <code>softness</code>, <code>color</code></td>
+<td>60</td>
+</tr>
+<tr>
+<td><code>PixelateEffect</code></td>
+<td><code>pixelSize</code></td>
+<td>70</td>
+</tr>
+<tr>
+<td><code>PosterizeEffect</code></td>
+<td><code>levels</code></td>
+<td>75</td>
+</tr>
+<tr>
+<td><code>SharpenEffect</code></td>
+<td><code>amount</code></td>
+<td>80</td>
+</tr>
+<tr>
+<td><code>FilmGrainEffect</code></td>
+<td><code>amount</code>, <code>size</code></td>
+<td>90</td>
+</tr>
+</tbody>
+</table></div>
+<p>Because effects are instances, a whole look is a folder you can throw away in one call:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-keyword">local</span> night = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Folder&quot;</span>, { name = <span class="syn-string">&quot;night&quot;</span> })
+night:<span class="syn-func">add</span>(<span class="syn-string">&quot;ColorGradeEffect&quot;</span>, { exposure = <span class="syn-num">0.8</span>, saturation = <span class="syn-num">0.7</span>, temperature = -<span class="syn-num">0.3</span> })
+night:<span class="syn-func">add</span>(<span class="syn-string">&quot;VignetteEffect&quot;</span>, { radius = <span class="syn-num">0.6</span>, softness = <span class="syn-num">0.5</span> })
+night:<span class="syn-func">add</span>(<span class="syn-string">&quot;FogEffect&quot;</span>, { color = <span class="syn-func">color</span>(<span class="syn-num">0.1</span>, <span class="syn-num">0.12</span>, <span class="syn-num">0.2</span>), start = <span class="syn-num">8</span>, density = <span class="syn-num">0.05</span> })
+<span class="syn-comment">-- night:destroy() takes all three away again</span></code></pre></div></div>
+<p>Destroying the folder destroys the three effects inside it, and each one puts its setting back as it
+goes.</p>
+<h3 id="your-own-screen-shader">Your own screen shader<a class="anchor" href="#your-own-screen-shader" title="Permanent link">#</a></h3>
+<p><code>PostShader</code> runs a GLSL fragment shader over the picture. It takes its place among the screen effects
+by <code>order</code>, so the one below is drawn between <code>SharpenEffect</code> and <code>FilmGrainEffect</code>:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2</pre><pre><code><span class="syn-keyword">local</span> crt = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;PostShader&quot;</span>, { shader = <span class="syn-string">&quot;res://post/scanlines.glsl&quot;</span>, order = <span class="syn-num">85</span> })
+crt:<span class="syn-func">add</span>(<span class="syn-string">&quot;NumberValue&quot;</span>, { name = <span class="syn-string">&quot;Lines&quot;</span>, value = <span class="syn-num">240</span> })</code></pre></div></div>
+<div class="doc-code"><span class="code-lang">glsl</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8</pre><pre><code>// res://post/scanlines.glsl
+uniform float Lines;
+
+void main() {
+    vec4 c = sceneColor(vUV);
+    float line = 0.85 + 0.15 * sin(vUV.y * Lines * 3.14159);
+    FragColor = vec4(mix(c.rgb, c.rgb * line, Intensity), c.a);
+}</code></pre></div></div>
+<ul>
+<li>The shader gets <code>sceneColor(uv)</code>, <code>sceneDepth(uv)</code>, <code>isSky(uv)</code>, <code>viewPosition(uv)</code>,
+  <code>worldPosition(uv)</code> and <code>linearDepth(uv)</code>.</li>
+<li>Uniforms provided: <code>Time</code>, <code>ScreenSize</code>, <code>Intensity</code>, <code>CameraPosition</code>, <code>PrevCameraPosition</code>,
+  <code>ViewProj</code>, <code>InvViewProj</code>, <code>PrevViewProj</code>.</li>
+<li>Every <code>NumberValue</code>, <code>BoolValue</code> and <code>Vector3Value</code> child is a uniform with the same name. The
+  <code>NumberValue</code> named <code>Lines</code> above is the <code>uniform float Lines</code> the shader reads, so writing
+  <code>crt:find("Lines").value</code> from a script changes the picture.</li>
+<li>A file that starts with <code>#version</code> is used as written, with none of the above added.</li>
+<li>Saving the file recompiles it.</li>
+</ul>
+<div class="demo" data-demo="rendering-stack"></div>
+<h2 id="see-through-parts">See-through parts<a class="anchor" href="#see-through-parts" title="Permanent link">#</a></h2>
+<p>A part with <code>transparency</code> between 0 and 1 is drawn after everything solid, the furthest first, and
+does not hide what is behind it. Both its sides are drawn, so standing inside a tinted box tints the
+view. It casts no shadow.</p>
+<h2 id="held-items">Held items<a class="anchor" href="#held-items" title="Permanent link">#</a></h2>
+<p>A body draws what each hand holds, with the game's own item renderer. A player's body shows their real
+items. For bodies a place owns, you write the item id into <code>rightItem</code> and <code>leftItem</code>:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>npc.rightItem = <span class="syn-string">&quot;minecraft:diamond_sword&quot;</span>
+npc.leftItem = <span class="syn-string">&quot;minecraft:shield&quot;</span>
+npc.rightItem = <span class="syn-string">&quot;&quot;</span>        <span class="syn-comment">-- empty hand</span></code></pre></div></div>
+<p>A player's <code>rightItem</code> and <code>leftItem</code> come off their own inventory, so writing them on a worn body does
+nothing. The server overrides what a player is shown holding instead:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>body.rightItemOverride = <span class="syn-string">&quot;minecraft:blaze_rod&quot;</span>   <span class="syn-comment">-- drawn whatever they hold</span>
+body.leftItemOverride = <span class="syn-string">&quot;minecraft:air&quot;</span>          <span class="syn-comment">-- an empty hand</span>
+body.rightItemOverride = <span class="syn-string">&quot;&quot;</span>                      <span class="syn-comment">-- back to their inventory</span></code></pre></div></div>
+<p>An override works on any body, and wins over <code>rightItem</code> / <code>leftItem</code> while it is set.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>If you write <code>rightItem</code> on a player's body and nothing changes, that is why. Use
+<code>rightItemOverride</code>, and set it back to <code>""</code> to hand the player their own inventory again.</p></div></div>
+<div class="demo" data-demo="rendering-held"></div>
+    </article>
+    <div class="doc-pager"><a class="prev" href="sound.html"><span>Previous</span>Sound</a><a class="next" href="lighting.html"><span>Next</span>Lighting, sky, weather and presets</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#meshpart">MeshPart</a></li><li><a href="#lights">Lights</a></li><li><a href="#post-effects">Post effects</a></li><li><a href="#see-through-parts">See-through parts</a></li><li><a href="#held-items">Held items</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>

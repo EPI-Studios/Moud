@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movement, collision and input | Moud Docs</title>
+<link rel="icon" href="../art/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gabarito:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<link rel="stylesheet" href="../style.css?v=e2d4cbc6">
+<link rel="stylesheet" href="demos.css?v=a945b997">
+</head>
+<body class="doc-body" data-search-base="">
+
+<header class="topbar">
+  <button type="button" class="menu-button" aria-label="Menu"><i class="ph-bold ph-list"></i></button>
+  <a href="../" class="brand"><img src="../art/logo.png" alt="">Moud</a>
+  <nav class="tabs">
+    <a class="tab active" href="index.html">Guides</a>
+    <a class="tab" href="reference.html">Reference</a>
+    <a class="tab" href="https://github.com/EPI-Studios/Moud"><i class="ph-fill ph-github-logo"></i>Source</a>
+  </nav>
+  <button type="button" class="search-button"><i class="ph-bold ph-magnifying-glass"></i><span>Search</span><kbd>Ctrl K</kbd></button>
+</header>
+
+<div class="search" hidden>
+  <div class="search-box" role="dialog" aria-label="Search the docs">
+    <div class="search-field"><i class="ph-bold ph-magnifying-glass"></i><input type="search" placeholder="Search the docs" autocomplete="off" spellcheck="false"></div>
+    <div class="search-results"></div>
+    <div class="search-keys"><span><kbd>↑</kbd><kbd>↓</kbd> to move</span><span><kbd>Enter</kbd> to open</span><span><kbd>Esc</kbd> to close</span></div>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="doc-sidebar"><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Start</summary><ul><li><a href="index.html"><i class="ph-fill ph-house"></i><span>Overview</span></a></li><li><a href="getting-started.html"><i class="ph-fill ph-rocket-launch"></i><span>Getting started</span></a></li><li><a href="place.html"><img class="engine-icon" src="../art/icons/PackedScene.png" alt="" width="16" height="16"><span>Places, modules, scenes and scripts</span></a></li><li><a href="containers.html"><img class="engine-icon" src="../art/icons/Folder.png" alt="" width="16" height="16"><span>Containers</span></a></li></ul></details><details class="nav-group" open><summary><i class="ph-bold ph-caret-down"></i>The world</summary><ul><li><a href="instances.html"><img class="engine-icon" src="../art/icons/Node3D.png" alt="" width="16" height="16"><span>Instances</span></a></li><li><a href="tree.html"><i class="ph-fill ph-tree-structure"></i><span>Working with the tree</span></a></li><li><a href="character.html"><img class="engine-icon" src="../art/icons/CharacterBody3D.png" alt="" width="16" height="16"><span>Characters</span></a></li><li><a href="animation.html"><img class="engine-icon" src="../art/icons/Animation.png" alt="" width="16" height="16"><span>Animations</span></a></li><li><a href="players.html"><i class="ph-fill ph-users-three"></i><span>Players and bodies</span></a></li><li><a href="tools.html"><img class="engine-icon" src="../art/icons/ToolSelect.png" alt="" width="16" height="16"><span>Tools</span></a></li><li><a href="movement.html" class="active"><i class="ph-fill ph-person-simple-run"></i><span>Movement, collision and input</span></a></li><li><a href="editor.html"><img class="engine-icon" src="../art/icons/ToolMove.png" alt="" width="16" height="16"><span>Building in the editor</span></a></li><li><a href="plugins.html"><i class="ph-fill ph-puzzle-piece"></i><span>Editor plugins</span></a></li><li><a href="physics.html"><img class="engine-icon" src="../art/icons/RigidBody3D.png" alt="" width="16" height="16"><span>Physics</span></a></li><li><a href="camera-and-input.html"><img class="engine-icon" src="../art/icons/Camera3D.png" alt="" width="16" height="16"><span>Camera and input</span></a></li><li><a href="game-and-screens.html"><img class="engine-icon" src="../art/icons/Pause.png" alt="" width="16" height="16"><span>Pausing, quitting, settings and screens</span></a></li><li><a href="window.html"><i class="ph-fill ph-browser"></i><span>Windows</span></a></li><li><a href="queries.html"><img class="engine-icon" src="../art/icons/Search.png" alt="" width="16" height="16"><span>Queries</span></a></li><li><a href="blocks.html"><img class="engine-icon" src="../art/icons/Grid.png" alt="" width="16" height="16"><span>Blocks</span></a></li><li><a href="zones-and-triggers.html"><img class="engine-icon" src="../art/icons/CollisionShape3D.png" alt="" width="16" height="16"><span>Zones, touches, tags, prompts and clicks</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Screen and sound</summary><ul><li><a href="interface.html"><img class="engine-icon" src="../art/icons/Control.png" alt="" width="16" height="16"><span>Interface</span></a></li><li><a href="chat.html"><i class="ph-fill ph-chat-circle-text"></i><span>Chat</span></a></li><li><a href="rich-text.html"><img class="engine-icon" src="../art/icons/Label3D.png" alt="" width="16" height="16"><span>Rich text</span></a></li><li><a href="images.html"><img class="engine-icon" src="../art/icons/Texture2D.png" alt="" width="16" height="16"><span>Images</span></a></li><li><a href="sound.html"><img class="engine-icon" src="../art/icons/AudioStreamPlayer3D.png" alt="" width="16" height="16"><span>Sound</span></a></li><li><a href="rendering.html"><img class="engine-icon" src="../art/icons/MeshInstance3D.png" alt="" width="16" height="16"><span>Models, lights, post effects and held items</span></a></li><li><a href="lighting.html"><img class="engine-icon" src="../art/icons/DirectionalLight3D.png" alt="" width="16" height="16"><span>Lighting, sky, weather and presets</span></a></li><li><a href="effects.html"><img class="engine-icon" src="../art/icons/GPUParticles3D.png" alt="" width="16" height="16"><span>Particles, beams, trails, highlights and decals</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Scripting</summary><ul><li><a href="mixins.html"><img class="engine-icon" src="../art/icons/Shader.png" alt="" width="16" height="16"><span>Mixins, Java and shader patches</span></a></li><li><a href="languages.html"><img class="engine-icon" src="../art/icons/Script.png" alt="" width="16" height="16"><span>Other languages</span></a></li><li><a href="tweens-and-timing.html"><i class="ph-fill ph-timer"></i><span>Tweens and timing</span></a></li><li><a href="math.html"><i class="ph-fill ph-function"></i><span>Math</span></a></li><li><a href="saving.html"><img class="engine-icon" src="../art/icons/Save.png" alt="" width="16" height="16"><span>Saving</span></a></li><li><a href="memory.html"><img class="engine-icon" src="../art/icons/KeyValue.png" alt="" width="16" height="16"><span>Memory stores</span></a></li><li><a href="http.html"><i class="ph-fill ph-globe"></i><span>Reaching websites</span></a></li><li><a href="talking.html"><img class="engine-icon" src="../art/icons/GraphEdit.png" alt="" width="16" height="16"><span>Talking across the boundary</span></a></li><li><a href="debug.html"><i class="ph-fill ph-bug"></i><span>Debugging</span></a></li></ul></details><details class="nav-group"><summary><i class="ph-bold ph-caret-down"></i>Reference</summary><ul><li><a href="reference.html"><i class="ph-fill ph-book-bookmark"></i><span>Reference</span></a></li></ul></details></aside>
+
+  <main class="doc-main">
+    <nav class="crumbs"><a href="../">Home</a><a href="index.html">Guides</a><span>The world</span></nav>
+    <article class="doc">
+<h1 id="movement-collision-and-input">Movement, collision and input<a class="anchor" href="#movement-collision-and-input" title="Permanent link">#</a></h1>
+<p>This page covers how a body walks, what it collides with, and how you read the keys a player is
+pressing. Movement lives on the <code>Humanoid</code> inside every character. Collision is decided by collision
+groups you create and name. Input is read through <code>InputAction</code> instances on the client.</p>
+<h2 id="humanoid">Humanoid<a class="anchor" href="#humanoid" title="Permanent link">#</a></h2>
+<p>Every character has a <code>humanoid</code>, and it holds the numbers that decide how that body moves, all in
+metres and seconds. A player's body moves with these numbers under the player's own control; a body
+a place owns is walked by the engine with the same numbers.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-keyword">local</span> h = body.humanoid
+h.walkSpeed = <span class="syn-num">6</span>           h.sprintMultiplier = <span class="syn-num">1.3</span>     h.sneakMultiplier = <span class="syn-num">0.3</span>
+h.jumpPower = <span class="syn-num">8.4</span>         h.gravityScale = <span class="syn-num">1</span>
+h.groundAcceleration = <span class="syn-num">22.7</span>   h.groundDeceleration = <span class="syn-num">22.7</span>
+h.airSpeed = <span class="syn-num">4.444</span>        h.airAcceleration = <span class="syn-num">3.64</span>
+h.airDrag = <span class="syn-num">0.1516</span>        h.fallDrag = <span class="syn-num">0.6676</span>
+h.stepHeight = <span class="syn-num">0.6</span>        h.slopeLimit = <span class="syn-num">45</span>           h.followSlopes = <span class="syn-const">true</span>
+h.coyoteTime = <span class="syn-num">0.15</span>       h.jumpBuffer = <span class="syn-num">0.15</span>
+h.health = <span class="syn-num">20</span>             h.maxHealth = <span class="syn-num">20</span>             h.healthRegen = <span class="syn-num">0</span></code></pre></div></div>
+<p>The defaults are Minecraft's own movement converted to metres and seconds, so a place that changes
+nothing feels like the game. Change one of them and the body moves differently from the next tick
+on, for every player who can see it.</p>
+<ul>
+<li><strong><code>walkSpeed</code></strong> is how many metres the body covers in a second on the ground. <code>sprintMultiplier</code>
+  and <code>sneakMultiplier</code> scale it while the player sprints or sneaks.</li>
+<li><strong><code>jumpPower</code></strong> is the speed the body leaves the ground at, not a height. How high it gets falls
+  out of that speed and the gravity pulling it back down.</li>
+<li><strong><code>gravityScale</code></strong> is this body's own share of the pull, on top of the place's. The two multiply:
+  at <code>game.gravity = 16</code> a humanoid at <code>gravityScale = 1</code> falls half as hard as it does by default,
+  and one at <code>gravityScale = 2</code> falls as hard as ever. Change one body with <code>gravityScale</code>, and
+  everything at once with <a href="physics.html#gravity"><code>game.gravity</code></a>.</li>
+<li><strong><code>stepHeight</code></strong> is how tall a ledge the body walks up without jumping, and <strong><code>slopeLimit</code></strong> is how
+  steep a slope it walks up at all, in degrees.</li>
+<li><strong><code>health</code></strong> and <strong><code>maxHealth</code></strong> are the body's life. Health reaching 0 puts the body in the <code>dead</code>
+  state and fires <code>died</code>.</li>
+</ul>
+<div class="demo" data-demo="movement-jump"></div>
+<h3 id="state">State<a class="anchor" href="#state" title="Permanent link">#</a></h3>
+<p><code>state</code> says what the body is doing right now. It is one of <code>standing</code>, <code>running</code>, <code>jumping</code>,
+<code>falling</code>, <code>swimming</code>, <code>climbing</code>, <code>flying</code>, <code>seated</code>, <code>platformStanding</code>, <code>dead</code>.
+<code>humanoid:getState()</code> reads the same thing.</p>
+<p>A player's body gets its state from the player every tick on the server: on a ladder or vine is
+<code>climbing</code>, in water off the ground is <code>swimming</code>, creative flight is <code>flying</code>, in the air is
+<code>jumping</code> on the way up and <code>falling</code> on the way down, and on the ground is <code>running</code> or <code>standing</code>.
+A body without a player is <code>running</code> while it walks, <code>jumping</code> and <code>falling</code> through a hop, and
+<code>standing</code> otherwise.</p>
+<div class="alert alert-important"><i class="alert-icon ph-fill ph-seal-warning"></i><div class="alert-body"><p>Writing <code>state</code> yourself lasts until the next tick, when the engine works it out again and
+overwrites you. To put a body in a state and have it stay there, use <code>sit</code>, <code>platformStand</code> or
+<code>changeState</code> below.</p></div></div>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>moveDirection</code></td>
+<td>read only: the flat unit direction the body moves in, zero when still</td>
+</tr>
+<tr>
+<td><code>floorMaterial</code></td>
+<td>read only: the block under the feet, like <code>"minecraft:grass_block"</code>, or <code>"air"</code> off the ground</td>
+</tr>
+<tr>
+<td><code>sit</code></td>
+<td>sits the body down</td>
+</tr>
+<tr>
+<td><code>platformStand</code></td>
+<td>the body stands limp and cannot walk or jump</td>
+</tr>
+<tr>
+<td><code>autoRotate</code></td>
+<td>turns a body without a player to face where it walks; on by default</td>
+</tr>
+<tr>
+<td><code>healthRegen</code></td>
+<td>health given back each second while alive and below <code>maxHealth</code>; 0 by default</td>
+</tr>
+</tbody>
+</table></div>
+<p>A player's <code>moveDirection</code> comes from how their body really moves. A body without a player keeps the
+direction <code>move</code> gave it, and while it walks to a point with <code>walkTo</code> or <code>moveTo</code> it is the way it
+walks.</p>
+<p><code>floorMaterial</code> only sees blocks. Standing on a part reads the block under the part, or <code>"air"</code>.</p>
+<p>With <code>autoRotate</code> off, a body without a player keeps facing where it was while it walks. It does
+nothing for a player's body yet.</p>
+<p>A player that sits loses the move control but can still jump, and jumping stands them up. Their
+body shows the sitting pose. A body without a player stands up and hops when <code>jump</code> is set, but its
+legs do not fold on their own; set <code>body.riding</code> for that. <code>platformStand</code> takes the move and jump
+controls from a player, and stops a body without a player walking and jumping, until you set it back
+to false.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4</pre><pre><code>body.humanoid.sit = <span class="syn-const">true</span>
+body.humanoid.seated:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(active)
+    <span class="syn-func">print</span>(active <span class="syn-keyword">and</span> <span class="syn-string">&quot;sat down&quot;</span> <span class="syn-keyword">or</span> <span class="syn-string">&quot;stood up&quot;</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<h3 id="events">Events<a class="anchor" href="#events" title="Permanent link">#</a></h3>
+<p>Every one of these is a signal you connect a function to, and it runs until you disconnect it or the
+body is destroyed:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Fires with</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>stateChanged</code></td>
+<td>the humanoid</td>
+<td>whenever <code>state</code> changes</td>
+</tr>
+<tr>
+<td><code>died</code></td>
+<td>the humanoid</td>
+<td>when the state becomes <code>dead</code></td>
+</tr>
+<tr>
+<td><code>healthChanged</code></td>
+<td>the humanoid</td>
+<td>whenever <code>health</code> changes</td>
+</tr>
+<tr>
+<td><code>arrived</code></td>
+<td>the humanoid</td>
+<td>when a body reaches a point it was sent to; never while <code>move</code> steers it</td>
+</tr>
+<tr>
+<td><code>damaged</code></td>
+<td>the amount</td>
+<td>after <code>takeDamage</code> took health away</td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td>the speed</td>
+<td>the body starts running or changes speed by half a metre a second; 0 when it stops</td>
+</tr>
+<tr>
+<td><code>jumping</code></td>
+<td>true or false</td>
+<td>entering and leaving <code>jumping</code></td>
+</tr>
+<tr>
+<td><code>freeFalling</code></td>
+<td>true or false</td>
+<td>entering and leaving <code>falling</code></td>
+</tr>
+<tr>
+<td><code>swimming</code></td>
+<td>a speed</td>
+<td>entering <code>swimming</code> with <code>walkSpeed</code>, leaving with 0</td>
+</tr>
+<tr>
+<td><code>climbing</code></td>
+<td>a speed</td>
+<td>entering <code>climbing</code> with <code>walkSpeed</code>, leaving with 0</td>
+</tr>
+<tr>
+<td><code>seated</code></td>
+<td>true or false</td>
+<td>entering and leaving <code>seated</code></td>
+</tr>
+<tr>
+<td><code>platformStanding</code></td>
+<td>true or false</td>
+<td>entering and leaving <code>platformStanding</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>A body without a player runs at its <code>walkSpeed</code>. It only swims or climbs when <code>changeState</code> puts it
+there.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7</pre><pre><code><span class="syn-keyword">local</span> h = body.humanoid
+h.freeFalling:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(active)
+    <span class="syn-keyword">if</span> <span class="syn-keyword">not</span> active <span class="syn-keyword">then</span> <span class="syn-func">print</span>(<span class="syn-string">&quot;landed on&quot;</span>, h.floorMaterial) <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)
+h.damaged:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(amount)
+    <span class="syn-func">print</span>(body.name, <span class="syn-string">&quot;took&quot;</span>, amount)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>freeFalling</code> fires with true when the body enters <code>falling</code> and with false when it leaves, so the
+false is the landing. Reading <code>floorMaterial</code> at that moment tells you what it landed on, which is
+enough to pick a footstep sound or hurt a body that hit stone.</p>
+<h3 id="methods">Methods<a class="anchor" href="#methods" title="Permanent link">#</a></h3>
+<p>Every method except <code>getState</code> and <code>getStateEnabled</code> runs in a server <code>Script</code>. A <code>LocalScript</code>
+calling one gets an error.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9</pre><pre><code><span class="syn-keyword">local</span> h = body.humanoid
+h:<span class="syn-func">move</span>(<span class="syn-func">vec3</span>(<span class="syn-num">1</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>))                  <span class="syn-comment">-- keep walking along +X</span>
+h:<span class="syn-func">move</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, -<span class="syn-num">1</span>), <span class="syn-const">true</span>)           <span class="syn-comment">-- keep walking forward, the way the player faces</span>
+h:<span class="syn-func">move</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>))                  <span class="syn-comment">-- stop</span>
+h:<span class="syn-func">moveTo</span>(<span class="syn-func">vec3</span>(<span class="syn-num">20</span>, <span class="syn-num">65</span>, <span class="syn-num">4</span>))              <span class="syn-comment">-- straight at the point</span>
+h:<span class="syn-func">takeDamage</span>(<span class="syn-num">5</span>)
+h:<span class="syn-func">changeState</span>(<span class="syn-string">&quot;seated&quot;</span>)
+h:<span class="syn-func">setStateEnabled</span>(<span class="syn-string">&quot;jumping&quot;</span>, <span class="syn-const">false</span>)
+<span class="syn-func">print</span>(h:<span class="syn-func">getState</span>(), h:<span class="syn-func">getStateEnabled</span>(<span class="syn-string">&quot;jumping&quot;</span>))</code></pre></div></div>
+<ul>
+<li><code>move(direction, relativeToCamera?)</code> walks the body in a direction until you call it again with a
+  zero vector. Only the flat part of the direction counts. With <code>relativeToCamera</code> the direction is
+  turned by where the player faces: -Z is forward, +X is right. A player is steered by their own
+  client, and pressing a movement key takes over while it is held. A body without a player walks
+  that way smoothly on its own, and <code>arrived</code> does not fire while it does.</li>
+<li><code>moveTo(point)</code> walks in a straight line to the point and fires <code>arrived</code>. It does not
+  go around anything; <code>body:walkTo(point)</code> finds a path.</li>
+<li><code>takeDamage(amount)</code> takes health away and fires <code>damaged</code>. It does nothing while the body has a
+  <code>ForceField</code> inside it. Writing <code>health</code> yourself ignores the force field.</li>
+<li><code>changeState(state)</code> does what the state means: <code>dead</code> sets health to 0, <code>jumping</code> jumps, <code>seated</code>
+  sets <code>sit</code>, <code>platformStanding</code> sets <code>platformStand</code>. Any other state only applies to a body
+  without a player, and only until its next tick. A state that is turned off is ignored.</li>
+<li><code>setStateEnabled(state, enabled)</code> turns a state off or back on. <code>getStateEnabled(state)</code> reads it.</li>
+</ul>
+<p>Turning a state off takes the thing it stands for away from the body:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>State</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>jumping</code></td>
+<td>the body cannot jump; a player loses the jump control</td>
+</tr>
+<tr>
+<td><code>running</code></td>
+<td>the body cannot walk or move; a player loses the move control</td>
+</tr>
+<tr>
+<td><code>seated</code></td>
+<td>the body cannot sit, and a sitting body stands up</td>
+</tr>
+<tr>
+<td><code>dead</code></td>
+<td>health stays above 0, so the body cannot die</td>
+</tr>
+</tbody>
+</table></div>
+<p>Turning off any other state is kept but changes nothing about how the body moves yet. The one thing
+it does is on a player's body: where the player would be in a state that is off, other than
+<code>running</code> or <code>jumping</code>, <code>state</code> reads <code>standing</code> instead. The switches live on the server, so
+<code>getStateEnabled</code> on a client always says true.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">-- server: a lobby where nobody can die or jump</span>
+game.players.spawned:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-keyword">local</span> h = (player.character :: Character).humanoid
+    h:<span class="syn-func">setStateEnabled</span>(<span class="syn-string">&quot;dead&quot;</span>, <span class="syn-const">false</span>)
+    h:<span class="syn-func">setStateEnabled</span>(<span class="syn-string">&quot;jumping&quot;</span>, <span class="syn-const">false</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>game.players.spawned</code> fires each time a player gets a body, so the two switches are set again after
+every respawn. <code>(player.character :: Character)</code> tells the type checker what the body is, which is
+what lets the editor autocomplete <code>humanoid</code>.</p>
+<h3 id="force-fields">Force fields<a class="anchor" href="#force-fields" title="Permanent link">#</a></h3>
+<p>A <code>ForceField</code> is an instance you put inside a body, and while it is there <code>takeDamage</code> does
+nothing to that body.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code><span class="syn-comment">-- server: three seconds of spawn protection</span>
+game.players.spawned:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(player)
+    <span class="syn-keyword">local</span> shield = (player.character :: Character):<span class="syn-func">add</span>(<span class="syn-string">&quot;ForceField&quot;</span>)
+    task.<span class="syn-func">delay</span>(<span class="syn-num">3</span>, <span class="syn-keyword">function</span>() shield:<span class="syn-func">destroy</span>() <span class="syn-keyword">end</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p>Destroying the force field ends the protection, so <code>task.delay</code> above hands the body back to damage
+three seconds after it spawned. <code>visible</code> is kept on the class, but nothing draws a force field yet.</p>
+<div class="alert alert-note"><i class="alert-icon ph-fill ph-info"></i><div class="alert-body"><p>A force field only stops <code>takeDamage</code>. A script that writes <code>health</code> directly still kills the body
+it is protecting.</p></div></div>
+<div class="demo" data-demo="movement-states"></div>
+<h3 id="walking">Walking<a class="anchor" href="#walking" title="Permanent link">#</a></h3>
+<p>For bodies a place owns: <code>walkTo</code> and <code>walking</code> walk in a straight line; <code>jump = true</code> hops once.
+For walking around obstacles use <code>body:walkTo(point)</code> and <code>body:follow(target)</code>, see
+<a href="players.html">Players and bodies</a>.</p>
+<h2 id="pushing-a-body">Pushing a body<a class="anchor" href="#pushing-a-body" title="Permanent link">#</a></h2>
+<p><code>body:applyImpulse(change)</code> adds to a body's velocity, in metres per second. <code>body:setVelocity(velocity)</code>
+replaces it. Bodies have no mass, so the same push moves every body the same way.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code>body:<span class="syn-func">applyImpulse</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">30</span>, <span class="syn-num">0</span>))                          <span class="syn-comment">-- launch up about 9 m</span>
+body:<span class="syn-func">applyImpulse</span>(body.worldCframe.lookVector * <span class="syn-num">20</span>)        <span class="syn-comment">-- dash forward</span>
+body:<span class="syn-func">setVelocity</span>(<span class="syn-func">vec3</span>(<span class="syn-num">0</span>, <span class="syn-num">0</span>, <span class="syn-num">0</span>))                            <span class="syn-comment">-- stop dead</span></code></pre></div></div>
+<ul>
+<li><code>body.worldCframe.lookVector</code> is the direction the body faces in the world, so multiplying it by a
+  speed pushes the body the way it is looking.</li>
+<li>A server <code>Script</code> can push any player's body. A <code>LocalScript</code> can only push its own, which feels
+  instant because nothing waits for the network.</li>
+<li>Only player bodies can be pushed for now; a body without a player raises an error.</li>
+<li>On the ground, walking friction eats a sideways push within a few ticks. Push up a little as well
+  to carry it through the air.</li>
+</ul>
+<h2 id="seats">Seats<a class="anchor" href="#seats" title="Permanent link">#</a></h2>
+<p>A <code>Seat</code> is a part a body sits on. Walk a player's body into a free one and it sits down: the body is
+held on the seat's top face, turned the way the seat faces, and it keeps its place while the seat
+moves. Jumping stands it up, and so does <code>humanoid.sit = false</code>. A body that just stood up waits one
+second before it can sit again, so it does not drop straight back into the seat it left.</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12</pre><pre><code><span class="syn-comment">-- server</span>
+<span class="syn-keyword">local</span> bench = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Seat&quot;</span>, {
+    name = <span class="syn-string">&quot;bench&quot;</span>,
+    size = <span class="syn-func">vec3</span>(<span class="syn-num">2</span>, <span class="syn-num">0.4</span>, <span class="syn-num">1</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">4</span>, <span class="syn-num">65.2</span>, <span class="syn-num">0</span>),
+    anchored = <span class="syn-const">true</span>,
+})
+
+bench.changed:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>(property)
+    <span class="syn-keyword">if</span> property ~= <span class="syn-string">&quot;occupant&quot;</span> <span class="syn-keyword">then</span> <span class="syn-keyword">return</span> <span class="syn-keyword">end</span>
+    <span class="syn-func">print</span>(bench.occupant <span class="syn-keyword">and</span> <span class="syn-string">&quot;someone sat down&quot;</span> <span class="syn-keyword">or</span> <span class="syn-string">&quot;the bench is free&quot;</span>)
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<p><code>changed</code> fires with the name of whatever property changed, so the guard clause at the top is what
+makes this a seat handler rather than a handler for every property the bench has.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>disabled</code></td>
+<td>nobody sits down on it, and whoever is on it stands up</td>
+</tr>
+<tr>
+<td><code>occupant</code></td>
+<td>read only: the <code>Humanoid</code> sitting on it, or nothing</td>
+</tr>
+<tr>
+<td><code>seat:sit(humanoid)</code></td>
+<td>sits that body on it and says whether it took</td>
+</tr>
+</tbody>
+</table></div>
+<p>A new <code>Seat</code> is two metres square, 0.4 high and blue, so one you drop in the editor already looks
+like something to sit on.</p>
+<p>Only a player's body sits down by walking in, and only a player's body is held on the seat.
+<code>seat:sit(humanoid)</code> takes any body: it fills <code>occupant</code> and sets <code>sit</code>, but a body without a player
+stays where it is, so put it on the seat yourself.</p>
+<p><code>sit</code> runs in a server <code>Script</code>. It refuses a disabled seat, a seat someone else is on, a dead body,
+and a body with the <code>seated</code> state turned off. Sitting a body that is already on another seat takes
+it off that one first.</p>
+<p><code>occupant</code> is filled in by the engine and stays on the server, so a <code>LocalScript</code> always reads
+nothing.</p>
+<h3 id="driving">Driving<a class="anchor" href="#driving" title="Permanent link">#</a></h3>
+<p>A <code>VehicleSeat</code> is a seat that reads the keys of whoever sits on it.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>maxSpeed</code></td>
+<td>25</td>
+<td>how fast the thing it drives should go</td>
+</tr>
+<tr>
+<td><code>torque</code></td>
+<td>10</td>
+<td>how hard its motors should push</td>
+</tr>
+<tr>
+<td><code>turnSpeed</code></td>
+<td>1</td>
+<td>how fast it should turn</td>
+</tr>
+<tr>
+<td><code>throttle</code></td>
+<td></td>
+<td>read only: -1 back, 0 still, 1 forward</td>
+</tr>
+<tr>
+<td><code>steer</code></td>
+<td></td>
+<td>read only: -1 left, 0 straight, 1 right</td>
+</tr>
+</tbody>
+</table></div>
+<p>The engine drives nothing with <code>maxSpeed</code>, <code>torque</code> and <code>turnSpeed</code>. They are numbers kept with the
+seat so the thing you build around it can read them. <code>throttle</code> and <code>steer</code> come off the sitting
+player's own movement keys, and like <code>occupant</code> they are only on the server.</p>
+<p>A seat welded or jointed to other parts is part of their assembly, and the player sitting in it owns
+the whole assembly. Their client simulates the car, wheels and hinges included, so it answers them
+at once on their own screen, and everyone else sees it move through their reports. The driver's
+client also holds the driver on the seat; the server stops doing it while that client simulates the
+seat. When they stand up, the automatic rule picks the owner again. See
+<a href="physics.html#assemblies-and-vehicles">Assemblies and vehicles</a>.</p>
+<h4 id="a-car">A car<a class="anchor" href="#a-car" title="Permanent link">#</a></h4>
+<p>A chassis, a seat and four wheels on hinge motors, all in one server script:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44</pre><pre><code><span class="syn-comment">-- server/main.luau</span>
+<span class="syn-keyword">local</span> world = game.world
+
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;SpawnLocation&quot;</span>, { name = <span class="syn-string">&quot;Start&quot;</span>, cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">64</span>, <span class="syn-num">10</span>) })
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, { name = <span class="syn-string">&quot;Floor&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">120</span>, <span class="syn-num">1</span>, <span class="syn-num">120</span>), cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">63.5</span>, <span class="syn-num">0</span>) })
+
+<span class="syn-keyword">local</span> car = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;Model&quot;</span>, { name = <span class="syn-string">&quot;Car&quot;</span> }) :: Model
+<span class="syn-keyword">local</span> chassis = car:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+    name = <span class="syn-string">&quot;Chassis&quot;</span>, anchored = <span class="syn-const">false</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">3.6</span>, <span class="syn-num">0.6</span>, <span class="syn-num">5.6</span>), color = <span class="syn-func">color</span>(<span class="syn-num">0.85</span>, <span class="syn-num">0.2</span>, <span class="syn-num">0.2</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65.3</span>, <span class="syn-num">0</span>),
+}) :: Part
+car.primaryPart = chassis
+
+<span class="syn-keyword">local</span> seat = car:<span class="syn-func">add</span>(<span class="syn-string">&quot;VehicleSeat&quot;</span>, {
+    name = <span class="syn-string">&quot;Seat&quot;</span>, anchored = <span class="syn-const">false</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">1.4</span>, <span class="syn-num">0.4</span>, <span class="syn-num">1.4</span>),
+    cframe = <span class="syn-func">cframe</span>(<span class="syn-num">0</span>, <span class="syn-num">65.8</span>, <span class="syn-num">0.8</span>),
+}) :: VehicleSeat
+car:<span class="syn-func">add</span>(<span class="syn-string">&quot;WeldConstraint&quot;</span>, { part0 = chassis, part1 = seat })
+
+<span class="syn-keyword">type</span> Wheel = { hinge: HingeConstraint, left: boolean }
+<span class="syn-keyword">local</span> wheels: { Wheel } = {}
+<span class="syn-keyword">for</span> _, spot <span class="syn-keyword">in</span> { <span class="syn-func">vec3</span>(-<span class="syn-num">2.2</span>, <span class="syn-num">0</span>, -<span class="syn-num">1.9</span>), <span class="syn-func">vec3</span>(<span class="syn-num">2.2</span>, <span class="syn-num">0</span>, -<span class="syn-num">1.9</span>), <span class="syn-func">vec3</span>(-<span class="syn-num">2.2</span>, <span class="syn-num">0</span>, <span class="syn-num">1.9</span>), <span class="syn-func">vec3</span>(<span class="syn-num">2.2</span>, <span class="syn-num">0</span>, <span class="syn-num">1.9</span>) } <span class="syn-keyword">do</span>
+    <span class="syn-keyword">local</span> wheel = car:<span class="syn-func">add</span>(<span class="syn-string">&quot;Part&quot;</span>, {
+        name = <span class="syn-string">&quot;Wheel&quot;</span>, anchored = <span class="syn-const">false</span>, shape = <span class="syn-string">&quot;cylinder&quot;</span>, size = <span class="syn-func">vec3</span>(<span class="syn-num">0.6</span>, <span class="syn-num">1.6</span>, <span class="syn-num">1.6</span>),
+        color = <span class="syn-func">color</span>(<span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>, <span class="syn-num">0.1</span>), cframe = <span class="syn-func">cframe</span>(spot.x, <span class="syn-num">64.8</span>, spot.z), friction = <span class="syn-num">1.2</span>,
+    }) :: Part
+    <span class="syn-keyword">local</span> hinge = car:<span class="syn-func">add</span>(<span class="syn-string">&quot;HingeConstraint&quot;</span>, {
+        attachment0 = chassis:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, { cframe = <span class="syn-func">cframe</span>(spot.x, -<span class="syn-num">0.5</span>, spot.z) }),
+        attachment1 = wheel:<span class="syn-func">add</span>(<span class="syn-string">&quot;Attachment&quot;</span>, {}),
+        actuatorType = <span class="syn-string">&quot;motor&quot;</span>, motorMaxTorque = <span class="syn-num">400</span>,
+    }) :: HingeConstraint
+    table.<span class="syn-func">insert</span>(wheels, { hinge = hinge, left = spot.x &lt; <span class="syn-num">0</span> })
+<span class="syn-keyword">end</span>
+
+<span class="syn-keyword">local</span> SPEED = <span class="syn-num">14</span>
+<span class="syn-keyword">local</span> TURN = <span class="syn-num">7</span>
+game.stepped:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>()
+    <span class="syn-keyword">local</span> forward = seat.throttle * SPEED
+    <span class="syn-keyword">local</span> turn = seat.steer * TURN
+    <span class="syn-keyword">for</span> _, wheel <span class="syn-keyword">in</span> wheels <span class="syn-keyword">do</span>
+        <span class="syn-keyword">local</span> spin = <span class="syn-keyword">if</span> wheel.left <span class="syn-keyword">then</span> forward + turn <span class="syn-keyword">else</span> forward - turn
+        wheel.hinge.angularVelocity = -spin
+    <span class="syn-keyword">end</span>
+<span class="syn-keyword">end</span>)</code></pre></div></div>
+<ul>
+<li>The floor is anchored and everything in the car is loose. Nothing in the car is anchored, or the
+  whole car would stay with the server.</li>
+<li>The weld joins the seat to the chassis, and the hinges join the wheels. That makes the chassis, the
+  seat and the four wheels one assembly, so the player who sits down owns all six parts.</li>
+<li>A cylinder lies along its X axis, and a hinge turns about attachment0's X axis. The wheels are
+  0.6 wide along X and 1.6 round, so they roll the way the car points.</li>
+<li>The chassis's attachment for each wheel sits at the wheel's centre, 0.5 below the chassis's
+  centre. The wheel's own attachment is at its centre, so the wheel turns about its axle.</li>
+<li>The front of a part is -Z. A wheel turning a positive angle about +X rolls towards +Z, so the
+  speed is negated to drive forwards.</li>
+<li><code>game.stepped</code> runs every tick on the server. It reads <code>throttle</code> and <code>steer</code> and writes each
+  hinge's <code>angularVelocity</code>. The left wheels turn faster when you steer right, and slower when you
+  steer left, so the car turns without steering wheels.</li>
+<li><code>angularVelocity</code> is written on the server and reaches the driver's client by replication, which
+  runs the motors. The car answers the keys one round trip after they are pressed.</li>
+<li><code>friction = 1.2</code> on the wheels gives them more grip than the default of 0.5.</li>
+</ul>
+<div class="demo" data-demo="movement-drive"></div>
+<p>Walk into the seat and drive with the movement keys. Jump to get out.</p>
+<p>The hinges are in <a href="physics.html#hinges">Physics</a>.</p>
+<h2 id="collision-groups">Collision groups<a class="anchor" href="#collision-groups" title="Permanent link">#</a></h2>
+<p>A <code>CollisionGroup</code> is a named set of things that pass through each other. You create the group, then
+put parts and bodies in it by name:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5</pre><pre><code>world:<span class="syn-func">add</span>(<span class="syn-string">&quot;CollisionGroup&quot;</span>, { name = <span class="syn-string">&quot;players&quot;</span>, ignores = <span class="syn-string">&quot;players&quot;</span> })
+world:<span class="syn-func">add</span>(<span class="syn-string">&quot;CollisionGroup&quot;</span>, { name = <span class="syn-string">&quot;ghosts&quot;</span>, ignores = <span class="syn-string">&quot;walls, players&quot;</span> })
+
+wall.collisionGroup = <span class="syn-string">&quot;walls&quot;</span>
+body.collisionGroup = <span class="syn-string">&quot;ghosts&quot;</span></code></pre></div></div>
+<ul>
+<li>Every part and body starts in <code>default</code>. An unknown name counts as <code>default</code>.</li>
+<li><code>ignores</code> works both ways: if either group ignores the other, they pass through each other.</li>
+<li>A limb collides as the body it is on unless it names a group of its own.</li>
+<li>The level's blocks are solid to every group.</li>
+<li>Queries can ask as a group: <code>{ collisionGroup = "ghosts" }</code>.</li>
+</ul>
+<div class="demo" data-demo="collision"></div>
+<p>The first line above is the usual one: a group that ignores itself, so players walk through each
+other instead of shoving each other off a ledge.</p>
+<h2 id="input-actions">Input actions<a class="anchor" href="#input-actions" title="Permanent link">#</a></h2>
+<p>An <code>InputAction</code> is a named action bound to one or more keys. You create it on the client, connect
+to <code>began</code> and <code>ended</code>, and ask <code>input:down</code> whether it is held right now:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3
+4
+5
+6</pre><pre><code><span class="syn-comment">-- client</span>
+<span class="syn-keyword">local</span> interact = world:<span class="syn-func">add</span>(<span class="syn-string">&quot;InputAction&quot;</span>, { name = <span class="syn-string">&quot;interact&quot;</span>, keys = <span class="syn-string">&quot;e, mousebutton2&quot;</span> })
+interact.began:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)
+interact.ended:<span class="syn-func">connect</span>(<span class="syn-keyword">function</span>() <span class="syn-keyword">end</span>)
+
+<span class="syn-keyword">if</span> input:<span class="syn-func">down</span>(<span class="syn-string">&quot;interact&quot;</span>) <span class="syn-keyword">then</span> <span class="syn-keyword">end</span></code></pre></div></div>
+<ul>
+<li><code>keys</code> is a list of key names separated by commas. Any one of them fires the action.</li>
+<li><code>began</code> runs on the frame the key goes down, <code>ended</code> on the frame it comes back up. Use those for
+  things that happen once, such as opening a door.</li>
+<li><code>input:down(name)</code> is true for as long as the key is held. Use that inside <code>renderStepped</code> for
+  things that happen continuously, such as leaning a camera.</li>
+</ul>
+<p>A letter, digit or symbol names what the key <strong>types on the player's own keyboard</strong>, whatever its
+layout: <code>"m"</code> is the key marked M on a qwerty, azerty, qwertz or dvorak board alike, and <code>"é"</code> or <code>"&lt;"</code>
+work where the layout has them. Switching layouts while playing is picked up within a couple of seconds.</p>
+<p>Key names: <code>a</code>–<code>z</code>, <code>0</code>–<code>9</code>, <code>f1</code>–<code>f12</code>, <code>keypad0</code>–<code>keypad9</code>, <code>keypadenter</code>, <code>space</code>, <code>enter</code>,
+<code>tab</code>, <code>escape</code>, <code>backspace</code>, <code>delete</code>, <code>insert</code>, <code>home</code>, <code>end</code>, <code>pageup</code>, <code>pagedown</code>, <code>capslock</code>,
+<code>leftshift</code>, <code>rightshift</code>, <code>leftcontrol</code>, <code>rightcontrol</code>, <code>leftalt</code>, <code>rightalt</code>, <code>leftsuper</code>,
+<code>rightsuper</code>, <code>up</code>, <code>down</code>, <code>left</code>, <code>right</code>, <code>mousebutton1</code>, <code>mousebutton2</code>, <code>mousebutton3</code>, and the
+gamepad names in <a href="camera-and-input.html#gamepads">Camera and input</a>.</p>
+<p>The built-in actions follow the player's own key bindings: <code>forward</code>, <code>back</code>, <code>left</code>, <code>right</code>,
+<code>jump</code>, <code>sneak</code>, <code>sprint</code>, <code>attack</code>, <code>use</code>, <code>pointer</code>. A screen that is open (like the chat)
+owns the keyboard, so actions do not fire while typing.</p>
+<h2 id="who-may-write-what">Who may write what<a class="anchor" href="#who-may-write-what" title="Permanent link">#</a></h2>
+<p>The server writes the tree. A client writing a replicated property is a Luau error, except:</p>
+<ul>
+<li>instances the client made itself,</li>
+<li>properties a class keeps to each client (like how a body is drawn),</li>
+<li>instances its player owns.</li>
+</ul>
+<p>The server hands ownership of an instance to a player with <code>setOwner</code>. It takes a body or <code>nil</code>:</p>
+<div class="doc-code"><span class="code-lang">luau</span><div class="code-body"><pre class="gutter" aria-hidden="true">1
+2
+3</pre><pre><code><span class="syn-comment">-- server: let that player&#x27;s LocalScripts write the sign&#x27;s properties</span>
+sign:<span class="syn-func">setOwner</span>(body)
+sign:<span class="syn-func">setOwner</span>(<span class="syn-const">nil</span>)      <span class="syn-comment">-- back to the server</span></code></pre></div></div>
+<p>What the owner's client writes stays on its own copy. Nothing goes up to the server or out to the
+other players, and the next change the server sends for that property overwrites it. Use a
+<a href="talking.html">remote</a> to tell the server about a change.</p>
+<p><code>setOwner</code> does not change who simulates a part, so it does not make pushing a crate feel instant.
+That is network ownership: a loose part near a player is already simulated by that player's client,
+and <code>part:setNetworkOwner(player)</code> hands one over on purpose. See
+<a href="physics.html#who-simulates-a-part">Who simulates a part</a>.</p>
+<p>Ownership carries down a branch: owning a cart means owning what stands on it.</p>
+    </article>
+    <div class="doc-pager"><a class="prev" href="tools.html"><span>Previous</span>Tools</a><a class="next" href="editor.html"><span>Next</span>Building in the editor</a></div>
+    <footer class="doc-footer">
+      <span>&copy; 2026 EPI Studios</span>
+      <a href="https://github.com/EPI-Studios/Moud/tree/main/docs">Edit this page on GitHub</a>
+    </footer>
+  </main>
+
+  <aside class="doc-toc"><div class="doc-toc-title">On this page</div><ul><li><a href="#humanoid">Humanoid</a></li><li><a href="#pushing-a-body">Pushing a body</a></li><li><a href="#seats">Seats</a></li><li><a href="#collision-groups">Collision groups</a></li><li><a href="#input-actions">Input actions</a></li><li><a href="#who-may-write-what">Who may write what</a></li></ul></aside>
+</div>
+
+<script src="search.js"></script>
+<script src="demos.js?v=41600f3f"></script>
+<script src="../docs.js?v=d6406e02"></script>
+</body>
+</html>
