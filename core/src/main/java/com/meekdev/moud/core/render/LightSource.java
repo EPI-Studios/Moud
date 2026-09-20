@@ -16,7 +16,7 @@ public class LightSource extends Spatial {
 
     @Prop(min = 0) public double range = 12.0;
 
-    public LightFalloff falloff = LightFalloff.SMOOTH;
+    public LightFalloff falloff = LightFalloff.INVERSE_SQUARE;
 
     @Prop(min = 0) public double falloffExponent = 2.0;
 
