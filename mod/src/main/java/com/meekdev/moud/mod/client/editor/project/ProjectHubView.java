@@ -84,6 +84,7 @@ public final class ProjectHubView {
     private final Consumer<Project> onOpened;
     private final FileBrowser browser;
     private final NewProjectDialog newProject;
+    private final AccountDialog account;
     private final ProjectIcons projectIcons = new ProjectIcons();
     private final ImString search = new ImString("", SEARCH_CAPACITY);
     private List<Entry> entries = List.of();
@@ -99,6 +100,7 @@ public final class ProjectHubView {
         this.onOpened = onOpened;
         this.browser = new FileBrowser(icons);
         this.newProject = new NewProjectDialog(store, notifier, icons, onOpened);
+        this.account = new AccountDialog(icons);
         reload();
     }
 
@@ -132,6 +134,7 @@ public final class ProjectHubView {
             ImGui.popStyleVar();
         }
         newProject.render();
+        account.render();
         HubStyle.asEditor(browser::render);
         ImGui.end();
     }
@@ -171,8 +174,8 @@ public final class ProjectHubView {
         float logoWidth = size * 234.0f / 238.0f;
         draw.addImage(icons.logoTextureId(), x + (size - logoWidth) * 0.5f, y, x + (size + logoWidth) * 0.5f, y + size);
         float textX = x + size + EditorScale.of(12.0f);
-        paint(draw, HubStyle.BRAND, true, textX, y - EditorScale.of(1.0f), HubStyle.TEXT_BRIGHT, "Moud");
-        paint(draw, HubStyle.SMALL, false, textX, y + EditorScale.of(HubStyle.BRAND), HubStyle.TEXT_MUTED, "Studio");
+        HubStyle.paint(draw, HubStyle.BRAND, true, textX, y - EditorScale.of(1.0f), HubStyle.TEXT_BRIGHT, "Moud");
+        HubStyle.paint(draw, HubStyle.SMALL, false, textX, y + EditorScale.of(HubStyle.BRAND), HubStyle.TEXT_MUTED, "Studio");
         ImGui.dummy(size, size);
     }
 
@@ -192,21 +195,49 @@ public final class ProjectHubView {
         float glyphX = x + EditorScale.of(12.0f);
         int ink = active ? HubStyle.TEXT_BRIGHT : EditorMotion.blend(HubStyle.TEXT_MUTED, HubStyle.TEXT_MAIN, emphasis);
         icon(draw, mark, glyphX, y + (height - glyph) * 0.5f, glyph, ink);
-        paint(draw, HubStyle.ITEM, active, glyphX + glyph + EditorScale.of(10.0f), middle(y, height, HubStyle.ITEM), ink, label);
+        HubStyle.paint(draw, HubStyle.ITEM, active, glyphX + glyph + EditorScale.of(10.0f), HubStyle.middle(y, height, HubStyle.ITEM), ink, label);
         String tally = Integer.toString(count);
-        paint(draw, HubStyle.SMALL, false, x + width - EditorScale.of(12.0f) - widthOf(HubStyle.SMALL, false, tally),
-                middle(y, height, HubStyle.SMALL), HubStyle.TEXT_LIGHT, tally);
+        HubStyle.paint(draw, HubStyle.SMALL, false, x + width - EditorScale.of(12.0f) - HubStyle.widthOf(HubStyle.SMALL, false, tally),
+                HubStyle.middle(y, height, HubStyle.SMALL), HubStyle.TEXT_LIGHT, tally);
         if (ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
     }
 
     private void renderSidebarFooter(float width) {
-        float footer = EditorScale.of(HubStyle.CAPTION + HubStyle.SMALL + 28.0f);
+        float footer = EditorScale.of(HubStyle.CAPTION * 2.0f + HubStyle.SMALL + NAV_ROW_HEIGHT + 38.0f);
         float remaining = ImGui.getContentRegionAvailY() - footer;
         if (remaining > 0.0f) ImGui.dummy(0.0f, remaining);
+        caption("ACCOUNT");
+        renderAccountRow(width);
+        ImGui.dummy(0.0f, EditorScale.of(18.0f));
         caption("PROJECTS FOLDER");
         String folder = ProjectStore.defaultProjectsFolder().toString();
-        write(HubStyle.SMALL, false, HubStyle.TEXT_LIGHT, ellipsize(folder, width));
+        HubStyle.write(HubStyle.SMALL, false, HubStyle.TEXT_LIGHT, ellipsize(folder, width));
         if (ImGui.isItemHovered()) ImGui.setTooltip(folder);
+    }
+
+    private void renderAccountRow(float width) {
+        float height = EditorScale.of(NAV_ROW_HEIGHT);
+        float x = ImGui.getCursorScreenPosX();
+        float y = ImGui.getCursorScreenPosY();
+        if (ImGui.invisibleButton("##hub-account", width, height)) account.open();
+        float emphasis = EditorMotion.towards("hub-account", ImGui.isItemHovered());
+        ImDrawList draw = ImGui.getWindowDrawList();
+        if (emphasis > 0.0f) draw.addRectFilled(x, y, x + width, y + height,
+                EditorStyle.withAlpha(HubStyle.SURFACE, emphasis), EditorScale.of(CORNER));
+        float glyph = EditorScale.of(HubStyle.ITEM);
+        float glyphX = x + EditorScale.of(12.0f);
+        int ink = EditorMotion.blend(HubStyle.TEXT_MUTED, HubStyle.TEXT_MAIN, emphasis);
+        icon(draw, HubIcon.USER_CIRCLE, glyphX, y + (height - glyph) * 0.5f, glyph, ink);
+        String hint = "Link";
+        float hintWidth = HubStyle.widthOf(HubStyle.SMALL, false, hint);
+        float nameX = glyphX + glyph + EditorScale.of(10.0f);
+        float nameRight = x + width - EditorScale.of(12.0f) - hintWidth - EditorScale.of(8.0f);
+        draw.pushClipRect(nameX, y, nameRight, y + height, true);
+        HubStyle.paint(draw, HubStyle.ITEM, false, nameX, HubStyle.middle(y, height, HubStyle.ITEM), ink, account.playing());
+        draw.popClipRect();
+        HubStyle.paint(draw, HubStyle.SMALL, false, x + width - EditorScale.of(12.0f) - hintWidth,
+                HubStyle.middle(y, height, HubStyle.SMALL), HubStyle.TEXT_LIGHT, hint);
+        if (ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
     }
 
     private void renderMain() {
@@ -223,7 +254,7 @@ public final class ProjectHubView {
         if (entries.isEmpty()) {
             renderWelcome(width);
         } else if (visible.isEmpty()) {
-            write(HubStyle.BODY, false, HubStyle.TEXT_MUTED, nav == NAV_PINNED && search.get().isBlank()
+            HubStyle.write(HubStyle.BODY, false, HubStyle.TEXT_MUTED, nav == NAV_PINNED && search.get().isBlank()
                     ? "Nothing pinned yet. Right click a project to pin it."
                     : "No project matches \"" + search.get().trim() + "\".");
         } else if (nav == NAV_ALL && sort == SORT_RECENT && search.get().isBlank()) {
@@ -250,10 +281,10 @@ public final class ProjectHubView {
         float y = ImGui.getCursorScreenPosY();
         ImDrawList draw = ImGui.getWindowDrawList();
         String title = nav == NAV_PINNED ? "Pinned" : "Projects";
-        paint(draw, TITLE_SIZE, true, x, y + (height - EditorScale.of(TITLE_SIZE)) * 0.5f, HubStyle.TEXT_BRIGHT, title);
+        HubStyle.paint(draw, TITLE_SIZE, true, x, y + (height - EditorScale.of(TITLE_SIZE)) * 0.5f, HubStyle.TEXT_BRIGHT, title);
         String tally = count + (count == 1 ? " project" : " projects");
-        paint(draw, HubStyle.BODY, false, x + widthOf(TITLE_SIZE, true, title) + EditorScale.of(12.0f),
-                middle(y, height, HubStyle.BODY), HubStyle.TEXT_LIGHT, tally);
+        HubStyle.paint(draw, HubStyle.BODY, false, x + HubStyle.widthOf(TITLE_SIZE, true, title) + EditorScale.of(12.0f),
+                HubStyle.middle(y, height, HubStyle.BODY), HubStyle.TEXT_LIGHT, tally);
         float sortWidth = sortsWidth();
         float fieldWidth = Math.min(EditorScale.of(FIELD_WIDTH), width * 0.34f);
         renderSorts(x + width - sortWidth, y + (height - EditorScale.of(SORT_HEIGHT)) * 0.5f);
@@ -294,7 +325,7 @@ public final class ProjectHubView {
     }
 
     private float sortsWidth() {
-        return widthOf(HubStyle.ITEM, true, "Recent") + widthOf(HubStyle.ITEM, true, "Name") + EditorScale.of(48.0f);
+        return HubStyle.widthOf(HubStyle.ITEM, true, "Recent") + HubStyle.widthOf(HubStyle.ITEM, true, "Name") + EditorScale.of(48.0f);
     }
 
     private void renderSorts(float x, float y) {
@@ -304,7 +335,7 @@ public final class ProjectHubView {
 
     private float renderSort(float x, float y, String label, int value) {
         float height = EditorScale.of(SORT_HEIGHT);
-        float width = widthOf(HubStyle.ITEM, true, label) + EditorScale.of(22.0f);
+        float width = HubStyle.widthOf(HubStyle.ITEM, true, label) + EditorScale.of(22.0f);
         ImGui.setCursorScreenPos(x, y);
         if (ImGui.invisibleButton("##hub-sort-" + value, width, height)) sort = value;
         boolean active = sort == value;
@@ -313,7 +344,7 @@ public final class ProjectHubView {
         float rounding = EditorScale.of(CORNER);
         if (active) draw.addRectFilled(x, y, x + width, y + height, HubStyle.SURFACE_HOVER, rounding);
         else if (emphasis > 0.0f) draw.addRectFilled(x, y, x + width, y + height, EditorStyle.withAlpha(HubStyle.SURFACE_HOVER, emphasis), rounding);
-        paint(draw, HubStyle.ITEM, active, x + EditorScale.of(11.0f), middle(y, height, HubStyle.ITEM),
+        HubStyle.paint(draw, HubStyle.ITEM, active, x + EditorScale.of(11.0f), HubStyle.middle(y, height, HubStyle.ITEM),
                 active ? HubStyle.TEXT_MAIN : EditorMotion.blend(HubStyle.TEXT_MUTED, HubStyle.TEXT_MAIN, emphasis), label);
         if (ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
         return x + width + EditorScale.of(4.0f);
@@ -331,13 +362,13 @@ public final class ProjectHubView {
         float artWidth = Math.min(EditorScale.of(HERO_ART_WIDTH), width * 0.38f);
         renderArt(draw, entry, x, y, artWidth, height, emphasis);
         float textX = x + artWidth + EditorScale.of(26.0f);
-        paint(draw, HERO_TITLE_SIZE, true, textX, y + EditorScale.of(4.0f), HubStyle.TEXT_BRIGHT, entry.project().name());
+        HubStyle.paint(draw, HERO_TITLE_SIZE, true, textX, y + EditorScale.of(4.0f), HubStyle.TEXT_BRIGHT, entry.project().name());
         draw.pushClipRect(textX, y, x + width, y + height, true);
-        paint(draw, HubStyle.SMALL, false, textX, y + EditorScale.of(4.0f + HERO_TITLE_SIZE + 10.0f), HubStyle.TEXT_MUTED,
+        HubStyle.paint(draw, HubStyle.SMALL, false, textX, y + EditorScale.of(4.0f + HERO_TITLE_SIZE + 10.0f), HubStyle.TEXT_MUTED,
                 relativeDate(entry.project().lastOpenedMillis()) + "   ·   " + entry.path());
         draw.popClipRect();
         String action = "Open in editor";
-        float actionWidth = widthOf(HubStyle.ITEM, true, action) + EditorScale.of(32.0f);
+        float actionWidth = HubStyle.widthOf(HubStyle.ITEM, true, action) + EditorScale.of(32.0f);
         float actionHeight = EditorScale.of(BUTTON_HEIGHT);
         float actionY = y + height - actionHeight;
         float rounding = EditorScale.of(CORNER);
@@ -345,7 +376,7 @@ public final class ProjectHubView {
         draw.addRectFilled(textX, actionY, textX + actionWidth, actionY + actionHeight, fill, rounding);
         if (emphasis < 1.0f) draw.addRect(textX, actionY, textX + actionWidth, actionY + actionHeight,
                 EditorStyle.withAlpha(HubStyle.LINE_STRONG, 1.0f - emphasis), rounding, 0, HubStyle.hairline());
-        paint(draw, HubStyle.ITEM, true, textX + EditorScale.of(16.0f), middle(actionY, actionHeight, HubStyle.ITEM),
+        HubStyle.paint(draw, HubStyle.ITEM, true, textX + EditorScale.of(16.0f), HubStyle.middle(actionY, actionHeight, HubStyle.ITEM),
                 EditorMotion.blend(HubStyle.TEXT_MAIN, HubStyle.TOP_BAR, emphasis), action);
         if (hovered) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
         if (clicked) open(entry.project());
@@ -388,8 +419,8 @@ public final class ProjectHubView {
             icon(draw, HubIcon.PUSH_PIN, x, textY + EditorScale.of(2.0f), glyph, HubStyle.TEXT_MUTED);
             titleX += glyph + EditorScale.of(6.0f);
         }
-        paint(draw, HubStyle.TILE_TITLE, true, titleX, textY, HubStyle.TEXT_BRIGHT, entry.project().name());
-        paint(draw, HubStyle.SMALL, false, x, textY + EditorScale.of(HubStyle.TILE_TITLE + 7.0f), HubStyle.TEXT_MUTED,
+        HubStyle.paint(draw, HubStyle.TILE_TITLE, true, titleX, textY, HubStyle.TEXT_BRIGHT, entry.project().name());
+        HubStyle.paint(draw, HubStyle.SMALL, false, x, textY + EditorScale.of(HubStyle.TILE_TITLE + 7.0f), HubStyle.TEXT_MUTED,
                 relativeDate(entry.project().lastOpenedMillis()));
         draw.popClipRect();
         if (hovered) {
@@ -445,10 +476,10 @@ public final class ProjectHubView {
         draw.addImage(icons.logoTextureId(), x + (width - mark) * 0.5f, y + EditorScale.of(54.0f),
                 x + (width + mark) * 0.5f, y + EditorScale.of(54.0f) + mark);
         String heading = "Build your first place";
-        paint(draw, HERO_TITLE_SIZE, true, x + (width - widthOf(HERO_TITLE_SIZE, true, heading)) * 0.5f,
+        HubStyle.paint(draw, HERO_TITLE_SIZE, true, x + (width - HubStyle.widthOf(HERO_TITLE_SIZE, true, heading)) * 0.5f,
                 y + EditorScale.of(130.0f), HubStyle.TEXT_BRIGHT, heading);
         String line = "A project is a folder with a place.toml, its scripts and its scenes. Start from a baseplate or an empty world.";
-        paint(draw, HubStyle.BODY, false, x + (width - widthOf(HubStyle.BODY, false, line)) * 0.5f,
+        HubStyle.paint(draw, HubStyle.BODY, false, x + (width - HubStyle.widthOf(HubStyle.BODY, false, line)) * 0.5f,
                 y + EditorScale.of(168.0f), HubStyle.TEXT_MUTED, line);
         float buttonWidth = EditorScale.of(180.0f);
         float gap = EditorScale.of(10.0f);
@@ -485,10 +516,10 @@ public final class ProjectHubView {
         if (!primary) draw.addRect(x, y, x + width, y + height, HubStyle.LINE_STRONG, rounding, 0, HubStyle.hairline());
         int ink = primary ? HubStyle.TOP_BAR : HubStyle.TEXT_MAIN;
         float glyph = EditorStyle.iconSizeSmall();
-        float content = glyph + EditorScale.of(8.0f) + widthOf(HubStyle.ITEM, true, label);
+        float content = glyph + EditorScale.of(8.0f) + HubStyle.widthOf(HubStyle.ITEM, true, label);
         float glyphX = x + (width - content) * 0.5f;
         icon(draw, mark, glyphX, y + (height - glyph) * 0.5f, glyph, ink);
-        paint(draw, HubStyle.ITEM, true, glyphX + glyph + EditorScale.of(8.0f), middle(y, height, HubStyle.ITEM), ink, label);
+        HubStyle.paint(draw, HubStyle.ITEM, true, glyphX + glyph + EditorScale.of(8.0f), HubStyle.middle(y, height, HubStyle.ITEM), ink, label);
         if (ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
         return clicked;
     }
@@ -568,49 +599,19 @@ public final class ProjectHubView {
     }
 
     private static void caption(String text) {
-        paintTracked(ImGui.getWindowDrawList(), HubStyle.CAPTION, ImGui.getCursorScreenPosX(), ImGui.getCursorScreenPosY(), HubStyle.TEXT_LIGHT, text);
+        HubStyle.paintTracked(ImGui.getWindowDrawList(), HubStyle.CAPTION, ImGui.getCursorScreenPosX(), ImGui.getCursorScreenPosY(), HubStyle.TEXT_LIGHT, text);
         ImGui.dummy(0.0f, EditorScale.of(HubStyle.CAPTION + 10.0f));
     }
 
-    private static void write(float size, boolean bold, int color, String value) {
-        ImFont font = EditorFonts.page(size, bold);
-        if (font != null) ImGui.pushFont(font, EditorScale.of(EditorFonts.pageSize(size, bold)));
-        ImGui.pushStyleColor(ImGuiCol.Text, color);
-        ImGui.textUnformatted(value);
-        ImGui.popStyleColor();
-        if (font != null) ImGui.popFont();
-    }
 
-    private static void paint(ImDrawList draw, float size, boolean bold, float x, float y, int color, String value) {
-        ImFont font = EditorFonts.page(size, bold);
-        if (font == null) draw.addText(x, y, color, value);
-        else draw.addText(font, EditorScale.ofInteger(EditorFonts.pageSize(size, bold)), x, y, color, value);
-    }
 
-    private static void paintTracked(ImDrawList draw, float size, float x, float y, int color, String value) {
-        float tracking = EditorScale.of(size) * 0.07f;
-        float cursor = x;
-        for (int index = 0; index < value.length(); index++) {
-            String glyph = String.valueOf(value.charAt(index));
-            paint(draw, size, true, cursor, y, color, glyph);
-            cursor += widthOf(size, true, glyph) + tracking;
-        }
-    }
 
-    private static float widthOf(float size, boolean bold, String value) {
-        ImFont font = EditorFonts.page(size, bold);
-        if (font == null) return ImGui.calcTextSizeX(value);
-        return font.calcTextSizeAX(EditorScale.of(EditorFonts.pageSize(size, bold)), Float.MAX_VALUE, 0.0f, value);
-    }
 
-    private static float middle(float top, float height, float size) {
-        return top + (height - EditorScale.of(size)) * 0.5f;
-    }
 
     private static String ellipsize(String value, float width) {
-        if (widthOf(HubStyle.SMALL, false, value) <= width) return value;
+        if (HubStyle.widthOf(HubStyle.SMALL, false, value) <= width) return value;
         String text = value;
-        while (text.length() > 4 && widthOf(HubStyle.SMALL, false, "…" + text) > width) text = text.substring(1);
+        while (text.length() > 4 && HubStyle.widthOf(HubStyle.SMALL, false, "…" + text) > width) text = text.substring(1);
         return "…" + text;
     }
 

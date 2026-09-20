@@ -17,10 +17,13 @@ import org.jspecify.annotations.Nullable;
 public final class ForumLink {
 
     public static final String DEFAULT_API = "https://api.moud.epistudios.fr";
+    public static final String DEFAULT_SITE = "moud.epistudios.fr/forum/link";
 
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
     private static final String PROPERTY = "moud.api";
     private static final String ENVIRONMENT = "MOUD_API";
+    private static final String SITE_PROPERTY = "moud.site";
+    private static final String SITE_ENVIRONMENT = "MOUD_SITE";
 
     private static final HttpClient CLIENT = HttpClient.newBuilder()
             .connectTimeout(TIMEOUT)
@@ -32,9 +35,17 @@ public final class ForumLink {
     public record Code(String code, int expiresIn, String name) {}
 
     public static String api() {
-        String chosen = System.getProperty(PROPERTY, System.getenv(ENVIRONMENT));
-        if (chosen == null || chosen.isBlank()) return DEFAULT_API;
-        return chosen.endsWith("/") ? chosen.substring(0, chosen.length() - 1) : chosen;
+        return chosen(PROPERTY, ENVIRONMENT, DEFAULT_API);
+    }
+
+    public static String site() {
+        return chosen(SITE_PROPERTY, SITE_ENVIRONMENT, DEFAULT_SITE);
+    }
+
+    private static String chosen(String property, String environment, String fallback) {
+        String given = System.getProperty(property, System.getenv(environment));
+        if (given == null || given.isBlank()) return fallback;
+        return given.endsWith("/") ? given.substring(0, given.length() - 1) : given;
     }
 
     public static CompletableFuture<Code> start() {

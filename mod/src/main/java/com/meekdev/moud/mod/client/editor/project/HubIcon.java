@@ -11,6 +11,7 @@ public enum HubIcon {
     FOLDER_OPEN,
     LAYOUT,
     RECTANGLE_DASHED,
+    USER_CIRCLE,
     PLUS;
 
     private static final String ROOT = "/assets/moud/editor/hub/";

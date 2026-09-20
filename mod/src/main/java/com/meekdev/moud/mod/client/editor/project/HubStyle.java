@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.project;
 
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
+import com.meekdev.moud.mod.client.editor.style.EditorMotion;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import imgui.ImDrawList;
@@ -8,6 +9,7 @@ import imgui.ImFont;
 import imgui.ImGui;
 import imgui.ImGuiStyle;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiMouseCursor;
 
 public final class HubStyle {
 
@@ -37,6 +39,10 @@ public final class HubStyle {
     public static final float ITEM = 15.0f;
     public static final float SMALL = 14.0f;
     public static final float CAPTION = 12.0f;
+
+    public static final float ACTION_HEIGHT = 36.0f;
+    public static final float CAPTION_TRACKING = 0.07f;
+    public static final float CODE_TRACKING = 0.26f;
 
     private static final float FRAME_ROUNDING = 6.0f;
     private static final float POPUP_ROUNDING = 8.0f;
@@ -96,6 +102,80 @@ public final class HubStyle {
 
     public static float hairline() {
         return EditorScale.ofAtLeastOne(1.0f);
+    }
+
+    public static void write(float size, boolean bold, int color, String value) {
+        ImFont font = EditorFonts.page(size, bold);
+        if (font != null) ImGui.pushFont(font, EditorScale.of(EditorFonts.pageSize(size, bold)));
+        ImGui.pushStyleColor(ImGuiCol.Text, color);
+        ImGui.textUnformatted(value);
+        ImGui.popStyleColor();
+        if (font != null) ImGui.popFont();
+    }
+
+    public static void label(String text) {
+        write(ITEM, true, TEXT_MUTED, text);
+        ImGui.dummy(0.0f, EditorScale.of(4.0f));
+    }
+
+    public static void paint(ImDrawList draw, float size, boolean bold, float x, float y, int color, String value) {
+        ImFont font = EditorFonts.page(size, bold);
+        if (font == null) draw.addText(x, y, color, value);
+        else draw.addText(font, EditorScale.ofInteger(EditorFonts.pageSize(size, bold)), x, y, color, value);
+    }
+
+    public static void paintTracked(ImDrawList draw, float size, float x, float y, int color, String value) {
+        paintTracked(draw, size, x, y, color, value, CAPTION_TRACKING);
+    }
+
+    public static void paintTracked(ImDrawList draw, float size, float x, float y, int color, String value, float tracking) {
+        float step = EditorScale.of(size) * tracking;
+        float cursor = x;
+        for (int index = 0; index < value.length(); index++) {
+            String glyph = String.valueOf(value.charAt(index));
+            paint(draw, size, true, cursor, y, color, glyph);
+            cursor += widthOf(size, true, glyph) + step;
+        }
+    }
+
+    public static float trackedWidth(float size, String value, float tracking) {
+        if (value.isEmpty()) return 0.0f;
+        float total = -EditorScale.of(size) * tracking;
+        for (int index = 0; index < value.length(); index++) {
+            total += widthOf(size, true, String.valueOf(value.charAt(index))) + EditorScale.of(size) * tracking;
+        }
+        return total;
+    }
+
+    public static float widthOf(float size, boolean bold, String value) {
+        ImFont font = EditorFonts.page(size, bold);
+        if (font == null) return ImGui.calcTextSizeX(value);
+        return font.calcTextSizeAX(EditorScale.of(EditorFonts.pageSize(size, bold)), Float.MAX_VALUE, 0.0f, value);
+    }
+
+    public static float middle(float top, float height, float size) {
+        return top + (height - EditorScale.of(size)) * 0.5f;
+    }
+
+    public static boolean action(String id, String label, float width, boolean primary, boolean enabled) {
+        float height = EditorScale.of(ACTION_HEIGHT);
+        float x = ImGui.getCursorScreenPosX();
+        float y = ImGui.getCursorScreenPosY();
+        boolean clicked = ImGui.invisibleButton("##" + id, width, height);
+        float emphasis = enabled ? EditorMotion.towards(id, ImGui.isItemHovered()) : 0.0f;
+        ImDrawList draw = ImGui.getWindowDrawList();
+        float rounding = EditorScale.of(FRAME_ROUNDING);
+        int fill = primary
+                ? EditorMotion.blend(TEXT_MAIN, TEXT_BRIGHT, emphasis)
+                : EditorMotion.blend(SURFACE_HOVER, SURFACE_ACTIVE, emphasis);
+        if (!enabled) fill = EditorStyle.withAlpha(fill, 0.35f);
+        draw.addRectFilled(x, y, x + width, y + height, fill, rounding);
+        if (!primary) draw.addRect(x, y, x + width, y + height, LINE_STRONG, rounding, 0, hairline());
+        int ink = primary ? TOP_BAR : TEXT_MAIN;
+        if (!enabled) ink = EditorStyle.withAlpha(ink, 0.6f);
+        paint(draw, ITEM, true, x + (width - widthOf(ITEM, true, label)) * 0.5f, middle(y, height, ITEM), ink, label);
+        if (enabled && ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
+        return clicked && enabled;
     }
 
     public static void glow(ImDrawList draw, float centerX, float centerY, float radiusX, float radiusY, int tint, float strength) {

@@ -5,7 +5,6 @@ import com.meekdev.moud.mod.client.editor.notify.Notifier;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.meekdev.moud.mod.client.editor.style.EditorMotion;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
-import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
 import imgui.ImDrawList;
 import imgui.ImFont;
@@ -33,7 +32,6 @@ public final class NewProjectDialog {
     private static final float ROW_HEIGHT = 96.0f;
     private static final float ROW_MARK = 38.0f;
     private static final float BUTTON_WIDTH = 124.0f;
-    private static final float BUTTON_HEIGHT = 36.0f;
     private static final float CORNER = 6.0f;
     private static final float CORNER_MARK = 10.0f;
     private static final float CORNER_BOX = 12.0f;
@@ -99,11 +97,11 @@ public final class NewProjectDialog {
 
     private void renderContents() {
         float width = ImGui.getContentRegionAvailX();
-        write(HubStyle.HEADING, true, HubStyle.TEXT_BRIGHT, "New project");
+        HubStyle.write(HubStyle.HEADING, true, HubStyle.TEXT_BRIGHT, "New project");
         ImGui.dummy(0.0f, EditorScale.of(8.0f));
-        write(HubStyle.SMALL, false, HubStyle.TEXT_MUTED, "Pick a name and a starting point. You can change everything later.");
+        HubStyle.write(HubStyle.SMALL, false, HubStyle.TEXT_MUTED, "Pick a name and a starting point. You can change everything later.");
         ImGui.dummy(0.0f, EditorScale.of(22.0f));
-        label("Name");
+        HubStyle.label("Name");
         ImGui.setNextItemWidth(width);
         if (focusName) {
             ImGui.setKeyboardFocusHere();
@@ -111,26 +109,26 @@ public final class NewProjectDialog {
         }
         field(() -> ImGui.inputTextWithHint("##new-project-name", "My place", nameInput));
         ImGui.dummy(0.0f, EditorScale.of(14.0f));
-        label("Location");
+        HubStyle.label("Location");
         float browseWidth = EditorScale.of(96.0f);
         float gap = EditorScale.of(8.0f);
         ImGui.setNextItemWidth(width - browseWidth - gap);
         field(() -> ImGui.inputText("##new-project-parent", parentInput));
         ImGui.sameLine(0.0f, gap);
-        if (action("new-project-browse", "Browse", browseWidth, false, true)) browseParent();
+        if (HubStyle.action("new-project-browse", "Browse", browseWidth, false, true)) browseParent();
         ImGui.dummy(0.0f, EditorScale.of(18.0f));
-        label("Start from");
+        HubStyle.label("Start from");
         renderTemplates(width);
         ImGui.dummy(0.0f, EditorScale.of(16.0f));
         Optional<String> error = validationError();
-        write(HubStyle.SMALL, false, error.isPresent() ? HubStyle.TEXT_MAIN : HubStyle.TEXT_LIGHT,
+        HubStyle.write(HubStyle.SMALL, false, error.isPresent() ? HubStyle.TEXT_MAIN : HubStyle.TEXT_LIGHT,
                 error.orElseGet(() -> "Creates " + previewPath()));
         ImGui.dummy(0.0f, EditorScale.of(18.0f));
         float buttons = EditorScale.of(BUTTON_WIDTH) * 2.0f + EditorScale.of(8.0f);
         ImGui.setCursorPosX(ImGui.getCursorPosX() + width - buttons);
-        if (action("new-project-cancel", "Cancel", EditorScale.of(BUTTON_WIDTH), false, true)) ImGui.closeCurrentPopup();
+        if (HubStyle.action("new-project-cancel", "Cancel", EditorScale.of(BUTTON_WIDTH), false, true)) ImGui.closeCurrentPopup();
         ImGui.sameLine(0.0f, EditorScale.of(8.0f));
-        if (action("new-project-create", "Create", EditorScale.of(BUTTON_WIDTH), true, error.isEmpty())) attemptCreate();
+        if (HubStyle.action("new-project-create", "Create", EditorScale.of(BUTTON_WIDTH), true, error.isEmpty())) attemptCreate();
     }
 
     private void renderTemplates(float width) {
@@ -163,7 +161,7 @@ public final class NewProjectDialog {
                     chosen ? HubStyle.TEXT_MAIN : HubStyle.TEXT_MUTED);
             float textX = markX + mark + EditorScale.of(14.0f);
             float right = x + cardWidth - EditorScale.of(12.0f);
-            paint(draw, HubStyle.TILE_TITLE, true, textX, markY + EditorScale.of(1.0f),
+            HubStyle.paint(draw, HubStyle.TILE_TITLE, true, textX, markY + EditorScale.of(1.0f),
                     chosen ? HubStyle.TEXT_BRIGHT : HubStyle.TEXT_MAIN, card.title());
             ImFont body = EditorFonts.page(HubStyle.SMALL, false);
             if (body != null) {
@@ -174,27 +172,6 @@ public final class NewProjectDialog {
         }
     }
 
-    private static boolean action(String id, String label, float width, boolean primary, boolean enabled) {
-        float height = EditorScale.of(BUTTON_HEIGHT);
-        float x = ImGui.getCursorScreenPosX();
-        float y = ImGui.getCursorScreenPosY();
-        boolean clicked = ImGui.invisibleButton("##" + id, width, height);
-        float emphasis = enabled ? EditorMotion.towards(id, ImGui.isItemHovered()) : 0.0f;
-        ImDrawList draw = ImGui.getWindowDrawList();
-        float rounding = EditorScale.of(CORNER);
-        int fill = primary
-                ? EditorMotion.blend(HubStyle.TEXT_MAIN, HubStyle.TEXT_BRIGHT, emphasis)
-                : EditorMotion.blend(HubStyle.SURFACE_HOVER, HubStyle.SURFACE_ACTIVE, emphasis);
-        if (!enabled) fill = EditorStyle.withAlpha(fill, 0.35f);
-        draw.addRectFilled(x, y, x + width, y + height, fill, rounding);
-        if (!primary) draw.addRect(x, y, x + width, y + height, HubStyle.LINE_STRONG, rounding, 0, HubStyle.hairline());
-        int ink = primary ? HubStyle.TOP_BAR : HubStyle.TEXT_MAIN;
-        if (!enabled) ink = EditorStyle.withAlpha(ink, 0.6f);
-        paint(draw, HubStyle.ITEM, true, x + (width - widthOf(HubStyle.ITEM, true, label)) * 0.5f,
-                y + (height - EditorScale.of(HubStyle.ITEM)) * 0.5f, ink, label);
-        if (enabled && ImGui.isItemHovered()) ImGui.setMouseCursor(ImGuiMouseCursor.Hand);
-        return clicked && enabled;
-    }
 
     private static void field(Runnable body) {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, HubStyle.BACKGROUND);
@@ -209,31 +186,9 @@ public final class NewProjectDialog {
         ImGui.popStyleColor(5);
     }
 
-    private static void label(String text) {
-        write(HubStyle.ITEM, true, HubStyle.TEXT_MUTED, text);
-        ImGui.dummy(0.0f, EditorScale.of(4.0f));
-    }
 
-    private static void write(float size, boolean bold, int color, String value) {
-        ImFont font = EditorFonts.page(size, bold);
-        if (font != null) ImGui.pushFont(font, EditorScale.of(EditorFonts.pageSize(size, bold)));
-        ImGui.pushStyleColor(ImGuiCol.Text, color);
-        ImGui.textUnformatted(value);
-        ImGui.popStyleColor();
-        if (font != null) ImGui.popFont();
-    }
 
-    private static void paint(ImDrawList draw, float size, boolean bold, float x, float y, int color, String value) {
-        ImFont font = EditorFonts.page(size, bold);
-        if (font == null) draw.addText(x, y, color, value);
-        else draw.addText(font, EditorScale.ofInteger(EditorFonts.pageSize(size, bold)), x, y, color, value);
-    }
 
-    private static float widthOf(float size, boolean bold, String value) {
-        ImFont font = EditorFonts.page(size, bold);
-        if (font == null) return ImGui.calcTextSizeX(value);
-        return font.calcTextSizeAX(EditorScale.of(EditorFonts.pageSize(size, bold)), Float.MAX_VALUE, 0.0f, value);
-    }
 
     private void browseParent() {
         Path start = currentParent().filter(Files::isDirectory).orElse(Path.of(System.getProperty("user.home")));
