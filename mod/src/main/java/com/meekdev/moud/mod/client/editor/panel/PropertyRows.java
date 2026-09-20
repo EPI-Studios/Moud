@@ -384,7 +384,7 @@ public final class PropertyRows {
         ImString buffer = strings.computeIfAbsent(key, ignored -> new ImString(STRING_CAPACITY));
         if (!key.equals(typing)) buffer.set(current);
         beginLabelled(label(property));
-        boolean asset = property.type() == PropertyType.ASSET;
+        boolean asset = property.asset();
         float buttons = asset ? ImGui.getFrameHeight() * 2 + EditorStyle.itemSpacingX() * 2 : 0;
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - buttons);
         String hint = asset ? "drop an asset or browse" : "";
