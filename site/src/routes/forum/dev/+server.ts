@@ -1,6 +1,7 @@
 import { error, redirect } from "@sveltejs/kit"
 import { eq } from "drizzle-orm"
 import { db, schema } from "$lib/server/db"
+import { startSession } from "$lib/server/auth"
 import type { RequestHandler } from "./$types"
 
 const PEOPLE = {
@@ -35,11 +36,6 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     user = made
   }
 
-  const token = crypto.randomUUID()
-  const expires = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7)
-  await db.insert(schema.sessions).values({ sessionToken: token, userId: user.id, expires })
-
-  cookies.set("authjs.session-token", token, { path: "/", httpOnly: true, sameSite: "lax", expires })
-
+  await startSession(user.id, cookies)
   redirect(303, "/forum")
 }

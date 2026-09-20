@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
 public final class ForumLink {
 
     public static final String DEFAULT_API = "https://api.moud.epistudios.fr";
-    public static final String DEFAULT_SITE = "moud.epistudios.fr/forum/link";
+    public static final String DEFAULT_SITE = "moud.epistudios.fr/forum/signin";
 
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
     private static final String PROPERTY = "moud.api";

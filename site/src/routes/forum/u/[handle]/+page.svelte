@@ -35,9 +35,6 @@
         {data.person.postCount} posts
       </p>
       {#if data.person.bio}<p class="profile-bio">{data.person.bio}</p>{/if}
-      {#if me && !isLinked(data.person)}
-        <a class="button" href="/forum/link">Link your Minecraft account</a>
-      {/if}
     </div>
   </section>
 
