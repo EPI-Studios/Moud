@@ -14,9 +14,9 @@ import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.BufferUtils;
 
-final class EffectTextures {
+public final class EffectTextures {
 
-    record Sprite(int gl, boolean nearest) {}
+    public record Sprite(int gl, boolean nearest) {}
 
     private static final int DOT_SIZE = 64;
 
@@ -32,7 +32,7 @@ final class EffectTextures {
         return white;
     }
 
-    static Sprite of(String src) {
+    public static Sprite of(String src) {
         if (src.isEmpty()) return dot();
         if (ImageStore.isEditable(src)) {
             int gl = EditableTextures.gl(src);

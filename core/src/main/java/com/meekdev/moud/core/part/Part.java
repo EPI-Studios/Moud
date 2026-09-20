@@ -13,6 +13,10 @@ public class Part extends Spatial {
     public Vector3 size = Vector3.ONE;
     public PartShape shape = PartShape.BLOCK;
     public Color color = Color.WHITE;
+
+    @Prop(asset = true) public String texture = "";
+
+    @Prop(min = 0.01) public double studsPerTile = 1;
     @Prop(min = 0, max = 1) public double transparency;
     public boolean anchored = true;
     public boolean collides = true;

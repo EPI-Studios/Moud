@@ -100,6 +100,7 @@ public final class MoudClient implements ClientModInitializer {
             float partialTick = Minecraft.getInstance().getDeltaTracker()
                     .getGameTimeDeltaPartialTick(true);
             Skins.prepareFrame(partialTick);
+            Parts.prepareFrame();
             CoreGui.INSTANCE.frame();
             Ui.frame(partialTick);
             Sounds.frame(partialTick);

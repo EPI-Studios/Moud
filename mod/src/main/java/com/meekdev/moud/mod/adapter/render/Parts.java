@@ -21,10 +21,13 @@ import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
+import com.meekdev.moud.mod.adapter.render.effect.EffectTextures;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
@@ -41,6 +44,10 @@ public final class Parts {
     private static final Matrix4f MATRIX = new Matrix4f();
     private static final Quaternionf ROTATION = new Quaternionf();
     private static final Vector4f TINT = new Vector4f();
+
+    private static final Map<Textured, List<Part>> PACKED = new HashMap<>();
+
+    private record Textured(PartShape shape, String texture, boolean glass) {}
 
     private static final int[] STILL_COUNTS = new int[PartShape.values().length];
     private static final int[] MOVING_COUNTS = new int[PartShape.values().length];
@@ -71,6 +78,41 @@ public final class Parts {
 
     private Parts() {}
 
+    // textured parts are gathered once a frame, so each texture's mesh only drains its own list
+    public static void prepareFrame() {
+        for (List<Part> packed : PACKED.values()) packed.clear();
+        InstanceTree tree = ClientScene.tree();
+        if (tree == null) return;
+        for (Part part : tree.ofClass(Classes.PART)) {
+            if (part.texture.isEmpty() || part instanceof MeshPart || Skins.wearsSkin(part)) continue;
+            if (ViewportFrame.inside(part)) continue;
+            boolean ghost = EditorView.ghost(part);
+            if (!ghost && (!part.visible || part.transparency >= 1.0)) continue;
+            Textured key = new Textured(part.shape, part.texture, isTransparent(part));
+            PACKED.computeIfAbsent(key, made -> {
+                registerTextured(made);
+                return new ArrayList<>();
+            }).add(part);
+        }
+    }
+
+    private static void registerTextured(Textured key) {
+        String name = "parts_tex_" + key.shape().name().toLowerCase(Locale.ROOT)
+                + (key.glass() ? "_glass_" : "_") + Integer.toHexString(key.texture().hashCode());
+        InstancedMesh.Builder<Lit> builder = key.glass() ? glass(key.shape()) : mesh(key.shape());
+        builder.shader(Identifier.fromNamespaceAndPath("moud", "instance/part_textured"))
+                .extraSampler("Albedo", () -> EffectTextures.of(key.texture()).gl(), 2)
+                .onRender((ctx, batch) -> renderTextured(key, ctx, batch))
+                .register(Identifier.fromNamespaceAndPath("moud", name));
+    }
+
+    private static void renderTextured(Textured key, InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
+        List<Part> parts = PACKED.get(key);
+        if (parts == null || parts.isEmpty()) return;
+        Motion motion = ClientScene.motion();
+        for (Part part : parts) emit(ctx, batch, motion, part, true);
+    }
+
     public static void register() {
         for (PartShape shape : PartShape.values()) {
             int at = shape.ordinal();
@@ -81,9 +123,9 @@ public final class Parts {
     }
 
     private static final InstanceLayout LAYOUT =
-            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).float1(7).build();
+            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).float1(7).float1(8).build();
 
-    private record Lit(Matrix4f transform, Vector4f color, Vector2f light, float casts) {}
+    private record Lit(Matrix4f transform, Vector4f color, Vector2f light, float casts, float tile) {}
 
     public static int lightMap() {
         GpuTextureView view = Minecraft.getInstance().gameRenderer.levelLightmap();
@@ -97,7 +139,8 @@ public final class Parts {
     private static InstancedMesh.Builder<Lit> glass(PartShape shape) {
         return InstancedMesh.<Lit>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
-                                .putVec2(inst.light().x, inst.light().y).putFloat(inst.casts()))
+                                .putVec2(inst.light().x, inst.light().y)
+                                .putFloat(inst.casts()).putFloat(inst.tile()))
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .geometry(ShapeMeshes.of(shape))
@@ -114,7 +157,8 @@ public final class Parts {
     private static InstancedMesh.Builder<Lit> mesh(PartShape shape) {
         return InstancedMesh.<Lit>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
-                                .putVec2(inst.light().x, inst.light().y).putFloat(inst.casts()))
+                                .putVec2(inst.light().x, inst.light().y)
+                                .putFloat(inst.casts()).putFloat(inst.tile()))
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .geometry(ShapeMeshes.of(shape))
@@ -178,8 +222,15 @@ public final class Parts {
         if (isTransparent(part) != glass) return false;
         if (part instanceof MeshPart) return false;
         if (Skins.wearsSkin(part)) return false;
+        if (!part.texture.isEmpty()) return false;
         if (ViewportFrame.inside(part)) return false;
 
+        emit(ctx, batch, motion, part, cull);
+        return true;
+    }
+
+    private static void emit(InstanceRenderContext ctx, InstanceBatch<Lit> batch, Motion motion, Part part, boolean cull) {
+        boolean ghost = EditorView.ghost(part);
         CFrame world = motion.sample(part, ctx.deltaTick());
         Vector3 pos = world.position();
         Quat rot = world.rotation();
@@ -195,12 +246,12 @@ public final class Parts {
         else TINT.set(c.r(), c.g(), c.b(), (float) (1.0 - part.transparency));
 
         float radius = (float) (size.length() * 0.5);
-        Lit instance = new Lit(MATRIX, TINT, PartLight.of(part, pos), part.castShadow ? 1 : 0);
+        Lit instance = new Lit(MATRIX, TINT, PartLight.of(part, pos), part.castShadow ? 1 : 0,
+                (float) part.studsPerTile);
         if (cull) {
             batch.addVisible(instance, pos.x(), pos.y(), pos.z(), radius);
         } else {
             batch.add(instance, pos.x(), pos.y(), pos.z(), radius);
         }
-        return true;
     }
 }
