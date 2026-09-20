@@ -8,7 +8,6 @@ run/
 *.log
 .moud/
 
-docs/
 .zig-cache/
 zig-out/
 zig-pkg/
