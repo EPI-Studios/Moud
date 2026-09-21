@@ -28,3 +28,8 @@ declare module "@auth/sveltekit" {
 }
 
 export {}
+
+declare module "*?inline" {
+  const value: string
+  export default value
+}

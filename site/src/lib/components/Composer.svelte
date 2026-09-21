@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte"
   import { renderPost } from "$lib/render"
   import Icon from "./Icon.svelte"
 
@@ -12,6 +13,7 @@
     action,
     small = false,
     fields = {},
+    before,
   }: {
     name?: string
     value?: string
@@ -22,6 +24,7 @@
     action?: string
     small?: boolean
     fields?: Record<string, string>
+    before?: Snippet
   } = $props()
 
   let tab = $state<"write" | "preview">("write")
@@ -65,6 +68,8 @@
   {#each Object.entries(fields) as [key, value] (key)}
     <input type="hidden" name={key} {value} />
   {/each}
+
+  {#if before}{@render before()}{/if}
 
   <div class="composer-head">
     <label for={name}>{label}</label>

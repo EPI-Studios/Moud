@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Composer from "$lib/components/Composer.svelte"
+
   let { data, form } = $props()
 </script>
 
@@ -19,23 +21,29 @@
 
   {#if form?.message}<p class="form-error">{form.message}</p>{/if}
 
-  <form class="composer" method="POST">
-    <label for="categoryId">Category</label>
-    <select class="field" id="categoryId" name="categoryId" value={data.chosen || data.categories[0]?.id}>
-      {#each data.categories as category (category.id)}
-        <option value={category.id}>{category.name}</option>
-      {/each}
-    </select>
+  <Composer
+    label="Post"
+    placeholder="Markdown. Luau goes in a ```luau fence. An image or YouTube link on its own line embeds."
+    hint="Say which side the code runs on, server or client."
+    submit="Post topic"
+  >
+    {#snippet before()}
+      <label class="composer-label" for="categoryId">Category</label>
+      <select class="field" id="categoryId" name="categoryId" value={data.chosen || data.categories[0]?.id}>
+        {#each data.categories as category (category.id)}
+          <option value={category.id}>{category.name}</option>
+        {/each}
+      </select>
 
-    <label for="title">Title</label>
-    <input class="field" id="title" name="title" maxlength="140" placeholder="What goes wrong, in one line" required />
-
-    <label for="body">Post</label>
-    <textarea class="field" id="body" name="body" placeholder="Markdown. Luau goes in a ```luau fence. An image or YouTube link on its own line embeds." required></textarea>
-
-    <div class="composer-foot">
-      <span class="composer-hint">Say which side the code runs on, server or client.</span>
-      <button class="button button-primary" type="submit">Post topic</button>
-    </div>
-  </form>
+      <label class="composer-label" for="title">Title</label>
+      <input
+        class="field"
+        id="title"
+        name="title"
+        maxlength="140"
+        placeholder="What goes wrong, in one line"
+        required
+      />
+    {/snippet}
+  </Composer>
 </main>

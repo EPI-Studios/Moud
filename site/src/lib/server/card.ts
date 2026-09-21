@@ -1,9 +1,13 @@
-import fs from "node:fs/promises"
-import path from "node:path"
 import satori from "satori"
 import { Resvg } from "@resvg/resvg-js"
+import boldFont from "./fonts/gabarito-700.ttf?inline"
+import mediumFont from "./fonts/gabarito-500.ttf?inline"
+import monoFont from "./fonts/jetbrains-400.ttf?inline"
+import logoImage from "../../../static/logo.png?inline"
 
-const FONTS = path.resolve("src/lib/server/fonts")
+function bytesOf(dataUrl: string) {
+  return Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64")
+}
 
 const COLOURS = {
   bg: "#181818",
@@ -22,15 +26,10 @@ let fonts: Font[] | null = null
 
 async function loadFonts(): Promise<Font[]> {
   if (fonts) return fonts
-  const [bold, medium, mono] = await Promise.all([
-    fs.readFile(path.join(FONTS, "gabarito-700.ttf")),
-    fs.readFile(path.join(FONTS, "gabarito-500.ttf")),
-    fs.readFile(path.join(FONTS, "jetbrains-400.ttf")),
-  ])
   fonts = [
-    { name: "Gabarito", data: bold, weight: 700, style: "normal" },
-    { name: "Gabarito", data: medium, weight: 500, style: "normal" },
-    { name: "JetBrains Mono", data: mono, weight: 400, style: "normal" },
+    { name: "Gabarito", data: bytesOf(boldFont), weight: 700, style: "normal" },
+    { name: "Gabarito", data: bytesOf(mediumFont), weight: 500, style: "normal" },
+    { name: "JetBrains Mono", data: bytesOf(monoFont), weight: 400, style: "normal" },
   ]
   return fonts
 }
@@ -47,9 +46,8 @@ async function dataUri(url: string) {
   }
 }
 
-async function logo() {
-  const file = await fs.readFile(path.resolve("static/logo.png"))
-  return `data:image/png;base64,${file.toString("base64")}`
+function logo() {
+  return logoImage
 }
 
 type Box = {
@@ -77,7 +75,7 @@ export type CardInput = {
 }
 
 export async function card(input: CardInput) {
-  const mark = await logo()
+  const mark = logo()
   const head = input.author?.head ? await dataUri(input.author.head) : null
 
   const tree = box(
