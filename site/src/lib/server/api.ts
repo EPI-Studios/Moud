@@ -4,17 +4,23 @@ import { env } from "$env/dynamic/private"
 export type Claim = { ok: true; uuid: string; name: string }
 export type Refusal = { ok: false; error: string }
 
+function origin(given: string) {
+  const trimmed = given.trim().replace(/\/+$/, "")
+  return /^https?:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`
+}
+
 async function ask(path: string, payload: unknown): Promise<Claim | Refusal> {
   const base = env.API_URL
   const secret = env.SITE_SECRET
-  if (!base || !secret) return { ok: false, error: "account linking is not configured" }
+  if (!base) return { ok: false, error: "the site has no API_URL" }
+  if (!secret) return { ok: false, error: "the site has no SITE_SECRET" }
 
   const body = JSON.stringify(payload)
   const at = Date.now().toString()
   const signature = crypto.createHmac("sha256", secret).update(`${at}.${body}`).digest("hex")
 
   try {
-    const answer = await fetch(`${base}${path}`, {
+    const answer = await fetch(`${origin(base)}${path}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -36,8 +42,9 @@ async function ask(path: string, payload: unknown): Promise<Claim | Refusal> {
       return { ok: false, error: result.error ?? `the api answered ${answer.status}` }
     }
     return { ok: true, uuid: result.uuid, name: result.name }
-  } catch {
-    return { ok: false, error: "the api did not answer" }
+  } catch (problem) {
+    const why = problem instanceof Error ? problem.message : String(problem)
+    return { ok: false, error: `the api did not answer: ${why}` }
   }
 }
 
