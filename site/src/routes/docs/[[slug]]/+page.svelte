@@ -34,7 +34,10 @@
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="Moud" />
   <meta property="og:url" content={page.url.href} />
-  <meta property="og:image" content="{page.url.origin}/docs/{data.page.slug}/og.png" />
+  <meta
+    property="og:image"
+    content="{page.url.origin}/docs/{data.page.slug ? data.page.slug + '/' : ''}og.png"
+  />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />

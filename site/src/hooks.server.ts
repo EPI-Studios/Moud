@@ -1,6 +1,14 @@
-import type { Handle } from "@sveltejs/kit"
+import type { Handle, HandleServerError } from "@sveltejs/kit"
 import { sequence } from "@sveltejs/kit/hooks"
 import { handle as authHandle } from "$lib/server/auth"
+
+export const handleError: HandleServerError = ({ error, event }) => {
+  const id = crypto.randomUUID().slice(0, 8)
+  const why = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+  console.error(`[${id}] ${event.request.method} ${event.url.pathname}\n${why}`)
+  if (error instanceof Error && error.stack) console.error(error.stack)
+  return { message: why, id }
+}
 
 const CSP = [
   "default-src 'self'",
