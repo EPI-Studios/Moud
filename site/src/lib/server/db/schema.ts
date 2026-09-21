@@ -20,6 +20,8 @@ export const users = pgTable("user", {
   role: text("role").notNull().default("member"),
   minecraftId: text("minecraftId"),
   minecraftName: text("minecraftName"),
+  discordId: text("discordId").unique(),
+  discordName: text("discordName"),
   bio: text("bio"),
   postCount: integer("postCount").notNull().default(0),
   topicCount: integer("topicCount").notNull().default(0),

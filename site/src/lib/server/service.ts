@@ -4,7 +4,14 @@ import { env } from "$env/dynamic/private"
 const WINDOW_MS = 5 * 60 * 1000
 
 export function signedByService(request: Request, body: string) {
-  const secret = env.SITE_SECRET
+  return signedWith(env.SITE_SECRET, request, body)
+}
+
+export function signedByBot(request: Request, body: string) {
+  return signedWith(env.BOT_SECRET, request, body)
+}
+
+function signedWith(secret: string | undefined, request: Request, body: string) {
   if (!secret) return false
 
   const at = request.headers.get("x-moud-at") ?? ""
