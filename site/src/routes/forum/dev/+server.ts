@@ -36,6 +36,6 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     user = made
   }
 
-  await startSession(user.id, cookies)
+  await startSession(user.id, cookies, url)
   redirect(303, "/forum")
 }

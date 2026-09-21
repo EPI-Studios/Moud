@@ -60,10 +60,7 @@
         </button>
       </form>
     {:else}
-      <a class="button" href="/forum/signin">
-        <Icon name="discord-logo" size="15px" />
-        Sign in
-      </a>
+      <a class="button button-primary" href="/forum/signin">Sign in</a>
     {/if}
   </div>
 </header>

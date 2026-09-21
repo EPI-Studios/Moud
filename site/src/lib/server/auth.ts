@@ -4,7 +4,8 @@ import { eq } from "drizzle-orm"
 import type { Cookies } from "@sveltejs/kit"
 import { db, schema } from "./db"
 
-const COOKIE = "authjs.session-token"
+const PLAIN = "authjs.session-token"
+const SECURE = "__Secure-authjs.session-token"
 const DAYS = 30
 
 export const { handle, signOut } = SvelteKitAuth({
@@ -73,22 +74,25 @@ export async function userForMinecraft(uuid: string, name: string) {
   return made.id
 }
 
-export async function startSession(userId: string, cookies: Cookies) {
+export async function startSession(userId: string, cookies: Cookies, url: URL) {
+  const secure = url.protocol === "https:"
   const sessionToken = crypto.randomUUID()
   const expires = new Date(Date.now() + DAYS * 24 * 60 * 60 * 1000)
   await db.insert(schema.sessions).values({ sessionToken, userId, expires })
-  cookies.set(COOKIE, sessionToken, {
+  cookies.set(secure ? SECURE : PLAIN, sessionToken, {
     path: "/",
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure,
     expires,
   })
 }
 
 export async function endSession(cookies: Cookies) {
-  const token = cookies.get(COOKIE)
-  if (!token) return
-  await db.delete(schema.sessions).where(eq(schema.sessions.sessionToken, token))
-  cookies.delete(COOKIE, { path: "/" })
+  for (const name of [SECURE, PLAIN]) {
+    const token = cookies.get(name)
+    if (!token) continue
+    await db.delete(schema.sessions).where(eq(schema.sessions.sessionToken, token))
+    cookies.delete(name, { path: "/" })
+  }
 }

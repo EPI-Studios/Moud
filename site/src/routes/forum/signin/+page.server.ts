@@ -38,7 +38,7 @@ export const actions: Actions = {
     return { found: { code, name: claim.name } }
   },
 
-  confirm: async ({ request, cookies }) => {
+  confirm: async ({ request, cookies, url }) => {
     const code = readCode(await request.formData())
     if (!/^[A-Z0-9]{6}$/.test(code)) return fail(400, { message: "A code is six letters and digits." })
 
@@ -47,7 +47,7 @@ export const actions: Actions = {
 
     const userId = await userForMinecraft(claim.uuid, claim.name)
     await grant(userId, "linked")
-    await startSession(userId, cookies)
+    await startSession(userId, cookies, url)
 
     redirect(303, "/forum")
   },
