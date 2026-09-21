@@ -2,7 +2,6 @@ import satori from "satori"
 import { Resvg } from "@resvg/resvg-js"
 import boldFont from "./fonts/gabarito-700.ttf?inline"
 import mediumFont from "./fonts/gabarito-500.ttf?inline"
-import monoFont from "./fonts/jetbrains-400.ttf?inline"
 import logoImage from "../../../static/logo.png?inline"
 
 function bytesOf(dataUrl: string) {
@@ -18,6 +17,7 @@ const COLOURS = {
   muted: "#9a9a9a",
   light: "#6a6a6a",
   accent: "#c6c6c6",
+  line2: "#383838",
 }
 
 type Font = { name: string; data: Buffer; weight: 400 | 500 | 700; style: "normal" }
@@ -29,14 +29,16 @@ async function loadFonts(): Promise<Font[]> {
   fonts = [
     { name: "Gabarito", data: bytesOf(boldFont), weight: 700, style: "normal" },
     { name: "Gabarito", data: bytesOf(mediumFont), weight: 500, style: "normal" },
-    { name: "JetBrains Mono", data: bytesOf(monoFont), weight: 400, style: "normal" },
   ]
   return fonts
 }
 
 async function dataUri(url: string) {
   try {
-    const answer = await fetch(url, { signal: AbortSignal.timeout(3000) })
+    const answer = await fetch(url, {
+      headers: { "user-agent": "MoudForum/1.0 (+https://moud.epistudios.fr)" },
+      signal: AbortSignal.timeout(3000),
+    })
     if (!answer.ok) return null
     const type = answer.headers.get("content-type") ?? "image/png"
     const bytes = Buffer.from(await answer.arrayBuffer())
@@ -75,8 +77,8 @@ export type CardInput = {
 }
 
 export async function card(input: CardInput) {
-  const mark = logo()
   const head = input.author?.head ? await dataUri(input.author.head) : null
+  const size = input.title.length > 58 ? 64 : input.title.length > 30 ? 76 : 88
 
   const tree = box(
     "div",
@@ -85,95 +87,79 @@ export async function card(input: CardInput) {
       height: "630px",
       display: "flex",
       flexDirection: "column",
-      justifyContent: "space-between",
       background: COLOURS.bg,
-      padding: "64px 72px",
+      padding: "62px 76px",
       fontFamily: "Gabarito",
-      borderLeft: `16px solid ${COLOURS.accent}`,
     },
     [
-      box("div", { display: "flex", alignItems: "center", gap: "16px" }, [
-        image(mark, 44),
-        box(
-          "div",
-          { fontSize: "30px", fontWeight: 700, color: COLOURS.main, letterSpacing: "-0.01em" },
-          "Moud",
-        ),
-        box(
-          "div",
-          {
-            marginLeft: "10px",
-            padding: "6px 14px",
-            borderRadius: "999px",
-            background: COLOURS.panel,
-            border: `1px solid ${COLOURS.line}`,
-            fontFamily: "JetBrains Mono",
-            fontSize: "19px",
-            color: COLOURS.muted,
-          },
-          input.eyebrow,
-        ),
-      ]),
-
-      box("div", { display: "flex", flexDirection: "column", gap: "22px" }, [
-        box(
-          "div",
-          {
-            fontSize: input.title.length > 60 ? "62px" : "76px",
-            fontWeight: 700,
-            lineHeight: 1.08,
-            letterSpacing: "-0.02em",
-            color: COLOURS.main,
-            display: "block",
-            lineClamp: 3,
-          },
-          input.title,
-        ),
-        input.blurb
-          ? box(
-              "div",
-              {
-                fontSize: "28px",
-                fontWeight: 500,
-                lineHeight: 1.45,
-                color: COLOURS.muted,
-                display: "block",
-                lineClamp: 2,
-              },
-              input.blurb,
-            )
-          : null,
+      box("div", { display: "flex", alignItems: "center", gap: "15px" }, [
+        image(logo(), 42),
+        box("div", { fontSize: "30px", fontWeight: 700, color: COLOURS.main }, "Moud"),
+        box("div", { width: "1px", height: "26px", background: COLOURS.line, margin: "0 6px" }),
+        box("div", { fontSize: "27px", fontWeight: 500, color: COLOURS.muted }, input.eyebrow),
       ]),
 
       box(
         "div",
         {
           display: "flex",
+          flexDirection: "column",
+          flexGrow: 1,
+          justifyContent: "center",
+          gap: "24px",
+          paddingRight: "40px",
+        },
+        [
+          box(
+            "div",
+            {
+              fontSize: `${size}px`,
+              fontWeight: 700,
+              lineHeight: 1.1,
+              letterSpacing: "-0.025em",
+              color: COLOURS.main,
+              display: "block",
+              lineClamp: 3,
+            },
+            input.title,
+          ),
+          input.blurb
+            ? box(
+                "div",
+                {
+                  fontSize: "29px",
+                  fontWeight: 500,
+                  lineHeight: 1.45,
+                  color: COLOURS.muted,
+                  display: "block",
+                  lineClamp: 2,
+                },
+                input.blurb,
+              )
+            : null,
+        ].filter(Boolean),
+      ),
+
+      box(
+        "div",
+        {
+          display: "flex",
           alignItems: "center",
-          gap: "18px",
-          paddingTop: "28px",
+          gap: "14px",
+          paddingTop: "26px",
           borderTop: `1px solid ${COLOURS.line}`,
         },
         [
-          head ? image(head, 52, 8) : null,
+          head ? image(head, 46, 6) : null,
           input.author
-            ? box(
-                "div",
-                { fontSize: "26px", fontWeight: 700, color: COLOURS.text },
-                input.author.name,
-              )
+            ? box("div", { fontSize: "26px", fontWeight: 700, color: COLOURS.text }, input.author.name)
             : null,
-          ...(input.facts ?? []).map((fact) =>
-            box(
-              "div",
-              {
-                fontFamily: "JetBrains Mono",
-                fontSize: "22px",
-                color: COLOURS.light,
-              },
-              `· ${fact}`,
-            ),
-          ),
+          ...(input.facts ?? []).flatMap((fact, index) => [
+            index === 0 && !input.author
+              ? null
+              : box("div", { fontSize: "24px", color: COLOURS.line2 }, "\u00b7"),
+            box("div", { fontSize: "25px", fontWeight: 500, color: COLOURS.light }, fact),
+          ]),
         ].filter(Boolean),
       ),
     ],
