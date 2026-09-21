@@ -2,8 +2,6 @@ import { groups, guideTiles } from "$lib/docs/pages"
 import { renderDoc } from "$lib/docs/render"
 import type { PageServerLoad } from "./$types"
 
-export const prerender = true
-
 const SAMPLE = `\`\`\`lua
 -- server/main.luau
 local world = game.world
