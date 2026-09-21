@@ -1,0 +1,2 @@
+discord.py>=2.6
+python-dotenv>=1.0
