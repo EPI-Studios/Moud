@@ -11,4 +11,10 @@ public class MeshPart extends Part {
     @Prop(min = 0) public double animationSpeed = 1.0;
 
     public boolean animationLooped = true;
+
+    @Prop(asset = true) public String shader = "";
+
+    @Prop(asset = true) public String lightingShader = "";
+
+    @Prop(asset = true) public String vertexShader = "";
 }

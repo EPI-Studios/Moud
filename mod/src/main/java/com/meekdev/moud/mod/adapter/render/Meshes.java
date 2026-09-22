@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.amnetic.client.model.Animator;
+import com.meekdev.amnetic.client.material.SurfaceInputs;
 import com.meekdev.amnetic.client.model.Model;
 import com.meekdev.amnetic.client.model.ModelFormat;
 import com.meekdev.amnetic.client.model.Models;
@@ -70,9 +71,11 @@ public final class Meshes {
         float dt = client.getDeltaTracker().getRealtimeDeltaTicks() / 20f;
         for (MeshPart part : tree.ofClass(Classes.MESH_PART)) {
             if (!part.visible || part.transparency >= 1 || part.meshId.isEmpty() || ViewportFrame.inside(part)) continue;
-            Model model = model(part.meshId);
+            String variant = SurfaceShaders.key(part);
+            Model model = model(part.meshId, variant);
             if (model == null || !model.isReady()) continue;
-            draw(part, model, partialTick, dt);
+            SurfaceInputs inputs = variant.isEmpty() ? null : SurfaceShaders.apply(part, model);
+            draw(part, model, partialTick, dt, inputs);
         }
         ANIMATORS.keySet().removeIf(id -> !(tree.byId(id) instanceof MeshPart));
         BONED.keySet().removeIf(id -> !(tree.byId(id) instanceof MeshPart));
@@ -118,20 +121,23 @@ public final class Meshes {
         }
     }
 
-    private static void draw(MeshPart part, Model model, float partialTick, float dt) {
+    private static void draw(MeshPart part, Model model, float partialTick, float dt, @Nullable SurfaceInputs inputs) {
         CFrame world = ClientScene.motion().sample(part, partialTick);
         Matrix4f[] boned = bones(part, model, world, partialTick);
         if (boned != null) {
             BONED.put(part.id(), boned);
             ANIMATORS.remove(part.id());
             float grown = grown(part);
-            model.renderPosed(frame(world.position(), world.rotation(), WORLD).scale(grown), boned);
+            Matrix4f placed = frame(world.position(), world.rotation(), WORLD).scale(grown);
+            if (inputs == null) model.renderPosed(placed, boned);
+            else model.render(placed, boned, inputs);
             return;
         }
         BONED.remove(part.id());
         placement(world, part.size, model, WORLD);
         Matrix4f[] pose = pose(part, model, dt);
-        if (pose == null) model.render(WORLD);
+        if (inputs != null) model.render(WORLD, pose, inputs);
+        else if (pose == null) model.render(WORLD);
         else model.renderPosed(WORLD, pose);
     }
 
@@ -314,15 +320,22 @@ public final class Meshes {
     }
 
     private static @Nullable Model model(String meshId) {
-        if (meshId.startsWith(Res.SCHEME)) return fromPlace(meshId);
-        Loaded known = MODELS.get(meshId);
+        return model(meshId, "");
+    }
+
+    // a part with its own shaders gets its own copy of the model, because a draw reads the material
+    // when it is flushed, not when it is queued
+    private static @Nullable Model model(String meshId, String variant) {
+        String slot = variant.isEmpty() ? meshId : meshId + "#" + variant;
+        if (meshId.startsWith(Res.SCHEME)) return fromPlace(meshId, slot);
+        Loaded known = MODELS.get(slot);
         if (known != null) return known.model();
         if (MISSING.contains(meshId)) return null;
         Identifier id = Identifier.tryParse(meshId);
         if (id == null || ModelFormat.fromIdentifier(id) == null) return missing(meshId, "is not a model file");
         try {
             Model model = Models.load(id);
-            MODELS.put(meshId, new Loaded(model, 0));
+            MODELS.put(slot, new Loaded(model, 0));
             return model;
         } catch (RuntimeException e) {
             return missing(meshId, e.getMessage());
@@ -331,12 +344,12 @@ public final class Meshes {
 
     private static final Map<String, Long> CHECKED = new HashMap<>();
 
-    private static @Nullable Model fromPlace(String meshId) {
-        Loaded known = MODELS.get(meshId);
+    private static @Nullable Model fromPlace(String meshId, String slot) {
+        Loaded known = MODELS.get(slot);
         long now = System.currentTimeMillis();
-        Long last = CHECKED.get(meshId);
+        Long last = CHECKED.get(slot);
         if (known != null && last != null && now - last < 1000) return known.model();
-        CHECKED.put(meshId, now);
+        CHECKED.put(slot, now);
         byte[] bytes = PlaceFiles.read(meshId);
         if (bytes == null) return known != null ? known.model() : missing(meshId, "is not in the place");
         int hash = Arrays.hashCode(bytes);
@@ -351,7 +364,7 @@ public final class Meshes {
                     ? Models.load(AmmeshConverter.convert(bytes, PlaceFiles.idOf(meshId)), ModelFormat.AMMESH)
                     : Models.load(bytes, format);
             if (known != null) known.model().dispose();
-            MODELS.put(meshId, new Loaded(model, hash));
+            MODELS.put(slot, new Loaded(model, hash));
             MISSING.remove(meshId);
             return model;
         } catch (RuntimeException e) {
