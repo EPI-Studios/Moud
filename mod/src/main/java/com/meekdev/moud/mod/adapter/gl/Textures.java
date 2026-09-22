@@ -46,6 +46,34 @@ public final class Textures {
         return texture;
     }
 
+    public static int frame(int width, int height) {
+        int bound = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        int texture = GL11.glGenTextures();
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, width, height, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, (ByteBuffer) null);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
+        return texture;
+    }
+
+    public static void updateFrame(int texture, int width, int height, ByteBuffer rgba) {
+        int bound = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
+        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+        GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
+        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
+        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
+        GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, rgba);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
+    }
+
+    public static void delete(int texture) {
+        if (texture != 0) GL11.glDeleteTextures(texture);
+    }
+
     // a volume of light levels the part shaders read by world position
     public static int volume(int size, ByteBuffer pairs) {
         int bound = GL11.glGetInteger(GL12.GL_TEXTURE_BINDING_3D);

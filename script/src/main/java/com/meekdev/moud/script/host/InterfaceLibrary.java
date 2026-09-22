@@ -6,6 +6,7 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.ui.TextBox;
 import com.meekdev.moud.core.ui.UIGradient;
+import com.meekdev.moud.core.ui.VideoFrame;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,6 +34,16 @@ final class InterfaceLibrary {
             return null;
         });
         boxes.method("isFocused", "() -> boolean", a -> ((TextBox) a.self()).isFocused());
+
+        Members videos = host.instances().of(Classes.VIDEO_FRAME);
+        videos.method("play", "() -> ()", a -> {
+            Instances.setBool(a.self(VideoFrame.class), Classes.VIDEO_FRAME.property("playing"), true);
+            return null;
+        });
+        videos.method("pause", "() -> ()", a -> {
+            Instances.setBool(a.self(VideoFrame.class), Classes.VIDEO_FRAME.property("playing"), false);
+            return null;
+        });
 
         Members gradients = host.instances().of(Classes.UI_GRADIENT);
         gradients.method("setKeypoints", "(keypoints: { GradientKeypoint }) -> ()", a -> {

@@ -153,6 +153,7 @@ import com.meekdev.moud.core.ui.UIPadding;
 import com.meekdev.moud.core.ui.UIScale;
 import com.meekdev.moud.core.ui.UISizeConstraint;
 import com.meekdev.moud.core.ui.UIStroke;
+import com.meekdev.moud.core.ui.VideoFrame;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.core.value.BoolValue;
 import com.meekdev.moud.core.value.NumberValue;
@@ -324,6 +325,8 @@ public final class Classes {
 
     public static final ClassDef<ViewportFrame> VIEWPORT_FRAME =
             ClassDef.of("ViewportFrame", GUI_OBJECT, ViewportFrame.class, ViewportFrame::new);
+    public static final ClassDef<VideoFrame> VIDEO_FRAME =
+            ClassDef.of("VideoFrame", GUI_OBJECT, VideoFrame.class, VideoFrame::new);
     public static final ClassDef<AppWindow> WINDOW = ClassDef.of("Window", null, AppWindow.class, AppWindow::new);
 
     public static final ClassDef<Sound> SOUND = ClassDef.of("Sound", null, Sound.class, Sound::new);
@@ -539,6 +542,7 @@ public final class Classes {
         r.register(UI_GRADIENT);
         r.register(UI_CORNER);
         r.register(VIEWPORT_FRAME);
+        r.register(VIDEO_FRAME);
         r.register(WINDOW);
         r.register(SOUND);
         r.register(SOUND_BUS);

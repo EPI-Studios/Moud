@@ -11,6 +11,7 @@ import com.meekdev.moud.mod.adapter.render.FirstPersonView;
 import com.meekdev.moud.mod.adapter.render.Meshes;
 import com.meekdev.moud.mod.adapter.render.BlockLightGrid;
 import com.meekdev.moud.mod.adapter.render.Parts;
+import com.meekdev.moud.mod.adapter.video.Videos;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
 import com.meekdev.moud.mod.adapter.render.Environment;
@@ -106,6 +107,7 @@ public final class MoudClient implements ClientModInitializer {
             CoreGui.INSTANCE.frame();
             Ui.frame(partialTick);
             Sounds.frame(partialTick);
+            Videos.frame();
             SceneLights.frame(partialTick);
             WeatherView.frame();
             Effects.frame();

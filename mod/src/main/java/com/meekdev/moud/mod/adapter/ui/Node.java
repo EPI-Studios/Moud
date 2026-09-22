@@ -15,6 +15,8 @@ import com.meekdev.moud.core.ui.ImageFit;
 import com.meekdev.moud.core.ui.ResampleMode;
 import com.meekdev.moud.core.ui.ScaleType;
 import com.meekdev.moud.core.ui.ImageLabel;
+import com.meekdev.moud.core.ui.VideoFrame;
+import com.meekdev.moud.mod.adapter.video.Videos;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.ScrollingFrame;
 import com.meekdev.moud.core.ui.StrokeMode;
@@ -192,6 +194,12 @@ final class Node extends Widget {
             int texture = Viewports.texture(viewport);
             if (texture != 0) {
                 d.imageRegion(texture, x, y, x + w, y + h, 0, 1, 1, 0, argb(viewport.imageColor, (1 - viewport.imageTransparency) * alpha), false);
+            }
+        }
+        if (source instanceof VideoFrame video) {
+            int texture = Videos.texture(video);
+            if (texture != 0) {
+                d.imageRegion(texture, x, y, x + w, y + h, 0, 0, 1, 1, argb(video.videoColor, (1 - video.videoTransparency) * alpha), false);
             }
         }
         if (source instanceof ImageLabel image) {

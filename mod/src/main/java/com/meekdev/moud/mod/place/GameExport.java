@@ -61,6 +61,8 @@ public final class GameExport {
     private static final Pattern SIGNATURE = Pattern.compile("META-INF/[^/]+\\.(SF|RSA|DSA|EC)");
     private static final int DEPTH = 32;
     private static final List<String> MARKERS = strings("markers");
+    private static final Pattern VIDEO_LIBRARY = Pattern.compile("(" + String.join("|", strings("videoLibraries")) + ")-\\d.*\\.jar");
+    private static final List<String> VIDEO_FILES = strings("videoFiles");
 
     private GameExport() {}
 
@@ -142,18 +144,21 @@ public final class GameExport {
             ModContainer moud = FabricLoader.getInstance().getModContainer("moud").orElseThrow(() -> new IOException("the moud mod is not loaded"));
             List<Path> engine = engine(moud);
             boolean packaged = engine.size() == 1 && Files.isRegularFile(engine.getFirst());
+            boolean video = usesVideo(root);
             progress.accept(new Progress("Copying the engine", 0, 4));
-            for (Path source : engine) copy(source, writer, cancel, true);
+            for (Path source : engine) copy(source, writer, cancel, true, video);
             included.add("Moud engine without the editor");
             if (!packaged) {
                 progress.accept(new Progress("Copying libraries", 1, 4));
                 for (Path library : libraries(engine)) {
-                    copy(library, writer, cancel, false);
+                    if (!video && VIDEO_LIBRARY.matcher(library.getFileName().toString()).matches()) continue;
+                    copy(library, writer, cancel, false, video);
                     included.add(library.getFileName().toString());
                 }
             }
             progress.accept(new Progress("Adding companion mods", 2, 4));
-            List<String> nested = new ArrayList<>(nestedFrom(engine, packaged));
+            List<String> nested = new ArrayList<>(nestedFrom(engine, packaged, video));
+            if (video) included.add("ffmpeg, for the place's videos");
             for (ModContainer mod : companions()) {
                 if (cancel.get()) throw cancelled();
                 String name = "META-INF/jars/" + mod.getMetadata().getId() + "-" + mod.getMetadata().getVersion().getFriendlyString() + ".jar";
@@ -284,7 +289,20 @@ public final class GameExport {
         }
     }
 
-    private static void copy(Path source, Writer writer, AtomicBoolean cancel, boolean engine) throws IOException {
+    // ffmpeg is the heaviest thing the engine carries, so a game only gets it when it has a video to play
+    private static boolean usesVideo(Path root) throws IOException {
+        for (Path file : PlaceExport.files(root)) {
+            String name = file.getFileName().toString().toLowerCase(Locale.ROOT);
+            if (VIDEO_FILES.stream().anyMatch(name::endsWith)) return true;
+        }
+        return false;
+    }
+
+    private static boolean videoJar(String entry) {
+        return entry.startsWith("META-INF/jars/") && VIDEO_LIBRARY.matcher(entry.substring("META-INF/jars/".length())).matches();
+    }
+
+    private static void copy(Path source, Writer writer, AtomicBoolean cancel, boolean engine, boolean video) throws IOException {
         if (Files.isDirectory(source)) {
             try (Stream<Path> walk = Files.walk(source, DEPTH)) {
                 for (Path file : walk.filter(Files::isRegularFile).toList()) {
@@ -299,6 +317,7 @@ public final class GameExport {
                     if (cancel.get()) throw cancelled();
                     if (!keep(entry.getName(), engine)) continue;
                     if (engine && entry.getName().startsWith("META-INF/jars/") && entry.getName().toLowerCase(Locale.ROOT).contains("imgui")) continue;
+                    if (engine && !video && videoJar(entry.getName())) continue;
                     try (InputStream in = zip.getInputStream(entry)) {
                         writer.put(entry.getName(), in.readAllBytes());
                     }
@@ -329,7 +348,7 @@ public final class GameExport {
             Path path = Path.of(entry).toAbsolutePath().normalize();
             if (engine.contains(path)) continue;
             String name = path.getFileName() == null ? "" : path.getFileName().toString();
-            boolean library = Files.isRegularFile(path) && LIBRARY.matcher(name).matches();
+            boolean library = Files.isRegularFile(path) && (LIBRARY.matcher(name).matches() || VIDEO_LIBRARY.matcher(name).matches());
             boolean project = projectRoot != null && Files.isDirectory(path) && Stream.of("core", "script", "net")
                     .anyMatch(module -> path.startsWith(projectRoot.resolve(module).resolve("build")));
             if (library || project) found.add(path);
@@ -379,12 +398,13 @@ public final class GameExport {
         return null;
     }
 
-    private static List<String> nestedFrom(List<Path> engine, boolean packaged) throws IOException {
+    private static List<String> nestedFrom(List<Path> engine, boolean packaged, boolean video) throws IOException {
         List<String> names = new ArrayList<>();
         if (!packaged) return names;
         try (ZipFile zip = new ZipFile(engine.getFirst().toFile())) {
             zip.stream().map(ZipEntry::getName)
                     .filter(name -> name.startsWith("META-INF/jars/") && name.endsWith(".jar") && !name.toLowerCase(Locale.ROOT).contains("imgui"))
+                    .filter(name -> video || !videoJar(name))
                     .forEach(names::add);
         }
         return names;

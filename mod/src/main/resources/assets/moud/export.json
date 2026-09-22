@@ -1,6 +1,8 @@
 {
   "companionMods": ["amnetic", "bkun", "resona"],
   "libraries": ["luau", "luau-natives-.+", "recast", "detour", "byte-buddy", "byte-buddy-agent", "sqlite-jdbc", "polar", "box3d-java"],
+  "videoLibraries": ["javacv", "javacpp", "ffmpeg"],
+  "videoFiles": [".mp4", ".webm", ".ogv", ".ogg", ".mov", ".mkv", ".avi", ".m4v"],
   "markers": [
     "com.meekdev.moud.core.instance.Instance",
     "com.meekdev.moud.script.host.Host",
