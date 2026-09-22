@@ -17,14 +17,20 @@ uniform int WorldSpace;
 out vec4 vColor;
 out vec3 vPos;
 out vec2 vLight;
+out vec3 vWorld;
 
 void main() {
     mat4 model = mat4(InstTransform0, InstTransform1, InstTransform2, InstTransform3);
     if (WorldSpace == 1) {
         model[3].xyz -= CameraPos;
     }
+    vec4 placed = model * vec4(Position, 1.0);
+    if (WorldSpace == 1) {
+        placed.xyz += CameraPos;
+    }
     vec4 pos = model * vec4(Position, 1.0);
     gl_Position = ProjViewMatrix * pos;
+    vWorld = placed.xyz;
     vColor = InstColor;
     vPos = pos.xyz;
     vLight = InstLight;

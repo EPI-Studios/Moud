@@ -46,6 +46,30 @@ public final class Textures {
         return texture;
     }
 
+    // a volume of light levels the part shaders read by world position
+    public static int volume(int size, ByteBuffer pairs) {
+        int bound = GL11.glGetInteger(GL12.GL_TEXTURE_BINDING_3D);
+        int texture = GL11.glGenTextures();
+        GL11.glBindTexture(GL12.GL_TEXTURE_3D, texture);
+        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL12.GL_TEXTURE_WRAP_R, GL12.GL_CLAMP_TO_EDGE);
+        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+        GL12.glTexImage3D(GL12.GL_TEXTURE_3D, 0, GL30.GL_RG8, size, size, size, 0, GL30.GL_RG, GL11.GL_UNSIGNED_BYTE, pairs);
+        GL11.glBindTexture(GL12.GL_TEXTURE_3D, bound);
+        return texture;
+    }
+
+    public static void updateVolume(int texture, int size, ByteBuffer pairs) {
+        int bound = GL11.glGetInteger(GL12.GL_TEXTURE_BINDING_3D);
+        GL11.glBindTexture(GL12.GL_TEXTURE_3D, texture);
+        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+        GL12.glTexSubImage3D(GL12.GL_TEXTURE_3D, 0, 0, 0, 0, size, size, size, GL30.GL_RG, GL11.GL_UNSIGNED_BYTE, pairs);
+        GL11.glBindTexture(GL12.GL_TEXTURE_3D, bound);
+    }
+
     public static int sampler(int filter, int wrap) {
         int sampler = GL33.glGenSamplers();
         GL33.glSamplerParameteri(sampler, GL11.GL_TEXTURE_MIN_FILTER, filter);

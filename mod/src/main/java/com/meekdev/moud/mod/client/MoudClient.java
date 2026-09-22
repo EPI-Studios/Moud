@@ -9,6 +9,7 @@ import com.meekdev.moud.mod.adapter.chat.ClientChat;
 import com.meekdev.moud.mod.adapter.java.GameTypes;
 import com.meekdev.moud.mod.adapter.render.FirstPersonView;
 import com.meekdev.moud.mod.adapter.render.Meshes;
+import com.meekdev.moud.mod.adapter.render.BlockLightGrid;
 import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Pipeline;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
@@ -100,6 +101,7 @@ public final class MoudClient implements ClientModInitializer {
             float partialTick = Minecraft.getInstance().getDeltaTracker()
                     .getGameTimeDeltaPartialTick(true);
             Skins.prepareFrame(partialTick);
+            BlockLightGrid.frame();
             Parts.prepareFrame();
             CoreGui.INSTANCE.frame();
             Ui.frame(partialTick);
