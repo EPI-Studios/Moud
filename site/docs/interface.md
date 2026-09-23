@@ -63,6 +63,8 @@ to type into.
 | `TextBox` | text the player types into |
 | `ImageLabel` | an image, from `image`, with no background unless you set `backgroundTransparency`. See [Images](images.md) |
 | `ImageButton` | a texture you can click, with an image for hovered and one for held |
+| `Slider` | a bar with a grabber the player drags to pick a number |
+| `CheckBox` | a box the player ticks and unticks |
 | `ScrollingFrame` | a frame whose children sit on a bigger canvas you scroll |
 | `CanvasGroup` | a frame drawn with everything inside it as one picture, so it fades as one |
 
@@ -480,6 +482,48 @@ play.activated:connect(function() menu.visible = false end)
 - `autoButtonColor` starts on and darkens `image` while hovered, and more while held. It leaves
   `hoverImage` and `pressedImage` as they are.
 - `hovered` and `pressed` read its state.
+
+## Sliders and check boxes
+
+A `Slider` is a bar the player drags a grabber along to choose a number, and a `CheckBox` is a box
+they click to tick and untick. Both are drawn by the engine, so they work with no images at all.
+
+```lua
+-- client
+local volume = settings:add("Slider", {
+    position = udim2(0, 20, 0, 40), size = udim2(0, 200, 0, 6),
+    minValue = 0, maxValue = 100, step = 5, value = 80,
+})
+volume.valueChanged:connect(function(value) music.volume = value / 100 end)
+volume.dragEnded:connect(function(value) print("saved", value) end)
+
+local subtitles = settings:add("CheckBox", { position = udim2(0, 20, 0, 70), checked = true })
+subtitles.toggled:connect(function(on) captions.visible = on end)
+```
+
+The slider starts with its grabber four fifths of the way along and moves in steps of 5. Each time the
+player drags it to a new step, the music's volume follows. Clicking the check box hides or shows the
+captions.
+
+- **`minValue`** and **`maxValue`** are the values at either end, and **`value`** is where the grabber
+  sits. A script can write `value` or tween it; the grabber follows and never leaves the bar.
+- **`step`** snaps the value to multiples of it counted from `minValue`. `0` slides freely.
+- **`valueChanged`** fires with the new value each time the player moves it, and **`dragEnded`** once
+  when they let go. A script writing `value` fires neither.
+- **`fillDirection`** is `"horizontal"`, filling from the left, or `"vertical"`, filling from the bottom.
+- The bar is the widget's own background, so `backgroundColor`, `cornerRadius` and a `UIStroke` style
+  it. **`fillColor`** and **`fillTransparency`** colour the part up to the grabber, and
+  **`fillImage`** draws an image there instead, cut where the grabber is.
+- **`grabberSize`** is the grabber's width and height in pixels, `vec3(0, 0, 0)` to hide it.
+  **`grabberColor`** colours the round knob, and **`grabberImage`** draws an image in its place. The
+  grabber can be caught anywhere it is drawn, even past the edges of a thin bar.
+- **`hovered`** and **`dragging`** read its state.
+- On a check box, **`checked`** is whether it is ticked, and **`toggled`** fires with the new state
+  when the player clicks it. **`checkColor`** colours the drawn tick, and **`checkedImage`** and
+  **`uncheckedImage`** replace the drawn box with images of your own. `autoButtonColor`, `hovered`
+  and `pressed` work as on a `TextButton`.
+
+A check box has no text of its own; put a `TextLabel` next to it.
 
 ## Images
 

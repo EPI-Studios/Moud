@@ -17,11 +17,13 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.render.post.ScreenEffect;
 import com.meekdev.moud.core.ui.BillboardGui;
+import com.meekdev.moud.core.ui.CheckBox;
 import com.meekdev.moud.core.ui.GuiLayout;
 import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ImageButton;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.ScrollingFrame;
+import com.meekdev.moud.core.ui.Slider;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextBox;
 import com.meekdev.moud.core.ui.TextButton;
@@ -111,11 +113,21 @@ public final class Ui {
 
     private static void buttons() {
         for (Node node : new ArrayList<>(NODES.values())) {
-            if (!(node.source instanceof TextButton || node.source instanceof ImageButton) || !node.source.isAlive()) continue;
-            Instance button = node.source;
-            Instances.setBool(button, button.def().property("pressed"), node.hovered && node.pressed);
-            Instances.setBool(button, button.def().property("hovered"), node.hovered);
+            Instance source = node.source;
+            if (!source.isAlive()) continue;
+            switch (source) {
+                case TextButton ignored -> state(node, "pressed", node.hovered && node.pressed);
+                case ImageButton ignored -> state(node, "pressed", node.hovered && node.pressed);
+                case CheckBox ignored -> state(node, "pressed", node.hovered && node.pressed);
+                case Slider ignored -> state(node, "dragging", node.pressed);
+                default -> { }
+            }
         }
+    }
+
+    private static void state(Node node, String held, boolean down) {
+        Instances.setBool(node.source, node.source.def().property(held), down);
+        Instances.setBool(node.source, node.source.def().property("hovered"), node.hovered);
     }
 
     private static void measured() {

@@ -132,12 +132,14 @@ import com.meekdev.moud.core.service.StarterPlayerScripts;
 import com.meekdev.moud.core.ui.AppWindow;
 import com.meekdev.moud.core.ui.BillboardGui;
 import com.meekdev.moud.core.ui.CanvasGroup;
+import com.meekdev.moud.core.ui.CheckBox;
 import com.meekdev.moud.core.ui.Frame;
 import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ImageButton;
 import com.meekdev.moud.core.ui.ImageLabel;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.ScrollingFrame;
+import com.meekdev.moud.core.ui.Slider;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextBox;
 import com.meekdev.moud.core.ui.TextButton;
@@ -301,6 +303,8 @@ public final class Classes {
     public static final ClassDef<ImageButton> IMAGE_BUTTON =
             ClassDef.of("ImageButton", IMAGE_LABEL, ImageButton.class, ImageButton::new);
     public static final ClassDef<TextBox> TEXT_BOX = ClassDef.of("TextBox", TEXT_LABEL, TextBox.class, TextBox::new);
+    public static final ClassDef<Slider> SLIDER = ClassDef.of("Slider", GUI_OBJECT, Slider.class, Slider::new);
+    public static final ClassDef<CheckBox> CHECK_BOX = ClassDef.of("CheckBox", GUI_OBJECT, CheckBox.class, CheckBox::new);
     public static final ClassDef<ScrollingFrame> SCROLLING_FRAME =
             ClassDef.of("ScrollingFrame", GUI_OBJECT, ScrollingFrame.class, ScrollingFrame::new);
     public static final ClassDef<CanvasGroup> CANVAS_GROUP =
@@ -528,6 +532,8 @@ public final class Classes {
         r.register(IMAGE_LABEL);
         r.register(IMAGE_BUTTON);
         r.register(TEXT_BOX);
+        r.register(SLIDER);
+        r.register(CHECK_BOX);
         r.register(SCROLLING_FRAME);
         r.register(CANVAS_GROUP);
         r.register(UI_COMPONENT);

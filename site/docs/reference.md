@@ -1694,6 +1694,47 @@ Extends [ImageLabel](#imagelabel).
 | `pressed` | `boolean` |
 | `pressedImage` | `string` |
 
+<a id="slider"></a>
+
+## Slider
+
+Extends [GuiObject](#guiobject).
+
+| Property | Type |
+|---|---|
+| `dragEnded` | `NumberSignal` |
+| `dragging` | `boolean` |
+| `fillColor` | `Color` |
+| `fillDirection` | `"vertical" \| "horizontal"` |
+| `fillImage` | `string` |
+| `fillTransparency` | `number` |
+| `grabberColor` | `Color` |
+| `grabberImage` | `string` |
+| `grabberSize` | `Vector3` |
+| `hovered` | `boolean` |
+| `maxValue` | `number` |
+| `minValue` | `number` |
+| `step` | `number` |
+| `value` | `number` |
+| `valueChanged` | `NumberSignal` |
+
+<a id="checkbox"></a>
+
+## CheckBox
+
+Extends [GuiObject](#guiobject).
+
+| Property | Type |
+|---|---|
+| `autoButtonColor` | `boolean` |
+| `checkColor` | `Color` |
+| `checked` | `boolean` |
+| `checkedImage` | `string` |
+| `hovered` | `boolean` |
+| `pressed` | `boolean` |
+| `toggled` | `BoolSignal` |
+| `uncheckedImage` | `string` |
+
 <a id="videoframe"></a>
 
 ## VideoFrame

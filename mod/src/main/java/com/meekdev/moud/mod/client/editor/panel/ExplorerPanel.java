@@ -71,7 +71,7 @@ public final class ExplorerPanel implements Panel {
             "ReverbSoundEffect", "EqualizerSoundEffect", "DistortionSoundEffect", "EchoSoundEffect",
             "PitchShiftSoundEffect", "CompressorSoundEffect", "ChorusSoundEffect", "FlangeSoundEffect", "TremoloSoundEffect");
     private static final List<String> INTERFACE_CLASSES = List.of(
-            "Frame", "TextLabel", "TextButton", "TextBox", "ImageLabel", "ImageButton", "ScrollingFrame", "CanvasGroup",
+            "Frame", "TextLabel", "TextButton", "TextBox", "ImageLabel", "ImageButton", "Slider", "CheckBox", "ScrollingFrame", "CanvasGroup",
             "ViewportFrame", "UIListLayout", "UIGridLayout", "UIPadding", "UICorner", "UIStroke", "UIGradient",
             "UIAspectRatioConstraint", "UISizeConstraint", "UIScale");
     private static final int TRANSPARENT = 0;

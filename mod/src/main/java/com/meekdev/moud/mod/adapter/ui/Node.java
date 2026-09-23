@@ -8,6 +8,8 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.ui.BillboardGui;
 import com.meekdev.moud.core.ui.CanvasGroup;
+import com.meekdev.moud.core.ui.CheckBox;
+import com.meekdev.moud.core.ui.FillDirection;
 import com.meekdev.moud.core.ui.GuiLayout;
 import com.meekdev.moud.core.ui.GuiObject;
 import com.meekdev.moud.core.ui.ImageButton;
@@ -19,6 +21,7 @@ import com.meekdev.moud.core.ui.VideoFrame;
 import com.meekdev.moud.mod.adapter.video.Videos;
 import com.meekdev.moud.core.ui.ScreenGui;
 import com.meekdev.moud.core.ui.ScrollingFrame;
+import com.meekdev.moud.core.ui.Slider;
 import com.meekdev.moud.core.ui.StrokeMode;
 import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.TextBox;
@@ -121,9 +124,19 @@ final class Node extends Widget {
     }
 
     boolean contains(float mx, float my) {
-        double left = scale * x + offsetX;
-        double top = scale * y + offsetY;
-        return mx >= left && my >= top && mx < left + scale * w && my < top + scale * h;
+        float padX = reachX();
+        float padY = reachY();
+        double left = scale * (x - padX) + offsetX;
+        double top = scale * (y - padY) + offsetY;
+        return mx >= left && my >= top && mx < left + scale * (w + padX * 2) && my < top + scale * (h + padY * 2);
+    }
+
+    private float reachX() {
+        return source instanceof Slider slider ? (float) Math.max(0, slider.grabberSize.x()) * 0.5f : 0;
+    }
+
+    private float reachY() {
+        return source instanceof Slider slider ? (float) Math.max(0, slider.grabberSize.y()) * 0.5f : 0;
     }
 
     boolean seeThrough() {
@@ -132,7 +145,16 @@ final class Node extends Widget {
 
     @Override
     public Widget hitTest(float mx, float my) {
-        return seeThrough() ? null : super.hitTest(mx, my);
+        if (seeThrough()) return null;
+        Widget hit = super.hitTest(mx, my);
+        if (hit != null || !(source instanceof Slider) || !isVisible()) return hit;
+        // the grabber pokes out of a thin bar, so it can be caught past the bar's edges
+        float s = Math.max(scaleValue(), 1e-4f);
+        float lx = x + w * 0.5f + (mx - x - w * 0.5f - translateXValue()) / s;
+        float ly = y + h * 0.5f + (my - y - h * 0.5f - translateYValue()) / s;
+        float padX = reachX();
+        float padY = reachY();
+        return lx >= x - padX && ly >= y - padY && lx <= x + w + padX && ly <= y + h + padY ? this : null;
     }
 
     boolean clips() {
@@ -226,6 +248,8 @@ final class Node extends Widget {
                 }
             }
         }
+        if (source instanceof Slider slider) slider(d, slider, alpha, radius);
+        if (source instanceof CheckBox box) check(d, box, alpha);
         if (source instanceof TextBox box) textBox(d, box, alpha, textStroke);
         else if (source instanceof TextLabel label && !label.text.isEmpty()) text(d, label, alpha, textStroke);
     }
@@ -238,7 +262,57 @@ final class Node extends Widget {
     }
 
     private boolean autoColored() {
-        return source instanceof TextButton button && button.autoButtonColor;
+        return source instanceof TextButton button && button.autoButtonColor
+                || source instanceof CheckBox box && box.autoButtonColor;
+    }
+
+    private void slider(UiDraw d, Slider slider, float alpha, float radius) {
+        float t = (float) slider.fraction();
+        boolean vertical = slider.fillDirection == FillDirection.VERTICAL;
+        float fy = vertical ? y + h * (1 - t) : y;
+        float fw = vertical ? w : w * t;
+        float fh = vertical ? h * t : h;
+        float fade = (float) (1 - slider.fillTransparency) * alpha;
+        if (fw > 0 && fh > 0 && fade > 0) {
+            int texture = slider.fillImage.isEmpty() ? 0 : UiImages.texture(slider.fillImage);
+            if (texture != 0) d.imageRegion(texture, x, fy, x + fw, fy + fh, 0, vertical ? 1 - t : 0, vertical ? 1 : t, 1, argb(Color.WHITE, fade), false);
+            else d.roundedRect(x, fy, fw, fh, Math.min(radius, Math.min(fw, fh) * 0.5f), argb(slider.fillColor, fade));
+        }
+        float gw = (float) slider.grabberSize.x();
+        float gh = (float) slider.grabberSize.y();
+        if (gw <= 0 || gh <= 0) return;
+        float cx = vertical ? x + w * 0.5f : x + w * t;
+        float cy = vertical ? y + h * (1 - t) : y + h * 0.5f;
+        int texture = slider.grabberImage.isEmpty() ? 0 : UiImages.texture(slider.grabberImage);
+        if (texture != 0) {
+            d.imageRegion(texture, cx - gw * 0.5f, cy - gh * 0.5f, cx + gw * 0.5f, cy + gh * 0.5f, 0, 0, 1, 1, argb(slider.grabberColor, alpha), false);
+        } else {
+            Color grabber = shade(slider.grabberColor, slider.dragging ? 0.2 : slider.hovered ? 0.1 : 0);
+            d.roundedRect(cx - gw * 0.5f, cy - gh * 0.5f, gw, gh, Math.min(gw, gh) * 0.5f, argb(grabber, alpha));
+        }
+    }
+
+    private void check(UiDraw d, CheckBox box, float alpha) {
+        String shown = box.shownImage();
+        int texture = shown.isEmpty() ? 0 : UiImages.texture(shown);
+        if (texture != 0) {
+            d.imageRegion(texture, x, y, x + w, y + h, 0, 0, 1, 1, argb(Color.WHITE, alpha), false);
+            return;
+        }
+        if (!box.checked) return;
+        int colour = argb(box.checkColor, alpha);
+        float thickness = Math.max(1.5f, Math.min(w, h) * 0.14f);
+        stroke(d, x + w * 0.22f, y + h * 0.52f, x + w * 0.42f, y + h * 0.72f, thickness, colour);
+        stroke(d, x + w * 0.42f, y + h * 0.72f, x + w * 0.78f, y + h * 0.3f, thickness, colour);
+    }
+
+    private static void stroke(UiDraw d, float x0, float y0, float x1, float y1, float thickness, int colour) {
+        float cx = (x0 + x1) * 0.5f;
+        float cy = (y0 + y1) * 0.5f;
+        float length = (float) Math.hypot(x1 - x0, y1 - y0) + thickness * 0.5f;
+        d.pushTransform(cx, cy, 0, 0, 1, (float) Math.atan2(y1 - y0, x1 - x0));
+        d.roundedRect(cx - length * 0.5f, cy - thickness * 0.5f, length, thickness, thickness * 0.5f, colour);
+        d.popTransform();
     }
 
     private void gradient(UiDraw d, UIGradient gradient, Color base, float fill, float radius) {
@@ -473,6 +547,7 @@ final class Node extends Widget {
     @Override
     protected boolean interactive() {
         return source instanceof TextButton || source instanceof ImageButton || source instanceof TextBox
+                || source instanceof Slider || source instanceof CheckBox
                 || source instanceof ScrollingFrame frame && frame.scrollingEnabled;
     }
 
@@ -488,6 +563,11 @@ final class Node extends Widget {
         return switch (source) {
             case TextButton ignored -> button == 0;
             case ImageButton ignored -> button == 0;
+            case CheckBox ignored -> button == 0;
+            case Slider slider -> {
+                if (button == 0) slideTo(slider, mx, my);
+                yield button == 0;
+            }
             case TextBox box -> {
                 if (button == 0) pressText(box, mx, my);
                 yield true;
@@ -523,6 +603,7 @@ final class Node extends Widget {
         float my = local(surfaceY, offsetY);
         switch (source) {
             case TextBox box -> apply(box, box.edit().move(indexAt(box, mx, my), true));
+            case Slider slider -> slideTo(slider, mx, my);
             case ScrollingFrame frame when frame.scrollingEnabled && canvas != null -> {
                 double dx = mx - pressX;
                 double dy = my - pressY;
@@ -539,10 +620,18 @@ final class Node extends Widget {
     public void onMouseUp(float surfaceX, float surfaceY, int button) {
         float mx = local(surfaceX, offsetX);
         float my = local(surfaceY, offsetY);
+        if (source instanceof Slider slider && slider.isAlive()) {
+            slider.dragEnded.fire(slider.value);
+            return;
+        }
         if (mx < x || my < y || mx > x + w || my > y + h) return;
         switch (source) {
             case TextButton clicked when clicked.isAlive() -> clicked.activated.fire(clicked);
             case ImageButton clicked when clicked.isAlive() -> clicked.activated.fire(clicked);
+            case CheckBox clicked when clicked.isAlive() -> {
+                Instances.setBool(clicked, clicked.def().property("checked"), !clicked.checked);
+                clicked.toggled.fire(clicked.checked);
+            }
             default -> { }
         }
     }
@@ -557,6 +646,15 @@ final class Node extends Widget {
         double step = amount * WHEEL_STEP;
         scrollTo(frame, vertical ? new Vector3(at.x(), at.y() - step, 0) : new Vector3(at.x() - step, at.y(), 0));
         return true;
+    }
+
+    private void slideTo(Slider slider, float mx, float my) {
+        if (!slider.isAlive()) return;
+        double along = slider.fillDirection == FillDirection.VERTICAL ? 1 - (my - y) / Math.max(1, h) : (mx - x) / Math.max(1, w);
+        double next = slider.valueAt(along);
+        if (next == slider.value) return;
+        Instances.setNum(slider, slider.def().property("value"), next);
+        slider.valueChanged.fire(next);
     }
 
     private void scrollTo(ScrollingFrame frame, Vector3 wanted) {
