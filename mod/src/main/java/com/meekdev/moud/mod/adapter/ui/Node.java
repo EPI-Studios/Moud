@@ -84,7 +84,7 @@ final class Node extends Widget {
     @Override
     protected void placeChildren() {
         children().sort((a, b) -> Integer.compare(z(a), z(b)));
-        GuiLayout.Box self = new GuiLayout.Box(x, y, w, h);
+        GuiLayout.Box self = source instanceof ScreenGui screen ? designed(screen) : new GuiLayout.Box(x, y, w, h);
         if (source instanceof TextLabel label) {
             GuiLayout.Size bounds = UiText.bounds(label, GuiLayout.wraps(label) ? w : Double.POSITIVE_INFINITY);
             boundsW = (float) bounds.w();
@@ -113,6 +113,19 @@ final class Node extends Widget {
             node.offsetY = scale * (centreY + dy - s * centreY) + offsetY;
             node.layout((float) box.x(), (float) box.y(), (float) box.w(), (float) box.h());
         }
+    }
+
+    private GuiLayout.Box designed(ScreenGui screen) {
+        GuiLayout.Design design = GuiLayout.design(screen, w, h);
+        float s = design == null ? 1 : (float) design.scale();
+        float cx = x + w * 0.5f;
+        float cy = y + h * 0.5f;
+        scaleChannel(s);
+        scale = s;
+        offsetX = cx * (1 - s);
+        offsetY = cy * (1 - s);
+        if (design == null) return new GuiLayout.Box(x, y, w, h);
+        return new GuiLayout.Box(cx - design.w() * 0.5, cy - design.h() * 0.5, design.w(), design.h());
     }
 
     private static int z(Widget widget) {

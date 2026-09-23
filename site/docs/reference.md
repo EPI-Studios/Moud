@@ -1525,6 +1525,8 @@ Extends [Instance](#instance).
 
 | Property | Type |
 |---|---|
+| `designScaling` | `"fit" \| "fitWidth" \| "fitHeight" \| "expand"` |
+| `designSize` | `Vector3` |
 | `displayOrder` | `number` |
 | `enabled` | `boolean` |
 | `font` | `string` |

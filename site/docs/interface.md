@@ -293,6 +293,42 @@ button.mouseEnter:connect(function() grow:tween({ scale = 1.1 }, { time = 0.1 })
 button.mouseLeave:connect(function() grow:tween({ scale = 1 }, { time = 0.1 }) end)
 ```
 
+## Designing at one size
+
+A `ScreenGui` with a `designSize` is laid out on a canvas of exactly that many pixels, and the
+engine scales the whole canvas to the window. You place everything once, for one resolution, and it
+keeps its proportions on any screen.
+
+```lua
+-- client
+local menu = world:add("ScreenGui", { designSize = vec3(960, 540, 0), designScaling = "fit" })
+menu:add("TextLabel", {
+    position = udim2(0, 480, 0, 60), anchorX = 0.5,
+    size = udim2(0, 400, 0, 40), text = "My Game", textSize = 36,
+})
+menu:add("TextButton", { position = udim2(0, 380, 0, 400), size = udim2(0, 200, 0, 48), text = "Play" })
+```
+
+The title is 400 pixels wide on a 960 by 540 canvas, so on a window twice that size it is drawn twice
+as big, and the Play button stays in the lower middle whatever the window's size.
+
+- **`designSize`** is the canvas width and height in pixels. `vec3(0, 0, 0)`, the default, turns it
+  off and the gui is sized by the screen as usual.
+- **`designScaling`** says how the canvas meets a window of another shape:
+  - `"fit"` scales it until it touches two edges, so all of it is always seen. On a window wider or
+    taller than the canvas, what is behind shows along the sides.
+  - `"fitWidth"` makes the canvas as wide as the window and gives it as much height as the window has
+    room for at that scale, more or less than `designSize` says.
+  - `"fitHeight"` does the same with the height.
+  - `"expand"` scales like `"fit"`, then grows the canvas along the other side until it covers the
+    window. The designed area is always in view, and a widget anchored to the right or the bottom with
+    a scale position still reaches the window's edge.
+- The scale is worked out from the window as it is drawn, from the very first frame, so there is no
+  need for a script that watches `window.resized` and sets a `UIScale`.
+- Text is drawn at the scaled size, not stretched from a small picture, so it stays sharp.
+- The scale is the same on both axes, so nothing is ever squashed.
+- `absolutePosition`, `absoluteSize` and the positions mouse events carry stay in screen pixels.
+
 ## Corners, outlines and gradients
 
 These three are children you add to a widget to change how its rectangle is drawn.

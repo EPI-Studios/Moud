@@ -336,6 +336,8 @@
     "surfaceColor": "The colour of the faces.",
     "surfaceTransparency": "0 fills the faces fully, 1 leaves them empty.",
     "lineThickness": "How thick the edges are, in metres.",
+    "ScreenGui.designSize": "Lays the gui out on a canvas this many pixels wide and tall and scales it to the window. 0 turns it off.",
+    "ScreenGui.designScaling": "How the design canvas meets the window: fit all of it, fit the width, fit the height, or expand to cover the window.",
     "GuiObject.layoutOrder": "Where it goes in a UIListLayout or UIGridLayout sorted by layout order. Lower comes first.",
     "GuiObject.automaticSize": "Grows along x, y or both to fit its text or its children. It never shrinks below its size.",
     "GuiObject.absolutePosition": "Where its top left corner ended up, in pixels, once laid out.",

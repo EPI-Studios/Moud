@@ -16,6 +16,8 @@ public final class GuiLayout {
 
     public record Placed(GuiObject object, Box box) {}
 
+    public record Design(double scale, double w, double h) {}
+
     public record Plane(Vector3 centre, Vector3 right, Vector3 up, double width, double height) {}
 
     @FunctionalInterface
@@ -97,6 +99,23 @@ public final class GuiLayout {
     public static double scale(GuiObject object) {
         UIScale scale = component(object, UIScale.class);
         return scale == null ? 1 : scale.scale;
+    }
+
+    public static Design design(ScreenGui screen, double w, double h) {
+        double dw = screen.designSize.x();
+        double dh = screen.designSize.y();
+        if (!(dw > 0) || !(dh > 0) || !(w > 0) || !(h > 0)) return null;
+        double across = w / dw;
+        double down = h / dh;
+        return switch (screen.designScaling) {
+            case FIT -> new Design(Math.min(across, down), dw, dh);
+            case FIT_WIDTH -> new Design(across, dw, h / across);
+            case FIT_HEIGHT -> new Design(down, w / down, dh);
+            case EXPAND -> {
+                double scale = Math.min(across, down);
+                yield new Design(scale, w / scale, h / scale);
+            }
+        };
     }
 
     public static double udim(UDim2 value, boolean vertical, double parent) {
