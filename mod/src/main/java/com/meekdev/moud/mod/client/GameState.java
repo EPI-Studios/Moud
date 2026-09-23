@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.place.Game;
+import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.script.api.GameRef;
 import com.meekdev.moud.script.host.HostError;
 import net.minecraft.client.Minecraft;
@@ -63,13 +64,13 @@ public final class GameState implements GameRef {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> {
             if (Game.standalone()) {
-                client.stop();
+                WindowApi.INSTANCE.afterScreenshots(client::stop);
             } else if (EditMode.allowed() && EditMode.session() > 0) {
                 EditMode.request(true);
-            } else if (Editor.available()) {
+            } else if (Editor.available() && !PlaceToml.launchedPlaceOpen()) {
                 Editor.requestCloseProject();
             } else {
-                client.stop();
+                WindowApi.INSTANCE.afterScreenshots(client::stop);
             }
         });
     }

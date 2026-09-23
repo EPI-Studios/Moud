@@ -57,6 +57,10 @@ public final class PlaceToml {
         return chosen != null && !chosen.isBlank();
     }
 
+    public static boolean launchedPlaceOpen() {
+        return opened == null && chosenAtLaunch();
+    }
+
     public static boolean editOnStart() {
         return editOnStart;
     }

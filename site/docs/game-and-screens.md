@@ -49,8 +49,12 @@ game:quit()
 ```
 
 - In an exported game, the game closes.
+- In a place started from the command line with `-Pplace`, the game closes too.
 - During a playtest in the editor, it goes back to editing.
-- Otherwise it leaves to the project hub.
+- In a project opened from the project hub, it leaves to the hub.
+
+The game waits for any `window:screenshot` still being written before it closes, so a script can take
+a picture and quit on the next line.
 
 `game.exported` is true inside an exported game. Read it when a menu should offer **Quit to desktop**
 in the shipped game and **Back to the hub** while you work on it.

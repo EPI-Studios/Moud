@@ -142,6 +142,17 @@ end
 > Minecraft runs through XWayland on Wayland desktops, so moving works there too. A player who
 > switched Minecraft to native Wayland gets `window.canMove == false`, and moves do nothing for them.
 
+### Screenshots
+
+```lua
+local path = window:screenshot("boss-room")   -- "screenshots/boss-room.png"
+```
+
+`window:screenshot(name)` saves what the window shows, interface included, as a PNG in the
+`screenshots` folder of the game folder, and returns its path. The name may use letters, digits, `-`
+and `_`; leave it out and the file is named after the time. The picture is written a moment later,
+and `game:quit()` waits for it.
+
 ### Closing
 
 `window.closing` fires when the player tries to close the game window. Calling `window:preventClose()`

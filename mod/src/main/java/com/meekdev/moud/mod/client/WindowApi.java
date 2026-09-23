@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import org.jspecify.annotations.Nullable;
@@ -61,6 +62,8 @@ public final class WindowApi implements WindowRef {
     private long setAt;
     private boolean prevented;
     private long preventedAt;
+    private final AtomicInteger pendingShots = new AtomicInteger();
+    private final List<Runnable> afterShots = new ArrayList<>();
 
     private WindowApi() {}
 
@@ -208,8 +211,32 @@ public final class WindowApi implements WindowRef {
     public String screenshot(String name) {
         Minecraft minecraft = Minecraft.getInstance();
         String file = (name.isEmpty() ? "moud-" + System.currentTimeMillis() : name) + ".png";
-        minecraft.execute(() -> Screenshot.grab(minecraft.gameDirectory, file, minecraft.getMainRenderTarget(), 1, message -> { }));
+        pendingShots.incrementAndGet();
+        minecraft.execute(() -> {
+            try {
+                Screenshot.grab(minecraft.gameDirectory, file, minecraft.getMainRenderTarget(), 1, message -> shotDone(minecraft));
+            } catch (RuntimeException e) {
+                MoudMod.LOG.error("could not take screenshot {}", file, e);
+                shotDone(minecraft);
+            }
+        });
         return Screenshot.SCREENSHOT_DIR + "/" + file;
+    }
+
+    private void shotDone(Minecraft minecraft) {
+        if (pendingShots.decrementAndGet() == 0) minecraft.execute(this::runAfterShots);
+    }
+
+    public void afterScreenshots(Runnable action) {
+        afterShots.add(action);
+        if (pendingShots.get() == 0) runAfterShots();
+    }
+
+    private void runAfterShots() {
+        if (pendingShots.get() > 0) return;
+        List<Runnable> waiting = List.copyOf(afterShots);
+        afterShots.clear();
+        waiting.forEach(Runnable::run);
     }
 
     @Override
