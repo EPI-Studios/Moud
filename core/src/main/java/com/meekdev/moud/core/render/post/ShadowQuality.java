@@ -16,4 +16,7 @@ public final class ShadowQuality extends PostEffect {
     @Prop(min = 0.1, max = 16) public double lightSize = 2.5;
 
     public boolean entities = true;
+
+    @Prop(min = 0, max = 100) public double timeBudget;
+    @Prop(readOnly = true, replicated = false) public int reduction;
 }

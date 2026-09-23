@@ -99,7 +99,9 @@ final class EffectSettings {
                 ShadowSettings.defaults().resolution(s.resolution).sunResolution(s.sunResolution)
                         .sunCascades(s.sunCascades).sunDistance((float) s.sunDistance)
                         .maxDistance((float) s.maxDistance).softness((float) s.softness)
-                        .pcss(s.contactHardening).lightSize((float) s.lightSize).entityShadows(s.entities);
+                        .pcss(s.contactHardening).lightSize((float) s.lightSize).entityShadows(s.entities)
+                        .budgetMs((float) s.timeBudget);
+                s.reduction = Shadows.reduction();
             }
             default -> {}
         }
@@ -230,11 +232,12 @@ final class EffectSettings {
         float maxDistance = s.maxDistance();
         float softness = s.softness();
         float lightSize = s.lightSize();
+        float budget = s.budgetMs();
         return () -> {
             Shadows.setEnabled(enabled);
             ShadowSettings.defaults().pcss(pcss).entityShadows(entities).resolution(resolution)
                     .sunResolution(sunResolution).sunCascades(cascades).sunDistance(sunDistance)
-                    .maxDistance(maxDistance).softness(softness).lightSize(lightSize);
+                    .maxDistance(maxDistance).softness(softness).lightSize(lightSize).budgetMs(budget);
         };
     }
 }

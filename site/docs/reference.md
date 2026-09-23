@@ -1060,11 +1060,13 @@ Extends [PostEffect](#posteffect).
 | `entities` | `boolean` |
 | `lightSize` | `number` |
 | `maxDistance` | `number` |
+| `reduction` | `number` (read-only) |
 | `resolution` | `number` |
 | `softness` | `number` |
 | `sunCascades` | `number` |
 | `sunDistance` | `number` |
 | `sunResolution` | `number` |
+| `timeBudget` | `number` |
 
 <a id="vignetteeffect"></a>
 
@@ -1362,9 +1364,9 @@ Extends [Instance](#instance).
 | Property | Type |
 |---|---|
 | `celestialBodiesShown` | `boolean` |
+| `hdri` | `string` |
 | `moonAngularSize` | `number` |
 | `moonTextureId` | `string` |
-| `hdri` | `string` |
 | `skyboxBk` | `string` |
 | `skyboxDn` | `string` |
 | `skyboxFt` | `string` |

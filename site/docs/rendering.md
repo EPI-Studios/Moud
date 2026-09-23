@@ -360,7 +360,7 @@ to how it was.
 | `AntiAliasingEffect` | `history`, `sharpness`, `clip` |
 | `VolumetricEffect` | `strength`, `density`, `anisotropy`, `steps`, `resolution`, `shadows` |
 | `ContactShadowEffect` | `distance`, `thickness`, `steps` |
-| `ShadowQuality` | `resolution`, `sunResolution`, `sunCascades`, `sunDistance`, `maxDistance`, `softness`, `contactHardening`, `lightSize`, `entities` |
+| `ShadowQuality` | `resolution`, `sunResolution`, `sunCascades`, `sunDistance`, `maxDistance`, `softness`, `contactHardening`, `lightSize`, `entities`, `timeBudget`, `reduction` |
 
 > [!NOTE]
 > Adding a second `BloomEffect` does nothing while the first one is enabled. To swap settings, either
@@ -416,6 +416,23 @@ world:add("PosterizeEffect", { levels = 6, coversInterface = true })
   does not write, so they treat a label like whatever is behind it. The effects that only look at
   colour, such as a vignette, posterize, pixelate, blur, grain or a `PostShader` that only calls
   `sceneColor`, are the ones to use here.
+
+### A time budget for shadows
+
+```lua
+world:add("ShadowQuality", { sunResolution = 4096, sunCascades = 4, timeBudget = 2 })
+```
+
+`timeBudget` is how many milliseconds a frame may spend drawing shadow maps. 0, the default, means
+no limit. When the shadow pass keeps running over it, the sun's shadow is made cheaper a step at a
+time: a shorter reach first, then a lower resolution, then fewer cascades. When there is room again
+it climbs back a step at a time, more slowly, and it never goes above what the `ShadowQuality` asks
+for. A setting that keeps tipping it over waits longer before it is tried again, so the shadows do
+not flicker between two qualities.
+
+`reduction` reads how many steps down it is right now, from 0 to 6, on the client. The time measured
+is the time the game spends sending the shadow work, which follows the real cost closely but is not
+a GPU timer.
 
 ### Your own screen shader
 
