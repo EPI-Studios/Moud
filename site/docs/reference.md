@@ -3149,6 +3149,7 @@ Methods:
 | `visible` | `boolean` |
 | `opacity` | `number` |
 | `cursor` | `string` |
+| `cursorHotspot` | `Vector3` |
 | `cursorVisible` | `boolean` |
 | `fps` | `number` |
 | `displayWidth` | `number` |

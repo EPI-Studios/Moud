@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.api;
 
+import com.meekdev.moud.core.math.Vector3;
 import java.util.List;
 import java.util.Map;
 
@@ -56,6 +57,10 @@ public interface WindowRef {
     String cursor();
 
     void cursor(String cursor);
+
+    Vector3 cursorHotspot();
+
+    void cursorHotspot(Vector3 hotspot);
 
     boolean cursorVisible();
 

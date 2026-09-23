@@ -2,6 +2,7 @@ package com.meekdev.moud.script.host;
 
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.ui.AppWindow;
 import com.meekdev.moud.script.api.WindowRef;
 import java.util.ArrayList;
@@ -60,6 +61,7 @@ final class WindowLibrary {
                 .field("minimized", "boolean", window::minimized)
                 .field("opacity", "number", window::opacity, value -> window.opacity(Math.clamp(number("window.opacity", value), 0, 1)))
                 .field("cursor", "string", window::cursor, value -> window.cursor(text("window.cursor", value)))
+                .field("cursorHotspot", "Vector3", window::cursorHotspot, value -> window.cursorHotspot(vector("window.cursorHotspot", value)))
                 .field("cursorVisible", "boolean", window::cursorVisible, value -> window.cursorVisible(bool("window.cursorVisible", value)))
                 .field("fps", "number", () -> (double) window.fps())
                 .field("displayWidth", "number", () -> (double) window.displayWidth())
@@ -193,6 +195,11 @@ final class WindowLibrary {
     private static double number(String where, Object value) {
         if (!(value instanceof Number n)) throw new HostError("%s expects a number", where);
         return n.doubleValue();
+    }
+
+    private static Vector3 vector(String where, Object value) {
+        if (!(value instanceof Vector3 v)) throw new HostError("%s expects a vec3", where);
+        return v;
     }
 
     private static int size(String where, Object value) {

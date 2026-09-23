@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client;
 
 import com.meekdev.moud.core.asset.Res;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.ui.Windows;
 import com.meekdev.moud.mod.place.PlaceToml;
@@ -47,6 +48,7 @@ public final class WindowApi implements WindowRef {
     private String icon = "";
     private String cursor = "arrow";
     private long cursorHandle;
+    private Vector3 cursorHotspot = Vector3.ZERO;
     private @Nullable String hovering;
     private long hoverHandle;
     private boolean cursorVisible = true;
@@ -76,6 +78,7 @@ public final class WindowApi implements WindowRef {
         render(() -> {
             title = null;
             Minecraft.getInstance().updateTitle();
+            cursorHotspot = Vector3.ZERO;
             if (!cursor.equals("arrow")) cursor("arrow");
             if (!cursorVisible) cursorVisible(true);
             if (opacity != 1) opacity(1);
@@ -291,7 +294,7 @@ public final class WindowApi implements WindowRef {
         cursor = value;
         render(() -> {
             long previous = cursorHandle;
-            cursorHandle = value.startsWith(Res.SCHEME) ? imageCursor(value) : GLFW.glfwCreateStandardCursor(CURSORS.get(value));
+            cursorHandle = value.startsWith(Res.SCHEME) ? imageCursor(value, cursorHotspot) : GLFW.glfwCreateStandardCursor(CURSORS.get(value));
             GLFW.glfwSetCursor(handle(), value.equals("arrow") ? 0 : cursorHandle);
             if (previous != 0) GLFW.glfwDestroyCursor(previous);
         });
@@ -306,13 +309,24 @@ public final class WindowApi implements WindowRef {
             hoverHandle = 0;
             GLFW.glfwSetCursor(handle(), cursor.equals("arrow") ? 0 : cursorHandle);
         } else {
-            hoverHandle = wanted.startsWith(Res.SCHEME) ? imageCursor(wanted) : GLFW.glfwCreateStandardCursor(CURSORS.get(wanted));
+            hoverHandle = wanted.startsWith(Res.SCHEME) ? imageCursor(wanted, Vector3.ZERO) : GLFW.glfwCreateStandardCursor(CURSORS.get(wanted));
             GLFW.glfwSetCursor(handle(), hoverHandle);
         }
         if (previous != 0) GLFW.glfwDestroyCursor(previous);
     }
 
-    private static long imageCursor(String res) {
+    @Override
+    public Vector3 cursorHotspot() {
+        return cursorHotspot;
+    }
+
+    @Override
+    public void cursorHotspot(Vector3 hotspot) {
+        cursorHotspot = hotspot;
+        if (cursor.startsWith(Res.SCHEME)) cursor(cursor);
+    }
+
+    private static long imageCursor(String res, Vector3 hotspot) {
         try {
             byte[] bytes = Files.readAllBytes(PlaceToml.root().resolve(Res.parse(res)));
             ByteBuffer encoded = BufferUtils.createByteBuffer(bytes.length).put(bytes).flip();
@@ -324,7 +338,9 @@ public final class WindowApi implements WindowRef {
                 if (pixels == null) throw new IOException(STBImage.stbi_failure_reason());
                 try {
                     GLFWImage image = GLFWImage.malloc(stack).width(w.get(0)).height(h.get(0)).pixels(pixels);
-                    return GLFW.glfwCreateCursor(image, 0, 0);
+                    int x = (int) Math.clamp(Math.round(hotspot.x()), 0, w.get(0) - 1);
+                    int y = (int) Math.clamp(Math.round(hotspot.y()), 0, h.get(0) - 1);
+                    return GLFW.glfwCreateCursor(image, x, y);
                 } finally {
                     STBImage.stbi_image_free(pixels);
                 }

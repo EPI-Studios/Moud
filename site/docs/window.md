@@ -59,6 +59,7 @@ window.opacity = 0.85                    -- needs a desktop that composites wind
 
 window.cursor = "hand"                   -- arrow, hand, text, crosshair, resizeEW, resizeNS, resizeAll,
                                          -- notAllowed, or "res://ui/cursor.png"
+window.cursorHotspot = vec3(9, 0, 0)     -- the pixel of the image that clicks
 window.cursorVisible = false             -- while the pointer is free
 
 window.fps                               -- read
@@ -77,6 +78,10 @@ window:setClipboard("ABC-123")           -- there is no reading the clipboard
   windows.
 - **`window.cursor`** takes one of the named cursors or a `res://` image of your own. Set it to
   `"hand"` over a clickable thing and back to `"arrow"` when the pointer leaves.
+- **`window.cursorHotspot`** is the pixel of a `res://` cursor image that points, x and y counted from
+  its top left corner. It starts at `vec3(0, 0, 0)`, the corner, which suits an arrow; the tip of a
+  finger nine pixels in is `vec3(9, 0, 0)`, and the middle of a 32 pixel crosshair is `vec3(16, 16, 0)`.
+  It is in the image's own pixels and is kept inside the image.
 - **`window.cursorVisible`** applies while the pointer is free.
 - **`window.fps`** is the frame rate the game is running at, and **`window.displayWidth`** and
   **`window.displayHeight`** are the size of the monitor the window is on. All three are read only.
