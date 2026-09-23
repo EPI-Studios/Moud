@@ -850,6 +850,7 @@ Extends [PostEffect](#posteffect).
 
 | Property | Type |
 |---|---|
+| `coversInterface` | `boolean` |
 | `intensity` | `number` |
 | `order` | `number` |
 

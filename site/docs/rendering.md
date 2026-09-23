@@ -247,6 +247,26 @@ night:add("FogEffect", { color = color(0.1, 0.12, 0.2), start = 8, density = 0.0
 Destroying the folder destroys the three effects inside it, and each one puts its setting back as it
 goes.
 
+### Effects over the interface
+
+A screen effect normally touches only the world, and every `ScreenGui` is drawn on top of it
+untouched. Turn on `coversInterface` and the effect runs after the screen guis are drawn, so it
+reaches the menu text too:
+
+```lua
+-- client
+world:add("VignetteEffect", { radius = 0.5, softness = 0.4, coversInterface = true })
+world:add("PosterizeEffect", { levels = 6, coversInterface = true })
+```
+
+- Effects with `coversInterface` run after all the others, still in `order` among themselves.
+- The first-person hand and every `ScreenGui` are under them. The chat, the pause menu and other
+  game screens are not.
+- `FogEffect`, `OutlineEffect` and `DepthOfFieldEffect` read the world's depth, which the interface
+  does not write, so they treat a label like whatever is behind it. The effects that only look at
+  colour, such as a vignette, posterize, pixelate, blur, grain or a `PostShader` that only calls
+  `sceneColor`, are the ones to use here.
+
 ### Your own screen shader
 
 `PostShader` runs a GLSL fragment shader over the picture. It takes its place among the screen effects

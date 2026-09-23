@@ -837,7 +837,9 @@ panel:add("FilmGrainEffect", { amount = 0.2, size = 3 })
 ```
 
 An interface with effects is drawn into a texture first, so its text is only as sharp as
-`pixelsPerMetre`. Inside a `ScreenGui` an effect still covers the whole screen.
+`pixelsPerMetre`. Inside a `ScreenGui` an effect still covers the whole screen, and it only covers the
+screen guis themselves with `coversInterface = true`, which
+[Effects over the interface](rendering.md#effects-over-the-interface) explains.
 
 ## Clicking a screen in the world
 

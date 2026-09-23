@@ -31,6 +31,7 @@ import org.joml.Matrix4f;
 public final class PostStack {
 
     private static final List<ScreenEffect> FRAME = new ArrayList<>();
+    private static final List<ScreenEffect> OVER_INTERFACE = new ArrayList<>();
     private static final Matrix4f PREV_VIEW_PROJ = new Matrix4f();
     private static final long START = System.nanoTime();
 
@@ -44,22 +45,25 @@ public final class PostStack {
 
     public static void register() {
         EffectSettings.captureDefaults();
-        Pipeline.add(RenderStage.POST, 15, "moud screen effects", ctx -> draw());
+        Pipeline.add(RenderStage.POST, 15, "moud screen effects", ctx -> draw(FRAME, true));
+        Pipeline.add(RenderStage.BEFORE_GUI, 60, "moud screen effects over the interface", ctx -> draw(OVER_INTERFACE, false));
     }
 
     public static void frame() {
         InstanceTree tree = ClientScene.tree();
         FRAME.clear();
+        OVER_INTERFACE.clear();
         List<PostEffect> settings = new ArrayList<>();
         if (tree != null) {
             for (PostEffect effect : tree.ofClass(Classes.POST_EFFECT)) {
                 if (!effect.enabled) continue;
                 if (insideInterface(effect)) continue;
                 if (!(effect instanceof ScreenEffect screen)) settings.add(effect);
-                else if (screen.intensity > 0) FRAME.add(screen);
+                else if (screen.intensity > 0) (screen.coversInterface ? OVER_INTERFACE : FRAME).add(screen);
             }
         }
         FRAME.sort(Comparator.comparingDouble(effect -> effect.order));
+        OVER_INTERFACE.sort(Comparator.comparingDouble(effect -> effect.order));
         EffectSettings.applyOnly(settings);
     }
 
@@ -70,8 +74,8 @@ public final class PostStack {
         return false;
     }
 
-    private static void draw() {
-        if (FRAME.isEmpty()) return;
+    private static void draw(List<ScreenEffect> effects, boolean world) {
+        if (effects.isEmpty()) return;
         CameraSnapshot camera = CameraSnapshot.current();
         if (camera == null) return;
         if (color == null) {
@@ -85,7 +89,7 @@ public final class PostStack {
             PREV_VIEW_PROJ.set(camera.viewProj);
             prevEye = new Vector3(camera.eye.x, camera.eye.y, camera.eye.z);
         }
-        for (ScreenEffect effect : FRAME) {
+        for (ScreenEffect effect : effects) {
             ScreenShader program = ScreenShader.of(effect);
             if (program == null || program.broken()) continue;
             color.blitColorFromMain();
@@ -116,6 +120,7 @@ public final class PostStack {
                 GlState.endFullscreen();
             }
         }
+        if (!world) return;
         PREV_VIEW_PROJ.set(camera.viewProj);
         prevEye = new Vector3(camera.eye.x, camera.eye.y, camera.eye.z);
         hasPrev = true;

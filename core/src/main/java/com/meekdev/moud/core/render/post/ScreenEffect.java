@@ -7,4 +7,6 @@ public class ScreenEffect extends PostEffect {
     public double order = 50;
 
     @Prop(min = 0, max = 1) public double intensity = 1;
+
+    public boolean coversInterface;
 }
