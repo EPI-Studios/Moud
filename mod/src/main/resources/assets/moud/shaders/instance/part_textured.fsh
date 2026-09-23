@@ -22,6 +22,7 @@ vec2 litBy(vec3 world, vec3 normal, vec2 fallback) {
 uniform sampler2D Albedo;
 
 out vec4 FragColor;
+layout(location = 4) out vec4 GAlbedo;
 
 void main() {
     if (vColor.a < 0.001) discard;
@@ -50,4 +51,5 @@ void main() {
     if (alpha < 0.004) discard;
 
     FragColor = vec4(vColor.rgb * tex.rgb * face * light, alpha);
+    GAlbedo = vec4(vColor.rgb * tex.rgb * face, 1.0);
 }

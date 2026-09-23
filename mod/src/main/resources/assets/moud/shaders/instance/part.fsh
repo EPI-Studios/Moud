@@ -20,6 +20,7 @@ vec2 litBy(vec3 world, vec3 normal, vec2 fallback) {
 
 
 out vec4 FragColor;
+layout(location = 4) out vec4 GAlbedo;
 
 void main() {
     if (vColor.a < 0.001) discard;
@@ -37,4 +38,5 @@ void main() {
     vec3 light = texture(LightMap, uv).rgb;
 
     FragColor = vec4(vColor.rgb * face * light, vColor.a);
+    GAlbedo = vec4(vColor.rgb * face, 1.0);
 }
