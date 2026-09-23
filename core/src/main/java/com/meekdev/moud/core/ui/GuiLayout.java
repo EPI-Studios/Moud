@@ -85,6 +85,7 @@ public final class GuiLayout {
     public static double cornerRadius(GuiObject object, double w, double h) {
         UICorner corner = component(object, UICorner.class);
         double shortest = Math.min(w, h);
+        if (!(shortest > 0) || !Double.isFinite(shortest)) return 0;
         double radius = corner == null ? object.cornerRadius : udim(corner.cornerRadius, false, shortest);
         return Math.clamp(radius, 0, Math.max(0, shortest * 0.5));
     }

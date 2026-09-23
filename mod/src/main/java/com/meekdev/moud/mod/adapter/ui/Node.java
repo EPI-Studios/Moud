@@ -149,6 +149,8 @@ final class Node extends Widget {
         this.alpha = alpha;
         clipped = false;
         if (!(source instanceof GuiObject object)) return;
+        // a size a script divided by zero must not take the whole interface down with it
+        if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(w) || !Float.isFinite(h)) return;
         if (source instanceof CanvasGroup group) {
             float density = onScreen() ? (float) Minecraft.getInstance().getWindow().getGuiScale() : 2f;
             d.group(this, x, y, w, h, density, argb(group.groupColor, (1 - group.groupTransparency) * alpha), () -> {
