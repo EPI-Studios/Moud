@@ -66,7 +66,7 @@ splash:play()
 
 - `addKey(target, property, time, value, shape)` adds one key, and `setKeys(target, property, keys)`
   replaces every key of that property with a list of `{ time, value, shape }`. Both return the
-  `PropertyTrack` that holds the keys, making it the first time a property is keyed.
+  `PropertyTrack` that holds the keys, which is created the first time a property is keyed.
 - The target is an instance, or a path from the timeline's parent: `"logo"` is a sibling of the
   timeline, `"panel/title"` a child of a sibling and `"../door"` a sibling of the parent.
 - Between two keys the property moves the way the first key's shape says: `"linear"` (the default),
