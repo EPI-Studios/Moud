@@ -128,6 +128,23 @@ wraps inside its size.
 hud:add("TextLabel", { text = "<b>Score</b> <color=gold>120</color>", richText = true })
 ```
 
+**Typewriter text.** `maxVisibleGraphemes` stops drawing after that many characters. `-1`, the
+default, draws them all.
+
+```lua
+-- client
+local line = dialog:add("TextLabel", {
+    size = udim2(1, 0, 0, 60), text = "The bridge is out. We go round by the mill.",
+    textWrapped = true, textXAlignment = "left", maxVisibleGraphemes = 0,
+})
+line:tween({ maxVisibleGraphemes = #line.text }, { time = 1.5 })
+```
+
+The text is laid out in full from the start, so the words already on screen never jump when the next
+ones appear, and a wrapped word starts on the line it will end on. It counts characters after rich text
+tags are taken out; a line break or an inline image counts as one. It works on a `TextButton` and on a
+`TextBox` that is not being typed into.
+
 ## Layouts
 
 A layout is an instance you put inside a frame to place that frame's children for you. It ignores

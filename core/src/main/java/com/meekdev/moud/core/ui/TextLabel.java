@@ -23,5 +23,7 @@ public class TextLabel extends GuiObject {
 
     public boolean richText;
 
+    public int maxVisibleGraphemes = -1;
+
     @Prop(readOnly = true, replicated = false) public Vector3 textBounds = Vector3.ZERO;
 }

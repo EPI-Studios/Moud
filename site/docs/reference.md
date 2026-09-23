@@ -1613,6 +1613,7 @@ Extends [GuiObject](#guiobject).
 | Property | Type |
 |---|---|
 | `font` | `string` |
+| `maxVisibleGraphemes` | `number` |
 | `richText` | `boolean` |
 | `text` | `string` |
 | `textBounds` | `Vector3` (read-only) |

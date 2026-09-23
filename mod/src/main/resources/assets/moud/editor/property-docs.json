@@ -344,6 +344,7 @@
     "GuiObject.absolutePosition": "Where its top left corner ended up, in pixels, once laid out.",
     "GuiObject.absoluteSize": "How big it ended up, in pixels, once laid out and scaled.",
     "GuiObject.cornerRadius": "Rounds its corners, in pixels. A UICorner inside it wins.",
+    "TextLabel.maxVisibleGraphemes": "Draws only this many characters, without moving the rest of the layout. -1 draws them all.",
     "TextLabel.textBounds": "The size its text takes, in pixels.",
     "TextBox.placeholderText": "Shown in placeholder colour while the box is empty.",
     "TextBox.clearTextOnFocus": "Empties the box when it is clicked into or focused.",

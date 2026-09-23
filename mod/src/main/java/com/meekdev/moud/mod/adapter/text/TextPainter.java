@@ -39,8 +39,13 @@ public final class TextPainter {
 
     public static void draw(UiDraw d, String markup, float x, float y, float width, float px, TextLook look, float alpha,
                             HorizontalAlign align) {
+        draw(d, markup, x, y, width, px, look, alpha, align, Integer.MAX_VALUE);
+    }
+
+    public static void draw(UiDraw d, String markup, float x, float y, float width, float px, TextLook look, float alpha,
+                            HorizontalAlign align, int reveal) {
         TextLayout layout = TextLayout.of(d, markup, width, px, look.font());
-        draw(d, layout, x, y, width, align, look, alpha, time(), Integer.MAX_VALUE, null);
+        draw(d, layout, x, y, width, align, look, alpha, time(), reveal, null);
     }
 
     public static void draw(UiDraw d, TextLayout layout, float x, float y, float width, HorizontalAlign align,

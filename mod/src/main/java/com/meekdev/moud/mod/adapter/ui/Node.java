@@ -374,12 +374,29 @@ final class Node extends Widget {
         float line = UiText.lineHeight(face, px);
         float top = top(label, line * lines.size());
         int outline = stroke == null ? 0 : argb(stroke.color, (1 - stroke.transparency) * (1 - label.textTransparency) * alpha);
+        int[] budget = {label.maxVisibleGraphemes};
         for (int n = 0; n < lines.size(); n++) {
             String one = label.text.substring(lines.get(n).start(), lines.get(n).end());
             float left = left(label, UiText.width(face, one, px));
-            run(d, face, one, left, top + line * n, px, colour, label.textShadow, outline, stroke == null ? 0 : (float) stroke.thickness);
+            String shown = visible(one, budget);
+            int end = lines.get(n).end();
+            if (budget[0] > 0 && end < label.text.length() && label.text.charAt(end) == '\n') budget[0]--;
+            if (shown.isEmpty()) continue;
+            run(d, face, shown, left, top + line * n, px, colour, label.textShadow, outline, stroke == null ? 0 : (float) stroke.thickness);
         }
         if (previous != null) d.font(previous);
+    }
+
+    private static String visible(String line, int[] budget) {
+        if (budget[0] < 0) return line;
+        int count = line.codePointCount(0, line.length());
+        if (count <= budget[0]) {
+            budget[0] -= count;
+            return line;
+        }
+        String cut = line.substring(0, line.offsetByCodePoints(0, budget[0]));
+        budget[0] = 0;
+        return cut;
     }
 
     private void run(UiDraw d, UiFonts.Face face, String text, float left, float top, float px, int colour, boolean shadow,
@@ -443,7 +460,7 @@ final class Node extends Widget {
         Color strokeColor = stroke == null ? Color.BLACK : stroke.color;
         double strokeAlpha = stroke == null ? 0 : 1 - stroke.transparency;
         TextPainter.draw(d, label.text, x, top(label, total), w, px, new TextLook(label.textColor, font, label.textShadow, strokeColor, strokeAlpha),
-                fade, label.textXAlignment);
+                fade, label.textXAlignment, label.maxVisibleGraphemes < 0 ? Integer.MAX_VALUE : label.maxVisibleGraphemes);
     }
 
     private void textBox(UiDraw d, TextBox box, float alpha, UIStroke stroke) {
@@ -478,6 +495,7 @@ final class Node extends Widget {
                     argb(box.placeholderColor, (1 - box.textTransparency) * alpha), false, 0, 0);
         }
         boolean blink = focused && ((System.nanoTime() - blinkFrom) / BLINK_NANOS) % 2 == 0;
+        int[] budget = {focused ? -1 : box.maxVisibleGraphemes};
         for (int n = 0; n < editLines.size(); n++) {
             UiText.Line line = editLines.get(n);
             String one = text.substring(line.start(), line.end());
@@ -493,7 +511,8 @@ final class Node extends Widget {
                     d.rect(start, top, span, editLine, fade(SELECTION, alpha));
                 }
             }
-            if (!one.isEmpty()) run(d, face, one, left, top, px, colour, box.textShadow, outline, thickness);
+            String shown = visible(one, budget);
+            if (!shown.isEmpty()) run(d, face, shown, left, top, px, colour, box.textShadow, outline, thickness);
             boolean here = edit.caret() >= line.start() && edit.caret() <= line.end()
                     && (n == editLines.size() - 1 || edit.caret() < editLines.get(n + 1).start());
             if (blink && here) {
