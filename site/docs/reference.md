@@ -580,6 +580,55 @@ Extends [Spatial](#spatial).
 | `lookAt` | `Instance?` |
 | `looped` | `boolean` |
 
+<a id="timeline"></a>
+
+## Timeline
+
+Extends [Instance](#instance).
+
+| Property | Type |
+|---|---|
+| `ended` | `InstanceSignal` |
+| `didLoop` | `InstanceSignal` |
+| `reached` | `StringSignal` |
+| `length` | `number` |
+| `looped` | `boolean` |
+| `markers` | `string` |
+| `playing` | `boolean` |
+| `speed` | `number` |
+| `timePosition` | `number` |
+
+Methods:
+
+- `play(): ()`
+- `pause(): ()`
+- `stop(): ()`
+- `addKey(target: Instance | string, property: string, time: number, value: any, shape: string?): PropertyTrack`
+- `setKeys(target: Instance | string, property: string, keys: { TimelineKey }): PropertyTrack`
+- `addMarker(time: number, name: string): ()`
+- `at(time: number, callback: () -> ()): ()`
+
+<a id="propertytrack"></a>
+
+## PropertyTrack
+
+Extends [Instance](#instance).
+
+| Property | Type |
+|---|---|
+| `direction` | `"in" \| "out" \| "inOut"` |
+| `easing` | `"linear" \| "sine" \| "quad" \| "cubic" \| "quart" \| "quint" \| "expo" \| "circ" \| "back" \| "elastic" \| "bounce"` |
+| `interpolation` | `"constant" \| "linear" \| "cubic"` |
+| `keys` | `string` |
+| `loopWrap` | `boolean` |
+| `path` | `string` |
+| `property` | `string` |
+| `target` | `Instance?` |
+
+Methods:
+
+- `getKeys(): { TimelineKey }`
+
 <a id="spawnlocation"></a>
 
 ## SpawnLocation
@@ -3573,6 +3622,7 @@ type ChatMessage = { id: number, text: string, prefix: string, metadata: string,
 type ChatCheck = (message: ChatMessage, source: Instance) -> boolean
 type PathOptions = { partial: boolean? }
 type GradientKeypoint = { number | Color }
+type TimelineKey = { any }
 type ActionHandler = (name: string, state: "begin" | "change" | "end" | "cancel", input: InputObject) -> ("sink" | "pass")?
 type PlayOptions = { volume: number?, pitch: number?, looped: boolean?, bus: string?,
     priority: number?, at: Vector3?, minDistance: number?, maxDistance: number?,

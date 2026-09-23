@@ -129,6 +129,8 @@ import com.meekdev.moud.core.service.ServerStorage;
 import com.meekdev.moud.core.service.StarterCharacterScripts;
 import com.meekdev.moud.core.service.StarterGui;
 import com.meekdev.moud.core.service.StarterPlayerScripts;
+import com.meekdev.moud.core.tween.PropertyTrack;
+import com.meekdev.moud.core.tween.Timeline;
 import com.meekdev.moud.core.ui.AppWindow;
 import com.meekdev.moud.core.ui.BillboardGui;
 import com.meekdev.moud.core.ui.CanvasGroup;
@@ -176,6 +178,9 @@ public final class Classes {
             ClassDef.of("Character", SPATIAL, Character.class, Character::new);
     public static final ClassDef<Camera> CAMERA = ClassDef.of("Camera", SPATIAL, Camera.class, Camera::new);
     public static final ClassDef<CameraPath> CAMERA_PATH = ClassDef.of("CameraPath", SPATIAL, CameraPath.class, CameraPath::new);
+    public static final ClassDef<Timeline> TIMELINE = ClassDef.of("Timeline", null, Timeline.class, Timeline::new);
+    public static final ClassDef<PropertyTrack> PROPERTY_TRACK =
+            ClassDef.of("PropertyTrack", null, PropertyTrack.class, PropertyTrack::new);
     public static final ClassDef<Animator> ANIMATOR =
             ClassDef.of("Animator", null, Animator.class, Animator::new);
     public static final ClassDef<AnimationTrack> TRACK =
@@ -463,6 +468,8 @@ public final class Classes {
         r.register(CHARACTER);
         r.register(CAMERA);
         r.register(CAMERA_PATH);
+        r.register(TIMELINE);
+        r.register(PROPERTY_TRACK);
         r.register(ANIMATOR);
         r.register(TRACK);
         r.register(APPEARANCE);

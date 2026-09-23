@@ -1,7 +1,7 @@
 # Tweens and timing
 
 This page covers the ways a place says "later". A tween moves properties toward a value over time,
-`task` waits without stopping the tick everyone else is on, signals let you wait for something to
+a timeline plays keyed properties, sounds and callbacks on one clock, `task` waits without stopping the tick everyone else is on, signals let you wait for something to
 happen, and the render step puts work at a chosen point inside a frame. The clock and date functions
 at the end tell you what time it is, and `bindToClose` gives you one last moment as the place shuts
 down.
@@ -46,6 +46,86 @@ A goal the class does not have is an error, and so is a read-only property: `par
 = ... })` raises `Part.velocity is read-only`, the same as writing it would.
 
 <!-- demo:easing -->
+
+## Timelines
+
+A timeline is one clock that moves any number of properties through keys you set, fires callbacks
+at chosen times, and starts sounds and videos. A splash screen is one of them instead of a pile of
+`task.delay` calls:
+
+```lua
+-- client
+local splash = hud:add("Timeline", { name = "splash" })
+splash:addKey("video", "playing", 0, true)
+splash:addKey(music, "playing", 7, true)
+splash:setKeys("logo", "imageTransparency", { { 13, 1, "sine-out" }, { 15, 0 } })
+splash:setKeys("black", "backgroundTransparency", { { 17.5, 1 }, { 19.6, 0 } })
+splash:at(20, function() hud:destroy() end)
+splash:play()
+```
+
+- `addKey(target, property, time, value, shape)` adds one key, and `setKeys(target, property, keys)`
+  replaces every key of that property with a list of `{ time, value, shape }`. Both return the
+  `PropertyTrack` that holds the keys, making it the first time a property is keyed.
+- The target is an instance, or a path from the timeline's parent: `"logo"` is a sibling of the
+  timeline, `"panel/title"` a child of a sibling and `"../door"` a sibling of the parent.
+- Between two keys the property moves the way the first key's shape says: `"linear"` (the default),
+  `"cubic"` for a smooth curve through the keys around it, `"constant"` to hold until the next key,
+  or an easing and direction like `"quad-out"` or `"sine"` (which is `"sine-inOut"`).
+- Before its first key a property holds the first key's value, and after its last key the last one.
+- Numbers, vectors, colours, udims, rotations and frames move smoothly; a frame turns along the
+  shortest way. A boolean like `playing` only changes when the clock passes one of its keys, so a
+  sound that finished is not started again, and a script can still set it between keys.
+- `at(time, callback)` runs a function when the clock passes that time. It belongs to the script that
+  added it and is not saved with the scene.
+- The length grows to fit the keys and callbacks you add. Set `length` to hold at the end for longer.
+
+```lua
+splash:play()   splash:pause()   splash:stop()     -- stop goes back to 0
+splash.timePosition = 12                            -- jump, even while paused
+splash.speed = -1                                   -- backwards
+splash.looped = true
+splash:addMarker(15, "logo")                        -- a named moment, saved with the scene
+splash.reached:connect(function(name) end)          -- "logo" at 15 s
+splash.ended:connect(function() end)
+splash.didLoop:connect(function() end)
+```
+
+- **`length`** is where the clock ends, in seconds. At the end a timeline stops, or starts again
+  from 0 when **`looped`** is true, firing `didLoop`.
+- **`speed`** scales the clock. **`playing`** is true while it runs; setting it in the scene starts
+  the timeline when the place starts.
+- **`timePosition`** is where the clock is. Setting it shows that moment straight away.
+- **`markers`** are `reached`'s names and times, written `"15 logo, 20 done"`.
+
+A cubic curve on a looped timeline runs from the last key round to the first, so a loop has no
+corner at the seam. Turn that off per track with `loopWrap = false`.
+
+### Tracks in the scene
+
+Each keyed property is a `PropertyTrack` inside the timeline, so a timeline built in a script or in
+the editor is saved with the scene like anything else. Its keys are text, one `time value shape`
+entry per key:
+
+```lua
+local track = splash:addKey("logo", "position", 2, udim2(0.5, 0, 0.3, 0), "cubic")
+print(track.keys)          -- 2 0.5 0 0.3 0 cubic
+print(track:getKeys())     -- { { 2, UDim2, "cubic" } }
+```
+
+- **`target`** is the instance the track moves, and **`path`** is used when there is none.
+- **`property`** is the property it moves.
+- **`keys`** are the keys. A frame is written as a position and a quaternion, a colour as `r g b`
+  from 0 to 1.
+- **`interpolation`**, **`easing`** and **`direction`** are what keys without a shape of their own
+  use.
+
+### Where a timeline runs
+
+A timeline runs on the side that made it. One the server made writes its properties there, and they
+reach every client the way any change does: a part moves smoothly between updates. Every client
+also plays a server timeline's interface keys itself, every frame, so a gui fades smoothly even
+though the server started it. A timeline a client made plays on that client only, every frame.
 
 ## task
 

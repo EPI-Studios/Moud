@@ -12,6 +12,8 @@
     "Humanoid": "CHARACTER_BODY_3D",
     "Camera": "CAMERA_3D",
     "CameraPath": "LINE",
+    "Timeline": "ANIMATION_PLAYER",
+    "PropertyTrack": "ANIMATION",
     "Animator": "ANIMATION_PLAYER",
     "AnimationTrack": "ANIMATION",
     "Animation": "ANIMATION",

@@ -17,6 +17,7 @@ import com.meekdev.moud.script.host.render.ImageLibrary;
 import com.meekdev.moud.script.host.render.LightingLibrary;
 import com.meekdev.moud.script.host.render.ShaderLibrary;
 import com.meekdev.moud.script.host.player.Players;
+import com.meekdev.moud.script.host.tween.TimelineLibrary;
 import com.meekdev.moud.script.host.tween.TweenLibrary;
 import com.meekdev.moud.script.host.world.Blocks;
 import com.meekdev.moud.script.host.world.Debris;
@@ -78,6 +79,7 @@ final class Libraries {
         Blocks.install(host, game);
         AudioLibrary.install(host);
         TweenLibrary.install(host);
+        TimelineLibrary.install(host);
         JavaLibrary.install(host);
         ShaderLibrary.install(host);
         EffectLibrary.install(host);
