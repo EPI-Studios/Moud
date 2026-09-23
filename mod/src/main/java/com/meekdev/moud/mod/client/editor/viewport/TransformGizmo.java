@@ -1,6 +1,5 @@
 package com.meekdev.moud.mod.client.editor.viewport;
 
-import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
@@ -9,6 +8,7 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.ui.ViewportFrame;
+import com.meekdev.moud.core.zone.Zone;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
@@ -35,10 +35,11 @@ final class TransformGizmo {
 
     private static final float GIZMO_SIZE_CLIP_SPACE = 0.14f;
     private static final float SNAP_RADIUS = 18.0f;
+    private static final double SMALLEST_SIZE = 0.01;
     private static final int[] DIGIT_KEYS = {ImGuiKey._0, ImGuiKey._1, ImGuiKey._2, ImGuiKey._3, ImGuiKey._4, ImGuiKey._5, ImGuiKey._6, ImGuiKey._7, ImGuiKey._8, ImGuiKey._9};
     private static final int[] PAD_KEYS = {ImGuiKey.Keypad0, ImGuiKey.Keypad1, ImGuiKey.Keypad2, ImGuiKey.Keypad3, ImGuiKey.Keypad4, ImGuiKey.Keypad5, ImGuiKey.Keypad6, ImGuiKey.Keypad7, ImGuiKey.Keypad8, ImGuiKey.Keypad9};
 
-    private record Start(Matrix4f matrix, CFrame world, Vector3 size, Vector3 position) {}
+    private record Start(CFrame world, Vector3 origin, @Nullable Vector3 size) {}
 
     private final SceneDocument document;
     private final GizmoState state;
@@ -46,9 +47,11 @@ final class TransformGizmo {
     private final float[] model = new float[16];
     private final float[] snap = new float[3];
     private final Map<Integer, Start> starts = new LinkedHashMap<>();
+    private final List<Integer> moving = new ArrayList<>();
     private final StringBuilder typed = new StringBuilder();
     private @Nullable Matrix4f gizmoStart;
-    private @Nullable Vector3 groupCentre;
+    private Vector3 pivot = Vector3.ZERO;
+    private Quat basis = Quat.IDENTITY;
     private @Nullable Vector3 snapOffset;
     private @Nullable Vector3 snapTarget;
 
@@ -59,6 +62,7 @@ final class TransformGizmo {
 
     void reset() {
         starts.clear();
+        moving.clear();
         gizmoStart = null;
         typed.setLength(0);
         snapOffset = null;
@@ -70,12 +74,12 @@ final class TransformGizmo {
 
     boolean render(ImDrawList draw, SceneView view, Vector3 camera, boolean orthographic, boolean hovered, boolean snapping) {
         Integer operation = state.operation().orElse(null);
-        Instance leader = document.primary();
-        if (operation == null || !(leader instanceof Spatial) || !document.editable(leader)) {
+        List<Instance> roots = Manipulate.spatialRoots(document);
+        Instance leader = active(roots);
+        if (operation == null || leader == null) {
             reset();
             return false;
         }
-        List<Instance> roots = Manipulate.spatialRoots(document);
         boolean groupScale = state.tool() == GizmoState.Tool.SCALE && (roots.size() > 1 || !(leader instanceof Part));
         if (state.tool() == GizmoState.Tool.SCALE && !groupScale && leader instanceof Part part) {
             return faceHandles.render(draw, view, document, part, hovered, snapping, state.gridStep());
@@ -86,8 +90,7 @@ final class TransformGizmo {
         ImGuizmo.setRect(view.originX(), view.originY(), view.width(), view.height());
 
         if (gizmoStart == null || state.tool() == GizmoState.Tool.PIVOT) handle(leader, roots, camera, groupScale).get(model);
-        int mode = state.tool() == GizmoState.Tool.PIVOT || state.space() != GizmoState.Space.WORLD ? Mode.LOCAL : Mode.WORLD;
-        if (groupScale) mode = Mode.WORLD;
+        int mode = state.tool() == GizmoState.Tool.PIVOT || state.space() != GizmoState.Space.WORLD || groupScale ? Mode.LOCAL : Mode.WORLD;
         if (snapping) {
             float step = state.snapStep();
             snap[0] = step;
@@ -111,43 +114,69 @@ final class TransformGizmo {
         }
         if (state.tool() == GizmoState.Tool.TRANSLATE) moved = vertexSnap(draw, view, leader, moved, camera);
         moved = typedValue(draw, moved);
-        apply(moved, camera, groupScale);
+        apply(moved, groupScale);
         return true;
     }
 
+    private @Nullable Instance active(List<Instance> roots) {
+        Instance primary = document.primary();
+        if (primary != null && roots.contains(primary)) return primary;
+        return roots.isEmpty() ? null : roots.getLast();
+    }
+
     private Matrix4f handle(Instance leader, List<Instance> roots, Vector3 camera, boolean groupScale) {
-        if (groupScale) {
-            Vector3 centre = Manipulate.centre(roots).sub(camera);
-            return new Matrix4f().translation((float) centre.x(), (float) centre.y(), (float) centre.z());
-        }
-        CFrame world = Transforms.world(leader);
-        Vector3 at = world.position();
-        Quat turn = world.rotation();
+        Vector3 at;
+        Quat turn;
         if (state.tool() == GizmoState.Tool.PIVOT) {
-            at = world.pointToWorld(((Spatial) leader).pivot);
-        } else if (state.space() == GizmoState.Space.PARENT) {
-            turn = leader.parent() instanceof Spatial ? Transforms.world(leader.parent()).rotation() : Quat.IDENTITY;
+            at = Manipulate.origin(leader);
+            turn = Transforms.world(leader).rotation();
+        } else {
+            at = roots.size() == 1 || state.pivot() == GizmoState.Pivot.ACTIVE ? Manipulate.origin(leader) : Manipulate.centre(roots);
+            turn = basis(leader, groupScale);
         }
         Vector3 local = at.sub(camera);
         return new Matrix4f().translation((float) local.x(), (float) local.y(), (float) local.z()).rotate(quaternion(turn));
+    }
+
+    private Quat basis(Instance leader, boolean groupScale) {
+        return switch (state.space()) {
+            case WORLD -> groupScale ? Quat.IDENTITY : Transforms.world(leader).rotation();
+            case LOCAL -> Transforms.world(leader).rotation();
+            case PARENT -> leader.parent() instanceof Spatial ? Transforms.world(leader.parent()).rotation() : Quat.IDENTITY;
+        };
     }
 
     private void begin(Instance leader, List<Instance> roots, Vector3 camera, boolean groupScale) {
         gizmoStart = new Matrix4f().set(model);
         typed.setLength(0);
         starts.clear();
-        List<Instance> moving = new ArrayList<>();
-        if (!groupScale && state.tool() != GizmoState.Tool.PIVOT && !roots.contains(leader)) moving.add(leader);
-        moving.addAll(roots);
-        for (Instance instance : moving) {
-            CFrame world = Transforms.world(instance);
-            Vector3 size = instance instanceof Part part ? part.size : Vector3.ONE;
-            starts.put(instance.id(), new Start(Frames.matrix(instance, camera), world, size, world.position()));
+        moving.clear();
+        Vector3f at = gizmoStart.getTranslation(new Vector3f());
+        pivot = new Vector3(at.x + camera.x(), at.y + camera.y(), at.z + camera.z());
+        basis = basis(leader, groupScale);
+        if (state.tool() == GizmoState.Tool.PIVOT) {
+            hold(leader);
+        } else {
+            for (Instance root : roots) {
+                moving.add(root.id());
+                hold(root);
+                if (groupScale) holdBelow(root);
+            }
         }
-        groupCentre = Manipulate.centre(roots);
         snapOffset = null;
         if (state.tool() != GizmoState.Tool.PIVOT && ImGui.getIO().getKeyShift()) {
             document.pasteTransformed(document.selectedRoots(), frame -> frame, "Duplicate", false);
+        }
+    }
+
+    private void hold(Instance instance) {
+        starts.put(instance.id(), new Start(Transforms.world(instance), Manipulate.origin(instance), size(instance)));
+    }
+
+    private void holdBelow(Instance root) {
+        for (Instance child : root.children()) {
+            if (child instanceof Spatial && document.pickable(child)) hold(child);
+            holdBelow(child);
         }
     }
 
@@ -155,77 +184,93 @@ final class TransformGizmo {
         reset();
     }
 
-    private void apply(Matrix4f moved, Vector3 camera, boolean groupScale) {
-        Matrix4f delta = new Matrix4f(moved).mul(new Matrix4f(gizmoStart).invert());
+    private void apply(Matrix4f moved, boolean groupScale) {
         List<Edit> edits = new ArrayList<>();
+        boolean individual = state.pivot() == GizmoState.Pivot.EACH;
         if (groupScale) {
             Vector3f scale = moved.getScale(new Vector3f());
-            double factor = dominant(scale);
-            for (Map.Entry<Integer, Start> entry : starts.entrySet()) {
-                Instance instance = document.find(entry.getKey());
-                if (!(instance instanceof Spatial)) continue;
-                Start start = entry.getValue();
-                Vector3 position = groupCentre.add(start.position().sub(groupCentre).mul(factor));
-                edits.addAll(Frames.worldWrites(document, instance, start.world().withPosition(position),
-                        instance instanceof Part ? start.size().mul(factor) : null));
-                scaleDescendants(instance, factor, edits);
+            Vector3 factor = new Vector3(Math.max(0.01, scale.x), Math.max(0.01, scale.y), Math.max(0.01, scale.z));
+            for (int id : moving) {
+                Instance instance = document.find(id);
+                Start start = starts.get(id);
+                if (instance == null || start == null) continue;
+                Vector3 about = individual ? start.origin() : pivot;
+                CFrame parent = instance.parent() == null ? CFrame.IDENTITY : Transforms.world(instance.parent());
+                CFrame world = scaled(start, about, factor);
+                edits.addAll(scaleWrites(instance, parent, world, start, factor));
+                scaleBelow(instance, world, about, factor, edits);
             }
             document.history().execute(new Batch("Scale", edits));
             return;
         }
-        Quaternionf turn = delta.getNormalizedRotation(new Quaternionf());
-        Vector3f shift = new Vector3f();
-        new Matrix4f(delta).transformPosition(new Vector3f(gizmoStart.m30(), gizmoStart.m31(), gizmoStart.m32()), shift)
-                .sub(gizmoStart.m30(), gizmoStart.m31(), gizmoStart.m32());
-        boolean individual = state.individualPivots() && state.tool() == GizmoState.Tool.ROTATE;
-        for (Map.Entry<Integer, Start> entry : starts.entrySet()) {
-            Instance instance = document.find(entry.getKey());
-            if (instance == null) continue;
-            Start start = entry.getValue();
-            Matrix4f target;
-            if (individual) {
-                Vector3f origin = start.matrix().getTranslation(new Vector3f());
-                target = new Matrix4f().translation(origin).rotate(turn).mul(new Matrix4f(start.matrix()).setTranslation(0, 0, 0));
-            } else {
-                target = new Matrix4f(delta).mul(start.matrix());
-            }
-            edits.addAll(Frames.writes(document, instance, target, camera, false));
+        Matrix4f delta = new Matrix4f(moved).mul(new Matrix4f(gizmoStart).invert());
+        Quaternionf q = delta.getNormalizedRotation(new Quaternionf());
+        Quat turn = new Quat(q.x, q.y, q.z, q.w);
+        Vector3f from = gizmoStart.getTranslation(new Vector3f());
+        Vector3f to = delta.transformPosition(new Vector3f(from));
+        Vector3 shift = new Vector3(to.x - from.x, to.y - from.y, to.z - from.z);
+        boolean each = individual && state.tool() == GizmoState.Tool.ROTATE;
+        for (int id : moving) {
+            Instance instance = document.find(id);
+            Start start = starts.get(id);
+            if (instance == null || start == null) continue;
+            Vector3 about = each ? start.origin() : pivot;
+            Vector3 position = about.add(turn.rotate(start.world().position().sub(about))).add(shift);
+            CFrame world = new CFrame(position, turn.mul(start.world().rotation()).normalize());
+            edits.addAll(Frames.worldWrites(document, instance, world, null));
         }
         String label = state.tool() == GizmoState.Tool.ROTATE ? "Rotate" : "Move";
         document.history().execute(new Batch(label, edits));
     }
 
-    private void scaleDescendants(Instance root, double factor, List<Edit> edits) {
-        for (Instance child : root.children()) {
-            if (child instanceof Spatial spatial && document.editable(child)) {
-                PropertyDef frame = child.def().property("cframe");
-                CFrame local = spatial.cframe;
-                edits.add(new SetProperty(document.ref(child.id()), frame.index(), local.withPosition(local.position().mul(factor)), "Transform"));
-                if (child instanceof Part part) {
-                    edits.add(new SetProperty(document.ref(child.id()), child.def().property("size").index(), part.size.mul(factor), "Transform"));
-                }
+    private void scaleBelow(Instance at, CFrame world, Vector3 about, Vector3 factor, List<Edit> edits) {
+        for (Instance child : at.children()) {
+            CFrame childWorld = world.mul(Transforms.local(child));
+            Start start = starts.get(child.id());
+            if (start != null) {
+                childWorld = scaled(start, about, factor);
+                edits.addAll(scaleWrites(child, world, childWorld, start, factor));
             }
-            scaleDescendants(child, factor, edits);
+            scaleBelow(child, childWorld, about, factor, edits);
         }
     }
 
-    private static double dominant(Vector3f scale) {
-        double best = 1;
-        for (double s : new double[] {scale.x, scale.y, scale.z}) {
-            if (Math.abs(s - 1) > Math.abs(best - 1)) best = s;
-        }
-        return Math.max(0.01, best);
+    private CFrame scaled(Start start, Vector3 about, Vector3 factor) {
+        Vector3 offset = basis.inverse().rotate(start.world().position().sub(about));
+        return start.world().withPosition(about.add(basis.rotate(offset.mul(factor))));
+    }
+
+    private List<Edit> scaleWrites(Instance instance, CFrame parent, CFrame world, Start start, Vector3 factor) {
+        CFrame local = parent.inverse().mul(world);
+        Vector3 pivotAt = ((Spatial) instance).pivot;
+        if (!pivotAt.equals(Vector3.ZERO)) local = local.mul(CFrame.at(pivotAt));
+        SetProperty frame = new SetProperty(document.ref(instance.id()), instance.def().property("cframe").index(), local, "Transform");
+        if (start.size() == null) return List.of(frame);
+        Quat toBasis = basis.inverse().mul(start.world().rotation());
+        Vector3 stretch = new Vector3(
+                toBasis.rotate(Vector3.RIGHT).mul(factor).length(),
+                toBasis.rotate(Vector3.UP).mul(factor).length(),
+                toBasis.rotate(new Vector3(0, 0, 1)).mul(factor).length());
+        Vector3 size = start.size().mul(stretch);
+        Vector3 clamped = new Vector3(Math.max(SMALLEST_SIZE, size.x()), Math.max(SMALLEST_SIZE, size.y()), Math.max(SMALLEST_SIZE, size.z()));
+        return List.of(frame, new SetProperty(document.ref(instance.id()), instance.def().property("size").index(), clamped, "Transform"));
+    }
+
+    private static @Nullable Vector3 size(Instance instance) {
+        if (instance instanceof Part part) return part.size;
+        if (instance instanceof Zone zone) return zone.size;
+        return null;
     }
 
     private void movePivot(Instance leader, Matrix4f moved, Vector3 camera) {
         Start start = starts.get(leader.id());
-        if (start == null || !(leader instanceof Spatial spatial)) return;
+        if (start == null) return;
         Vector3f at = moved.getTranslation(new Vector3f());
         Vector3 world = new Vector3(at.x + camera.x(), at.y + camera.y(), at.z + camera.z());
-        Vector3 pivot = start.world().pointToObject(world);
-        CFrame local = Transforms.localFor(leader, start.world()).mul(CFrame.at(pivot));
+        Vector3 offset = start.world().pointToObject(world);
+        CFrame local = Transforms.localFor(leader, start.world()).mul(CFrame.at(offset));
         List<Edit> edits = List.of(
-                new SetProperty(document.ref(leader.id()), leader.def().property("pivot").index(), pivot, "Pivot"),
+                new SetProperty(document.ref(leader.id()), leader.def().property("pivot").index(), offset, "Pivot"),
                 new SetProperty(document.ref(leader.id()), leader.def().property("cframe").index(), local, "Pivot"));
         document.history().execute(new Batch("Move pivot", edits));
     }
@@ -245,11 +290,10 @@ final class TransformGizmo {
         }
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
-        Start start = starts.get(leader.id());
-        if (start == null) return moved;
         if (snapOffset == null && leader instanceof Part part) {
             Vector3 nearest = nearestPoint(view, List.of(part), mouseX, mouseY, Double.MAX_VALUE);
-            snapOffset = nearest == null ? Vector3.ZERO : nearest.sub(Transforms.world(part).position());
+            Vector3f at = moved.getTranslation(new Vector3f());
+            snapOffset = nearest == null ? Vector3.ZERO : nearest.sub(new Vector3(at.x + camera.x(), at.y + camera.y(), at.z + camera.z()));
         }
         List<Part> others = new ArrayList<>();
         Instance world = document.world();

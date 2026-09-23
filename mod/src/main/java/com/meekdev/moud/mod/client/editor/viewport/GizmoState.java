@@ -10,13 +10,15 @@ public final class GizmoState {
 
     public enum Space { WORLD, LOCAL, PARENT }
 
+    public enum Pivot { CENTRE, ACTIVE, EACH }
+
     public static final float TRANSLATE_SNAP_STEP = 0.5f;
     public static final float ROTATE_SNAP_STEP_DEGREES = 15.0f;
     public static final float SCALE_SNAP_STEP = 0.1f;
 
     private Tool tool = Tool.TRANSLATE;
     private Space space = Space.WORLD;
-    private boolean individualPivots;
+    private Pivot pivot = Pivot.CENTRE;
     private boolean lasso;
     private float[] brush = {0.9f, 0.3f, 0.3f, 1.0f};
     private boolean snapEnabled = true;
@@ -52,12 +54,12 @@ public final class GizmoState {
         space = Space.values()[(space.ordinal() + 1) % Space.values().length];
     }
 
-    public boolean individualPivots() {
-        return individualPivots;
+    public Pivot pivot() {
+        return pivot;
     }
 
-    public void toggleIndividualPivots() {
-        individualPivots = !individualPivots;
+    public void togglePivot() {
+        pivot = Pivot.values()[(pivot.ordinal() + 1) % Pivot.values().length];
     }
 
     public boolean lasso() {
@@ -95,7 +97,11 @@ public final class GizmoState {
     }
 
     public float snapStep() {
-        return tool == Tool.ROTATE ? angleStep : gridStep;
+        return switch (tool) {
+            case ROTATE -> angleStep;
+            case SCALE -> SCALE_SNAP_STEP;
+            default -> gridStep;
+        };
     }
 
     public float gridStep() {

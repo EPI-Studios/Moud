@@ -88,23 +88,39 @@ public final class Manipulate {
     static List<Instance> spatialRoots(SceneDocument document) {
         List<Instance> roots = new ArrayList<>();
         for (InstanceRef ref : document.selectedRoots()) {
-            if (document.find(ref) instanceof Spatial spatial) roots.add(spatial);
+            if (document.find(ref) instanceof Spatial spatial && document.pickable(spatial)) roots.add(spatial);
         }
         return roots;
     }
 
     static Vector3 centre(List<Instance> instances) {
-        Vector3 low = null;
-        Vector3 high = null;
-        for (Instance instance : instances) {
-            Vector3 at = Transforms.world(instance).position();
-            double reach = instance instanceof Part part ? part.size.length() * 0.5 : 0;
-            Vector3 min = at.sub(new Vector3(reach, reach, reach));
-            Vector3 max = at.add(new Vector3(reach, reach, reach));
-            low = low == null ? min : new Vector3(Math.min(low.x(), min.x()), Math.min(low.y(), min.y()), Math.min(low.z(), min.z()));
-            high = high == null ? max : new Vector3(Math.max(high.x(), max.x()), Math.max(high.y(), max.y()), Math.max(high.z(), max.z()));
+        double[] box = {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
+                Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY};
+        for (Instance instance : instances) bound(instance, box);
+        if (box[0] > box[3]) return Vector3.ZERO;
+        return new Vector3(box[0] + box[3], box[1] + box[4], box[2] + box[5]).mul(0.5);
+    }
+
+    private static void bound(Instance instance, double[] box) {
+        if (instance instanceof Part part) {
+            for (Vector3 corner : Frames.corners(part)) grow(box, corner);
+        } else if (instance instanceof Spatial) {
+            grow(box, Transforms.world(instance).position());
         }
-        return low == null ? Vector3.ZERO : low.add(high).mul(0.5);
+        for (Instance child : instance.children()) bound(child, box);
+    }
+
+    private static void grow(double[] box, Vector3 at) {
+        box[0] = Math.min(box[0], at.x());
+        box[1] = Math.min(box[1], at.y());
+        box[2] = Math.min(box[2], at.z());
+        box[3] = Math.max(box[3], at.x());
+        box[4] = Math.max(box[4], at.y());
+        box[5] = Math.max(box[5], at.z());
+    }
+
+    static Vector3 origin(Instance instance) {
+        return Transforms.world(instance).pointToWorld(((Spatial) instance).pivot);
     }
 
     private static Vector3 edge(List<Instance> roots, Vector3 normal) {

@@ -324,8 +324,13 @@ public final class ViewportPanel implements Panel, ViewTools {
         if (Toolbars.textButton(space + "##toolbar-gizmo-space")) gizmoState.toggleSpace();
         tooltip("Which axes the gizmo uses: the world's, the part's own, or its parent's (X)");
         ImGui.sameLine();
-        if (Toolbars.textButton((gizmoState.individualPivots() ? "Each" : "Group") + "##toolbar-pivots")) gizmoState.toggleIndividualPivots();
-        tooltip("Rotate the selection as one around the gizmo, or each part around its own centre");
+        String pivot = switch (gizmoState.pivot()) {
+            case CENTRE -> "Centre";
+            case ACTIVE -> "Active";
+            case EACH -> "Each";
+        };
+        if (Toolbars.textButton(pivot + "##toolbar-pivots")) gizmoState.togglePivot();
+        tooltip("Where a selection turns and scales from: the middle of its bounds, the last selected object, or each object's own origin");
         ImGui.sameLine();
         if (Toolbars.textButton((gizmoState.lasso() ? "Lasso" : "Box") + "##toolbar-lasso")) gizmoState.toggleLasso();
         tooltip("Drag on empty space to select with a box or a free lasso (L)");

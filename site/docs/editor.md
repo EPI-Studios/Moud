@@ -5,8 +5,72 @@ them. What you build is saved into the scene's `.scene` file and loaded like any
 See [Places, modules, scenes and scripts](place.md#scenes) for the files, and
 [Physics](physics.md) for what each joint does once the place plays.
 
-This page covers joining parts. Each other editor feature is described on the page of the thing it
-builds.
+This page covers moving a selection and joining parts. Each other editor feature is described on the
+page of the thing it builds.
+
+## Moving several things at once
+
+Select several things with <kbd>Ctrl</kbd> or <kbd>Shift</kbd> click, or drag a box over them, and the
+move, rotate and scale gizmos work on all of them together. A script doing what the rotate gizmo does
+to a selection would look like this:
+
+```lua
+--!strict
+-- server
+local world = game.world
+local picked = { world:find("crate") :: Part, world:find("barrel") :: Part, world:find("lamp post") :: Part }
+
+-- the middle of the box around all three is where they turn about
+local low: Vector3? = nil
+local high: Vector3? = nil
+for _, part in picked do
+    local at = part.worldCframe.position
+    local lo, hi = at - part.size / 2, at + part.size / 2
+    low = if low then vec3(math.min(low.x, lo.x), math.min(low.y, lo.y), math.min(low.z, lo.z)) else lo
+    high = if high then vec3(math.max(high.x, hi.x), math.max(high.y, hi.y), math.max(high.z, hi.z)) else hi
+end
+local pivot = ((low :: Vector3) + (high :: Vector3)) / 2
+
+local turn = cframe.angles(0, math.rad(45), 0)
+for _, part in picked do
+    part.worldCframe = cframe(pivot.x, pivot.y, pivot.z) * turn * cframe(-pivot.x, -pivot.y, -pivot.z) * part.worldCframe
+end
+```
+
+The gizmo sits at the selection's pivot. The **pivot** button in the viewport toolbar, next to the
+World/Local button, says where that is:
+
+- **Centre.** The middle of the box around everything selected, the parts' corners included. This is
+  the default.
+- **Active.** The origin of the object selected last, the one the Properties panel shows.
+- **Each.** Rotate and scale work about each object's own origin. The gizmo is drawn at the centre.
+
+An object's origin is the point its `cframe` sits on, which is its `pivot` when it has one. With one
+thing selected, the gizmo is always at its origin.
+
+- **Move** moves everything by the same amount. With snapping on, the amount snaps to the grid step,
+  so things that sat on the grid stay on it.
+- **Rotate** turns the selection about the pivot. Each object's position swings round the pivot and
+  its own rotation turns by the same angle. With **Each**, every object turns in place. The angle
+  snaps to the angle step.
+- **Scale** stretches the gaps between the objects and the pivot, and the size of each part and
+  zone, along the gizmo's axes. On **World** the axes are the world's; on **Local** and **Parent**
+  they are those of the active object or its parent. A part turned against those axes grows along its
+  own sides as closely as a box can. The factor snaps to steps of 0.1. With one part selected, scale
+  shows the face handles instead.
+
+Parts, models, lights, cameras, zones, attachments and anything else with a `cframe` can be moved
+this way. What is inside a moved object goes with it. Scaling also spreads out and resizes what is
+inside, so a model grows as one.
+
+- A locked part in the selection stays where it is. If the only things selected are locked, no gizmo
+  is drawn.
+- Something selected together with one of its parents moves once, with the parent.
+- One drag is one step in the history, labelled **Move**, **Rotate** or **Scale**, however many things
+  it moved. One undo puts them all back.
+- The change goes to the server the same way a change typed in the Properties panel does, so everyone
+  editing the place sees it.
+- Holding <kbd>Shift</kbd> as the drag starts copies the selection first and leaves the copies behind.
 
 ## Joining parts
 
