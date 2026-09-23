@@ -17,6 +17,10 @@ public class Part extends Spatial {
     @Prop(asset = true) public String texture = "";
 
     @Prop(min = 0.01) public double studsPerTile = 1;
+    public Vector3 textureOffset = Vector3.ZERO;
+    public PartShading shading = PartShading.FLAT;
+    @Prop(min = 0, max = 1) public double roughness = 0.5;
+    @Prop(min = 0, max = 1) public double metallic;
     @Prop(min = 0, max = 1) public double transparency;
     public boolean anchored = true;
     public boolean collides = true;

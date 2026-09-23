@@ -1,11 +1,13 @@
 package com.meekdev.moud.mod.adapter.render;
 
+import com.meekdev.amnetic.client.ibl.Ibl;
 import com.meekdev.amnetic.client.instanced.InstanceBatch;
 import com.meekdev.amnetic.client.instanced.InstanceLayout;
 import com.meekdev.amnetic.client.instanced.InstancePhase;
 import com.meekdev.amnetic.client.instanced.InstanceRenderContext;
 import com.meekdev.amnetic.client.instanced.InstancedMesh;
 import com.meekdev.amnetic.client.instanced.RenderState;
+import com.meekdev.amnetic.client.model.ModelLighting;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
@@ -16,6 +18,7 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
+import com.meekdev.moud.core.part.PartShading;
 import com.meekdev.moud.core.part.PartShape;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.client.ClientScene;
@@ -33,6 +36,7 @@ import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector2f;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 public final class Parts {
@@ -81,9 +85,11 @@ public final class Parts {
     // textured parts are gathered once a frame, so each texture's mesh only drains its own list
     public static void prepareFrame() {
         for (List<Part> packed : PACKED.values()) packed.clear();
+        physical = false;
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return;
         for (Part part : tree.ofClass(Classes.PART)) {
+            if (part.shading == PartShading.PBR) physical = true;
             if (part.texture.isEmpty() || part instanceof MeshPart || Skins.wearsSkin(part)) continue;
             if (ViewportFrame.inside(part)) continue;
             boolean ghost = EditorView.ghost(part);
@@ -123,9 +129,21 @@ public final class Parts {
     }
 
     private static final InstanceLayout LAYOUT =
-            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).float1(7).float1(8).build();
+            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).float1(7).float1(8).vec3(9).vec3(10).build();
 
-    private record Lit(Matrix4f transform, Vector4f color, Vector2f light, float casts, float tile) {}
+    private record Lit(Matrix4f transform, Vector4f color, Vector2f light, float casts, float tile,
+            Vector3f surface, Vector3f offset) {}
+
+    private static final Vector3f SURFACE = new Vector3f();
+    private static final Vector3f OFFSET = new Vector3f();
+    private static final float[] SUN = new float[4];
+    private static final float[] TINT_OF_SUN = new float[4];
+    private static final float[] SKY = new float[4];
+    private static boolean physical;
+
+    public static boolean anyPhysical() {
+        return physical;
+    }
 
     public static int lightMap() {
         GpuTextureView view = Minecraft.getInstance().gameRenderer.levelLightmap();
@@ -140,11 +158,18 @@ public final class Parts {
         return InstancedMesh.<Lit>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
                                 .putVec2(inst.light().x, inst.light().y)
-                                .putFloat(inst.casts()).putFloat(inst.tile()))
+                                .putFloat(inst.casts()).putFloat(inst.tile())
+                                .putVec3(inst.surface())
+                                .putVec3(inst.offset()))
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .extraSampler("BlockLight", BlockLightGrid::glId, 3)
                 .uniform("LightVolume", BlockLightGrid::placed)
+                .uniform("Shape", () -> new float[] {shapeCode(shape)})
+                .uniform("SunLight", Parts::sun)
+                .uniform("SunTint", Parts::sunTint)
+                .uniform("Environment", Parts::sky)
+                .extraCubeSampler("EnvCube", Ibl::cube, 4)
                 .geometry(ShapeMeshes.of(shape))
                 .renderState(RenderState.builder()
                         .blend(RenderState.BlendMode.ALPHA)
@@ -160,17 +185,59 @@ public final class Parts {
         return InstancedMesh.<Lit>builder(LAYOUT,
                         (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
                                 .putVec2(inst.light().x, inst.light().y)
-                                .putFloat(inst.casts()).putFloat(inst.tile()))
+                                .putFloat(inst.casts()).putFloat(inst.tile())
+                                .putVec3(inst.surface())
+                                .putVec3(inst.offset()))
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .extraSampler("BlockLight", BlockLightGrid::glId, 3)
                 .uniform("LightVolume", BlockLightGrid::placed)
+                .uniform("Shape", () -> new float[] {shapeCode(shape)})
+                .uniform("SunLight", Parts::sun)
+                .uniform("SunTint", Parts::sunTint)
+                .uniform("Environment", Parts::sky)
+                .extraCubeSampler("EnvCube", Ibl::cube, 4)
                 .geometry(ShapeMeshes.of(shape))
                 .renderState(RenderState.DEFAULT)
                 .phase(InstancePhase.WORLD_LAST)
                 .writeGBuffer(true)
                 .worldSpace()
                 .castsShadowPerInstance();
+    }
+
+    private static float shapeCode(PartShape shape) {
+        return switch (shape) {
+            case BALL -> 1;
+            case CYLINDER -> 2;
+            default -> 0;
+        };
+    }
+
+    private static float[] sun() {
+        ModelLighting lighting = ModelLighting.INSTANCE;
+        SUN[0] = lighting.sunX();
+        SUN[1] = lighting.sunY();
+        SUN[2] = lighting.sunZ();
+        SUN[3] = lighting.sunIntensity();
+        return SUN;
+    }
+
+    private static float[] sunTint() {
+        ModelLighting lighting = ModelLighting.INSTANCE;
+        TINT_OF_SUN[0] = lighting.sunR();
+        TINT_OF_SUN[1] = lighting.sunG();
+        TINT_OF_SUN[2] = lighting.sunB();
+        TINT_OF_SUN[3] = lighting.exposure();
+        return TINT_OF_SUN;
+    }
+
+    private static float[] sky() {
+        ModelLighting lighting = ModelLighting.INSTANCE;
+        SKY[0] = lighting.ambientStrength();
+        SKY[1] = lighting.envIntensity();
+        SKY[2] = Ibl.maxLod();
+        SKY[3] = Ibl.ready() ? 1 : 0;
+        return SKY;
     }
 
     private static void renderStatic(PartShape shape, InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
@@ -250,8 +317,11 @@ public final class Parts {
         else TINT.set(c.r(), c.g(), c.b(), (float) (1.0 - part.transparency));
 
         float radius = (float) (size.length() * 0.5);
+        SURFACE.set(part.shading == PartShading.PBR ? 1 : 0, (float) part.roughness, (float) part.metallic);
+        Vector3 offset = part.textureOffset;
+        OFFSET.set((float) offset.x(), (float) offset.y(), (float) offset.z());
         Lit instance = new Lit(MATRIX, TINT, PartLight.of(part, pos), part.castShadow ? 1 : 0,
-                (float) part.studsPerTile);
+                (float) part.studsPerTile, SURFACE, OFFSET);
         if (cull) {
             batch.addVisible(instance, pos.x(), pos.y(), pos.z(), radius);
         } else {

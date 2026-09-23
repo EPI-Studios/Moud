@@ -433,9 +433,13 @@ Extends [Spatial](#spatial).
 | `friction` | `number` |
 | `locked` | `boolean` |
 | `massless` | `boolean` |
+| `metallic` | `number` |
 | `networkOwner` | `string` |
+| `roughness` | `number` |
+| `shading` | `"flat" \| "pbr"` |
 | `shape` | `"block" \| "ball" \| "cylinder" \| "wedge" \| "cornerWedge"` |
 | `size` | `Vector3` |
+| `textureOffset` | `Vector3` |
 | `transparency` | `number` |
 | `velocity` | `Vector3` |
 

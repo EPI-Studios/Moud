@@ -34,6 +34,56 @@ thing.
 Parts that share a texture are drawn together, so the cost is counted per texture and not per part.
 A part with no `texture` is drawn exactly as before.
 
+`textureOffset` slides the image across the part, in metres along each world axis. Tween it and a
+tiled texture scrolls, which is a conveyor belt, a river or a sign that crawls:
+
+```lua
+local belt = world:add("Part", {
+    size = vec3(12, 0.4, 3),
+    cframe = cframe(0, 64, 6),
+    texture = "minecraft:block/oak_planks",
+    studsPerTile = 2,
+    anchored = true,
+})
+belt:tween({ textureOffset = vec3(20, 0, 0) }, { time = 10, easing = "linear", repeats = -1 })
+```
+
+An offset of one `studsPerTile` along an axis brings the image back to where it started, so a loop
+that moves by a whole number of tiles never jumps.
+
+## Shading a part
+
+```lua
+world:add("Part", {
+    shape = "ball",
+    size = vec3(3, 3, 3),
+    cframe = cframe(0, 66, 0),
+    color = color(0.8, 0.2, 0.15),
+    shading = "pbr",
+    roughness = 0.2,
+    metallic = 0,
+    anchored = true,
+})
+```
+
+A part is drawn the way Minecraft draws a block unless you say otherwise: each face a flat shade
+brighter or darker by which way it points. `shading = "pbr"` lights it the way a glTF `MeshPart` is
+lit instead, from the sun and the sky around it, with a highlight and a reflection. A ball or a
+cylinder is then smooth all the way round instead of faceted.
+
+- **`shading`** is `"flat"` (the default, the Minecraft look) or `"pbr"`.
+- **`roughness`** runs from 0, a mirror, to 1, chalk. It only matters with `"pbr"`. Default 0.5.
+- **`metallic`** from 0 to 1. A metal takes its reflection's colour from `color` and has no dull
+  colour of its own, so gold is a yellow `color` with `metallic = 1`.
+
+The reflection and the soft light come from the sky, and from the [`Sky`'s `hdri`](lighting.md#an-hdri-sky)
+when there is one, scaled by the `Lighting`'s `environmentDiffuseScale` and `environmentSpecularScale`.
+Torchlight and night still darken a `pbr` part the way they darken a flat one, and it casts and
+takes shadows the same way. It works with `texture` too: the image becomes the colour the light
+falls on.
+
+Flat and `pbr` parts are drawn together, so switching one part over costs nothing extra.
+
 ## MeshPart
 
 A `MeshPart` is a part that is drawn as a 3D model instead of a box:
