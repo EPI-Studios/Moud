@@ -352,6 +352,7 @@
     "TextBox.textEditable": "Off: the text can still be selected and copied, not changed.",
     "TextBox.cursorPosition": "Where the caret is, counting from 1. -1 while the box is not focused.",
     "TextBox.selectionStart": "The other end of the selection, counting from 1. -1 when nothing is selected.",
+    "ImageLabel.tileOffset": "Slides a tiled image inside the box, in pixels. Tiles leaving one edge come back at the other.",
     "ImageButton.hoverImage": "Shown instead of image while the pointer is over it.",
     "ImageButton.pressedImage": "Shown instead of image while it is held down.",
     "Slider.value": "Where the grabber sits, between minValue and maxValue.",

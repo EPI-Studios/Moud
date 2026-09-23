@@ -53,13 +53,25 @@ public final class ImageFit {
             tw *= grow;
             th *= grow;
         }
-        for (double y = 0; y < h; y += th) {
-            for (double x = 0; x < w; x += tw) {
+        double startX = shift(image.tileOffset.x(), tw);
+        double startY = shift(image.tileOffset.y(), th);
+        for (double y = startY; y < h; y += th) {
+            for (double x = startX; x < w; x += tw) {
+                double x0 = Math.max(0, x);
+                double y0 = Math.max(0, y);
                 double x1 = Math.min(w, x + tw);
                 double y1 = Math.min(h, y + th);
-                out.add(source.piece(x, y, x1, y1, 0, 0, source.w * (x1 - x) / tw, source.h * (y1 - y) / th));
+                if (x1 <= x0 || y1 <= y0) continue;
+                out.add(source.piece(x0, y0, x1, y1, source.w * (x0 - x) / tw, source.h * (y0 - y) / th,
+                        source.w * (x1 - x) / tw, source.h * (y1 - y) / th));
             }
         }
+    }
+
+    private static double shift(double offset, double tile) {
+        if (!Double.isFinite(offset)) return 0;
+        double into = offset % tile;
+        return into > 0 ? into - tile : into;
     }
 
     private static void slice(List<Piece> out, Source source, ImageLabel image, double w, double h) {

@@ -583,7 +583,8 @@ A check box has no text of its own; put a `TextLabel` next to it.
 [Images](images.md) has its own page: where an image can come from, how it fits its box, and how a
 script draws one. On an `ImageLabel` or `ImageButton`:
 
-- `scaleType` is `"stretch"`, `"fit"`, `"crop"`, `"tile"` or `"slice"`. `tileSize` sizes a tile.
+- `scaleType` is `"stretch"`, `"fit"`, `"crop"`, `"tile"` or `"slice"`. `tileSize` sizes a tile and
+  `tileOffset` slides the tiles inside the box.
 - `sliceMin`, `sliceMax` and `sliceScale` set up a nine-slice.
 - `imageRectOffset` and `imageRectSize` show one part of the image, for sprite sheets.
 - `resampleMode = "pixelated"` keeps pixel art sharp when it is scaled up.

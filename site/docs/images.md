@@ -83,6 +83,23 @@ hud:add("ImageLabel", {
 Tiles start at the top left. The last row and column are cut where the box ends. A box that would
 need more than 4096 tiles gets bigger tiles instead.
 
+`tileOffset` slides the pattern inside the box, in pixels, x and y, and the tiles cut off at one edge
+come back in at the other. Moving it every frame scrolls a background:
+
+```lua
+-- client
+local stars = hud:add("ImageLabel", {
+    size = udim2.fromScale(1, 1), image = "res://ui/stars.png",
+    scaleType = "tile", tileSize = udim2.fromOffset(128, 128),
+})
+game.renderStepped:connect(function(dt)
+    stars.tileOffset += vec3(20 * dt, 10 * dt, 0)
+end)
+```
+
+The stars drift right and down 20 and 10 pixels a second. `tileOffset` can also be tweened. It only
+moves a `"tile"` image; to show another part of a sprite sheet, use `imageRectOffset`.
+
 <!-- demo:images-scale -->
 
 ### Nine-slice

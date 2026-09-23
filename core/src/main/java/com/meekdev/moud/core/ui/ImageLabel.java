@@ -13,6 +13,7 @@ public class ImageLabel extends GuiObject {
     public ScaleType scaleType = ScaleType.STRETCH;
     public ResampleMode resampleMode = ResampleMode.DEFAULT;
     public UDim2 tileSize = UDim2.fromScale(1, 1);
+    public Vector3 tileOffset = Vector3.ZERO;
     public Vector3 sliceMin = Vector3.ZERO;
     public Vector3 sliceMax = Vector3.ZERO;
     @Prop(min = 0.01) public double sliceScale = 1;

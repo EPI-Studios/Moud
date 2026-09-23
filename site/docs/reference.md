@@ -1681,6 +1681,7 @@ Extends [GuiObject](#guiobject).
 | `sliceMax` | `Vector3` |
 | `sliceMin` | `Vector3` |
 | `sliceScale` | `number` |
+| `tileOffset` | `Vector3` |
 | `tileSize` | `UDim2` |
 
 <a id="imagebutton"></a>
