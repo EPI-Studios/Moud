@@ -26,12 +26,15 @@ public final class SkyBox {
 
     private static final Identifier VERTEX = Identifier.fromNamespaceAndPath("moud", "shaders/sky/box.vsh");
     private static final Identifier FRAGMENT = Identifier.fromNamespaceAndPath("moud", "shaders/sky/box.fsh");
+    private static final Identifier PANORAMA_VERTEX = Identifier.fromNamespaceAndPath("moud", "shaders/sky/panorama.vsh");
+    private static final Identifier PANORAMA_FRAGMENT = Identifier.fromNamespaceAndPath("moud", "shaders/sky/panorama.fsh");
     private static final int FLOATS = 5;
     private static final int VERTICES = 6;
 
     private static final List<Face> FRAME = new ArrayList<>();
 
     private static ShaderProgram program;
+    private static ShaderProgram panorama;
     private static FloatBuffer upload;
     private static VertexArray vertices;
 
@@ -47,26 +50,39 @@ public final class SkyBox {
         CameraSnapshot camera = CameraSnapshot.current();
         if (camera == null) return;
         FRAME.clear();
-        Matrix4f turn = turn(sky.skyboxOrientation);
-        box(sky, turn);
+        int wrapped = SkyPanorama.texture();
+        if (wrapped != 0) panorama(wrapped);
+        else box(sky, turn(sky.skyboxOrientation));
+        int bodiesFrom = wrapped != 0 ? FRAME.size() : 0;
         bodies(sky);
         if (FRAME.isEmpty()) return;
         ensure();
         fill();
         int previous = MainTargetFramebuffer.bind();
         try {
-            program.begin();
-            program.setMatrix4("ViewProj", camera.viewProj);
-            program.setSampler("Sky", 0);
-            program.setVec4("Tint", 1, 1, 1, 1);
-            vertices.stream(upload);
-            RenderState.blend(true);
-            RenderState.alphaBlend();
             RenderState.cull(false);
             RenderState.depthMask(false);
             RenderState.depthTest(true);
             RenderState.depthLessOrEqual();
-            for (int at = 0; at < FRAME.size(); at++) {
+            if (bodiesFrom > 0) {
+                RenderState.blend(false);
+                panorama.begin();
+                panorama.setMatrix4("ViewProj", camera.viewProj);
+                panorama.setMatrix4("Turn", SkyPanorama.inverseTurn());
+                panorama.setSampler("Panorama", 0);
+                GlState.bindTexture(0, wrapped);
+                vertices.stream(upload);
+                vertices.draw(0, bodiesFrom * VERTICES);
+            }
+            program.begin();
+            program.setMatrix4("ViewProj", camera.viewProj);
+            program.setSampler("Sky", 0);
+            program.setVec4("Tint", 1, 1, 1, 1);
+            if (bodiesFrom > 0) vertices.bind();
+            else vertices.stream(upload);
+            RenderState.blend(true);
+            RenderState.alphaBlend();
+            for (int at = bodiesFrom; at < FRAME.size(); at++) {
                 GlState.bindTexture(0, FRAME.get(at).texture());
                 vertices.draw(at * VERTICES, VERTICES);
             }
@@ -87,6 +103,19 @@ public final class SkyBox {
         face(sky.skyboxLf, turn, new Vector3f(-1, 0, 0), new Vector3f(0, 0, -1), new Vector3f(0, 1, 0));
         face(sky.skyboxUp, turn, new Vector3f(0, 1, 0), new Vector3f(1, 0, 0), new Vector3f(0, 0, 1));
         face(sky.skyboxDn, turn, new Vector3f(0, -1, 0), new Vector3f(1, 0, 0), new Vector3f(0, 0, -1));
+    }
+
+    private static void panorama(int texture) {
+        side(texture, new Vector3f(0, 0, -1), new Vector3f(1, 0, 0), new Vector3f(0, 1, 0));
+        side(texture, new Vector3f(0, 0, 1), new Vector3f(-1, 0, 0), new Vector3f(0, 1, 0));
+        side(texture, new Vector3f(1, 0, 0), new Vector3f(0, 0, 1), new Vector3f(0, 1, 0));
+        side(texture, new Vector3f(-1, 0, 0), new Vector3f(0, 0, -1), new Vector3f(0, 1, 0));
+        side(texture, new Vector3f(0, 1, 0), new Vector3f(1, 0, 0), new Vector3f(0, 0, 1));
+        side(texture, new Vector3f(0, -1, 0), new Vector3f(1, 0, 0), new Vector3f(0, 0, -1));
+    }
+
+    private static void side(int texture, Vector3f middle, Vector3f right, Vector3f up) {
+        FRAME.add(new Face(texture, middle, right, up, 1));
     }
 
     private static void bodies(Sky sky) {
@@ -148,6 +177,7 @@ public final class SkyBox {
     private static void ensure() {
         if (program != null) return;
         program = new ShaderProgram(VERTEX, FRAGMENT);
+        panorama = new ShaderProgram(PANORAMA_VERTEX, PANORAMA_FRAGMENT);
         vertices = VertexArray.interleaved(3, 2);
     }
 }

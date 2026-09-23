@@ -150,8 +150,8 @@ gives back what you set, not the tinted colour.
 | `shadowNormalBias` | 0.05 | the same, along the surface's own direction |
 | `shadowFade` | 0.8 | where shadows start fading out towards the edge of the shadowed range |
 | `blockShadowDistance` | 48 | how far out the Minecraft terrain is drawn into the shadow map, in blocks |
-| `environmentDiffuseScale` | 1 | how much of the surroundings' light reaches meshes |
-| `environmentSpecularScale` | 1 | how much the surroundings show in the shine on meshes |
+| `environmentDiffuseScale` | 1 | how much of the sky's light reaches meshes and `pbr` parts |
+| `environmentSpecularScale` | 1 | how much the sky shows in the shine on meshes and `pbr` parts |
 
 Raise `ambient` when a cave or a night in your place is too dark to play in: it is a floor under the
 light, so it lifts the parts the sun never reaches without touching the ones it does. Leave it black
@@ -161,8 +161,8 @@ Two of these need something else in the place before they do anything:
 
 - `globalShadows` turns the sun shadows on by itself. A [`ShadowQuality`](rendering.md#post-effects)
   effect is only needed to change how good they look.
-- The two environment scales only reach `MeshPart`s drawn from a glTF file. Blocks and plain parts
-  keep the game's own light.
+- The two environment scales only reach `MeshPart`s drawn from a glTF file and parts with
+  [`shading = "pbr"`](rendering.md#shading-a-part). Blocks and flat parts keep the game's own light.
 - `exposureCompensation` rides on top of a [`ColorGradeEffect`](rendering.md#post-effects), so put
   one in the place when you use it.
 
@@ -222,6 +222,34 @@ lighting:add("Sky", {
 > [!IMPORTANT]
 > Filling any one face puts the whole box in place of the game's sky, and the faces you left empty
 > are holes. Fill all six.
+
+### An HDRI sky
+
+```lua
+lighting:add("Sky", {
+    hdri = "res://sky/meadow.hdr",
+    skyboxOrientation = vec3(0, 90, 0),
+})
+```
+
+`hdri` takes one panorama instead of six faces: an equirectangular Radiance `.hdr` file in the place,
+the kind [Poly Haven](https://polyhaven.com/hdris) gives away. It is drawn as the sky, and it is also
+what lights and shines on everything with real materials, so a glTF `MeshPart` or a part with
+[`shading = "pbr"`](rendering.md#shading-a-part) reflects the clouds of the picture and takes its
+colour from it.
+
+- The middle of the picture is north (towards -z) and its top row is straight up.
+  `skyboxOrientation` turns it, the sky and the light it gives together.
+- The sunlight and its shadows still follow `clockTime`, not the sun in the photo. Turn the photo, or
+  set the clock, so the two point the same way.
+- The file is read and decoded off the game's thread when the property is set, and an empty `hdri`
+  puts the plain sky back, along with the plain sky's light.
+- A 1k or 2k file is plenty. The lighting only keeps a small blurred copy, so a larger one only costs
+  memory and load time.
+- `environmentDiffuseScale` and `environmentSpecularScale` turn its light down or up, which is how you
+  match a very bright or very dark photo to the rest of the place.
+- Only `.hdr` is read, not `.exr`. A file with its rows stored bottom-up is refused with a message in
+  the log.
 
 ## Atmosphere
 

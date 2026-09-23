@@ -13,6 +13,8 @@ public final class Sky extends Instance {
     @Prop(asset = true) public String skyboxRt = "";
     @Prop(asset = true) public String skyboxUp = "";
 
+    @Prop(asset = true) public String hdri = "";
+
     @Prop(asset = true) public String sunTextureId = "";
     @Prop(asset = true) public String moonTextureId = "";
 
@@ -26,7 +28,7 @@ public final class Sky extends Instance {
     public Vector3 skyboxOrientation = Vector3.ZERO;
 
     public boolean faced() {
-        return !skyboxBk.isEmpty() || !skyboxDn.isEmpty() || !skyboxFt.isEmpty()
+        return !hdri.isEmpty() || !skyboxBk.isEmpty() || !skyboxDn.isEmpty() || !skyboxFt.isEmpty()
                 || !skyboxLf.isEmpty() || !skyboxRt.isEmpty() || !skyboxUp.isEmpty();
     }
 }

@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.amnetic.client.grade.ColorGrade;
+import com.meekdev.amnetic.client.ibl.Ibl;
 import com.meekdev.amnetic.client.light.Light;
 import com.meekdev.amnetic.client.light.Lights;
 import com.meekdev.amnetic.client.model.ModelLighting;
@@ -71,6 +72,8 @@ public final class Environment {
         sky = Environments.sky(tree);
         atmosphere = Environments.atmosphere(tree);
         clouds = Environments.clouds(tree);
+        SkyPanorama.frame(sky);
+        if (SkyPanorama.texture() != 0 || Parts.anyPhysical()) Ibl.update();
         if (lighting == null) {
             sunDirection = Vector3.UP;
             tint = DayCycle.Tint.NEUTRAL;

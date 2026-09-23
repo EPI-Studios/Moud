@@ -1364,6 +1364,7 @@ Extends [Instance](#instance).
 | `celestialBodiesShown` | `boolean` |
 | `moonAngularSize` | `number` |
 | `moonTextureId` | `string` |
+| `hdri` | `string` |
 | `skyboxBk` | `string` |
 | `skyboxDn` | `string` |
 | `skyboxFt` | `string` |

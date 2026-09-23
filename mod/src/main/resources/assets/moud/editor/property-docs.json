@@ -471,6 +471,7 @@
     "starCount": "How many stars come out at night, up to 3000, which is every star the game has.",
     "celestialBodiesShown": "Off: no sun, no moon and no stars.",
     "skyboxOrientation": "Turns the box of images, in degrees. The sun and the moon keep following the clock.",
+    "hdri": "An equirectangular .hdr panorama drawn as the sky. Meshes and pbr parts are lit by it too.",
     "Atmosphere.density": "How thick the air is, 0 to 1. It pulls the game's distance fog in: 0 leaves the view open to the render distance, 1 closes it to a few blocks. A FogEffect is a separate screen pass and draws on top of this.",
     "Atmosphere.offset": "Pushes the near edge of the fog out, -1 to 1. At 1 the fog only starts just before it is thickest.",
     "Atmosphere.color": "The colour of the air near the camera. Haze decides how much of it is used.",
