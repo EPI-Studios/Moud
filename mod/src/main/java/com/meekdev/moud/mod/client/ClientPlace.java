@@ -104,6 +104,7 @@ public final class ClientPlace {
     }
 
     public static void frame(float partialTick) {
+        if (place != null && place.host() != null) ClientDebug.INSTANCE.frame(place.host().profiler());
         if (place == null || camera == null || !camera.isAlive()) return;
         INPUT.poll();
         Devices.frame(INPUT);

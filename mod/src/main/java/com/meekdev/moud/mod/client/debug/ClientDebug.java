@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.debug;
 
+import com.meekdev.amnetic.client.pipeline.PassProfiler;
 import com.meekdev.amnetic.client.render.CameraSnapshot;
 import com.meekdev.amnetic.client.surface.Surfaces;
 import com.meekdev.amnetic.client.surface.draw.UiDraw;
@@ -16,7 +17,9 @@ import com.meekdev.moud.mod.adapter.text.TextPainter;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.transport.payload.DebugPayload;
 import com.meekdev.moud.script.api.DebugRef;
+import com.meekdev.moud.script.host.Profiler;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +39,7 @@ public final class ClientDebug implements DebugRef {
     private final Map<String, String> watched = new LinkedHashMap<>();
     private final Queue<DebugPayload> incoming = new ConcurrentLinkedQueue<>();
     private final Vector4f scratch = new Vector4f();
+    private long scriptsSpent;
 
     private ClientDebug() {}
 
@@ -103,6 +107,31 @@ public final class ClientDebug implements DebugRef {
     public void clear() {
         shapes.clear();
         watched.clear();
+    }
+
+    @Override
+    public Map<String, Object> passTimes() {
+        PassProfiler.INSTANCE.watch();
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (PassProfiler.Entry e : PassProfiler.INSTANCE.sorted()) {
+            Map<String, Object> row = new HashMap<>();
+            row.put("cpu", (double) e.avgMs);
+            if (e.avgGpuMs >= 0) row.put("gpu", (double) e.avgGpuMs);
+            row.put("stage", e.stage == null ? "other" : e.stage.name().toLowerCase());
+            out.put(e.label, row);
+        }
+        return out;
+    }
+
+    @Override
+    public void showPassTimes(boolean shown) {
+        FrameView.show(shown);
+    }
+
+    public void frame(Profiler scripts) {
+        long spent = scripts.spent();
+        if (PassProfiler.INSTANCE.active()) PassProfiler.INSTANCE.record("moud client scripts", spent >= scriptsSpent ? spent - scriptsSpent : spent);
+        scriptsSpent = spent;
     }
 
     private void add(List<Vector3[]> lines, Vector3 label, String text, Color color, double seconds) {

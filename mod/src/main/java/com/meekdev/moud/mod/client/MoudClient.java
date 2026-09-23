@@ -32,6 +32,7 @@ import com.meekdev.moud.mod.adapter.render.effect.Effects;
 import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.debug.ClientDebug;
 import com.meekdev.moud.mod.client.debug.CollisionView;
+import com.meekdev.moud.mod.client.debug.FrameView;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.input.Autopilot;
 import com.meekdev.moud.mod.client.input.Controls;
@@ -65,6 +66,7 @@ public final class MoudClient implements ClientModInitializer {
         });
         ChatView.install();
         ClientDebug.install();
+        FrameView.install();
         Post.installOnClient(() -> Minecraft.getInstance().player instanceof LocalPlayer me
                 ? me.getUUID().toString() : "");
         Pipeline.install();
@@ -94,6 +96,7 @@ public final class MoudClient implements ClientModInitializer {
             ClientPrompts.tick(0.05);
             ClientPlace.tick();
             CollisionView.tick();
+            FrameView.tick();
             Input.pointerFrame();
         });
         LevelRenderEvents.START_MAIN.register(context -> {

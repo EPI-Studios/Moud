@@ -76,6 +76,8 @@ public final class Scheduler {
     private void resume(Task task, Object[] args) {
         if (task.done) return;
         Object before = host.ownership().enter(task.owner);
+        host.profiler().enter();
+        long started = System.nanoTime();
         Suspend next;
         try {
             next = task.fiber.resume(args);
@@ -84,6 +86,7 @@ public final class Scheduler {
             host.error("task " + task.id, e);
             return;
         } finally {
+            host.profiler().leave(System.nanoTime() - started);
             host.ownership().leave(before);
         }
         if (next == null) {

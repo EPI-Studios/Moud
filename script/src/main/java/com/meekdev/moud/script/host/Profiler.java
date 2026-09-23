@@ -14,12 +14,26 @@ public final class Profiler {
     }
 
     private Map<String, Entry> times = new HashMap<>();
+    private long spent;
+    private int depth;
 
     public void add(String where, long nanos) {
         Entry entry = times.computeIfAbsent(where, key -> new Entry());
         entry.nanos += nanos;
         entry.calls++;
         entry.worst = Math.max(entry.worst, nanos);
+    }
+
+    public void enter() {
+        depth++;
+    }
+
+    public void leave(long nanos) {
+        if (--depth == 0) spent += nanos;
+    }
+
+    public long spent() {
+        return spent;
     }
 
     public Map<String, Object> take() {

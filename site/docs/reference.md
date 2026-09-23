@@ -3135,6 +3135,8 @@ Methods:
 - `clear(): ()`
 - `queryStats(): { queries: number, partsTested: number }`
 - `profile(): { [string]: { milliseconds: number, calls: number, worst: number } }`
+- `passTimes(): { [string]: { cpu: number, gpu: number?, stage: string } }`
+- `showPassTimes(shown: boolean?): ()`
 
 ## Zones
 

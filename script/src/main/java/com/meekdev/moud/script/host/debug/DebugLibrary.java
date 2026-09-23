@@ -57,7 +57,13 @@ public final class DebugLibrary {
                     return Map.of("queries", (double) stats.queries(), "partsTested", (double) stats.partsTested());
                 })
                 .method("profile", "() -> { [string]: { milliseconds: number, calls: number, worst: number } }",
-                        a -> host.profiler().take());
+                        a -> host.profiler().take())
+                .method("passTimes", "() -> { [string]: { cpu: number, gpu: number?, stage: string } }",
+                        a -> debug.passTimes())
+                .method("showPassTimes", "(shown: boolean?) -> ()", a -> {
+                    debug.showPassTimes(a.bool(1, true));
+                    return null;
+                });
         host.declare(members);
         game.value("debug", "Debug", members);
     }

@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.input;
 
 import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.debug.CollisionView;
+import com.meekdev.moud.mod.client.debug.FrameView;
 import com.meekdev.moud.script.api.InputRef;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.Window;
@@ -44,6 +45,7 @@ public final class Input implements InputRef {
         pointer = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.moud.pointer",
                 InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_LEFT_ALT, MOUD));
         CollisionView.register(MOUD);
+        FrameView.register(MOUD);
     }
 
     private static boolean pointerReleased;

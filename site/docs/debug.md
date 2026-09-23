@@ -1,8 +1,8 @@
 # Debugging
 
-When a place does not do what you meant, you need to see what it actually did. Moud gives you five
+When a place does not do what you meant, you need to see what it actually did. Moud gives you six
 ways to look: printing to the log, drawing shapes in the world, watching values on the screen,
-measuring what queries and scripts cost, and the in-game overlay. Most of them hang off
+measuring what queries and scripts cost, timing each render pass, and the in-game overlay. Most of them hang off
 `game.debug`, which exists on both sides.
 
 ## print
@@ -90,6 +90,59 @@ one slow call, and `worst` is what tells them apart.
 
 `main` is the place's own script; a `Script` instance shows under its name; a callback shows as
 `Class.name`, like `TextChannel.shouldDeliver`.
+
+## Frame times
+
+<kbd>F8</kbd> (rebindable in Controls, under Moud) shows how long each render pass takes, in the top
+left of the screen, most expensive first. Each row is one pass with its CPU and GPU time in
+milliseconds, averaged over the last few frames, and two bars for its share of the frame: blue for
+the CPU, orange for the GPU. The top line is the whole frame and the frame rate.
+
+```lua
+-- client
+game.debug:showPassTimes()
+
+task.every(5, function()
+    for pass, t in game.debug:passTimes() do
+        print(pass, t.stage, t.cpu, t.gpu)
+    end
+end)
+```
+
+- **`showPassTimes`** turns the same list on from a script, and `showPassTimes(false)` turns it off.
+- **`passTimes`** returns every pass that ran in the last second: `cpu` is the time spent sending
+  its work, `gpu` is the time the graphics card spent running it, and `stage` is where in the frame
+  it runs, like `geometry`, `lighting` or `post`, or `other` for work outside the renderer such as
+  scripts. `gpu` is missing for work that never touches the graphics card.
+
+The two times answer different questions. A pass with a small `cpu` and a large `gpu`, like bloom
+on a big screen, is the graphics card's work; a large `cpu` means the pass is busy preparing what it
+draws. The GPU times arrive a few frames late, because they are read only once the card has finished
+the frame, so the first call returns no `gpu` values yet.
+
+The passes you will see most:
+
+| Pass | What it draws |
+|---|---|
+| `Shadow Map` | the sun's shadows |
+| `Deferred Lighting` | lights on parts and models |
+| `Instanced Mesh (GBuffer)`, `Instanced Mesh (World)` | parts |
+| `Models` | mesh parts |
+| `SSAO`, `SSGI`, `SSR` | ambient occlusion, bounced light and reflections |
+| `Bloom`, `Color Grade`, `TAA` | the post effects |
+| `HUD Surfaces` | every `ScreenGui`, chat and this list itself |
+| `moud sky` | the `Sky` |
+| `moud effects` | particles, beams, trails, ropes and rain |
+| `moud screen effects` | `ScreenEffect`s |
+| `moud highlights` | `Highlight`s |
+| `moud editor selection` | the editor's selection outline |
+| `moud viewports` | every `ViewportFrame` |
+| `moud client scripts` | every client script's handlers and tasks for the frame |
+
+Nothing is timed while nobody is looking: timing starts when the list is shown or `passTimes` is
+called, and stops two seconds after the last call. With it off the passes run untimed and nothing is
+asked of the graphics card. The same list, with the stage column, is in the editor under **Window → Renderer
+Tools → Info → Profiler**.
 
 ## The overlay
 

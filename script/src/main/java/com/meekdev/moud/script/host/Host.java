@@ -412,6 +412,7 @@ public final class Host {
     }
 
     public Object[] call(Callable fn, String where, Object... args) {
+        profiler.enter();
         long started = System.nanoTime();
         try {
             return fn.call(args);
@@ -419,7 +420,9 @@ public final class Host {
             error(where, e);
             return null;
         } finally {
-            profiler.add(where.equals("signal") ? Profiler.owner(ownership.current()) : where, System.nanoTime() - started);
+            long took = System.nanoTime() - started;
+            profiler.add(where.equals("signal") ? Profiler.owner(ownership.current()) : where, took);
+            profiler.leave(took);
         }
     }
 
