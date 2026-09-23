@@ -95,6 +95,15 @@ world:add("SoundBus", { bus = "music", volume = 0.5, lowPass = 1, muted = false 
 `volume` scales every sound on the bus and `muted` silences them all. `lowPass` below 1 muffles the
 whole bus, which is what you use for sound heard through a wall or under water.
 
+A bus is an instance like any other, so a tween moves it. Muffling the music over a second while a
+menu fades out, and bringing it back when the game starts, is two tweens:
+
+```lua
+local music = world:add("SoundBus", { bus = "music" })
+music:tween({ lowPass = 0.15 }, { time = 1 })   -- leaving the menu
+music:tween({ lowPass = 1 }, { time = 1 })      -- in the game
+```
+
 ## Sound effects
 
 An effect is an instance you put **inside** a `Sound` or a `SoundBus`. Inside a sound it treats that
