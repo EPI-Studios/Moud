@@ -48,6 +48,7 @@ read theirs.
 | `"res://ui/heart.png"` | a file in the place |
 | `"minecraft:item/diamond"` | a Minecraft texture. `textures/` and `.png` are added, and the full id `"minecraft:textures/item/diamond.png"` works too |
 | `canvas.uri` | an image a script drew or loaded, see [Drawing](#drawing) |
+| `"res://video/lava.mp4"` | a video file in the place, playing silent and on a loop. See [A video as a texture](rendering.md#a-video-as-a-texture) |
 
 Particles also take a bare particle name such as `"flame"`, which is looked up under
 `textures/particle/`.

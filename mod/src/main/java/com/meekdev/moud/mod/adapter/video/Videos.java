@@ -1,11 +1,16 @@
 package com.meekdev.moud.mod.adapter.video;
 
+import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.ui.BillboardGui;
+import com.meekdev.moud.core.ui.GuiLayout;
+import com.meekdev.moud.core.ui.SurfaceGui;
 import com.meekdev.moud.core.ui.VideoFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.gl.Textures;
@@ -14,10 +19,14 @@ import com.meekdev.moud.mod.client.PlaceFiles;
 import com.meekdev.resona.api.PlaySettings;
 import com.meekdev.resona.api.Resona;
 import com.meekdev.resona.api.SoundHandle;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 public final class Videos {
@@ -40,11 +49,19 @@ public final class Videos {
         boolean announced;
         boolean over;
         double volume;
+        boolean spatial;
+        int wrap = Textures.CLAMP;
+        boolean muted;
+        long seen;
 
         void restart(VideoFrame frame, double from) {
+            start(from);
+            frame.timePosition = from;
+        }
+
+        void start(double from) {
             close();
             clock = from;
-            frame.timePosition = from;
             over = false;
             byte[] bytes = PlaceFiles.read(video);
             if (bytes == null) {
@@ -52,7 +69,7 @@ public final class Videos {
                 return;
             }
             if (!Ffmpeg.available()) return;
-            decoder = new VideoDecoder(video, bytes, from);
+            decoder = new VideoDecoder(video, bytes, from, !muted);
         }
 
         void close() {
@@ -75,12 +92,47 @@ public final class Videos {
 
     private static final Identifier VIDEO_SOUND = Identifier.fromNamespaceAndPath("moud", "video");
 
+    private static final List<String> FILES = List.of(".mp4", ".webm", ".ogv", ".mov", ".mkv", ".avi", ".m4v");
+    private static final long UNSEEN_NANOS = 2_000_000_000L;
+    private static final float NEAR = 8;
+    private static final float FAR = 48;
+
     private static final Map<VideoFrame, Playback> PLAYBACKS = new IdentityHashMap<>();
+    private static final Map<String, Playback> LOOPS = new HashMap<>();
     private static long lastFrame;
 
     private Videos() {}
 
-    public static void frame() {
+    public static boolean isVideo(String src) {
+        if (!src.startsWith(Res.SCHEME)) return false;
+        String name = src.toLowerCase(Locale.ROOT);
+        for (String file : FILES) {
+            if (name.endsWith(file)) return true;
+        }
+        return false;
+    }
+
+    // a video named where an image goes plays muted and looped, one decoder for everything showing that file
+    public static int texture(String video) {
+        Playback loop = LOOPS.get(video);
+        if (loop == null) {
+            loop = new Playback();
+            loop.video = video;
+            loop.wrap = Textures.REPEAT;
+            loop.muted = true;
+            loop.start(0);
+            LOOPS.put(video, loop);
+        }
+        loop.seen = System.nanoTime();
+        return loop.texture;
+    }
+
+    public static int @Nullable [] size(String video) {
+        Playback loop = LOOPS.get(video);
+        return loop == null || loop.texture == 0 ? null : new int[] {loop.width, loop.height};
+    }
+
+    public static void frame(float partialTick) {
         long now = System.nanoTime();
         double delta = lastFrame == 0 ? 0 : Math.min((now - lastFrame) / 1.0e9, 0.25);
         lastFrame = now;
@@ -89,7 +141,7 @@ public final class Videos {
         if (tree != null) {
             for (VideoFrame frame : tree.ofClass(Classes.VIDEO_FRAME)) {
                 if (Instance.outOfWorld(frame)) continue;
-                step(frame, PLAYBACKS.computeIfAbsent(frame, ignored -> new Playback()), delta);
+                step(frame, PLAYBACKS.computeIfAbsent(frame, ignored -> new Playback()), delta, partialTick);
             }
         }
         Iterator<Map.Entry<VideoFrame, Playback>> gone = PLAYBACKS.entrySet().iterator();
@@ -99,6 +151,26 @@ public final class Videos {
             entry.getValue().dispose();
             gone.remove();
         }
+        Iterator<Playback> loops = LOOPS.values().iterator();
+        while (loops.hasNext()) {
+            Playback loop = loops.next();
+            if (tree != null && now - loop.seen < UNSEEN_NANOS) {
+                loop(loop, delta);
+                continue;
+            }
+            loop.dispose();
+            loops.remove();
+        }
+    }
+
+    private static void loop(Playback loop, double delta) {
+        VideoDecoder decoder = loop.decoder;
+        if (decoder == null) return;
+        loop.clock += delta;
+        show(loop, decoder);
+        if (!decoder.drained() || !ended(loop)) return;
+        if (loop.shown == null) loop.close();
+        else loop.start(0);
     }
 
     public static int texture(VideoFrame frame) {
@@ -106,7 +178,7 @@ public final class Videos {
         return playback == null ? 0 : playback.texture;
     }
 
-    private static void step(VideoFrame frame, Playback playback, double delta) {
+    private static void step(VideoFrame frame, Playback playback, double delta, float partialTick) {
         if (!frame.video.equals(playback.video)) {
             playback.video = frame.video;
             playback.announced = false;
@@ -134,7 +206,7 @@ public final class Videos {
         }
         if (frame.playing) playback.clock += delta;
         show(playback, decoder);
-        sound(frame, playback, decoder);
+        sound(frame, playback, decoder, partialTick);
 
         if (frame.playing && decoder.drained() && ended(playback)) {
             if (frame.looped) {
@@ -151,16 +223,24 @@ public final class Videos {
     }
 
     // the sound starts with the first shown picture and follows play and pause from then on
-    private static void sound(VideoFrame frame, Playback playback, VideoDecoder decoder) {
+    private static void sound(VideoFrame frame, Playback playback, VideoDecoder decoder, float partialTick) {
         VideoDecoder.Info info = decoder.info();
         if (info == null || info.channels() <= 0) return;
+        Vector3 at = placed(frame, partialTick);
+        if (playback.voice != null && playback.spatial != (at != null)) {
+            playback.voice.stop();
+            playback.voice = null;
+        }
         if (playback.voice == null) {
             if (!frame.playing || playback.shown == null) return;
             PlaySettings settings = PlaySettings.of(VIDEO_SOUND).bus("sfx").volume((float) frame.volume);
+            if (at != null) settings.at(new Vec3(at.x(), at.y(), at.z())).distance(NEAR, FAR, 1);
             playback.voice = Resona.playStream(new VideoSound(decoder, info.channels(), info.sampleRate()), settings);
             playback.volume = frame.volume;
+            playback.spatial = at != null;
             return;
         }
+        if (at != null) playback.voice.setPosition(new Vec3(at.x(), at.y(), at.z()));
         if (frame.volume != playback.volume) {
             playback.voice.setVolume((float) frame.volume);
             playback.volume = frame.volume;
@@ -169,6 +249,17 @@ public final class Videos {
             if (frame.playing) playback.voice.resume();
             else playback.voice.pause();
         }
+    }
+
+    // a video on a SurfaceGui or BillboardGui sounds from the part the gui is on
+    private static @Nullable Vector3 placed(VideoFrame frame, float partialTick) {
+        for (Instance at = frame.parent(); at != null; at = at.parent()) {
+            if (!(at instanceof SurfaceGui) && !(at instanceof BillboardGui)) continue;
+            Instance target = GuiLayout.adornee(at);
+            if (!(target instanceof Spatial) || target.parent() == null) return null;
+            return ClientScene.motion().sample(target, partialTick).position();
+        }
+        return null;
     }
 
     private static boolean ended(Playback playback) {
@@ -197,7 +288,7 @@ public final class Videos {
         if (due == null) return;
         if (playback.texture == 0 || playback.width != due.width() || playback.height != due.height()) {
             Textures.delete(playback.texture);
-            playback.texture = Textures.frame(due.width(), due.height());
+            playback.texture = Textures.frame(due.width(), due.height(), playback.wrap);
             playback.width = due.width();
             playback.height = due.height();
         }

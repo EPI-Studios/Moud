@@ -5,6 +5,7 @@ import com.meekdev.moud.core.image.ImageStore;
 import com.meekdev.moud.mod.adapter.gl.Textures;
 import com.meekdev.moud.mod.adapter.render.EditableTextures;
 import com.meekdev.moud.mod.adapter.ui.UiImages;
+import com.meekdev.moud.mod.adapter.video.Videos;
 import com.mojang.blaze3d.opengl.GlTexture;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -36,6 +37,10 @@ public final class EffectTextures {
         if (src.isEmpty()) return dot();
         if (ImageStore.isEditable(src)) {
             int gl = EditableTextures.gl(src);
+            return gl == 0 ? clear() : new Sprite(gl, false);
+        }
+        if (Videos.isVideo(src)) {
+            int gl = Videos.texture(src);
             return gl == 0 ? clear() : new Sprite(gl, false);
         }
         if (src.startsWith(Res.SCHEME)) {

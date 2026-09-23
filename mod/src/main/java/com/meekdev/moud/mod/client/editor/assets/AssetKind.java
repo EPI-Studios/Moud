@@ -12,6 +12,7 @@ public enum AssetKind {
     ANIMATION("Animations", EditorIcon.ANIMATION, List.of(".anim")),
     TEXTURE("Textures", EditorIcon.TEXTURE_2D, List.of(".png", ".jpg", ".jpeg")),
     SOUND("Sounds", EditorIcon.AUDIO_STREAM, List.of(".ogg", ".wav", ".mp3", ".flac")),
+    VIDEO("Videos", EditorIcon.FILE, List.of(".mp4", ".webm", ".ogv", ".mov", ".mkv", ".avi", ".m4v")),
     SHADER("Shaders", EditorIcon.SHADER, List.of(".glsl", ".vsh", ".fsh")),
     FONT("Fonts", EditorIcon.FILE, List.of(".ttf", ".otf")),
     OTHER("Other", EditorIcon.FILE, List.of());

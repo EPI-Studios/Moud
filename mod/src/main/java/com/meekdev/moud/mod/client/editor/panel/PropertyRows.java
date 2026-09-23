@@ -417,7 +417,7 @@ public final class PropertyRows {
         ImGui.beginChild("##asset-list", EditorScale.of(320), EditorScale.of(260), true);
         int shown = 0;
         for (AssetEntry entry : AssetScanner.search(AssetFiles.root(), assetSearch.get().strip())) {
-            if (entry.folder() || (wanted != null && entry.kind() != wanted)) continue;
+            if (entry.folder() || (wanted != null && !shows(wanted, entry.kind()))) continue;
             String res = AssetFiles.res(entry.path());
             if (res == null) continue;
             if (ImGui.selectable(entry.name() + "##" + res, res.equals(current))) {
@@ -432,9 +432,15 @@ public final class PropertyRows {
         ImGui.endPopup();
     }
 
+    // a video plays wherever an image goes
+    private static boolean shows(AssetKind wanted, AssetKind kind) {
+        return kind == wanted || wanted == AssetKind.TEXTURE && kind == AssetKind.VIDEO;
+    }
+
     private static @Nullable AssetKind kindFor(PropertyDef property) {
         String name = property.name().toLowerCase(Locale.ROOT);
         if (name.contains("mesh")) return AssetKind.MODEL;
+        if (name.equals("video")) return AssetKind.VIDEO;
         if (name.contains("sound")) return AssetKind.SOUND;
         if (name.contains("image") || name.contains("skin") || name.contains("lut") || name.contains("texture")) return AssetKind.TEXTURE;
         if (name.contains("font")) return AssetKind.FONT;

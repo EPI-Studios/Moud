@@ -110,7 +110,7 @@ public final class MoudClient implements ClientModInitializer {
             CoreGui.INSTANCE.frame();
             Ui.frame(partialTick);
             Sounds.frame(partialTick);
-            Videos.frame();
+            Videos.frame(partialTick);
             SceneLights.frame(partialTick);
             WeatherView.frame();
             Effects.frame();

@@ -632,6 +632,31 @@ video is over.
 The picture is stretched to the frame's size, so give the frame the video's shape if you do not want
 it squashed.
 
+### A video on a part
+
+A `VideoFrame` in a `SurfaceGui` is a screen in the world, and its sound comes from the part:
+
+```lua
+-- client
+local tv = world:add("Part", { size = vec3(6.4, 4.8, 0.4), cframe = cframe(0, 67, -4), color = color(0, 0, 0) })
+local screen = tv:add("SurfaceGui", { face = "back", pixelsPerMetre = 100 })
+local film = screen:add("VideoFrame", {
+    size = udim2(1, 0, 1, 0),
+    video = "res://video/news.mp4",
+    looped = true,
+})
+film:play()
+```
+
+Everything above still works on it: `play()`, `pause()`, `timePosition` and `volume` control the
+screen. The sound is placed at the part the gui is on, and follows it when it moves. It is at full
+volume within 8 metres and fades out by 48. The same goes for a `BillboardGui`. A `VideoFrame` in a
+`ScreenGui` is heard the same everywhere.
+
+When all you want is moving pictures, with no sound and nothing to control, a video file also works
+as the `texture` of a part, a decal or a model's material, or as the `image` of an `ImageLabel`. See
+[A video as a texture](rendering.md#a-video-as-a-texture).
+
 > [!NOTE]
 > Videos are decoded by ffmpeg, which is large. An exported game only carries it when its place has
 > a video file in it, so a game without videos stays small.

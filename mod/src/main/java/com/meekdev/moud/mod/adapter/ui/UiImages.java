@@ -6,6 +6,7 @@ import com.meekdev.moud.core.image.EditableImage;
 import com.meekdev.moud.core.image.ImageStore;
 import com.meekdev.moud.mod.adapter.gl.Textures;
 import com.meekdev.moud.mod.adapter.render.EditableTextures;
+import com.meekdev.moud.mod.adapter.video.Videos;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.place.ImportSettings;
 import com.meekdev.moud.mod.place.PlaceToml;
@@ -44,6 +45,7 @@ public final class UiImages {
         if (src.isEmpty()) return null;
         EditableImage editable = ImageStore.find(src);
         if (editable != null) return new int[] {editable.width(), editable.height()};
+        if (Videos.isVideo(src)) return Videos.size(src);
         if (src.startsWith(Res.SCHEME)) {
             Image image = image(src);
             return image == null ? null : new int[] {image.width(), image.height()};
@@ -55,6 +57,7 @@ public final class UiImages {
     }
 
     public static int texture(String src) {
+        if (Videos.isVideo(src)) return Videos.texture(src);
         if (ImageStore.isEditable(src)) return EditableTextures.gl(src);
         Identifier id = KNOWN.computeIfAbsent(src, UiImages::resolve);
         if (id == null) return 0;

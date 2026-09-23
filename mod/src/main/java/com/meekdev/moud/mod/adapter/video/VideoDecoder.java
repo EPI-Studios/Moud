@@ -33,8 +33,8 @@ final class VideoDecoder {
     private volatile boolean finished;
     private volatile @Nullable Info info;
 
-    VideoDecoder(String name, byte[] bytes, double from) {
-        thread = Thread.ofPlatform().daemon().name("moud video " + name).start(() -> decode(name, bytes, from));
+    VideoDecoder(String name, byte[] bytes, double from, boolean sound) {
+        thread = Thread.ofPlatform().daemon().name("moud video " + name).start(() -> decode(name, bytes, from, sound));
     }
 
     @Nullable Info info() {
@@ -70,7 +70,7 @@ final class VideoDecoder {
         thread.interrupt();
     }
 
-    private void decode(String name, byte[] bytes, double from) {
+    private void decode(String name, byte[] bytes, double from, boolean withSound) {
         Path file = null;
         try {
             file = Files.createTempFile("moud-video-", extension(name));
@@ -85,7 +85,7 @@ final class VideoDecoder {
                         grabber.getAudioChannels(), grabber.getSampleRate());
                 if (from > 0) grabber.setTimestamp(Math.round(from * 1.0e6));
                 Frame frame;
-                while (!stopped && (frame = grabber.grab()) != null) {
+                while (!stopped && (frame = withSound ? grabber.grab() : grabber.grabImage()) != null) {
                     if (frame.image != null && frame.imageWidth > 0) {
                         Picture picture = copy(frame, frame.timestamp / 1.0e6, 1.0 / rate);
                         while (!stopped && !pictures.offer(picture, WAIT_MILLIS, TimeUnit.MILLISECONDS)) {

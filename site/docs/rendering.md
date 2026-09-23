@@ -51,6 +51,30 @@ belt:tween({ textureOffset = vec3(20, 0, 0) }, { time = 10, easing = "linear", r
 An offset of one `studsPerTile` along an axis brings the image back to where it started, so a loop
 that moves by a whole number of tiles never jumps.
 
+### A video as a texture
+
+A video file goes anywhere an image does, on a part, a model's material or a decal:
+
+```lua
+world:add("Part", {
+    size = vec3(4, 3, 3),
+    cframe = cframe(3, 65.5, -2),
+    texture = "res://video/lava.mp4",
+    studsPerTile = 4,
+    anchored = true,
+})
+local sign = world:add("MeshPart", { meshId = "res://models/sign.glb", size = vec3(4, 3, 0.5), cframe = cframe(-3, 65.5, -2) })
+sign:add("MaterialOverride", { material = "Screen", texture = "res://video/lava.mp4" })
+```
+
+The video plays silent and on a loop, from the moment something shows it. Everything that names the
+same file shares one copy of it, so ten parts made of the same video decode it once and show the
+same picture. When nothing has shown the file for two seconds it is closed and its memory freed, and
+it starts again from the beginning the next time it is shown.
+
+There is no way to pause it, seek it or hear it. For a screen that does those things, put a
+[`VideoFrame` in a `SurfaceGui`](interface.md#a-video-on-a-part) on the part instead.
+
 ## Shading a part
 
 ```lua
