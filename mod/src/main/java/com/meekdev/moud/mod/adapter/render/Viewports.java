@@ -5,6 +5,7 @@ import com.meekdev.amnetic.client.framebuffer.Framebuffer;
 import com.meekdev.amnetic.client.framebuffer.FramebufferSpec;
 import com.meekdev.amnetic.client.framebuffer.Framebuffers;
 import com.meekdev.amnetic.client.model.Model;
+import com.meekdev.amnetic.client.model.ModelLook;
 import com.meekdev.amnetic.client.model.ModelLighting;
 import com.meekdev.amnetic.client.model.internal.OffscreenModelRenderer;
 import com.meekdev.amnetic.client.pipeline.Pipeline;
@@ -244,8 +245,9 @@ public final class Viewports {
             for (MeshPart part : meshes) {
                 Model model = Meshes.modelFor(part.meshId);
                 if (model == null || !model.isReady()) continue;
-                Matrix4f world = Meshes.placement(Transforms.world(part), part.size, model, new Matrix4f());
-                MODELS.draw(model.internalGpu(), projView, world, Meshes.pose(part, model, dt), 15, 15, 1);
+                ModelLook look = Meshes.look(part, model);
+                Matrix4f world = Meshes.placement(Transforms.world(part), part.size, model, look == null ? null : look.piece(), new Matrix4f());
+                MODELS.draw(model.internalGpu(), projView, world, Meshes.pose(part, model, dt), 15, 15, 1, look);
             }
         } finally {
             lighting.sunDirection(before[0], before[1], before[2]).sunColor(before[3], before[4], before[5])

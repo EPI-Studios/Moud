@@ -4,6 +4,7 @@ import com.meekdev.amnetic.client.model.Animator;
 import com.meekdev.amnetic.client.material.SurfaceInputs;
 import com.meekdev.amnetic.client.model.Model;
 import com.meekdev.amnetic.client.model.ModelFormat;
+import com.meekdev.amnetic.client.model.ModelLook;
 import com.meekdev.amnetic.client.model.Models;
 import com.meekdev.amnetic.client.model.internal.ammesh.AmmeshConverter;
 import com.meekdev.moud.core.asset.BbmodelImport;
@@ -75,7 +76,7 @@ public final class Meshes {
             Model model = model(part.meshId, variant);
             if (model == null || !model.isReady()) continue;
             SurfaceInputs inputs = variant.isEmpty() ? null : SurfaceShaders.apply(part, model);
-            draw(part, model, partialTick, dt, inputs);
+            draw(part, model, partialTick, dt, inputs, MeshLooks.of(part, model));
         }
         ANIMATORS.keySet().removeIf(id -> !(tree.byId(id) instanceof MeshPart));
         BONED.keySet().removeIf(id -> !(tree.byId(id) instanceof MeshPart));
@@ -121,7 +122,7 @@ public final class Meshes {
         }
     }
 
-    private static void draw(MeshPart part, Model model, float partialTick, float dt, @Nullable SurfaceInputs inputs) {
+    private static void draw(MeshPart part, Model model, float partialTick, float dt, @Nullable SurfaceInputs inputs, @Nullable ModelLook look) {
         CFrame world = ClientScene.motion().sample(part, partialTick);
         Matrix4f[] boned = bones(part, model, world, partialTick);
         if (boned != null) {
@@ -129,14 +130,14 @@ public final class Meshes {
             ANIMATORS.remove(part.id());
             float grown = grown(part);
             Matrix4f placed = frame(world.position(), world.rotation(), WORLD).scale(grown);
-            if (inputs == null) model.renderPosed(placed, boned);
-            else model.render(placed, boned, inputs);
+            if (inputs == null && look == null) model.renderPosed(placed, boned);
+            else model.render(placed, boned, inputs, look);
             return;
         }
         BONED.remove(part.id());
-        placement(world, part.size, model, WORLD);
+        placement(world, part.size, model, look == null ? null : look.piece(), WORLD);
         Matrix4f[] pose = pose(part, model, dt);
-        if (inputs != null) model.render(WORLD, pose, inputs);
+        if (inputs != null || look != null) model.render(WORLD, pose, inputs, look);
         else if (pose == null) model.render(WORLD);
         else model.renderPosed(WORLD, pose);
     }
@@ -237,10 +238,14 @@ public final class Meshes {
     }
 
     static Matrix4f placement(CFrame world, Vector3 size, Model model, Matrix4f into) {
+        return placement(world, size, model, null, into);
+    }
+
+    static Matrix4f placement(CFrame world, Vector3 size, Model model, Model.@Nullable Piece piece, Matrix4f into) {
         Vector3 at = world.position();
         Quat turn = world.rotation();
-        Vector3f min = model.boundsMin();
-        Vector3f max = model.boundsMax();
+        Vector3f min = piece == null ? model.boundsMin() : piece.min();
+        Vector3f max = piece == null ? model.boundsMax() : piece.max();
         float sx = stretch(size.x(), max.x - min.x);
         float sy = stretch(size.y(), max.y - min.y);
         float sz = stretch(size.z(), max.z - min.z);
@@ -278,11 +283,16 @@ public final class Meshes {
         return model(meshId);
     }
 
+    static @Nullable ModelLook look(MeshPart part, Model model) {
+        return MeshLooks.of(part, model);
+    }
+
     public static @Nullable Vector3 naturalSize(String meshId) {
         Model model = model(meshId);
         if (model == null || !model.isReady()) return null;
-        Vector3f min = model.boundsMin();
-        Vector3f max = model.boundsMax();
+        Model.Piece piece = MeshLooks.piece(meshId, model);
+        Vector3f min = piece == null ? model.boundsMin() : piece.min();
+        Vector3f max = piece == null ? model.boundsMax() : piece.max();
         return new Vector3(Math.max(0.05, max.x - min.x), Math.max(0.05, max.y - min.y), Math.max(0.05, max.z - min.z));
     }
 
@@ -293,8 +303,9 @@ public final class Meshes {
         CFrame world = ClientScene.motion().sample(part, partialTick);
         Vector3 at = world.position().sub(camera);
         Quat turn = world.rotation();
-        Vector3f min = model.boundsMin();
-        Vector3f max = model.boundsMax();
+        Model.Piece piece = MeshLooks.piece(part.meshId, model);
+        Vector3f min = piece == null ? model.boundsMin() : piece.min();
+        Vector3f max = piece == null ? model.boundsMax() : piece.max();
         Matrix4f matrix = new Matrix4f()
                 .translation((float) at.x(), (float) at.y(), (float) at.z())
                 .rotate(new Quaternionf((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()))
@@ -307,7 +318,7 @@ public final class Meshes {
         }
         Playing playing = ANIMATORS.get(part.id());
         Matrix4f[] pose = playing != null && playing.animator().model() == model ? playing.animator().pose() : null;
-        model.fillMask(projectionView, matrix, pose, r, g, b, a);
+        model.fillMask(projectionView, matrix, pose, piece, r, g, b, a);
     }
 
     private static float stretch(double size, float own) {
@@ -326,6 +337,7 @@ public final class Meshes {
     // a part with its own shaders gets its own copy of the model, because a draw reads the material
     // when it is flushed, not when it is queued
     private static @Nullable Model model(String meshId, String variant) {
+        meshId = MeshLooks.file(meshId);
         String slot = variant.isEmpty() ? meshId : meshId + "#" + variant;
         if (meshId.startsWith(Res.SCHEME)) return fromPlace(meshId, slot);
         Loaded known = MODELS.get(slot);

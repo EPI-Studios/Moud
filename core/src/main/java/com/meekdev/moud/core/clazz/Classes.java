@@ -65,6 +65,7 @@ import com.meekdev.moud.core.instance.Model;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.part.CollisionGroup;
+import com.meekdev.moud.core.part.MaterialOverride;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.part.Seat;
@@ -194,6 +195,8 @@ public final class Classes {
     public static final ClassDef<Bone> BONE = ClassDef.of("Bone", ATTACHMENT, Bone.class, Bone::new);
     public static final ClassDef<Limb> LIMB = ClassDef.of("Limb", PART, Limb.class, Limb::new);
     public static final ClassDef<MeshPart> MESH_PART = ClassDef.of("MeshPart", PART, MeshPart.class, MeshPart::new);
+    public static final ClassDef<MaterialOverride> MATERIAL_OVERRIDE =
+            ClassDef.of("MaterialOverride", null, MaterialOverride.class, MaterialOverride::new);
     public static final ClassDef<SpawnLocation> SPAWN_LOCATION = ClassDef.of("SpawnLocation", PART, SpawnLocation.class, SpawnLocation::new);
     public static final ClassDef<Seat> SEAT = ClassDef.of("Seat", PART, Seat.class, Seat::new);
     public static final ClassDef<VehicleSeat> VEHICLE_SEAT =
@@ -478,6 +481,7 @@ public final class Classes {
         r.register(BONE);
         r.register(LIMB);
         r.register(MESH_PART);
+        r.register(MATERIAL_OVERRIDE);
         r.register(SPAWN_LOCATION);
         r.register(SEAT);
         r.register(VEHICLE_SEAT);

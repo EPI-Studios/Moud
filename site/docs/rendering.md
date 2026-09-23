@@ -48,7 +48,8 @@ world:add("MeshPart", {
 ```
 
 - **`meshId`** is the model file. Moud reads `.gltf`, `.glb`, `.ammesh` and `.bbmodel`, and a resource
-  pack id works in its place.
+  pack id works in its place. `#` and a name after it draws one piece of the file, see
+  [One piece of a file](#one-piece-of-a-file).
 - **`size`** works as it does on any part, and the model is stretched to fill it. That means a
   `MeshPart` moves, scales and turns like a part, and you never scale the model file itself.
 - **`animation`** names a clip inside the file, with **`animationSpeed`** and **`animationLooped`**
@@ -59,6 +60,105 @@ world:add("MeshPart", {
 - A `MeshPart` collides as its box, not as the shape of the model.
 - Saving the model file reloads it while the game runs, so you can export from your modelling program
   and see the new shape without touching the place.
+- **`transparency`** fades the whole model, as it fades a part. See
+  [See-through models](#see-through-models).
+
+### One piece of a file
+
+A scene exported as one file holds many objects. Add `#` and a name to `meshId` to draw one of them:
+
+```lua
+world:add("MeshPart", {
+    meshId = "res://models/tower.glb#Cube_018",
+    size = vec3(1.2, 2, 1.2),
+    cframe = cframe(4, 65, 0),
+})
+```
+
+The name is a node of the file, as your modelling program named the object, and the node is drawn
+with everything under it, so naming a group draws the whole group. When no node has that name, a
+mesh with that name is used instead. A name the file does not have is logged once, along with the
+names it does have.
+
+The piece is drawn in its own frame, not where it stood in the file: its position and its turn in the
+scene are taken off, and `size` fills the piece alone. So one chair of a room lands at the part's
+`cframe`, upright, the same way a file holding only that chair would. The file is loaded once however
+many pieces of it you place.
+
+### Changing a model's materials
+
+A `MaterialOverride` inside a `MeshPart` changes the model's materials for that part only, with no
+shader:
+
+```lua
+local rack = world:add("MeshPart", { meshId = "res://models/rack.glb", size = vec3(3, 8, 3) })
+rack:add("MaterialOverride", { color = color(1, 0.3, 0.2) })                   -- every material
+rack:add("MaterialOverride", { material = "Metal", metallic = 1, roughness = 0.1 })
+rack:add("MaterialOverride", {
+    material = "Floor",
+    texture = "minecraft:block/oak_planks",
+    filter = "nearest",
+    repeatU = 4, repeatV = 4,
+})
+```
+
+- **`material`** is the name of the material in the file. Left empty, the override changes every
+  material. Overrides for every material apply first, then the named ones on top. A name the file
+  does not have is logged once, along with the names it does have.
+- **`color`** multiplies the material's colour, and white leaves it as it is.
+- **`texture`** replaces the material's colour image, and takes what every other image property
+  takes. See [Images](images.md).
+- **`roughness`** and **`metallic`** replace the material's own, and `-1`, the default, keeps them.
+- **`emission`** replaces the colour the material glows with, and black, the default, keeps the
+  file's. **`emissionStrength`** multiplies the glow, so `0` turns it off and `4` makes it bloom. See
+  [Glowing models](#glowing-models).
+- **`transparency`** makes the material see-through, on top of any transparency it already has.
+- **`doubleSided`** draws both sides of every face, for leaves and flat sheets exported one-sided.
+  Off keeps the file's setting.
+- **`filter`** is `default`, `nearest` or `linear`. `nearest` keeps pixel-art images sharp up close.
+- **`offsetU`**, **`offsetV`**, **`repeatU`** and **`repeatV`** move and repeat the material's images.
+  See [Scrolling a texture](#scrolling-a-texture).
+
+Two parts showing the same file each keep their own overrides, so one model file serves a red crate
+and a blue one.
+
+### See-through models
+
+A material exported as blended, a material with an override's `transparency`, and a `MeshPart` with
+`transparency` are drawn after every solid model, the farthest first, without hiding what is behind
+them. A window in one model shows another model through it, whichever was added first. A material
+exported with an alpha cutoff (glTF `MASK`) stays solid and cuts its holes instead, which suits
+leaves, fences and grilles. A double-sided material is lit correctly from both sides.
+
+### Scrolling a texture
+
+`offsetU` and `offsetV` slide a material's images, in whole images, and a tween moves them:
+
+```lua
+local screen = world:add("MeshPart", { meshId = "res://models/screen.glb", size = vec3(4, 3, 0.2) })
+local scroll = screen:add("MaterialOverride", { material = "Display" })
+scroll:tween({ offsetU = 1 }, { time = 4, easing = "linear", repeats = -1 })
+```
+
+Images repeat, so sliding by exactly `1` comes back to where it started, and the loop above scrolls
+forever without a jump. `repeatU` and `repeatV` tile the image more times across the material. The
+colour, the normal, the roughness and the glow images all move together. Fog planes and water sheets
+work the same way.
+
+### Glowing models
+
+A material that glows in the file keeps glowing in the dark, and with a
+[`BloomEffect`](#post-effects) in the world, bright glow spills light around it:
+
+```lua
+world:add("BloomEffect", { intensity = 1.2 })
+local lamp = world:add("MeshPart", { meshId = "res://models/lamp.glb" })
+lamp:add("MaterialOverride", { material = "Bulb", emission = color(1, 0.8, 0.5), emissionStrength = 4 })
+```
+
+Glow comes from the file's emission (with its glTF emission strength), from an override's
+`emission` and `emissionStrength`, and from `s.emission` in a [surface shader](#shaders-on-a-model).
+The brighter it is, the wider it blooms: above the bloom's `threshold` it spreads.
 
 ### Shaders on a model
 

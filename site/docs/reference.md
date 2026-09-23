@@ -881,6 +881,29 @@ Extends [Part](#part).
 | `shader` | `string` |
 | `vertexShader` | `string` |
 
+<a id="materialoverride"></a>
+
+## MaterialOverride
+
+Extends [Instance](#instance).
+
+| Property | Type |
+|---|---|
+| `color` | `Color` |
+| `doubleSided` | `boolean` |
+| `emission` | `Color` |
+| `emissionStrength` | `number` |
+| `filter` | `"default" \| "nearest" \| "linear"` |
+| `material` | `string` |
+| `metallic` | `number` |
+| `offsetU` | `number` |
+| `offsetV` | `number` |
+| `repeatU` | `number` |
+| `repeatV` | `number` |
+| `roughness` | `number` |
+| `texture` | `string` |
+| `transparency` | `number` |
+
 <a id="posteffect"></a>
 
 ## PostEffect
