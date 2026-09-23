@@ -195,6 +195,9 @@ Fabric API.
 Before building, the export checks that the entry scripts and the start scene exist and that every
 `res://` path written in scripts and scenes points at a file.
 
+A place with a video file in it also gets ffmpeg, which a [`VideoFrame`](interface.md#video) needs to
+play it. ffmpeg is the heaviest part of the engine, so a place without videos is exported without it.
+
 > [!NOTE]
 > The engine runs Luau and physics through native libraries. The export lists the systems it found
 > them for; a game only starts on those. Today the build only carries them for Linux x64.

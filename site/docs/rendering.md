@@ -60,6 +60,76 @@ world:add("MeshPart", {
 - Saving the model file reloads it while the game runs, so you can export from your modelling program
   and see the new shape without touching the place.
 
+### Shaders on a model
+
+A `MeshPart` takes three GLSL files of your own, each one run at a different moment of drawing it:
+
+| Property | When it runs | What it changes |
+|---|---|---|
+| `shader` | while the model is drawn, before any light | the surface: colour, transparency, glow, roughness, metallic, normal |
+| `lightingShader` | after the lights | the final colour |
+| `vertexShader` | before anything is drawn | where each vertex is |
+
+Like a [light shader](#custom-light-shaders), each file is the body of a function: no `main`, and
+saving the file redraws the model while the game runs.
+
+**`shader`** is given `s`, the surface about to be lit, and changes what it needs: `s.uv`, `s.albedo`,
+`s.alpha`, `s.emission`, `s.roughness`, `s.metallic`, `s.normal`. It can read `s.worldPos` and
+`s.time`, in seconds.
+
+A file may declare its own `uniform`s at the top. Each one is filled from a child of the part with
+the same name: a `NumberValue` for a `float` or an `int`, a `BoolValue` for a `bool`, a `Vector3Value`
+for a `vec3` or a colour, and a `StringValue` holding an image for a `sampler2D`.
+
+```glsl
+// res://shaders/glow_strip.glsl
+uniform float progress;
+uniform vec3 tint;
+uniform sampler2D mask;
+
+float lit = 1.0 - step(0.06, abs(progress - texture(mask, s.uv).r));
+s.emission = tint * lit * 3.0;
+```
+
+```lua
+local rack = world:add("MeshPart", {
+    meshId = "res://models/rack.glb",
+    size = vec3(2, 6, 2),
+    shader = "res://shaders/glow_strip.glsl",
+})
+local progress = rack:add("NumberValue", { name = "progress" })
+rack:add("Vector3Value", { name = "tint", value = vec3(0.2, 1, 0.3) })
+rack:add("StringValue", { name = "mask", value = "res://textures/strip_mask.png" })
+
+game.renderStepped:connect(function()
+    progress.value = (os.clock() * 0.5) % 1
+end)
+```
+
+The mask's red channel says when each spot of the model lights up, and moving `progress` from 0 to 1
+sweeps a band of light across the model. Every part has its own values, so ten racks with the same
+shader can each be at a different point of the sweep. A file takes at most sixteen values and four
+images.
+
+**`lightingShader`** is given `s` once the lights have landed: `s.albedo`, `s.normal`, `s.fragPos`,
+`s.roughness`, `s.metallic`, `s.lightmap`, `s.time`, and `s.radiance`, the colour the model would
+have had. It has to `return` a colour:
+
+```glsl
+// res://shaders/bands.glsl
+return floor(s.radiance * 4.0) / 4.0;
+```
+
+**`vertexShader`** is given `v`: `v.localPos`, `v.worldPos`, `v.origin`, `v.uv` and `v.time`. It
+returns how far to move the vertex, in world space:
+
+```glsl
+// res://shaders/sway.glsl
+return vec3(sin(v.time * 2.0 + v.worldPos.y) * 0.05 * v.localPos.y, 0.0, 0.0);
+```
+
+The model's lighting follows the moved shape, so a flag that ripples is shaded along its folds.
+
 ## Lights
 
 A light is an instance you put in the world to light what is around it. There are four classes, and
@@ -91,6 +161,9 @@ the light evenly all the way to `range` instead, which reads as a fill light rat
 
 A light only stops at walls when `shadows` is on, and it is off by default. A light left without
 shadows shines through whatever is in the way.
+
+A light lights the colour of what it lands on, not what the daylight already made of it. A lamp in a
+room the sun never reaches shows the room in its own colours, where the rest stays dark.
 
 <!-- demo:rendering-falloff -->
 

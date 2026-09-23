@@ -827,7 +827,10 @@ Extends [Part](#part).
 | `animation` | `string` |
 | `animationLooped` | `boolean` |
 | `animationSpeed` | `number` |
+| `lightingShader` | `string` |
 | `meshId` | `string` |
+| `shader` | `string` |
+| `vertexShader` | `string` |
 
 <a id="posteffect"></a>
 
@@ -1690,6 +1693,35 @@ Extends [ImageLabel](#imagelabel).
 | `hoverImage` | `string` |
 | `pressed` | `boolean` |
 | `pressedImage` | `string` |
+
+<a id="videoframe"></a>
+
+## VideoFrame
+
+Extends [GuiObject](#guiobject).
+
+| Property | Type |
+|---|---|
+| `played` | `InstanceSignal` |
+| `paused` | `InstanceSignal` |
+| `ended` | `InstanceSignal` |
+| `didLoop` | `InstanceSignal` |
+| `loaded` | `InstanceSignal` |
+| `isLoaded` | `boolean` (read-only) |
+| `looped` | `boolean` |
+| `playing` | `boolean` |
+| `resolution` | `Vector3` (read-only) |
+| `timeLength` | `number` (read-only) |
+| `timePosition` | `number` |
+| `video` | `string` |
+| `videoColor` | `Color` |
+| `videoTransparency` | `number` |
+| `volume` | `number` |
+
+Methods:
+
+- `play(): ()`
+- `pause(): ()`
 
 <a id="scrollingframe"></a>
 

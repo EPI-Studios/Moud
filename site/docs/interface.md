@@ -502,6 +502,42 @@ hud:add("ImageLabel", {
 })
 ```
 
+## Video
+
+A `VideoFrame` plays a video file from the place, with its sound:
+
+```lua
+-- client
+local intro = hud:add("VideoFrame", {
+    size = udim2(1, 0, 1, 0),
+    video = "res://video/intro.mp4",
+    backgroundColor = color(0, 0, 0),
+})
+intro.ended:connect(function() intro:destroy() end)
+intro:play()
+```
+
+The frame fills the screen with black behind the picture, plays once, and removes itself when the
+video is over.
+
+- `video` is a file in the place. `.mp4`, `.webm`, `.ogv`, `.mov` and `.mkv` all play.
+- `play()` and `pause()` start and stop it, and `playing` says which it is doing. When it reaches the
+  end it stops, and `playing` goes back to `false`, unless `looped` is on.
+- `timePosition` is how far it has got, in seconds. Write it to jump somewhere else in the video.
+- `timeLength`, `resolution` and `isLoaded` are read only. They are filled in once the file has been
+  opened, which `loaded` announces.
+- `volume` sets how loud the video's own sound is. `0` plays it silent.
+- `videoColor` and `videoTransparency` tint and fade the picture, like `imageColor` and
+  `imageTransparency` on an image.
+- `played`, `paused`, `ended` and `didLoop` fire as it starts, stops, finishes and starts over.
+
+The picture is stretched to the frame's size, so give the frame the video's shape if you do not want
+it squashed.
+
+> [!NOTE]
+> Videos are decoded by ffmpeg, which is large. An exported game only carries it when its place has
+> a video file in it, so a game without videos stays small.
+
 ## Canvas groups
 
 Fade a frame's children one by one and you see them through each other where they overlap. A
