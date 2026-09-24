@@ -37,6 +37,14 @@ public final class Selection {
         ids.clear();
     }
 
+    void reset() {
+        ids.clear();
+        back.clear();
+        forward.clear();
+        recorded = List.of();
+        travelling = false;
+    }
+
     public boolean isSelected(int id) {
         return ids.contains(id);
     }

@@ -201,7 +201,7 @@ public final class SceneDocument {
             seen = tree;
             generation = SceneLink.generation();
             loads++;
-            selection.clear();
+            selection.reset();
             history.clear();
             refs.clear();
             waiting.clear();
