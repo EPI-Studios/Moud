@@ -108,7 +108,9 @@ public final class HubStyle {
         ImFont font = EditorFonts.page(size, bold);
         if (font != null) ImGui.pushFont(font, EditorScale.of(EditorFonts.pageSize(size, bold)));
         ImGui.pushStyleColor(ImGuiCol.Text, color);
+        ImGui.pushTextWrapPos(0.0f);
         ImGui.textUnformatted(value);
+        ImGui.popTextWrapPos();
         ImGui.popStyleColor();
         if (font != null) ImGui.popFont();
     }

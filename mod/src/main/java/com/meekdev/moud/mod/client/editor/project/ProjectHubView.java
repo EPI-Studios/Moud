@@ -18,6 +18,7 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseCursor;
+import imgui.flag.ImGuiPopupFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
@@ -356,7 +357,7 @@ public final class ProjectHubView {
         float y = ImGui.getCursorScreenPosY();
         boolean clicked = ImGui.invisibleButton("##hub-hero", width, height);
         boolean hovered = ImGui.isItemHovered();
-        float emphasis = EditorMotion.towards("hub-hero", hovered);
+        float emphasis = EditorMotion.towards("hub-hero", hovered || entry.path().equals(selected));
         renderMenu(entry, "##hub-hero-menu");
         ImDrawList draw = ImGui.getWindowDrawList();
         float artWidth = Math.min(EditorScale.of(HERO_ART_WIDTH), width * 0.38f);
@@ -543,14 +544,16 @@ public final class ProjectHubView {
     }
 
     private void handleShortcuts(List<Entry> visible) {
-        if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.F)) focusSearch = true;
-        if (ImGui.getIO().getKeyCtrl() && ImGui.isKeyPressed(ImGuiKey.N)) newProject.open();
+        if (ImGui.isPopupOpen("", ImGuiPopupFlags.AnyPopupId | ImGuiPopupFlags.AnyPopupLevel)) return;
+        boolean ctrl = ImGui.getIO().getKeyCtrl() && !ImGui.getIO().getKeyShift() && !ImGui.getIO().getKeyAlt();
+        if (ctrl && ImGui.isKeyPressed(ImGuiKey.F, false)) focusSearch = true;
+        if (ctrl && ImGui.isKeyPressed(ImGuiKey.N, false)) newProject.open();
         if (visible.isEmpty() || ImGui.getIO().getWantTextInput()) return;
-        int index = 0;
+        int index = -1;
         for (int n = 0; n < visible.size(); n++) if (visible.get(n).path().equals(selected)) index = n;
         if (ImGui.isKeyPressed(ImGuiKey.RightArrow) || ImGui.isKeyPressed(ImGuiKey.DownArrow)) selected = visible.get(Math.min(index + 1, visible.size() - 1)).path();
         if (ImGui.isKeyPressed(ImGuiKey.LeftArrow) || ImGui.isKeyPressed(ImGuiKey.UpArrow)) selected = visible.get(Math.max(index - 1, 0)).path();
-        if (ImGui.isKeyPressed(ImGuiKey.Enter) && !selected.isEmpty()) open(visible.get(index).project());
+        if (index >= 0 && (ImGui.isKeyPressed(ImGuiKey.Enter, false) || ImGui.isKeyPressed(ImGuiKey.KeypadEnter, false))) open(visible.get(index).project());
     }
 
     private void togglePinned(Entry entry) {
@@ -602,11 +605,6 @@ public final class ProjectHubView {
         HubStyle.paintTracked(ImGui.getWindowDrawList(), HubStyle.CAPTION, ImGui.getCursorScreenPosX(), ImGui.getCursorScreenPosY(), HubStyle.TEXT_LIGHT, text);
         ImGui.dummy(0.0f, EditorScale.of(HubStyle.CAPTION + 10.0f));
     }
-
-
-
-
-
 
     private static String ellipsize(String value, float width) {
         if (HubStyle.widthOf(HubStyle.SMALL, false, value) <= width) return value;

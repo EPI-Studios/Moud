@@ -9,6 +9,7 @@ import imgui.ImGui;
 import imgui.ImGuiViewport;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import java.util.concurrent.CompletableFuture;
@@ -165,7 +166,7 @@ public final class AccountDialog {
         float closeWidth = EditorScale.of(BUTTON_WIDTH);
         float gap = EditorScale.of(8.0f);
         ImGui.setCursorPosX(ImGui.getCursorPosX() + width - mainWidth - closeWidth - gap);
-        if (HubStyle.action("account-close", "Close", closeWidth, false, true)) ImGui.closeCurrentPopup();
+        if (HubStyle.action("account-close", "Close", closeWidth, false, true) || ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
         ImGui.sameLine(0.0f, gap);
         if (HubStyle.action("account-start", label, mainWidth, true, !busy)) begin();
     }

@@ -12,6 +12,9 @@ import imgui.ImGui;
 import imgui.ImGuiViewport;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiFocusedFlags;
+import imgui.flag.ImGuiInputTextFlags;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseCursor;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
@@ -107,7 +110,8 @@ public final class NewProjectDialog {
             ImGui.setKeyboardFocusHere();
             focusName = false;
         }
-        field(() -> ImGui.inputTextWithHint("##new-project-name", "My place", nameInput));
+        boolean[] submitted = {false};
+        field(() -> submitted[0] = ImGui.inputTextWithHint("##new-project-name", "My place", nameInput, ImGuiInputTextFlags.EnterReturnsTrue));
         ImGui.dummy(0.0f, EditorScale.of(14.0f));
         HubStyle.label("Location");
         float browseWidth = EditorScale.of(96.0f);
@@ -126,9 +130,11 @@ public final class NewProjectDialog {
         ImGui.dummy(0.0f, EditorScale.of(18.0f));
         float buttons = EditorScale.of(BUTTON_WIDTH) * 2.0f + EditorScale.of(8.0f);
         ImGui.setCursorPosX(ImGui.getCursorPosX() + width - buttons);
-        if (HubStyle.action("new-project-cancel", "Cancel", EditorScale.of(BUTTON_WIDTH), false, true)) ImGui.closeCurrentPopup();
+        boolean escaped = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows) && ImGui.isKeyPressed(ImGuiKey.Escape);
+        if (HubStyle.action("new-project-cancel", "Cancel", EditorScale.of(BUTTON_WIDTH), false, true) || escaped) ImGui.closeCurrentPopup();
         ImGui.sameLine(0.0f, EditorScale.of(8.0f));
-        if (HubStyle.action("new-project-create", "Create", EditorScale.of(BUTTON_WIDTH), true, error.isEmpty())) attemptCreate();
+        boolean create = HubStyle.action("new-project-create", "Create", EditorScale.of(BUTTON_WIDTH), true, error.isEmpty());
+        if (create || (submitted[0] && error.isEmpty())) attemptCreate();
     }
 
     private void renderTemplates(float width) {
@@ -172,7 +178,6 @@ public final class NewProjectDialog {
         }
     }
 
-
     private static void field(Runnable body) {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, HubStyle.BACKGROUND);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, HubStyle.BACKGROUND);
@@ -185,10 +190,6 @@ public final class NewProjectDialog {
         if (font != null) ImGui.popFont();
         ImGui.popStyleColor(5);
     }
-
-
-
-
 
     private void browseParent() {
         Path start = currentParent().filter(Files::isDirectory).orElse(Path.of(System.getProperty("user.home")));
