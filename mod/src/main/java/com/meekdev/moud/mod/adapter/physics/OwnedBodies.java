@@ -44,6 +44,7 @@ public final class OwnedBodies {
 
     private static final Map<Integer, SubLevelEntity> SIMULATING = new HashMap<>();
     private static final Joints JOINTS = new Joints(false);
+    private static final MoverBodies MOVERS = new MoverBodies(false);
     private static final double TICKS = 20;
     private static final Set<Part> LIVE = Collections.newSetFromMap(new WeakHashMap<>());
     private static final Set<B3Body> DRESSED = Collections.newSetFromMap(new WeakHashMap<>());
@@ -102,8 +103,10 @@ public final class OwnedBodies {
 
     private static void joints(@Nullable InstanceTree tree, @Nullable LevelPhysics physics, boolean running) {
         JOINTS.attach(physics);
+        MOVERS.attach(physics);
         if (tree == null || physics == null || !running) {
             JOINTS.clear();
+            MOVERS.clear();
             return;
         }
         Map<Integer, B3Body> mine = new HashMap<>();
@@ -112,6 +115,7 @@ public final class OwnedBodies {
             if (body != null && body.isValid() && body.type() == B3BodyType.DYNAMIC) mine.put(entry.getKey(), body);
         }
         JOINTS.settle(tree, mine::get, null, physics.world(), part -> mine.containsKey(part.id()));
+        MOVERS.settle(tree, mine::get, part -> mine.containsKey(part.id()));
     }
 
     private static void seat(InstanceTree tree, String me, @Nullable Character own) {

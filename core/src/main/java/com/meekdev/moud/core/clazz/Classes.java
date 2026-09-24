@@ -71,13 +71,19 @@ import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.part.Seat;
 import com.meekdev.moud.core.part.SpawnLocation;
 import com.meekdev.moud.core.part.VehicleSeat;
+import com.meekdev.moud.core.physics.AlignOrientation;
+import com.meekdev.moud.core.physics.AlignPosition;
+import com.meekdev.moud.core.physics.AngularVelocity;
 import com.meekdev.moud.core.physics.BallSocketConstraint;
 import com.meekdev.moud.core.physics.Constraint;
 import com.meekdev.moud.core.physics.HingeConstraint;
+import com.meekdev.moud.core.physics.LinearVelocity;
 import com.meekdev.moud.core.physics.PrismaticConstraint;
 import com.meekdev.moud.core.physics.RodConstraint;
 import com.meekdev.moud.core.physics.RopeConstraint;
 import com.meekdev.moud.core.physics.SpringConstraint;
+import com.meekdev.moud.core.physics.Torque;
+import com.meekdev.moud.core.physics.VectorForce;
 import com.meekdev.moud.core.physics.WeldConstraint;
 import com.meekdev.moud.core.remote.Remote;
 import com.meekdev.moud.core.remote.RemoteFunction;
@@ -440,6 +446,17 @@ public final class Classes {
             ClassDef.of("RodConstraint", CONSTRAINT, RodConstraint.class, RodConstraint::new);
     public static final ClassDef<SpringConstraint> SPRING_CONSTRAINT =
             ClassDef.of("SpringConstraint", CONSTRAINT, SpringConstraint.class, SpringConstraint::new);
+    public static final ClassDef<AlignPosition> ALIGN_POSITION =
+            ClassDef.of("AlignPosition", CONSTRAINT, AlignPosition.class, AlignPosition::new);
+    public static final ClassDef<AlignOrientation> ALIGN_ORIENTATION =
+            ClassDef.of("AlignOrientation", CONSTRAINT, AlignOrientation.class, AlignOrientation::new);
+    public static final ClassDef<LinearVelocity> LINEAR_VELOCITY =
+            ClassDef.of("LinearVelocity", CONSTRAINT, LinearVelocity.class, LinearVelocity::new);
+    public static final ClassDef<AngularVelocity> ANGULAR_VELOCITY =
+            ClassDef.of("AngularVelocity", CONSTRAINT, AngularVelocity.class, AngularVelocity::new);
+    public static final ClassDef<VectorForce> VECTOR_FORCE =
+            ClassDef.of("VectorForce", CONSTRAINT, VectorForce.class, VectorForce::new);
+    public static final ClassDef<Torque> TORQUE = ClassDef.of("Torque", CONSTRAINT, Torque.class, Torque::new);
 
     public static final ClassDef<ParticleEmitter> PARTICLE_EMITTER =
             ClassDef.of("ParticleEmitter", null, ParticleEmitter.class, ParticleEmitter::new);
@@ -620,6 +637,12 @@ public final class Classes {
         r.register(ROPE_CONSTRAINT);
         r.register(SPRING_CONSTRAINT);
         r.register(ROD_CONSTRAINT);
+        r.register(ALIGN_POSITION);
+        r.register(ALIGN_ORIENTATION);
+        r.register(LINEAR_VELOCITY);
+        r.register(ANGULAR_VELOCITY);
+        r.register(VECTOR_FORCE);
+        r.register(TORQUE);
         r.register(PARTICLE_EMITTER);
         r.register(BEAM);
         r.register(TRAIL);

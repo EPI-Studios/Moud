@@ -388,8 +388,9 @@ at once, because such a part can not be owned.
 
 An assembly is every part linked to another by an enabled `WeldConstraint`, or by an enabled
 constraint whose two attachments are inside parts. Hinges, sliders, ball sockets, ropes, springs and
-rods all count. Parts in the same `Model` that are not joined are separate assemblies. The server
-works the assemblies out again every tick, so welding or unwelding a part moves it in or out at once.
+rods all count. [Movers](#movers) do not. Parts in the same `Model` that are not joined are separate
+assemblies. The server works the assemblies out again every tick, so welding or unwelding a part
+moves it in or out at once.
 
 The owner's client simulates the whole assembly, joints included. It builds each weld and constraint
 between two parts it simulates and runs it in its own physics. The server stops running those joints
@@ -944,7 +945,306 @@ and back up the other side.
 
 Writing `length` while the place plays moves the ends to the new distance.
 
+## Movers
+
+A mover pushes or turns one part for as long as it is enabled. You use one when a part has to reach a
+point, face a way, keep a speed or feel a steady push, without writing `applyImpulse` every step.
+
+| Class | |
+|---|---|
+| `AlignPosition` | pulls attachment0 onto a point |
+| `AlignOrientation` | turns attachment0 to a rotation |
+| `LinearVelocity` | keeps the part moving at a velocity |
+| `AngularVelocity` | keeps the part spinning at a rate |
+| `VectorForce` | pushes the part with a steady force |
+| `Torque` | turns the part with a steady torque |
+
+Movers are constraints, so they have `attachment0`, `attachment1`, `enabled`, `visible`, `color` and
+`active`. Put attachment0 in the part you want moved. attachment1 is only needed by some modes, and
+it may sit in any part, anchored or not.
+
+```lua
+-- server: a crate that rises to a point and waits there
+local crate = world:add("Part", { size = vec3(1, 1, 1), cframe = cframe(0, 66, 0), anchored = false })
+
+world:add("AlignPosition", {
+    attachment0 = crate:add("Attachment"),
+    mode = "oneAttachment",
+    position = vec3(0, 72, 0),
+    maxVelocity = 3,
+})
+```
+
+The crate climbs at up to three metres a second and stops six metres up. It
+stays there: the mover carries its weight as well as moving it.
+
+These rules apply to every mover:
+
+- attachment0's part must be unanchored and collide, and a mode that uses attachment1 needs it set.
+  Otherwise `active` is false and nothing moves.
+- A mover moves the whole assembly attachment0's part is in, and works out how hard to push from
+  the mass of every part in it.
+- A mover does not join its two parts into an assembly, so they can have different owners. It runs
+  wherever attachment0's part is simulated: on the server, or on the client of the player who owns
+  it. See [Who simulates a part](#who-simulates-a-part).
+- The push is worked out again on every physics step, three times a tick, from where the part is at
+  that moment.
+- Moving an attachment takes effect on the next tick. Unlike the joints above, you do not have to
+  turn `enabled` off and on.
+- `collideConnected` does nothing on a mover.
+- Movers only run while the place plays.
+
+Forces are in mass times metres per second squared. A part weighs `part:getMass() * game.gravity`,
+so that is the force it takes to hold it up.
+
+Four movers take `relativeTo`, which says which way their numbers point:
+
+| `relativeTo` | |
+|---|---|
+| `"world"` | along the world's axes |
+| `"attachment0"` | along attachment0's axes, so the push turns with the part |
+| `"attachment1"` | along attachment1's axes. A velocity is also counted from how attachment1's part moves |
+
+With `visible` on, a mover is drawn as an arrow out of attachment0 in its `color`. An `AlignPosition`
+points at its goal and an `AlignOrientation` along its goal's X axis. The others point the way they
+push or turn, 1.2 metres long. The editor draws the same arrows in pink over the viewport.
+
+In the Explorer, **Insert > Movers** adds a mover with its own `Attachment` inside the part you
+inserted into, already set as attachment0.
+
+### AlignPosition
+
+An `AlignPosition` pulls attachment0 onto a goal. With `mode = "twoAttachment"` the goal is
+attachment1, and it moves when attachment1's part moves. With `"oneAttachment"` the goal is
+`position`, a point in the world.
+
+| Property | Default | |
+|---|---|---|
+| `mode` | `"twoAttachment"` | `"twoAttachment"` follows attachment1, `"oneAttachment"` goes to `position` |
+| `position` | `vec3(0, 0, 0)` | the goal in the world, for `"oneAttachment"` |
+| `responsiveness` | 10 | how quickly it closes the gap, from 5 to 200 |
+| `maxVelocity` | 1000 | the fastest it moves attachment0, in metres per second |
+| `maxForce` | 10000 | the hardest it may pull |
+| `rigidityEnabled` | false | reaches the goal at once, ignoring the three limits above |
+| `applyAtCenterOfMass` | false | pulls at the part's centre instead of at attachment0 |
+| `reactionForceEnabled` | false | pulls attachment1's part the other way as hard |
+
+The speed it heads for the goal at is the distance still to go times `responsiveness` times 0.3, per
+second, capped at `maxVelocity`. At the default 10 that closes most of the gap in a second, and it
+slows down as it arrives rather than overshooting. At 200 it gets there in one physics step, as far
+as `maxVelocity` and `maxForce` let it.
+
+- It holds the part's weight too, so a part on its goal floats there. If `maxForce` is less than the
+  weight, the part sags below the goal.
+- Pulling at attachment0 turns a part whose attachment is off its centre, the way a hand pulls a box
+  by a corner. Turn `applyAtCenterOfMass` on to move it without turning it, or add an
+  `AlignOrientation`.
+- With `reactionForceEnabled` the two parts pull towards each other and meet in between, the way two
+  magnets do. It only pushes attachment1's part when the same side simulates both.
+
+A drone that follows a marker a script moves:
+
+```lua
+-- server
+local marker = world:add("Part", { name = "marker", size = vec3(0.4, 0.4, 0.4), cframe = cframe(0, 70, 0),
+                                   anchored = true, collides = false, transparency = 0.5 }) :: Part
+local drone = world:add("Part", { name = "drone", size = vec3(1, 0.4, 1), cframe = cframe(0, 66, 0),
+                                  anchored = false })
+
+world:add("AlignPosition", {
+    attachment0 = drone:add("Attachment"),
+    attachment1 = marker:add("Attachment"),
+    responsiveness = 25,
+    maxVelocity = 8,
+})
+
+task.spawn(function()
+    while true do
+        marker.position = vec3(math.random(-6, 6), 70, math.random(-6, 6))
+        task.wait(2)
+    end
+end)
+```
+
+- The marker is anchored and does not collide, so it is only a goal. The drone flies to wherever it
+  is.
+- `responsiveness = 25` is sharper than the default, so the drone keeps close to the marker, and
+  `maxVelocity = 8` keeps it from darting across in one jump.
+- The drone's attachment sits in its middle, so it flies level. Move the attachment up to the top
+  of the drone and the drone hangs from it and swings as it flies, like a load on a crane.
+
+### AlignOrientation
+
+An `AlignOrientation` turns attachment0 until it is turned the same way as its goal. With
+`mode = "twoAttachment"` the goal is attachment1's rotation. With `"oneAttachment"` it is the rotation
+of `cframe`; the position in `cframe` is ignored.
+
+| Property | Default | |
+|---|---|---|
+| `mode` | `"twoAttachment"` | `"twoAttachment"` copies attachment1, `"oneAttachment"` turns to `cframe` |
+| `cframe` | no turn | the rotation to turn to, for `"oneAttachment"` |
+| `primaryAxisOnly` | false | lines up only the X axes and leaves the spin about them free |
+| `responsiveness` | 10 | how quickly it closes the gap, from 5 to 200 |
+| `maxAngularVelocity` | 1000 | the fastest it turns, in radians per second |
+| `maxTorque` | 10000 | the hardest it may turn |
+| `rigidityEnabled` | false | reaches the goal at once, ignoring the three limits above |
+| `reactionTorqueEnabled` | false | turns attachment1's part the other way as hard |
+
+It turns the attachment, not the part. An attachment turned a quarter turn inside its part leaves
+the part a quarter turn off the goal. `responsiveness` works as it does for `AlignPosition`, on the
+angle still to go.
+
+A mover only moves, so it does not stop a part falling. Pair an `AlignOrientation` with an
+`AlignPosition` on the same attachment to hold a part in place and turned:
+
+```lua
+-- server: a sign that floats and slowly turns to face each new way
+local sign = world:add("Part", { size = vec3(3, 1.5, 0.2), cframe = cframe(10, 70, 0), anchored = false })
+local centre = sign:add("Attachment")
+
+world:add("AlignPosition", { attachment0 = centre, mode = "oneAttachment", position = vec3(10, 70, 0) })
+local face = world:add("AlignOrientation", {
+    attachment0 = centre,
+    mode = "oneAttachment",
+    maxAngularVelocity = 1,
+}) :: AlignOrientation
+
+face.cframe = cframe.angles(0, math.rad(90), 0)
+```
+
+Writing `cframe` is all it takes to turn the sign. It swings round at up to a radian a second and
+stops facing the new way.
+
+`primaryAxisOnly` is for a part that has to point somewhere but may roll about the way it points,
+like a weathervane on a spinning mast. Only attachment0's X axis, its `rightVector`, is lined up with
+the goal's.
+
+### LinearVelocity
+
+A `LinearVelocity` keeps the part moving at a velocity, whatever pushes on it, as long as it has the
+force to. `velocityConstraintMode` says how many directions it holds:
+
+| `velocityConstraintMode` | holds | set |
+|---|---|---|
+| `"vector"` | all three | `vectorVelocity` |
+| `"line"` | one, along `lineDirection` | `lineVelocity`, in metres per second |
+| `"plane"` | two, along `primaryTangentAxis` and `secondaryTangentAxis` | `planeVelocity`, its x and y |
+
+Directions it does not hold are left free, so a part on a `"line"` still falls and still slides
+sideways when it is knocked.
+
+| Property | Default | |
+|---|---|---|
+| `velocityConstraintMode` | `"vector"` | `"vector"`, `"line"` or `"plane"` |
+| `vectorVelocity` | `vec3(0, 0, 0)` | metres per second |
+| `lineDirection` | `vec3(1, 0, 0)` | the one direction a `"line"` holds |
+| `lineVelocity` | 0 | the speed along `lineDirection` |
+| `primaryTangentAxis`, `secondaryTangentAxis` | `vec3(1, 0, 0)`, `vec3(0, 1, 0)` | the two directions a `"plane"` holds |
+| `planeVelocity` | `vec3(0, 0, 0)` | the speeds along the two tangent axes, in x and y; z is ignored |
+| `relativeTo` | `"world"` | which way the numbers point, see [Movers](#movers) |
+| `forceLimitsEnabled` | true | caps the push at `maxForce`. Off, it pushes as hard as it takes |
+| `maxForce` | 1000 | the hardest it may push |
+| `reactionForceEnabled` | true | with `relativeTo = "attachment1"`, pushes attachment1's part the other way |
+
+A `"vector"` holds up and down too, so a part on one floats. Its weight counts against `maxForce`.
+
+`lineDirection` and the two tangent axes are read in the `relativeTo` frame, like the velocity. With
+`relativeTo = "attachment0"` the default tangent axes are the attachment's X and Y.
+
+A cart that drives itself forward, wherever it faces:
+
+```lua
+-- server
+local cart = world:add("Part", { size = vec3(1.2, 0.6, 2), cframe = cframe(0, 65.3, 30), anchored = false,
+                                 friction = 0.2 })
+
+world:add("LinearVelocity", {
+    attachment0 = cart:add("Attachment"),
+    relativeTo = "attachment0",
+    velocityConstraintMode = "line",
+    lineDirection = vec3(0, 0, -1),
+    lineVelocity = 5,
+    maxForce = 200,
+})
+```
+
+- `relativeTo = "attachment0"` reads `lineDirection` in the attachment's own axes, and `vec3(0, 0, -1)`
+  is its forward. Turn the cart and it drives the new way.
+- A `"line"` holds only that one direction, so the cart still sits on the floor under its own weight
+  and friction still stops it sliding sideways.
+- `maxForce = 200` keeps it from shoving everything it meets out of the way.
+
+### AngularVelocity
+
+An `AngularVelocity` keeps the part spinning at `angularVelocity`, radians per second about each
+axis. It holds all three axes, so a part spinning about Y is also kept from tipping over.
+
+| Property | Default | |
+|---|---|---|
+| `angularVelocity` | `vec3(0, 0, 0)` | radians per second about each axis |
+| `relativeTo` | `"world"` | which way the axes point, see [Movers](#movers) |
+| `maxTorque` | 1000 | the hardest it may turn |
+| `reactionTorqueEnabled` | false | with `relativeTo = "attachment1"`, turns attachment1's part the other way |
+
+A turntable held in the air and spun:
+
+```lua
+-- server
+local disc = world:add("Part", { shape = "cylinder", size = vec3(0.3, 6, 6), anchored = false,
+                                 cframe = cframe(0, 66, -20) * cframe.angles(0, 0, math.pi / 2) })
+local centre = disc:add("Attachment")
+
+world:add("AlignPosition", { attachment0 = centre, mode = "oneAttachment", position = vec3(0, 66, -20),
+                             rigidityEnabled = true })
+world:add("AngularVelocity", { attachment0 = centre, angularVelocity = vec3(0, 1, 0), maxTorque = 5000 })
+```
+
+- A cylinder lies along its X axis, so the quarter turn about Z stands that axis up and lays the disc
+  flat.
+- The `AlignPosition` pins the middle of the disc where it is. `rigidityEnabled` keeps it from
+  wandering even when a player jumps on the edge.
+- The `AngularVelocity` turns it once round every six seconds or so, and keeps it flat.
+
+### VectorForce and Torque
+
+A `VectorForce` pushes with `force` on every physics step, and a `Torque` turns with `torque`. Neither
+aims for a speed, so a part with nothing holding it back speeds up for as long as they are on. Use a
+`LinearVelocity` or `AngularVelocity` when you want a steady speed instead.
+
+| Property | Default | |
+|---|---|---|
+| `force` | `vec3(0, 0, 0)` | `VectorForce`: the force it pushes with |
+| `applyAtCenterOfMass` | false | `VectorForce`: pushes at the part's centre instead of at attachment0 |
+| `torque` | `vec3(0, 0, 0)` | `Torque`: the torque it turns with, about the part's centre |
+| `relativeTo` | `"attachment0"` | which way the numbers point, see [Movers](#movers) |
+
+`relativeTo` starts at `"attachment0"` on these two, so a force turns with the part like a rocket's
+thrust. Set it to `"world"` for a push that always points the same way, like wind.
+
+```lua
+-- server: a balloon that pulls its load up
+local balloon = world:add("Part", { size = vec3(1, 1, 1), cframe = cframe(0, 67, 10), anchored = false,
+                                    density = 0.2, color = color(0.9, 0.2, 0.2) }) :: Part
+
+world:add("VectorForce", {
+    attachment0 = balloon:add("Attachment"),
+    force = vec3(0, balloon:getMass() * game.gravity * 1.5, 0),
+    relativeTo = "world",
+    applyAtCenterOfMass = true,
+})
+```
+
+The force is one and a half times the balloon's weight and points up in the world, so the balloon
+rises. Tie a crate under it with a [rope](#ropes) and it rises more slowly, or not at all once the
+crate outweighs the extra half.
+
+A `VectorForce` pushes at attachment0, so a force off the part's centre turns it as well as moving
+it. `applyAtCenterOfMass` pushes through the centre instead.
+
+> [!NOTE]
+> `getMass` counts the part's `size` as a box. A ball or a cylinder weighs less than that in the
+> simulation, so a force worked out from `getMass` is a little strong for one.
+
 ## Not in yet
 
-- Movers such as `AlignPosition` or `VectorForce`. Push with the methods above each step instead.
 - Physical materials by name. Set `density`, `friction` and `elasticity`.

@@ -9,6 +9,8 @@ import com.meekdev.moud.core.math.Color;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.physics.Constraint;
 import com.meekdev.moud.core.physics.HingeConstraint;
+import com.meekdev.moud.core.physics.Mover;
+import com.meekdev.moud.core.physics.Movers;
 import com.meekdev.moud.core.physics.PrismaticConstraint;
 import com.meekdev.moud.core.physics.RodConstraint;
 import com.meekdev.moud.core.physics.RopeCurve;
@@ -24,6 +26,9 @@ final class Ropes {
 
     private static final double JOINT_THICKNESS = 0.05;
     private static final double AXIS_LENGTH = 0.6;
+    private static final double HEAD = 0.25;
+    private static final double HEAD_SPREAD = 0.5;
+    private static final double MIN_ARROW = 1.0e-6;
     private static final int ROPE_SEGMENTS = 24;
     private static final int COIL_SEGMENTS = 16;
     private static final int SIDES = 6;
@@ -50,6 +55,13 @@ final class Ropes {
             CFrame at0 = ClientScene.motion().sample(a0, partialTick);
             batch.tint(constraint.color, 1, 1);
             Color colour = constraint.color;
+            if (constraint instanceof Mover) {
+                CFrame at1 = constraint.attachment1 instanceof Attachment a1 && a1.isAlive()
+                        ? ClientScene.motion().sample(a1, partialTick) : null;
+                Vector3 arrow = Movers.arrow(constraint, at0, at1);
+                if (arrow != null) arrow(batch, view, at0.position(), arrow);
+                continue;
+            }
             if (constraint instanceof HingeConstraint || constraint instanceof PrismaticConstraint) {
                 Vector3 axis = at0.rightVector().mul(AXIS_LENGTH);
                 batch.light(Effects.light(at0.position()), 1, 0);
@@ -139,6 +151,21 @@ final class Ropes {
             previousAt = here;
         }
         batch.tint(colour, 1, 1);
+    }
+
+    private static void arrow(QuadBatch batch, Effects.View view, Vector3 from, Vector3 along) {
+        Vector3 tip = from.add(along);
+        batch.light(Effects.light(from.lerp(tip, 0.5)), 1, 0);
+        segment(batch, view, from, tip, JOINT_THICKNESS);
+        double length = along.length();
+        if (length < MIN_ARROW) return;
+
+        double head = Math.min(HEAD, length / 2);
+        Vector3 direction = along.mul(1 / length);
+        Vector3 base = tip.add(along.mul(-head / length));
+        Vector3 side = along.cross(notAlong(direction)).normalize().mul(head * HEAD_SPREAD);
+        segment(batch, view, tip, base.add(side), JOINT_THICKNESS);
+        segment(batch, view, tip, base.sub(side), JOINT_THICKNESS);
     }
 
     private static void segment(QuadBatch batch, Effects.View view, Vector3 from, Vector3 to, double thickness) {

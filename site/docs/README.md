@@ -256,7 +256,7 @@ rate is, and the engine does the dividing.
 - [Movement, collision and input](movement.md): humanoids, seats, collision groups, input actions, ownership
 - [Building in the editor](editor.md): joining parts with the constraint tool, welding the selection, seeing constraints
 - [Editor plugins](plugins.md): toolbar buttons, commands and shortcuts, panels, selection, undoable scene edits, settings, viewport clicks
-- [Physics](physics.md): falling parts, shapes, pushing, who simulates a part, models, welds, hinges, ropes, winches, springs and rods
+- [Physics](physics.md): falling parts, shapes, pushing, who simulates a part, models, welds, hinges, ropes, winches, springs, rods and movers
 - [Camera and input](camera-and-input.md): the client's own two globals
 - [Pausing, quitting, settings and screens](game-and-screens.md): Escape, game.paused, settings, the loading screen, exported games
 - [Windows](window.md): the game window, more windows, overlays

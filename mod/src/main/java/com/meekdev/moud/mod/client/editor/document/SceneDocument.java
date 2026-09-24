@@ -449,6 +449,29 @@ public final class SceneDocument {
         if (!edits.isEmpty()) history.execute(new Batch(label, edits));
     }
 
+    public void insertMover(String className, int parentId) {
+        ClassDef<?> def = Addons.classes().find(className);
+        if (def == null) return;
+        if (!(find(parentId) instanceof Part part) || !editable(part)) {
+            insert(className, parentId);
+            return;
+        }
+        String label = "Add " + className;
+        List<Edit> edits;
+        try {
+            InstanceTree scratch = new InstanceTree();
+            Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+            Set<String> taken = new HashSet<>();
+            Attachment point = Joining.attachment(holder, Joining.freeName(part, "Attachment", taken), CFrame.IDENTITY);
+            Instance mover = Instances.create(def, holder, Joining.freeName(part, className, taken));
+            edits = Joining.mover(def, ref(part.id()), snapshot(List.of(point)), snapshot(List.of(mover)), label);
+        } catch (RuntimeException e) {
+            SceneLink.local("Could not add " + className + ": " + e.getMessage());
+            return;
+        }
+        history.execute(new Batch(label, edits));
+    }
+
     public void insertShape(PartShape shape, int parentId) {
         String name = Enums.name(shape);
         insert("Part", Character.toUpperCase(name.charAt(0)) + name.substring(1), parentId, made -> {

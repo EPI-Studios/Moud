@@ -13,6 +13,8 @@ import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.part.SpawnLocation;
 import com.meekdev.moud.core.physics.Constraint;
 import com.meekdev.moud.core.physics.HingeConstraint;
+import com.meekdev.moud.core.physics.Mover;
+import com.meekdev.moud.core.physics.Movers;
 import com.meekdev.moud.core.physics.PrismaticConstraint;
 import com.meekdev.moud.core.physics.WeldConstraint;
 import com.meekdev.moud.core.render.Camera;
@@ -27,6 +29,7 @@ import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import imgui.ImDrawList;
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 final class HelperShapes {
 
@@ -43,6 +46,8 @@ final class HelperShapes {
     private static final double AXIS_LENGTH = 1.2;
     private static final double ATTACHMENT_AXIS = 0.6;
     private static final float END_RADIUS = 4f;
+    private static final float ARROW_HEAD = 9f;
+    private static final float ARROW_SPREAD = 0.5f;
     private static final double CONE_DEPTH = 1.6;
     private static final double ASPECT = 16.0 / 9.0;
     private static final int PATH_SAMPLES = 80;
@@ -160,6 +165,11 @@ final class HelperShapes {
         if (!(constraint.attachment0 instanceof Attachment a0)) return;
         CFrame at0 = Transforms.world(a0);
         dot(draw, view, at0.position(), colour);
+        if (constraint instanceof Mover) {
+            Vector3 arrow = moverArrow(constraint, at0);
+            if (arrow != null) arrow(draw, view, at0.position(), arrow, colour);
+            return;
+        }
         if (constraint.attachment1 instanceof Attachment a1) {
             Vector3 at1 = Transforms.world(a1).position();
             line(draw, view, at0.position(), at1, colour);
@@ -169,6 +179,32 @@ final class HelperShapes {
             Vector3 axis = at0.rightVector().mul(AXIS_LENGTH);
             line(draw, view, at0.position().sub(axis), at0.position().add(axis), colour);
         }
+    }
+
+    static @Nullable Vector3 moverArrow(Constraint mover, CFrame at0) {
+        CFrame at1 = mover.attachment1 instanceof Attachment a1 && a1.isAlive() ? Transforms.world(a1) : null;
+        return Movers.arrow(mover, at0, at1);
+    }
+
+    private static void arrow(ImDrawList draw, SceneView view, Vector3 from, Vector3 along, int colour) {
+        Vector3 tip = from.add(along);
+        line(draw, view, from, tip, colour);
+        float[] start = view.toScreen(from);
+        float[] end = view.toScreen(tip);
+        if (start == null || end == null) return;
+        float dx = end[0] - start[0];
+        float dy = end[1] - start[1];
+        float length = (float) Math.sqrt(dx * dx + dy * dy);
+        if (length < 1) return;
+
+        float backX = dx / length * ARROW_HEAD;
+        float backY = dy / length * ARROW_HEAD;
+        float baseX = end[0] - backX;
+        float baseY = end[1] - backY;
+        float sideX = -backY * ARROW_SPREAD;
+        float sideY = backX * ARROW_SPREAD;
+        draw.addLine(end[0], end[1], baseX + sideX, baseY + sideY, colour, 1.5f);
+        draw.addLine(end[0], end[1], baseX - sideX, baseY - sideY, colour, 1.5f);
     }
 
     private static void attachment(ImDrawList draw, SceneView view, Attachment attachment, int colour) {

@@ -145,7 +145,12 @@ jar {
     }
 }
 
-tasks.matching { it.name.startsWith('run') }.configureEach {
+dependencies {
+    testCompileOnly files(box3d)
+    testRuntimeOnly files(box3d)
+}
+
+tasks.matching { it.name.startsWith('run') || it.name == 'test' }.configureEach {
     def dir = new File(box3dNatives, nativePlatform())
     if (dir.exists()) {
         def variable = nativePathVariable()

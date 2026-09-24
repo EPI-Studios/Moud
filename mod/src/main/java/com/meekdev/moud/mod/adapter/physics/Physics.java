@@ -18,6 +18,7 @@ public final class Physics {
     private static final SubLevels SHAPES = new SubLevels();
     private static final Characters BODIES = new Characters(BOXES);
     private static final Joints JOINTS = new Joints();
+    private static final MoverBodies MOVERS = new MoverBodies(true);
     private static @Nullable ServerLevel level;
 
     private Physics() {}
@@ -48,6 +49,7 @@ public final class Physics {
         ServerLevelEvents.UNLOAD.register((server, unloaded) -> {
             if (unloaded == level) {
                 JOINTS.clear();
+                MOVERS.clear();
                 level = null;
             }
             Bkun.collision(unloaded).removeProvider(provider);
@@ -84,6 +86,8 @@ public final class Physics {
         LevelPhysics physics = level == null ? null : Bkun.physics(level);
         JOINTS.attach(physics);
         JOINTS.settle(simulating ? tree : null, SHAPES, physics == null ? null : physics.world());
+        MOVERS.attach(physics);
+        MOVERS.settle(simulating && physics != null ? tree : null, SHAPES::body, part -> true);
         SHAPES.simulating(simulating);
         SHAPES.settle();
     }

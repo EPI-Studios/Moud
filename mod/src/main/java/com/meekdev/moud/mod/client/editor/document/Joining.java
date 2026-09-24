@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor.document;
 
+import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.Instance;
@@ -91,6 +92,12 @@ public final class Joining {
         return List.of(first, second, joint,
                 new Link(joint.roots(), index(kind, "attachment0"), first.roots(), true, label),
                 new Link(joint.roots(), index(kind, "attachment1"), second.roots(), true, label));
+    }
+
+    static List<Edit> mover(ClassDef<?> def, InstanceRef part, String attachment, String mover, String label) {
+        Paste point = new Paste(attachment, part, new ArrayList<>(), new ArrayList<>(), false, label);
+        Paste made = new Paste(mover, part, new ArrayList<>(), new ArrayList<>(), true, label);
+        return List.of(point, made, new Link(made.roots(), def.property("attachment0").index(), point.roots(), true, label));
     }
 
     private static int index(ConstraintKind kind, String property) {

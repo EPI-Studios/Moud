@@ -97,7 +97,7 @@ public final class LuauTypes {
         String parent = def.parent() == null ? ROOT : def.parent().name();
         line(out, "declare extern type ", def.name(), " extends ", parent, " with");
         PropertyDef frame = def.property("cframe");
-        if (frame != null && frame.index() >= inherited(def)) out.append(PLACED);
+        if (frame != null && frame.index() >= inherited(def) && def.isA(Classes.SPATIAL)) out.append(PLACED);
         for (CallbackDef callback : def.callbacks()) {
             if (def.parent() != null && def.parent().callback(callback.name()) != null) continue;
             line(out, INDENT, callback.name(), ": ", CALLBACK);

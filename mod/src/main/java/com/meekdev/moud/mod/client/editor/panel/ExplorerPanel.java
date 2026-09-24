@@ -66,6 +66,8 @@ public final class ExplorerPanel implements Panel {
             "Folder", "Model", "Part", "MeshPart", "SpawnLocation", "Seat", "VehicleSeat", "Camera", "CameraPath", "Attachment", "PointLight", "SpotLight", "AreaLight", "Sound", "Zone", "ClickDetector", "ScreenGui");
     private static final List<String> EFFECT_CLASSES = List.of(
             "ParticleEmitter", "Beam", "Trail", "Highlight", "Decal", "Texture", "Fire", "Smoke", "Sparkles", "SelectionBox", "SelectionSphere", "Explosion");
+    private static final List<String> MOVER_CLASSES = List.of(
+            "AlignPosition", "AlignOrientation", "LinearVelocity", "AngularVelocity", "VectorForce", "Torque");
     private static final List<String> LIGHTING_CLASSES = List.of("Lighting", "Sky", "Atmosphere", "Clouds", "Weather");
     private static final List<String> SOUND_EFFECT_CLASSES = List.of(
             "ReverbSoundEffect", "EqualizerSoundEffect", "DistortionSoundEffect", "EchoSoundEffect",
@@ -174,6 +176,12 @@ public final class ExplorerPanel implements Panel {
         if (ImGui.beginMenu("Effects")) {
             for (String name : EFFECT_CLASSES) {
                 if (ImGui.menuItem(name)) document.insert(name, parent);
+            }
+            ImGui.endMenu();
+        }
+        if (ImGui.beginMenu("Movers")) {
+            for (String name : MOVER_CLASSES) {
+                if (ImGui.menuItem(name)) document.insertMover(name, parent);
             }
             ImGui.endMenu();
         }

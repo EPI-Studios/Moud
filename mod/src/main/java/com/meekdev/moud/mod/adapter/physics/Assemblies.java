@@ -5,6 +5,7 @@ import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.physics.Constraint;
+import com.meekdev.moud.core.physics.Mover;
 import com.meekdev.moud.core.physics.WeldConstraint;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -18,12 +19,17 @@ public final class Assemblies {
     private Assemblies() {}
 
     public static void build(InstanceTree tree) {
+        groups = join(tree);
+    }
+
+    static Map<Part, List<Part>> join(InstanceTree tree) {
         Map<Part, Part> leader = new HashMap<>();
         for (WeldConstraint weld : tree.ofClass(Classes.WELD_CONSTRAINT)) {
             if (weld.enabled && weld.part0 instanceof Part a && weld.part1 instanceof Part b) join(leader, a, b);
         }
         for (Constraint constraint : tree.ofClass(Classes.CONSTRAINT)) {
-            if (constraint.enabled && constraint.attachment0 instanceof Attachment a0 && constraint.attachment1 instanceof Attachment a1
+            if (!constraint.enabled || constraint instanceof Mover) continue;
+            if (constraint.attachment0 instanceof Attachment a0 && constraint.attachment1 instanceof Attachment a1
                     && a0.parent() instanceof Part a && a1.parent() instanceof Part b) {
                 join(leader, a, b);
             }
@@ -39,7 +45,7 @@ public final class Assemblies {
             List<Part> fixed = List.copyOf(group);
             for (Part part : fixed) byPart.put(part, fixed);
         }
-        groups = byPart;
+        return byPart;
     }
 
     public static List<Part> of(Part part) {

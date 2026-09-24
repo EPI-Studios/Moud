@@ -2695,6 +2695,7 @@ Extends [Constraint](#constraint).
 | `mesh` | `string` |
 | `meshLength` | `number` |
 | `meshTwist` | `number` |
+| `restitution` | `number` |
 | `thickness` | `number` |
 | `winchEnabled` | `boolean` |
 | `winchForce` | `number` |
@@ -2732,6 +2733,96 @@ Extends [Constraint](#constraint).
 | `currentDistance` | `number` |
 | `length` | `number` |
 | `thickness` | `number` |
+
+<a id="alignposition"></a>
+
+## AlignPosition
+
+Extends [Constraint](#constraint).
+
+| Property | Type |
+|---|---|
+| `applyAtCenterOfMass` | `boolean` |
+| `maxForce` | `number` |
+| `maxVelocity` | `number` |
+| `mode` | `"oneAttachment" \| "twoAttachment"` |
+| `position` | `Vector3` |
+| `reactionForceEnabled` | `boolean` |
+| `responsiveness` | `number` |
+| `rigidityEnabled` | `boolean` |
+
+<a id="alignorientation"></a>
+
+## AlignOrientation
+
+Extends [Constraint](#constraint).
+
+| Property | Type |
+|---|---|
+| `cframe` | `CFrame` |
+| `maxAngularVelocity` | `number` |
+| `maxTorque` | `number` |
+| `mode` | `"oneAttachment" \| "twoAttachment"` |
+| `primaryAxisOnly` | `boolean` |
+| `reactionTorqueEnabled` | `boolean` |
+| `responsiveness` | `number` |
+| `rigidityEnabled` | `boolean` |
+
+<a id="linearvelocity"></a>
+
+## LinearVelocity
+
+Extends [Constraint](#constraint).
+
+| Property | Type |
+|---|---|
+| `forceLimitsEnabled` | `boolean` |
+| `lineDirection` | `Vector3` |
+| `lineVelocity` | `number` |
+| `maxForce` | `number` |
+| `planeVelocity` | `Vector3` |
+| `primaryTangentAxis` | `Vector3` |
+| `reactionForceEnabled` | `boolean` |
+| `relativeTo` | `"world" \| "attachment0" \| "attachment1"` |
+| `secondaryTangentAxis` | `Vector3` |
+| `vectorVelocity` | `Vector3` |
+| `velocityConstraintMode` | `"vector" \| "line" \| "plane"` |
+
+<a id="angularvelocity"></a>
+
+## AngularVelocity
+
+Extends [Constraint](#constraint).
+
+| Property | Type |
+|---|---|
+| `angularVelocity` | `Vector3` |
+| `maxTorque` | `number` |
+| `reactionTorqueEnabled` | `boolean` |
+| `relativeTo` | `"world" \| "attachment0" \| "attachment1"` |
+
+<a id="vectorforce"></a>
+
+## VectorForce
+
+Extends [Constraint](#constraint).
+
+| Property | Type |
+|---|---|
+| `applyAtCenterOfMass` | `boolean` |
+| `force` | `Vector3` |
+| `relativeTo` | `"world" \| "attachment0" \| "attachment1"` |
+
+<a id="torque"></a>
+
+## Torque
+
+Extends [Constraint](#constraint).
+
+| Property | Type |
+|---|---|
+| `relativeTo` | `"world" \| "attachment0" \| "attachment1"` |
+| `torque` | `Vector3` |
 
 <a id="particleemitter"></a>
 

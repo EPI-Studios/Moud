@@ -25,6 +25,7 @@ import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.physics.BallSocketConstraint;
 import com.meekdev.moud.core.physics.Constraint;
 import com.meekdev.moud.core.physics.HingeConstraint;
+import com.meekdev.moud.core.physics.Mover;
 import com.meekdev.moud.core.physics.PrismaticConstraint;
 import com.meekdev.moud.core.physics.RodConstraint;
 import com.meekdev.moud.core.physics.RopeConstraint;
@@ -105,6 +106,7 @@ public final class Joints {
             settleOne(weld, wanted(ends, wanted), false, bodies, world, held);
         }
         for (Constraint constraint : tree.ofClass(Classes.CONSTRAINT)) {
+            if (constraint instanceof Mover) continue;
             seen.add(constraint.id());
             Ends ends = null;
             if (constraint.enabled
