@@ -101,15 +101,16 @@ public final class NumberFields {
 
     private static float field(String id, float value, float step, float width, int tint,
                                String label, float minimum, float maximum, boolean flat) {
-        if (id.equals(editingIdentity)) {
-            return drawEditor(id, value, width, label);
+        String identity = Integer.toString(ImGui.getID(id));
+        if (identity.equals(editingIdentity)) {
+            return drawEditor(id, value, width, tint, label);
         }
         float height = ImGui.getFrameHeight();
         float left = ImGui.getCursorScreenPosX();
         float top = ImGui.getCursorScreenPosY();
         ImGui.invisibleButton(id, width, height);
         boolean hovered = ImGui.isItemHovered();
-        float updated = dragged(id, value, step, hovered);
+        float updated = dragged(identity, value, step);
         paint(left, top, width, height, updated, tint, label, minimum, maximum, flat, hovered);
         if (hovered) {
             ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
@@ -117,7 +118,7 @@ public final class NumberFields {
         return updated;
     }
 
-    private static float dragged(String id, float value, float step, boolean hovered) {
+    private static float dragged(String id, float value, float step) {
         if (ImGui.isItemClicked()) {
             draggingIdentity = id;
             dragAccumulator = 0.0f;
@@ -208,14 +209,15 @@ public final class NumberFields {
                 EditorStyle.withAlpha(EditorStyle.COLOR_TEXT, 0.9f));
     }
 
-    private static float drawEditor(String id, float value, float width, String label) {
+    private static float drawEditor(String id, float value, float width, int tint, String label) {
         float height = ImGui.getFrameHeight();
         float left = ImGui.getCursorScreenPosX();
         float top = ImGui.getCursorScreenPosY();
         ImDrawList drawList = ImGui.getWindowDrawList();
         drawList.addRectFilled(left, top, left + width, top + height,
                 EditorStyle.COLOR_FIELD_ACTIVE, EditorStyle.frameRounding());
-        pushEditorStyle(label);
+        float labelWidth = paintLabel(drawList, left, top, height, tint, label);
+        pushEditorStyle(label, labelWidth);
         ImGui.setNextItemWidth(width);
         if (focusPending) {
             ImGui.setKeyboardFocusHere();
@@ -229,8 +231,8 @@ public final class NumberFields {
         return closed ? finishEditing(value) : value;
     }
 
-    private static void pushEditorStyle(String label) {
-        float leading = EditorScale.of(MARGIN) + (label.isEmpty() ? 0.0f : EditorScale.of(16.0f));
+    private static void pushEditorStyle(String label, float labelWidth) {
+        float leading = EditorScale.of(MARGIN) + (label.isEmpty() ? 0.0f : labelWidth);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, leading, EditorStyle.framePaddingY());
         ImGui.pushStyleColor(ImGuiCol.FrameBg, 0);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, 0);

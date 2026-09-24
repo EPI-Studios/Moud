@@ -19,9 +19,6 @@ public final class Fields {
     private Fields() {
     }
 
-    /**
-     * A field carrying its label inside the frame, so the row needs no separate label column.
-     */
     public static boolean withInlineLabel(String id, String label, ImString text, float width) {
         float labelWidth = ImGui.calcTextSizeX(label) + EditorScale.of(LABEL_GAP) * 2.0f;
         float left = ImGui.getCursorScreenPosX();
@@ -35,9 +32,6 @@ public final class Fields {
         return changed;
     }
 
-    /**
-     * A numeric field with a right aligned unit, so the unit does not have to live in the label.
-     */
     public static boolean withUnit(String id, ImFloat value, String unit, float width) {
         ImGui.setNextItemWidth(width);
         boolean changed = ImGui.inputFloat(id, value);
@@ -50,9 +44,6 @@ public final class Fields {
         return changed;
     }
 
-    /**
-     * A frameless field that only shows a baseline, which lights up on hover and focus.
-     */
     public static boolean underlined(String id, String hint, ImString text, float width) {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, EditorStyle.COLOR_FIELD_BACKGROUND);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, EditorStyle.COLOR_FIELD_HOVER);
