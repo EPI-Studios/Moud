@@ -35,6 +35,7 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 public final class InstanceAccess {
@@ -299,15 +300,23 @@ public final class InstanceAccess {
     }
 
     private Signals signals(Instance instance) {
-        if (instance.userdata instanceof Signals existing) {
-            if (existing.host == host) return existing;
-            existing.close();
-        }
+        Map<Host, Signals> hosts = hosts(instance);
+        Signals existing = hosts.get(host);
+        if (existing != null) return existing;
         Signals fresh = new Signals(host, instance);
-        instance.userdata = fresh;
+        hosts.put(host, fresh);
         bundles.add(fresh);
         return fresh;
     }
+
+    private static synchronized Map<Host, Signals> hosts(Instance instance) {
+        if (instance.userdata instanceof Hosts hosts) return hosts;
+        Hosts hosts = new Hosts();
+        instance.userdata = hosts;
+        return hosts;
+    }
+
+    private static final class Hosts extends ConcurrentHashMap<Host, Signals> {}
 
     void close() {
         for (Map.Entry<Callback, Callable> entry : assigned.entrySet()) {
@@ -528,6 +537,7 @@ public final class InstanceAccess {
         }
 
         void close() {
+            if (instance.userdata instanceof Hosts hosts) hosts.remove(host, this);
             for (Signal.Connection link : links) link.disconnect();
             links.clear();
             if (changed != null) changed.clear();
