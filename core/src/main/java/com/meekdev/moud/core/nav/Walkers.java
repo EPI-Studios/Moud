@@ -22,6 +22,7 @@ import java.util.WeakHashMap;
 public final class Walkers {
 
     private static final double REPATH = 0.5;
+    private static final double RECHECK = 0.25;
 
     private static final PropertyDef JUMP = Classes.HUMANOID.property("jump");
     private static final PropertyDef WALKING = Classes.HUMANOID.property("walking");
@@ -35,6 +36,9 @@ public final class Walkers {
         double lastRepath = -1e9;
         Vector3 lastTarget;
         boolean resting;
+        Vector3 goal;
+        boolean partial;
+        double lastCheck = -1e9;
     }
 
     private static final Map<InstanceTree, Walkers> TREES = Collections.synchronizedMap(new WeakHashMap<>());
@@ -65,8 +69,14 @@ public final class Walkers {
     }
 
     public static void walk(Character body, List<Vector3> waypoints) {
+        walk(body, waypoints, null, false);
+    }
+
+    public static void walk(Character body, List<Vector3> waypoints, Vector3 goal, boolean partial) {
         Plan plan = new Plan();
         plan.waypoints = waypoints;
+        plan.goal = goal;
+        plan.partial = partial;
         plans(body).put(body, plan);
         if (body.hasPlayer() && pilot != null) pilot.walk(body, waypoints);
     }
@@ -111,9 +121,10 @@ public final class Walkers {
         return plans(body).containsKey(body);
     }
 
-    @FunctionalInterface
     public interface Finder {
         List<Vector3> find(Vector3 from, Vector3 to, boolean partial);
+
+        int blocked(Vector3 from, List<Vector3> ahead);
     }
 
     public static void step(InstanceTree tree, Finder finder, double now) {
@@ -157,6 +168,22 @@ public final class Walkers {
                     if (body.hasPlayer() && pilot != null && plan.waypoints != null) pilot.walk(body, plan.waypoints);
                 }
             }
+            if (plan.waypoints != null && !plan.waypoints.isEmpty() && (plan.goal != null || plan.target != null)
+                    && now - plan.lastCheck >= RECHECK) {
+                plan.lastCheck = now;
+                if (blocked(finder, plan, at)) {
+                    Vector3 goal = plan.goal != null ? plan.goal : plan.lastTarget;
+                    plan.waypoints = finder.find(at, goal, plan.target != null || plan.partial);
+                    plan.next = 0;
+                    if (plan.waypoints == null && plan.target == null) {
+                        it.remove();
+                        if (body.hasPlayer() && pilot != null) pilot.stop(body);
+                        Instances.setBool(living, WALKING, false);
+                        continue;
+                    }
+                    if (body.hasPlayer() && pilot != null && plan.waypoints != null) pilot.walk(body, plan.waypoints);
+                }
+            }
             if (body.hasPlayer()) {
                 followPlayerPath(body, living, plan, at, it);
                 continue;
@@ -182,6 +209,11 @@ public final class Walkers {
             Instances.setObj(living, WALK_TO, waypoint);
             Instances.setBool(living, WALKING, true);
         }
+    }
+
+    private static boolean blocked(Finder finder, Plan plan, Vector3 at) {
+        int next = Math.min(plan.next, plan.waypoints.size() - 1);
+        return finder.blocked(at, plan.waypoints.subList(next, plan.waypoints.size())) >= 0;
     }
 
     private static void followPlayerPath(Character body, Humanoid living, Plan plan, Vector3 at, Iterator<Map.Entry<Character, Plan>> it) {

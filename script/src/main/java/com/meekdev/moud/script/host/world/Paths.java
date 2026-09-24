@@ -79,7 +79,17 @@ public final class Paths {
             if (world.tree() != null) Humanoids.ground(world.tree(), null);
         });
         NavMeshes.World source = source(host);
-        Walkers.Finder finder = (from, to, partial) -> mesh(world).find(source, from, to, partial);
+        Walkers.Finder finder = new Walkers.Finder() {
+            @Override
+            public List<Vector3> find(Vector3 from, Vector3 to, boolean partial) {
+                return mesh(world).find(source, from, to, partial);
+            }
+
+            @Override
+            public int blocked(Vector3 from, List<Vector3> ahead) {
+                return mesh(world).blocked(source, from, ahead);
+            }
+        };
         host.onStep(dt -> Walkers.step(world.tree(), finder, System.nanoTime() / 1e9));
 
         host.api().alias("PathOptions", "{ partial: boolean? }");
@@ -100,7 +110,7 @@ public final class Paths {
             Character body = a.self(Character.class);
             List<Vector3> found = mesh(world).find(source, Transforms.world(body).position(), a.vector(1), partial(a, 2));
             if (found == null) return false;
-            Walkers.walk(body, found);
+            Walkers.walk(body, found, a.vector(1), partial(a, 2));
             return true;
         });
         bodies.method("follow", "(target: Instance, distance: number?) -> ()", a -> {

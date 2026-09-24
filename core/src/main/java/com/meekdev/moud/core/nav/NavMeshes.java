@@ -20,6 +20,7 @@ import org.recast4j.detour.NavMeshDataCreateParams;
 import org.recast4j.detour.NavMeshParams;
 import org.recast4j.detour.NavMeshQuery;
 import org.recast4j.detour.QueryFilter;
+import org.recast4j.detour.RaycastHit;
 import org.recast4j.detour.Result;
 import org.recast4j.detour.StraightPathItem;
 import org.recast4j.recast.AreaModification;
@@ -144,6 +145,55 @@ public final class NavMeshes {
         if (!reached(out.getLast(), to) && !partial) return null;
         if (out.size() > 1) out.removeFirst();
         return out;
+    }
+
+    public boolean clear(World world, Vector3 from, Vector3 to) {
+        return blocked(world, from, List.of(to)) < 0;
+    }
+
+    public int blocked(World world, Vector3 from, List<Vector3> ahead) {
+        Set<Key> wanted = new HashSet<>();
+        Vector3 at = from;
+        for (Vector3 point : ahead) {
+            wanted.addAll(corridor(at, point, 1));
+            at = point;
+        }
+        if (wanted.size() > MAX_TILES) return -1;
+        double low = from.y(), high = from.y();
+        for (Vector3 point : ahead) {
+            low = Math.min(low, point.y());
+            high = Math.max(high, point.y());
+        }
+        prepare(world, wanted, new Vector3(from.x(), low, from.z()), new Vector3(from.x(), high, from.z()));
+        at = from;
+        for (int i = 0; i < ahead.size(); i++) {
+            if (!open(at, ahead.get(i))) return i;
+            at = ahead.get(i);
+        }
+        return -1;
+    }
+
+    private boolean open(Vector3 from, Vector3 to) {
+        FindNearestPolyResult start = nearest(from);
+        FindNearestPolyResult end = nearest(to);
+        if (start == null || end == null) return false;
+        float[] snapped = end.getNearestPos();
+        if (Math.hypot(snapped[0] - to.x(), snapped[2] - to.z()) > 0.6) return false;
+        Result<RaycastHit> ray = query.raycast(start.getNearestRef(), start.getNearestPos(), end.getNearestPos(), filter, 0, 0);
+        if (ray.succeeded() && ray.result != null && ray.result.t >= 1) return true;
+        Result<List<Long>> corridor = query.findPath(start.getNearestRef(), end.getNearestRef(),
+                start.getNearestPos(), end.getNearestPos(), filter);
+        if (corridor.failed() || corridor.result == null || corridor.result.isEmpty()) return false;
+        if (corridor.result.getLast() != end.getNearestRef()) return false;
+        Result<List<StraightPathItem>> straight = query.findStraightPath(start.getNearestPos(), end.getNearestPos(),
+                corridor.result, 256, 0);
+        if (straight.failed() || straight.result == null) return false;
+        double length = 0;
+        for (int i = 1; i < straight.result.size(); i++) {
+            float[] a = straight.result.get(i - 1).getPos(), b = straight.result.get(i).getPos();
+            length += Math.hypot(b[0] - a[0], b[2] - a[2]);
+        }
+        return length <= Math.hypot(to.x() - from.x(), to.z() - from.z()) * 1.05 + 0.5;
     }
 
     private static boolean reached(Vector3 last, Vector3 to) {
