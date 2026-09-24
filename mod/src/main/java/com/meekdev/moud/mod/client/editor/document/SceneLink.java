@@ -19,6 +19,7 @@ public final class SceneLink {
     private static String file = "";
     private static String message = "";
     private static long messageAt;
+    private static int saveFailures;
     private static int nextToken = 1;
     private static final Queue<ScenePastedPayload> PASTED = new ArrayDeque<>();
 
@@ -36,6 +37,7 @@ public final class SceneLink {
         generation = status.generation();
         file = status.file();
         if (!status.message().isEmpty()) local(status.message());
+        if (status.message().startsWith("could not save")) saveFailures++;
     }
 
     static void local(String why) {
@@ -49,6 +51,10 @@ public final class SceneLink {
 
     public static String file() {
         return file;
+    }
+
+    public static int saveFailures() {
+        return saveFailures;
     }
 
     public static String message() {

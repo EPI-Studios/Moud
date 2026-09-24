@@ -67,6 +67,7 @@ final class SceneTabs {
     private @Nullable String pending;
     private long pendingAt;
     private @Nullable String afterSave;
+    private int failuresBeforeSave;
     private @Nullable String closing;
     private SceneBackups.@Nullable Backup recovery;
     private boolean openSwitch;
@@ -76,6 +77,7 @@ final class SceneTabs {
     private boolean openRecover;
     private String nameTitle = "";
     private String nameHint = "";
+    private String nameConfirm = "";
     private Consumer<String> nameAction = name -> {};
     private List<String> allScenes = List.of();
 
@@ -106,6 +108,12 @@ final class SceneTabs {
             closing = null;
             selectCurrent = true;
         }
+        if (afterSave != null && SceneLink.saveFailures() != failuresBeforeSave) {
+            afterSave = null;
+            pending = null;
+            closing = null;
+            selectCurrent = true;
+        }
         if (afterSave != null && !document.dirty()) {
             String target = afterSave;
             afterSave = null;
@@ -131,7 +139,7 @@ final class SceneTabs {
             if (ImGui.isItemHovered()) ImGui.setTooltip(scene + (scene.equals(start) ? "\nStart scene: players arrive here" : ""));
             if (ImGui.beginPopupContextItem("##tab-menu-" + scene)) {
                 if (ImGui.menuItem("Open", null, false, !scene.equals(current))) switchTo(scene);
-                if (ImGui.menuItem("Set as start scene", null, false, !scene.equals(start))) setStart(scene);
+                if (ImGui.menuItem("Set as Start Scene", null, false, !scene.equals(start))) setStart(scene);
                 if (ImGui.menuItem("Close", null, false, tabs.size() > 1)) close(scene);
                 ImGui.endPopup();
             }
@@ -145,8 +153,8 @@ final class SceneTabs {
         if (ImGui.tabItemButton("+##scene-add", ImGuiTabItemFlags.Trailing | ImGuiTabItemFlags.NoTooltip)) ImGui.openPopup("##scene-add-menu");
         if (ImGui.isItemHovered()) ImGui.setTooltip("New or open a scene");
         if (ImGui.beginPopup("##scene-add-menu")) {
-            if (ImGui.menuItem("New scene...")) askNew();
-            if (ImGui.menuItem("Open scene...")) askOpen();
+            if (ImGui.menuItem("New Scene...")) askNew();
+            if (ImGui.menuItem("Open Scene...")) askOpen();
             ImGui.endPopup();
         }
         ImGui.endTabBar();
@@ -179,7 +187,7 @@ final class SceneTabs {
     }
 
     void askNew() {
-        openNameDialog("New scene", "Level 2", "Saved in scenes/ as a .scene file", name -> {
+        openNameDialog("New scene", "Create", "Level 2", "Saved in scenes/ as a .scene file", name -> {
             Path root = ClientPlace.root();
             if (root == null) return;
             try {
@@ -202,7 +210,7 @@ final class SceneTabs {
     }
 
     void askSaveAs() {
-        openNameDialog("Save scene as", name(current) + " copy", "A copy is written and opened, the original stays as it was saved", name -> {
+        openNameDialog("Save scene as", "Save", name(current) + " copy", "A copy is written and opened, the original stays as it was saved", name -> {
             Path root = ClientPlace.root();
             if (root == null) return;
             Path currentFile = root.resolve(Res.parse(current));
@@ -279,13 +287,15 @@ final class SceneTabs {
         if (Dialogs.primaryButton("Save##switch-save", true)) {
             ImGui.closeCurrentPopup();
             afterSave = target.isEmpty() ? null : target;
+            failuresBeforeSave = SceneLink.saveFailures();
             document.save();
         }
         Dialogs.end();
     }
 
-    private void openNameDialog(String title, String initial, String hint, Consumer<String> action) {
+    private void openNameDialog(String title, String confirm, String initial, String hint, Consumer<String> action) {
         nameTitle = title;
+        nameConfirm = confirm;
         nameHint = hint;
         nameInput.set(initial);
         nameAction = action;
@@ -308,7 +318,7 @@ final class SceneTabs {
         Dialogs.alignFooter(2);
         if (Dialogs.button("Cancel##scene-name-cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
         ImGui.sameLine();
-        if ((Dialogs.primaryButton("OK##scene-name-ok", valid) || submitted) && valid) {
+        if ((Dialogs.primaryButton(nameConfirm + "##scene-name-ok", valid) || submitted) && valid) {
             ImGui.closeCurrentPopup();
             nameAction.accept(nameInput.get());
         }

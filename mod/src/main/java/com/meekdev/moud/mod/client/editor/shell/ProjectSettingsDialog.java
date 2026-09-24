@@ -27,6 +27,7 @@ import com.meekdev.moud.mod.place.Output;
 import com.meekdev.moud.mod.place.PlaceToml;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiFocusedFlags;
 import imgui.flag.ImGuiKey;
 import imgui.type.ImInt;
 import imgui.type.ImString;
@@ -152,7 +153,8 @@ final class ProjectSettingsDialog {
         else if (needsReopen) Texts.muted("Saved. Entry scripts and the start scene apply when the place reopens.");
         else Texts.muted("Features apply as soon as you save.");
         Dialogs.alignFooter(needsReopen ? 3 : 2);
-        if (Dialogs.button("Close##settings-close") || ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
+        boolean escaped = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows) && ImGui.isKeyPressed(ImGuiKey.Escape);
+        if (Dialogs.button("Close##settings-close") || escaped) ImGui.closeCurrentPopup();
         if (needsReopen) {
             ImGui.sameLine();
             if (Dialogs.button("Reopen##settings-reopen")) {

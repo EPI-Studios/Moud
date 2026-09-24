@@ -4,6 +4,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.editor.document.SceneLink;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
+import com.meekdev.moud.mod.client.editor.kit.Notices;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
@@ -172,7 +173,8 @@ final class WorldImportDialog {
 
     private void renderDone() {
         Dialogs.title("The world is imported");
-        Texts.wrapped(outcome.get());
+        Notices.success(outcome.get());
+        Dialogs.gap();
         Texts.wrapped(scene.equals(SceneLink.file()) ? "It is loaded around you now." : "It loads when " + name(scene) + " is opened.");
         Dialogs.gap();
         Dialogs.alignFooter(1);
@@ -184,11 +186,11 @@ final class WorldImportDialog {
 
     private void renderFailed() {
         Dialogs.title("The import stopped");
-        Texts.colored(EditorStyle.COLOR_DANGER, outcome.get());
+        Notices.danger(outcome.get());
         Texts.muted("Nothing was replaced, the scene keeps the terrain it had.");
         Dialogs.gap();
         Dialogs.alignFooter(1);
-        if (Dialogs.button("Back##world-back")) stage = Stage.PICK;
+        if (Dialogs.button("Back##world-back") || ImGui.isKeyPressed(ImGuiKey.Escape)) stage = Stage.PICK;
     }
 
     private void start(AnvilWorlds.Plan plan) {

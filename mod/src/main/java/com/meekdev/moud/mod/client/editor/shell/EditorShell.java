@@ -41,6 +41,7 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.flag.ImGuiDockNodeFlags;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
@@ -88,6 +89,7 @@ public final class EditorShell {
 
     private boolean closePrompt;
     private boolean closeAfterSave;
+    private int failuresBeforeSave;
 
     private Panels animationPanels() {
         Panels built = new Panels();
@@ -110,6 +112,7 @@ public final class EditorShell {
     }
 
     private void renderClosePrompt() {
+        if (closeAfterSave && SceneLink.saveFailures() != failuresBeforeSave) closeAfterSave = false;
         if (closeAfterSave && !document.dirty()) {
             closeAfterSave = false;
             Editor.requestCloseProject();
@@ -119,12 +122,12 @@ public final class EditorShell {
             closePrompt = false;
         }
         if (!Dialogs.begin(CLOSE_PROMPT, CLOSE_PROMPT_WIDTH)) return;
-        Dialogs.title("Save the scene before closing?");
+        Dialogs.title("Save changes before closing?");
         if (document.dirty()) Texts.muted(SceneLink.file() + " has changes that are not saved.");
         if (animation.anyDirty()) Texts.muted("Some animation clips have changes that are not saved.");
         Dialogs.gap();
         Dialogs.alignFooter(3);
-        if (Dialogs.button("Cancel##close-cancel")) ImGui.closeCurrentPopup();
+        if (Dialogs.button("Cancel##close-cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
         ImGui.sameLine();
         if (Dialogs.button("Don't save##close-discard")) {
             ImGui.closeCurrentPopup();
@@ -134,6 +137,7 @@ public final class EditorShell {
         if (Dialogs.primaryButton("Save##close-save", true)) {
             ImGui.closeCurrentPopup();
             closeAfterSave = true;
+            failuresBeforeSave = SceneLink.saveFailures();
             animation.saveAll();
             if (document.dirty()) document.save();
         }
@@ -369,10 +373,12 @@ public final class EditorShell {
     private void renderPlayControls() {
         Toolbars.groupSeparator();
         boolean animating = animation.active();
+        ImGui.beginDisabled(!hasWorld());
         ToggleStyle.push(animating);
         boolean toggled = Toolbars.textButton("Animation##toolbar-animation");
         ToggleStyle.pop(animating);
-        if (toggled && document.world() != null) toggleAnimation();
+        ImGui.endDisabled();
+        if (toggled) toggleAnimation();
         tooltip("Animation editor (Ctrl+Shift+A)");
         float leftEdge = ImGui.getCursorPosX();
         float centered = (ImGui.getWindowWidth() - playGroupWidth()) * 0.5f;
@@ -384,10 +390,13 @@ public final class EditorShell {
         ImGui.sameLine();
         ImGui.beginDisabled(true);
         icons.iconButton("toolbar-pause", EditorIcon.PAUSE, EditorStyle.iconSizeToolbar());
+        tooltip("Pause");
         ImGui.sameLine();
         icons.iconButton("toolbar-step", EditorIcon.REDO, EditorStyle.iconSizeToolbar());
+        tooltip("Step one frame");
         ImGui.sameLine();
         icons.iconButton("toolbar-stop", EditorIcon.STOP, EditorStyle.iconSizeToolbar());
+        tooltip("Stop");
         ImGui.endDisabled();
     }
 
@@ -400,7 +409,7 @@ public final class EditorShell {
     }
 
     private static void tooltip(String text) {
-        if (ImGui.isItemHovered()) ImGui.setTooltip(text);
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) ImGui.setTooltip(text);
     }
 
     private void renderHostWindow() {
@@ -446,14 +455,15 @@ public final class EditorShell {
                     || message.startsWith("restored") || message.startsWith("loaded");
             Texts.colored(good ? EditorStyle.COLOR_SUCCESS : EditorStyle.COLOR_DANGER, message);
         }
-        String importing = worldImport.status();
-        if (importing != null) {
+        for (String running : new String[] {worldImport.status(), export.status()}) {
+            if (running == null) continue;
             ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
-            Texts.colored(EditorStyle.COLOR_ACCENT, importing);
+            Texts.colored(EditorStyle.COLOR_ACCENT, running);
         }
         ImGui.sameLine(0.0f, EditorScale.of(STATUS_GAP));
         Instance world = document.world();
-        Texts.muted((world == null ? 0 : count(world) - 1) + " instances");
+        int instances = world == null ? 0 : count(world) - 1;
+        Texts.muted(instances + (instances == 1 ? " instance" : " instances"));
         String fps = String.format(Locale.ROOT, "%.0f FPS", ImGui.getIO().getFramerate());
         ImGui.sameLine(ImGui.getWindowWidth() - ImGui.calcTextSizeX(fps) - EditorStyle.windowPadding());
         Texts.colored(EditorStyle.COLOR_ACCENT, fps);

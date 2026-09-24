@@ -10,9 +10,11 @@ import com.meekdev.moud.mod.client.editor.kit.EmptyStates;
 import com.meekdev.moud.mod.client.editor.kit.SearchField;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import imgui.ImGui;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiSelectableFlags;
 import imgui.type.ImString;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -103,10 +105,9 @@ public final class FileBrowser {
         ImGui.sameLine();
         renderBreadcrumb();
         ImGui.sameLine();
-        ImGui.setCursorPosX(EditorScale.of(WIDTH - PLACES_WIDTH));
-        SearchField.render("##file-browser-search",
-                "Filter", search,
-                EditorScale.of(PLACES_WIDTH) - ImGui.getStyle().getWindowPaddingX());
+        float searchWidth = EditorScale.of(PLACES_WIDTH);
+        ImGui.setCursorPosX(Math.max(ImGui.getCursorPosX(), ImGui.getContentRegionMaxX() - searchWidth));
+        SearchField.render("##file-browser-search", "Filter", search, searchWidth);
     }
 
     private void renderBreadcrumb() {
@@ -207,7 +208,7 @@ public final class FileBrowser {
         Texts.muted(chosenPath(active).map(Path::toString)
                 .orElseGet(() -> "Nothing selected"));
         Dialogs.alignFooter(2);
-        if (Dialogs.button(Text.label("Cancel", "file-browser-cancel"))) {
+        if (Dialogs.button(Text.label("Cancel", "file-browser-cancel")) || ImGui.isKeyPressed(ImGuiKey.Escape)) {
             dismiss();
         }
         ImGui.sameLine();
@@ -220,9 +221,9 @@ public final class FileBrowser {
 
     private Optional<Path> chosenPath(FileBrowserSession active) {
         if (!active.foldersOnly()) {
-            return selected.filter(path -> !java.nio.file.Files.isDirectory(path));
+            return selected.filter(path -> !Files.isDirectory(path));
         }
-        return Optional.of(selected.filter(java.nio.file.Files::isDirectory)
+        return Optional.of(selected.filter(Files::isDirectory)
                 .orElseGet(listing::directory));
     }
 

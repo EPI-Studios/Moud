@@ -13,6 +13,7 @@ import com.meekdev.moud.mod.client.editor.kit.Notices;
 import com.meekdev.moud.mod.client.editor.kit.Sections;
 import com.meekdev.moud.mod.client.editor.kit.SegmentedControl;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
+import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.place.GameExport;
@@ -20,6 +21,7 @@ import com.meekdev.moud.mod.place.Languages;
 import com.meekdev.moud.mod.place.Output;
 import com.meekdev.moud.mod.place.PlaceExport;
 import imgui.ImDrawList;
+import imgui.ImFont;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiKey;
@@ -34,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.SharedConstants;
+import org.jspecify.annotations.Nullable;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
@@ -103,6 +106,10 @@ final class ExportDialog {
         Texts.muted("One jar that is the whole game, without the editor.");
         Dialogs.gap();
         renderCard(root);
+        if (document.dirty()) {
+            Dialogs.gap();
+            Notices.warning("The open scene has unsaved changes, they are left out.");
+        }
         Dialogs.gap();
         renderChecks(root);
         Dialogs.gap();
@@ -149,10 +156,11 @@ final class ExportDialog {
         float pad = EditorScale.of(14);
         ImGui.setCursorScreenPos(left + pad, top + pad);
         ImGui.beginGroup();
-        ImGui.setWindowFontScale(1.35f);
+        ImFont heading = EditorFonts.heading();
+        if (heading != null) ImGui.pushFont(heading, EditorScale.of(EditorFonts.HEADING));
         ImGui.textUnformatted(config.name());
-        ImGui.setWindowFontScale(1f);
-        Texts.muted(config.id() + "  ·  version " + config.version() + (document.dirty() ? "  ·  the open scene has unsaved changes, they are left out" : ""));
+        if (heading != null) ImGui.popFont();
+        Texts.muted(config.id() + "  ·  version " + config.version());
         ImGui.endGroup();
         float button = Dialogs.buttonWidth() * 1.3f;
         ImGui.setCursorScreenPos(left + width - pad - button, top + (height - ImGui.getFrameHeight()) / 2);
@@ -262,7 +270,7 @@ final class ExportDialog {
         Texts.muted("Nothing was written.");
         footer();
         Dialogs.alignFooter(1);
-        if (Dialogs.button("Back##export-back")) stage = Stage.REVIEW;
+        if (Dialogs.button("Back##export-back") || ImGui.isKeyPressed(ImGuiKey.Escape)) stage = Stage.REVIEW;
     }
 
     private static void chips(List<String> labels) {
@@ -368,5 +376,11 @@ final class ExportDialog {
 
     boolean running() {
         return stage == Stage.RUNNING;
+    }
+
+    @Nullable String status() {
+        if (stage != Stage.RUNNING) return null;
+        GameExport.Progress now = progress.get();
+        return now == null || now.total() == 0 ? "Exporting" : "Exporting " + now.done() + "/" + now.total();
     }
 }
