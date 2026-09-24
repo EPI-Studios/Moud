@@ -20,7 +20,10 @@ final class UiText {
     private UiText() {}
 
     static GuiLayout.Size bounds(TextLabel label, double wrapWidth) {
-        float px = (float) label.textSize;
+        return bounds(label, wrapWidth, (float) label.textSize);
+    }
+
+    static GuiLayout.Size bounds(TextLabel label, double wrapWidth, float px) {
         String font = GuiLayout.font(label);
         if (label.richText && !(label instanceof TextBox)) {
             float width = Double.isInfinite(wrapWidth) ? 100_000f : (float) wrapWidth;

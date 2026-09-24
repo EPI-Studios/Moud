@@ -198,7 +198,7 @@ public final class Ui {
         Iterator<Map.Entry<Instance, Placed>> placed = PLACED.entrySet().iterator();
         while (placed.hasNext()) {
             Map.Entry<Instance, Placed> entry = placed.next();
-            if (!entry.getKey().isAlive() || entry.getKey().tree() != tree) {
+            if (!entry.getKey().isAlive() || entry.getKey().tree() != tree || Instance.outOfWorld(entry.getKey())) {
                 if (entry.getValue().surface() != null) {
                     HOVERS.remove(entry.getValue().surface());
                     entry.getValue().surface().remove();
@@ -394,7 +394,7 @@ public final class Ui {
         rightWasDown = right;
     }
 
-    private static void track(Object key, Widget root, float x, float y) {
+    static void track(Object key, Widget root, float x, float y) {
         Hover hover = HOVERS.computeIfAbsent(key, k -> new Hover());
         List<Node> under = new ArrayList<>();
         if (x >= 0 && y >= 0) collect(root, x, y, under);
@@ -426,13 +426,13 @@ public final class Ui {
         }
     }
 
-    private static List<Node> chain(Widget root, float x, float y) {
+    static List<Node> chain(Widget root, float x, float y) {
         List<Node> under = new ArrayList<>();
         collect(root, x, y, under);
         return under.reversed();
     }
 
-    private static boolean fire(List<Node> chain, Function<GuiObject, Signal<Object[]>> signal, float x, float y) {
+    static boolean fire(List<Node> chain, Function<GuiObject, Signal<Object[]>> signal, float x, float y) {
         for (Node node : chain) {
             if (!(node.source instanceof GuiObject object) || !object.isAlive()) continue;
             signal.apply(object).fire(new Object[] {(double) x, (double) y});
@@ -506,7 +506,11 @@ public final class Ui {
         return true;
     }
 
-    private static int layoutKey(int key, int scancode) {
+    static void forgetHover(Object key) {
+        HOVERS.remove(key);
+    }
+
+    static int layoutKey(int key, int scancode) {
         if (key < GLFW.GLFW_KEY_A || key > GLFW.GLFW_KEY_Z) return key;
         String name = GLFW.glfwGetKeyName(key, scancode);
         if (name == null || name.length() != 1) return key;
@@ -574,6 +578,7 @@ public final class Ui {
             for (Widget child : new ArrayList<>(hud.root().children())) hud.root().removeChild(child);
         }
         UiFonts.forget();
+        UiImages.forget();
         built = null;
         epoch = -1;
         capturing = false;

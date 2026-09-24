@@ -72,6 +72,7 @@ final class Node extends Widget {
     private float[] editLefts = new float[0];
     private float editTop;
     private float editLine = 9;
+    private float editPx = 9;
     private float pressX;
     private float pressY;
     private Vector3 pressCanvas = Vector3.ZERO;
@@ -86,7 +87,10 @@ final class Node extends Widget {
         children().sort((a, b) -> Integer.compare(z(a), z(b)));
         GuiLayout.Box self = source instanceof ScreenGui screen ? designed(screen) : new GuiLayout.Box(x, y, w, h);
         if (source instanceof TextLabel label) {
-            GuiLayout.Size bounds = UiText.bounds(label, GuiLayout.wraps(label) ? w : Double.POSITIVE_INFINITY);
+            double wrap = GuiLayout.wraps(label) ? w : Double.POSITIVE_INFINITY;
+            GuiLayout.Size bounds = label.textScaled && !(label.richText && !(label instanceof TextBox))
+                    ? UiText.bounds(label, wrap, textPx(UiFonts.of(GuiLayout.font(label)), label))
+                    : UiText.bounds(label, wrap);
             boundsW = (float) bounds.w();
             boundsH = (float) bounds.h();
         }
@@ -161,7 +165,6 @@ final class Node extends Widget {
         if (seeThrough()) return null;
         Widget hit = super.hitTest(mx, my);
         if (hit != null || !(source instanceof Slider) || !isVisible()) return hit;
-        // the grabber pokes out of a thin bar, so it can be caught past the bar's edges
         float s = Math.max(scaleValue(), 1e-4f);
         float lx = x + w * 0.5f + (mx - x - w * 0.5f - translateXValue()) / s;
         float ly = y + h * 0.5f + (my - y - h * 0.5f - translateYValue()) / s;
@@ -184,7 +187,6 @@ final class Node extends Widget {
         this.alpha = alpha;
         clipped = false;
         if (!(source instanceof GuiObject object)) return;
-        // a size a script divided by zero must not take the whole interface down with it
         if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(w) || !Float.isFinite(h)) return;
         if (source instanceof CanvasGroup group) {
             float density = onScreen() ? (float) Minecraft.getInstance().getWindow().getGuiScale() : 2f;
@@ -369,7 +371,7 @@ final class Node extends Widget {
         UiFonts.Face face = UiFonts.of(GuiLayout.font(label));
         Identifier previous = d.currentFont();
         if (face instanceof UiFonts.Vector vector) d.font(vector.font());
-        float px = label.textScaled ? scaled(face, label.text, (float) label.textSize) : (float) label.textSize;
+        float px = textPx(face, label);
         List<UiText.Line> lines = UiText.lines(face, label.text, px, GuiLayout.wraps(label) ? w : Double.POSITIVE_INFINITY);
         float line = UiText.lineHeight(face, px);
         float top = top(label, line * lines.size());
@@ -441,6 +443,12 @@ final class Node extends Widget {
         };
     }
 
+    private float textPx(UiFonts.Face face, TextLabel label) {
+        if (!label.textScaled) return (float) label.textSize;
+        String basis = label instanceof TextBox box && label.text.isEmpty() ? box.placeholderText : label.text;
+        return scaled(face, basis, (float) label.textSize);
+    }
+
     private float scaled(UiFonts.Face face, String text, float base) {
         String[] lines = text.split("\n", -1);
         float widest = 0;
@@ -467,7 +475,8 @@ final class Node extends Widget {
         UiFonts.Face face = UiFonts.of(GuiLayout.font(box));
         Identifier previous = d.currentFont();
         if (face instanceof UiFonts.Vector vector) d.font(vector.font());
-        float px = (float) box.textSize;
+        float px = textPx(face, box);
+        editPx = px;
         String text = box.text;
         editLine = UiText.lineHeight(face, px);
         editLines = box.multiLine ? UiText.lines(face, text, px, GuiLayout.wraps(box) ? w : Double.POSITIVE_INFINITY)
@@ -529,7 +538,7 @@ final class Node extends Widget {
         int n = Math.clamp((int) Math.floor((my - editTop) / editLine), 0, editLines.size() - 1);
         UiText.Line line = editLines.get(n);
         UiFonts.Face face = UiFonts.of(GuiLayout.font(box));
-        float px = (float) box.textSize;
+        float px = editPx;
         float left = editLefts[n];
         int best = Math.min(line.start(), box.text.length());
         float nearest = Math.abs(mx - left);

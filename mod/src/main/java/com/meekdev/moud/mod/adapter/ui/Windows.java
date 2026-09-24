@@ -64,8 +64,9 @@ public final class Windows {
         boolean passthrough;
         boolean resizable;
         double opacity = -1;
-        float mouseX;
-        float mouseY;
+        float mouseX = -1;
+        float mouseY = -1;
+        boolean inside;
         boolean dragging;
         long keptAt;
         boolean closeAsked;
@@ -138,7 +139,10 @@ public final class Windows {
         for (Open open : new ArrayList<>(OPEN.values())) {
             try {
                 sync(open);
-                if (OPEN.containsKey(open.source)) draw(open);
+                if (!OPEN.containsKey(open.source)) continue;
+                draw(open);
+                boolean pointed = open.visible && open.inside && open.mouseX >= 0 && open.mouseY >= 0;
+                Ui.track(open, open.root, pointed ? open.mouseX : -1, pointed ? open.mouseY : -1);
             } catch (RuntimeException e) {
                 MoudMod.LOG.error("window {} failed and was closed", open.source.title, e);
                 Instances.destroy(open.source);
@@ -196,10 +200,22 @@ public final class Windows {
             float scale = scale(open.handle);
             open.mouseX = (float) (x / scale);
             open.mouseY = (float) (y / scale);
+            open.inside = true;
             open.input.mouseMoved(open.mouseX, open.mouseY);
             if (open.dragging) open.input.mouseDragged(open.mouseX, open.mouseY);
         });
+        GLFW.glfwSetCursorEnterCallback(open.handle, (handle, entered) -> {
+            open.inside = entered;
+            if (!entered && !open.dragging) open.input.mouseMoved(-1, -1);
+        });
         GLFW.glfwSetMouseButtonCallback(open.handle, (handle, button, action, mods) -> {
+            List<Node> chain = Ui.chain(open.root, open.mouseX, open.mouseY);
+            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && action != GLFW.GLFW_REPEAT) {
+                boolean down = action == GLFW.GLFW_PRESS;
+                Ui.fire(chain, object -> down ? object.mouseButton1Down : object.mouseButton1Up, open.mouseX, open.mouseY);
+            } else if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && action == GLFW.GLFW_RELEASE) {
+                Ui.fire(chain, object -> object.mouseButton2Click, open.mouseX, open.mouseY);
+            }
             if (action == GLFW.GLFW_PRESS) {
                 open.dragging = open.input.mouseDown(open.mouseX, open.mouseY, button);
             } else if (action == GLFW.GLFW_RELEASE) {
@@ -207,9 +223,15 @@ public final class Windows {
                 open.input.mouseUp(open.mouseX, open.mouseY, button);
             }
         });
-        GLFW.glfwSetScrollCallback(open.handle, (handle, dx, dy) -> open.input.scroll(open.mouseX, open.mouseY, (float) dy));
+        GLFW.glfwSetScrollCallback(open.handle, (handle, dx, dy) -> {
+            if (dy != 0) {
+                Ui.fire(Ui.chain(open.root, open.mouseX, open.mouseY), object -> dy > 0 ? object.mouseWheelForward : object.mouseWheelBackward,
+                        open.mouseX, open.mouseY);
+            }
+            open.input.scroll(open.mouseX, open.mouseY, (float) dy);
+        });
         GLFW.glfwSetKeyCallback(open.handle, (handle, key, scancode, action, mods) -> {
-            if (action != GLFW.GLFW_RELEASE) open.input.keyPressed(key, mods);
+            if (action != GLFW.GLFW_RELEASE) open.input.keyPressed(Ui.layoutKey(key, scancode), mods);
         });
         GLFW.glfwSetCharCallback(open.handle, (handle, codepoint) -> open.input.charTyped(codepoint));
         GLFW.glfwSetWindowCloseCallback(open.handle, handle -> open.closeAsked = true);
@@ -302,7 +324,7 @@ public final class Windows {
         float scale = scale(open.handle);
         float mx = (float) (cx[0] / scale);
         float my = (float) (cy[0] / scale);
-        return node.isVisible() && mx >= node.x && my >= node.y && mx < node.x + node.w && my < node.y + node.h;
+        return node.isVisible() && node.contains(mx, my);
     }
 
     private static void claimGui(Open open) {
@@ -400,6 +422,7 @@ public final class Windows {
         if (open == null) return;
         OPEN.remove(open.source);
         BY_HANDLE.remove(open.handle);
+        Ui.forgetHover(open);
         if (open.gui != null) {
             open.root.removeChild(open.gui);
             Ui.invalidate();

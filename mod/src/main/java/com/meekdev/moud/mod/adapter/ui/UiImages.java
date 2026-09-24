@@ -67,6 +67,12 @@ public final class UiImages {
         return gl;
     }
 
+    static void forget() {
+        KNOWN.clear();
+        NEAREST.clear();
+        FILTERED.clear();
+    }
+
     private static @Nullable Identifier resolve(String src) {
         if (src.startsWith(Res.SCHEME)) {
             Path root = ClientPlace.root();
