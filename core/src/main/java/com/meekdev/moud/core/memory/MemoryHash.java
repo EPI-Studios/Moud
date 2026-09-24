@@ -3,6 +3,7 @@ package com.meekdev.moud.core.memory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.function.DoubleSupplier;
 import java.util.function.UnaryOperator;
@@ -12,7 +13,7 @@ public final class MemoryHash {
     private record Entry(String value, double expires) {}
 
     private final DoubleSupplier now;
-    private final Map<String, Entry> entries = new TreeMap<>();
+    private final NavigableMap<String, Entry> entries = new TreeMap<>();
     private double swept;
 
     MemoryHash(DoubleSupplier now) {
@@ -45,14 +46,16 @@ public final class MemoryHash {
         entries.remove(key);
     }
 
-    public synchronized List<String> keys(int limit) {
-        sweep(now.getAsDouble(), true);
-        List<String> out = new ArrayList<>();
-        for (String key : entries.keySet()) {
-            if (out.size() >= limit) break;
-            out.add(key);
+    public synchronized List<String> keys(int limit, String after) {
+        double at = now.getAsDouble();
+        sweep(at, false);
+        Map<String, Entry> page = after == null ? entries : entries.tailMap(after, false);
+        List<String> keys = new ArrayList<>();
+        for (Map.Entry<String, Entry> entry : page.entrySet()) {
+            if (keys.size() >= limit) break;
+            if (entry.getValue().expires > at) keys.add(entry.getKey());
         }
-        return out;
+        return keys;
     }
 
     public synchronized int size() {

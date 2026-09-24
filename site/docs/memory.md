@@ -62,13 +62,34 @@ print(locks:list(50))
 | `set(key, value, expiration)` | writes the value. Returns `true` |
 | `update(key, transform, expiration)` | calls `transform(old)` with the value or `nil`, and writes what it returns. Returns the new value |
 | `remove(key)` | deletes the key. Removing a key that is not there is fine |
-| `list(pageSize?)` | the keys, in alphabetical order, up to `pageSize` of them. 1 to 1000, default 1000 |
+| `list(pageSize?, after?)` | the keys that come after `after`, in alphabetical order, up to `pageSize` of them. 1 to 1000, default 1000 |
 
 - If `transform` returns `nil`, nothing is written and `update` returns `nil`. Use that to leave the
   value as it is.
-- `list` returns only the first page. There is no next page, so a map with more than 1000 keys cannot
-  be listed whole.
 - Hash maps have no size call.
+
+### Listing every key
+
+`list` reads one page. Pass the last key of a page as `after` to read the next one. A page with fewer
+than `pageSize` keys is the last.
+
+```lua
+local after = nil
+repeat
+    local page = locks:list(100, after)
+    for _, key in page do
+        print(key)
+    end
+    after = page[#page]
+until #page < 100
+```
+
+- A key that is there the whole time is listed once, even when other keys are written, removed or
+  expire between two pages.
+- A key written during the walk is listed if it comes after the last page read, and left out if it
+  comes before.
+- `after` does not have to be a key that exists. `list(100, "m")` starts at the first key after
+  `"m"`.
 
 ## Sorted maps
 
@@ -124,6 +145,7 @@ local last = page[#page]
 local following = scores:getRange("ascending", 100, { key = last.key, sortKey = last.sortKey })
 ```
 
+- Going `"descending"`, use the last row of a page as the upper bound of the next page instead.
 - A bound with only a `sortKey` leaves out every key with that sort key.
 - A bound with only a `key` counts as having no sort key, so it sits among the keys with none. As a
   lower bound it leaves out every key that has a sort key.

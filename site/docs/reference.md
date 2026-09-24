@@ -3400,7 +3400,7 @@ Methods:
 - `set(key: string, value: any, expiration: number): boolean`
 - `update(key: string, transform: (old: any?) -> any?, expiration: number): any?`
 - `remove(key: string): ()`
-- `list(pageSize: number?): { string }`
+- `list(pageSize: number?, after: string?): { string }`
 
 ## MemorySortedMap
 

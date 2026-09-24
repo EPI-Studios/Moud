@@ -80,10 +80,11 @@ public final class MemoryLibrary {
                     stores(host).hash(name).remove(key(a, 1));
                     return null;
                 })
-                .method("list", "(pageSize: number?) -> { string }", a -> {
+                .method("list", "(pageSize: number?, after: string?) -> { string }", a -> {
                     int size = a.integer(1, MOST_KEYS);
                     if (size < 1 || size > MOST_KEYS) throw new HostError("list takes a page of 1 to %d keys", MOST_KEYS);
-                    return new ArrayList<Object>(stores(host).hash(name).keys(size));
+                    String after = a.string(2, null);
+                    return new ArrayList<Object>(stores(host).hash(name).keys(size, after));
                 });
     }
 
