@@ -189,16 +189,20 @@ public final class NavMeshes {
         int perBlock = Math.round(1 / CELL);
         int perLayer = Math.round(1 / CELL_HEIGHT);
         int ox = Math.round((config.bmin[0] - x0) / CELL), oz = Math.round((config.bmin[2] - z0) / CELL);
+        BlockShape[] column = new BlockShape[layers + 2];
         for (int x = x0; x < x1; x++) {
             for (int z = z0; z < z1; z++) {
+                for (int i = 0; i < column.length; i++) column[i] = world.block(x, base + i, z);
                 for (int i = 0; i < layers; i++) {
-                    BlockShape block = world.block(x, base + i, z);
+                    BlockShape block = column[i];
                     if (block.empty()) continue;
                     float[] b = block.boxes();
                     for (int k = 0; k + 5 < b.length; k += 6) {
                         int low = Math.max(0, (int) Math.floor((i + b[k + 1]) * perLayer + 1e-3));
                         int high = (int) Math.ceil((i + b[k + 4]) * perLayer - 1e-3);
                         if (high <= low) high = low + 1;
+                        int feet = Math.min(column.length - 1, i + (int) Math.floor(b[k + 4] + 1e-3));
+                        int area = column[feet].liquid() == BlockShape.Liquid.LAVA ? 0 : 1;
                         for (int cx = 0; cx < perBlock; cx++) {
                             float mx = (cx + 0.5f) * CELL;
                             if (mx < b[k] - 1e-3f || mx > b[k + 3] + 1e-3f) continue;
@@ -209,7 +213,7 @@ public final class NavMeshes {
                                 if (mz < b[k + 2] - 1e-3f || mz > b[k + 5] + 1e-3f) continue;
                                 int hz = (z - z0) * perBlock + cz - oz;
                                 if (hz < 0 || hz >= field.height) continue;
-                                RecastRasterization.addSpan(field, hx, hz, low, high, 1, CONFIG.walkableClimb);
+                                RecastRasterization.addSpan(field, hx, hz, low, high, area, CONFIG.walkableClimb);
                             }
                         }
                     }

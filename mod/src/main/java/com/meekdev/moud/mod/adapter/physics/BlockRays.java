@@ -15,12 +15,14 @@ import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -116,13 +118,15 @@ public final class BlockRays implements BlockRef {
         BlockPos pos = new BlockPos(x, y, z);
         BlockState state = in.getBlockState(pos);
         if (state.isAir()) return BlockShape.AIR;
-        if (state.hasBlockEntity()) return shapeOf(state.getCollisionShape(in, pos));
-        return shapes.computeIfAbsent(state, s -> shapeOf(s.getCollisionShape(in, pos)));
+        if (state.hasBlockEntity()) return shapeOf(state, state.getCollisionShape(in, pos));
+        return shapes.computeIfAbsent(state, s -> shapeOf(s, s.getCollisionShape(in, pos)));
     }
 
-    private static BlockShape shapeOf(VoxelShape shape) {
-        if (shape.isEmpty()) return BlockShape.AIR;
-        List<AABB> boxes = shape.toAabbs();
+    private static BlockShape shapeOf(BlockState state, VoxelShape shape) {
+        FluidState fluid = state.getFluidState();
+        BlockShape.Liquid liquid = fluid.isEmpty() ? BlockShape.Liquid.NONE
+                : fluid.is(FluidTags.LAVA) ? BlockShape.Liquid.LAVA : BlockShape.Liquid.WATER;
+        List<AABB> boxes = shape.isEmpty() ? List.of() : shape.toAabbs();
         double[] flat = new double[boxes.size() * 6];
         int n = 0;
         for (AABB box : boxes) {
@@ -133,7 +137,7 @@ public final class BlockRays implements BlockRef {
             flat[n++] = box.maxY;
             flat[n++] = box.maxZ;
         }
-        return BlockShape.of(flat);
+        return BlockShape.of(liquid, flat);
     }
 
     @Override

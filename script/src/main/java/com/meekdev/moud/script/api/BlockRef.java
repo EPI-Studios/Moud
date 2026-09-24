@@ -31,6 +31,9 @@ public interface BlockRef {
     }
 
     default BlockShape shape(int x, int y, int z) {
+        String id = id(x, y, z);
+        if (id.equals("minecraft:lava")) return BlockShape.LAVA;
+        if (id.equals("minecraft:water")) return BlockShape.WATER;
         return solid(x, y, z) ? BlockShape.SOLID : BlockShape.AIR;
     }
 
