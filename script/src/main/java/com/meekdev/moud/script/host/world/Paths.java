@@ -11,37 +11,154 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.nav.Agent;
 import com.meekdev.moud.core.nav.BlockShape;
 import com.meekdev.moud.core.nav.NavMeshes;
+import com.meekdev.moud.core.nav.Route;
 import com.meekdev.moud.core.nav.Walkers;
+import com.meekdev.moud.core.nav.Waypoint;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Queries;
 import com.meekdev.moud.script.api.BlockRef;
 import com.meekdev.moud.script.host.Args;
 import com.meekdev.moud.script.host.Host;
+import com.meekdev.moud.script.host.HostObject;
+import com.meekdev.moud.script.host.HostSignal;
 import com.meekdev.moud.script.host.Members;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Predicate;
 
 public final class Paths {
 
     private static final Random RANDOM = new Random();
-    private static final Map<Instance, NavMeshes> MESHES = new WeakHashMap<>();
+    private static final Map<Instance, Map<Agent.Shape, NavMeshes>> MESHES = new WeakHashMap<>();
+    private static final double RECHECK = 0.25;
 
     private Paths() {}
 
-    private static NavMeshes mesh(Instance world) {
-        return MESHES.computeIfAbsent(world, w -> new NavMeshes());
+    private static NavMeshes mesh(Instance world, Agent agent) {
+        return MESHES.computeIfAbsent(world, w -> new HashMap<>()).computeIfAbsent(agent.shape(), NavMeshes::new);
+    }
+
+    private static final class Path implements HostObject {
+
+        private static final Members METHODS = new Members("Path")
+                .declare("status", "PathStatus")
+                .declare("blocked", "PathBlockedSignal")
+                .declare("unblocked", "PathBlockedSignal")
+                .method("compute", "(from: Vector3, to: Vector3) -> PathStatus", a -> a.self(Path.class).compute(a.vector(1), a.vector(2)))
+                .method("waypoints", "() -> { PathWaypoint }", a -> a.self(Path.class).waypoints())
+                .method("checkOcclusion", "(start: number?) -> number", a -> (double) a.self(Path.class).occluded(a.integer(1, 1)));
+
+        final Agent agent;
+        final Instance world;
+        final NavMeshes.World source;
+        final HostSignal blocked;
+        final HostSignal unblocked;
+        final Set<Character> walkers = Collections.newSetFromMap(new WeakHashMap<>());
+        Route route;
+        boolean computed;
+        int blockedAt = -1;
+
+        Path(Host host, Agent agent, NavMeshes.World source) {
+            this.agent = agent;
+            this.world = host.world();
+            this.source = source;
+            blocked = new HostSignal(host, "PathBlockedSignal", "path.blocked");
+            unblocked = new HostSignal(host, "PathBlockedSignal", "path.unblocked");
+        }
+
+        String compute(Vector3 from, Vector3 to) {
+            route = mesh(world, agent).route(source, from, to, agent);
+            computed = true;
+            blockedAt = -1;
+            for (Character body : new ArrayList<>(walkers)) {
+                if (!Walkers.walking(body, this)) {
+                    walkers.remove(body);
+                } else if (route.found()) {
+                    Walkers.walkAlong(body, new ArrayList<>(route.ahead()), agent, this);
+                } else {
+                    Walkers.stop(body);
+                }
+            }
+            return status();
+        }
+
+        String status() {
+            if (!computed) return "notComputed";
+            return switch (route.status()) {
+                case SUCCESS -> "success";
+                case CLOSEST -> "closest";
+                case NO_PATH -> "noPath";
+                case TOO_FAR -> "tooFar";
+            };
+        }
+
+        List<Object> waypoints() {
+            List<Object> out = new ArrayList<>();
+            if (route == null) return out;
+            for (Waypoint waypoint : route.waypoints()) {
+                Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("position", waypoint.position());
+                entry.put("action", waypoint.action().name().toLowerCase());
+                if (waypoint.label() != null) entry.put("label", waypoint.label());
+                out.add(entry);
+            }
+            return out;
+        }
+
+        int occluded(int start) {
+            if (route == null || route.waypoints().size() < 2) return -1;
+            int first = Math.clamp(start, 1, route.waypoints().size()) - 1;
+            List<Vector3> ahead = new ArrayList<>();
+            for (int i = first + 1; i < route.waypoints().size(); i++) ahead.add(route.waypoints().get(i).position());
+            if (ahead.isEmpty()) return -1;
+            int hit = mesh(world, agent).blocked(source, route.waypoints().get(first).position(), ahead, agent);
+            return hit < 0 ? -1 : first + hit + 2;
+        }
+
+        void watch() {
+            if (route == null || !route.found() || blocked.count() + unblocked.count() == 0) return;
+            int now = occluded(1);
+            if (now == blockedAt) return;
+            int was = blockedAt;
+            blockedAt = now;
+            if (was > 0) unblocked.fire((double) was);
+            if (now > 0) blocked.fire((double) now);
+        }
+
+        @Override
+        public String typeName() {
+            return "Path";
+        }
+
+        @Override
+        public Object get(String key) {
+            return switch (key) {
+                case "status" -> status();
+                case "blocked" -> blocked;
+                case "unblocked" -> unblocked;
+                default -> METHODS.get(key);
+            };
+        }
     }
 
     private static Predicate<Part> ground() {
         Queries.Filter solid = new Queries.Filter(List.of(), false, true, null, null, null, Classes.PART);
-        return part -> solid.test(part)
-                && !(part.parent() instanceof Character) && !(part.parent() != null && part.parent().parent() instanceof Character);
+        return part -> solid.test(part) && !insideBody(part);
+    }
+
+    private static boolean insideBody(Part part) {
+        return part.parent() instanceof Character || part.parent() != null && part.parent().parent() instanceof Character;
     }
 
     private static NavMeshes.World source(Host host) {
@@ -67,54 +184,92 @@ public final class Paths {
     }
 
     public static void blockChanged(Instance world, int x, int y, int z) {
-        NavMeshes mesh = MESHES.get(world);
-        if (mesh != null) mesh.blockChanged(x, y, z);
+        Map<Agent.Shape, NavMeshes> meshes = MESHES.get(world);
+        if (meshes == null) return;
+        for (NavMeshes mesh : meshes.values()) mesh.blockChanged(x, y, z);
     }
 
     public static void install(Host host, Members game) {
         Instance world = host.world();
         if (world.tree() != null) Humanoids.ground(world.tree(), groundOf(host));
+        List<WeakReference<Path>> paths = new ArrayList<>();
         host.onClose(() -> {
             MESHES.remove(world);
+            paths.clear();
             if (world.tree() != null) Humanoids.ground(world.tree(), null);
         });
         NavMeshes.World source = source(host);
         Walkers.Finder finder = new Walkers.Finder() {
             @Override
-            public List<Vector3> find(Vector3 from, Vector3 to, boolean partial) {
-                return mesh(world).find(source, from, to, partial);
+            public Route find(Vector3 from, Vector3 to, Agent agent) {
+                return mesh(world, agent).route(source, from, to, agent);
             }
 
             @Override
-            public int blocked(Vector3 from, List<Vector3> ahead) {
-                return mesh(world).blocked(source, from, ahead);
+            public int blocked(Vector3 from, List<Vector3> ahead, Agent agent) {
+                return mesh(world, agent).blocked(source, from, ahead, agent);
             }
         };
-        host.onStep(dt -> Walkers.step(world.tree(), finder, System.nanoTime() / 1e9));
+        double[] clock = {0, 0};
+        host.onStep(dt -> {
+            clock[0] += dt;
+            Walkers.step(world.tree(), finder, clock[0]);
+            if (clock[0] - clock[1] < RECHECK) return;
+            clock[1] = clock[0];
+            paths.removeIf(held -> held.get() == null);
+            for (WeakReference<Path> held : new ArrayList<>(paths)) {
+                Path path = held.get();
+                if (path != null) path.watch();
+            }
+        });
 
-        host.api().alias("PathOptions", "{ partial: boolean? }");
-        Members path = new Members("Path")
+        host.api().alias("PathOptions", "{ partial: boolean?, radius: number?, height: number?, canJump: boolean?, "
+                + "canClimb: boolean?, spacing: number?, costs: { [string]: number }? }");
+        host.api().alias("PathAction", "\"walk\" | \"jump\" | \"climb\" | \"custom\"");
+        host.api().alias("PathStatus", "\"success\" | \"closest\" | \"noPath\" | \"tooFar\" | \"notComputed\"");
+        host.api().alias("PathWaypoint", "{ position: Vector3, action: PathAction, label: string? }");
+        host.api().declare(HostSignal.decl("PathBlockedSignal", "(index: number) -> ()"));
+        host.api().declare(Path.METHODS.decl());
+        Members service = new Members("Pathfinding")
                 .method("find", "(from: Vector3, to: Vector3, options: PathOptions?) -> { Vector3 }?", a -> {
-                    List<Vector3> found = mesh(world).find(source, a.vector(1), a.vector(2), partial(a, 3));
-                    return found == null ? null : new ArrayList<Object>(found);
+                    Agent agent = agent(a.get(3));
+                    Route route = mesh(world, agent).route(source, a.vector(1), a.vector(2), agent);
+                    return usable(route, partial(a, 3)) ? new ArrayList<Object>(route.positions()) : null;
                 })
-                .method("isReachable", "(from: Vector3, to: Vector3, options: PathOptions?) -> boolean",
-                        a -> mesh(world).find(source, a.vector(1), a.vector(2), false) != null)
+                .method("isReachable", "(from: Vector3, to: Vector3, options: PathOptions?) -> boolean", a -> {
+                    Agent agent = agent(a.get(3));
+                    return mesh(world, agent).route(source, a.vector(1), a.vector(2), agent).status() == Route.Status.SUCCESS;
+                })
                 .method("randomPointNear", "(point: Vector3, radius: number, options: PathOptions?) -> Vector3?",
-                        a -> mesh(world).randomNear(source, a.vector(1), a.number(2), RANDOM));
-        host.declare(path);
-        game.value("path", "Path", path);
+                        a -> mesh(world, agent(a.get(3))).randomNear(source, a.vector(1), a.number(2), RANDOM))
+                .method("create", "(options: PathOptions?) -> Path", a -> {
+                    Path path = new Path(host, agent(a.get(1)), source);
+                    paths.add(new WeakReference<>(path));
+                    return path;
+                });
+        host.declare(service);
+        game.value("path", "Pathfinding", service);
 
         Members bodies = host.instances().of(Classes.CHARACTER);
         bodies.method("walkTo", "(point: Vector3, options: PathOptions?) -> boolean", a -> {
             Character body = a.self(Character.class);
-            List<Vector3> found = mesh(world).find(source, Transforms.world(body).position(), a.vector(1), partial(a, 2));
-            if (found == null) return false;
-            Walkers.walk(body, found, a.vector(1), partial(a, 2));
+            Agent agent = agent(a.get(2));
+            boolean partial = partial(a, 2);
+            Route route = mesh(world, agent).route(source, Transforms.world(body).position(), a.vector(1), agent);
+            if (!usable(route, partial)) return false;
+            Walkers.walk(body, new ArrayList<>(route.ahead()), a.vector(1), agent, partial);
             return true;
         });
-        bodies.method("follow", "(target: Instance, distance: number?) -> ()", a -> {
-            Walkers.follow(a.self(Character.class), a.instance(1), a.number(2, 3));
+        bodies.method("walkAlong", "(path: Path) -> boolean", a -> {
+            Character body = a.self(Character.class);
+            if (!(a.get(1) instanceof Path path)) throw a.error("walkAlong expects a path from game.path:create");
+            if (path.route == null || !path.route.found()) return false;
+            Walkers.walkAlong(body, new ArrayList<>(path.route.ahead()), path.agent, path);
+            path.walkers.add(body);
+            return true;
+        });
+        bodies.method("follow", "(target: Instance, distance: number?, options: PathOptions?) -> ()", a -> {
+            Walkers.follow(a.self(Character.class), a.instance(1), a.number(2, 3), agent(a.get(3)));
             return null;
         });
         bodies.method("stopWalking", "() -> ()", a -> {
@@ -139,6 +294,32 @@ public final class Paths {
             face(a.self(Character.class), a.vector(1));
             return null;
         });
+    }
+
+    private static boolean usable(Route route, boolean partial) {
+        return route.status() == Route.Status.SUCCESS || partial && route.status() == Route.Status.CLOSEST;
+    }
+
+    private static Agent agent(Object options) {
+        if (!(options instanceof Map<?, ?> table)) return Agent.PLAYER;
+        Agent base = Agent.PLAYER;
+        Map<String, Double> costs = new HashMap<>();
+        if (table.get("costs") instanceof Map<?, ?> given) {
+            for (Map.Entry<?, ?> entry : given.entrySet()) {
+                if (entry.getKey() instanceof String key && entry.getValue() instanceof Number value) costs.put(key, value.doubleValue());
+            }
+        }
+        return new Agent(number(table, "radius", base.radius()), number(table, "height", base.height()),
+                flag(table, "canJump", base.canJump()), flag(table, "canClimb", base.canClimb()),
+                number(table, "spacing", base.spacing()), costs);
+    }
+
+    private static double number(Map<?, ?> table, String key, double fallback) {
+        return table.get(key) instanceof Number n ? n.doubleValue() : fallback;
+    }
+
+    private static boolean flag(Map<?, ?> table, String key, boolean fallback) {
+        return table.get(key) instanceof Boolean b ? b : fallback;
     }
 
     private static Humanoids.Ground groundOf(Host host) {

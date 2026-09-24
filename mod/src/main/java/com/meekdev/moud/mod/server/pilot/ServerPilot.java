@@ -4,6 +4,7 @@ import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.Walkers;
+import com.meekdev.moud.core.nav.Waypoint;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.ServerScene;
 import com.meekdev.moud.mod.transport.payload.PilotDownPayload;
@@ -39,14 +40,17 @@ public final class ServerPilot implements Walkers.Pilot {
     }
 
     @Override
-    public void walk(Character body, List<Vector3> waypoints) {
-        double[] flat = new double[waypoints.size() * 3];
-        for (int n = 0; n < waypoints.size(); n++) {
-            flat[n * 3] = waypoints.get(n).x();
-            flat[n * 3 + 1] = waypoints.get(n).y();
-            flat[n * 3 + 2] = waypoints.get(n).z();
+    public void walk(Character body, List<Waypoint> waypoints) {
+        double[] packed = new double[waypoints.size() * PilotDownPayload.WAYPOINT_STRIDE];
+        int written = 0;
+        for (Waypoint waypoint : waypoints) {
+            Vector3 at = waypoint.position();
+            packed[written++] = at.x();
+            packed[written++] = at.y();
+            packed[written++] = at.z();
+            packed[written++] = waypoint.action().ordinal();
         }
-        send(body, new PilotDownPayload(PilotDownPayload.WALK, flat));
+        send(body, new PilotDownPayload(PilotDownPayload.WALK, packed));
     }
 
     @Override

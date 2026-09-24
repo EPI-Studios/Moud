@@ -15,6 +15,8 @@ import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -123,21 +125,25 @@ public final class BlockRays implements BlockRef {
     }
 
     private static BlockShape shapeOf(BlockState state, VoxelShape shape) {
-        FluidState fluid = state.getFluidState();
-        BlockShape.Liquid liquid = fluid.isEmpty() ? BlockShape.Liquid.NONE
-                : fluid.is(FluidTags.LAVA) ? BlockShape.Liquid.LAVA : BlockShape.Liquid.WATER;
         List<AABB> boxes = shape.isEmpty() ? List.of() : shape.toAabbs();
-        double[] flat = new double[boxes.size() * 6];
-        int n = 0;
+        double[] corners = new double[boxes.size() * 6];
+        int written = 0;
         for (AABB box : boxes) {
-            flat[n++] = box.minX;
-            flat[n++] = box.minY;
-            flat[n++] = box.minZ;
-            flat[n++] = box.maxX;
-            flat[n++] = box.maxY;
-            flat[n++] = box.maxZ;
+            corners[written++] = box.minX;
+            corners[written++] = box.minY;
+            corners[written++] = box.minZ;
+            corners[written++] = box.maxX;
+            corners[written++] = box.maxY;
+            corners[written++] = box.maxZ;
         }
-        return BlockShape.of(liquid, flat);
+        Identifier key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+        String name = key.getNamespace().equals("minecraft") ? key.getPath() : key.toString();
+        return BlockShape.of(name, liquid(state.getFluidState()), state.is(BlockTags.CLIMBABLE), corners);
+    }
+
+    private static BlockShape.Liquid liquid(FluidState fluid) {
+        if (fluid.isEmpty()) return BlockShape.Liquid.NONE;
+        return fluid.is(FluidTags.LAVA) ? BlockShape.Liquid.LAVA : BlockShape.Liquid.WATER;
     }
 
     @Override

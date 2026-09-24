@@ -14,6 +14,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.Walkers;
+import com.meekdev.moud.core.nav.Waypoint;
 import com.meekdev.moud.core.part.Seat;
 import com.meekdev.moud.core.part.Seats;
 import com.meekdev.moud.script.host.Host;
@@ -44,7 +45,7 @@ final class HumanoidLibrary {
             Character body = body(living);
             Vector3 point = a.vector(1);
             if (body.hasPlayer()) {
-                Walkers.walk(body, List.of(point));
+                Walkers.walk(body, List.of(Waypoint.walk(point)));
             } else {
                 Humanoids.move(body, Vector3.ZERO);
                 Instances.setObj(living, Classes.HUMANOID.property("walkTo"), point);

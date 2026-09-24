@@ -205,7 +205,8 @@ public final class Humanoids {
         if (!living.walking || living.state == HumanoidState.SEATED) {
             if (character.moveSpeed != 0) Instances.setNum(character, MOVE_SPEED, 0);
             if (!steering.contains(living) && living.moveDirection.lengthSq() > 0) Instances.setObj(living, MOVE_DIRECTION, Vector3.ZERO);
-            if (living.state != HumanoidState.SEATED && !JUMPS.containsKey(character)) observe(living, HumanoidState.STANDING, 0);
+            boolean held = living.state == HumanoidState.SEATED || living.state == HumanoidState.CLIMBING;
+            if (!held && !JUMPS.containsKey(character)) observe(living, HumanoidState.STANDING, 0);
             return;
         }
 
@@ -227,10 +228,12 @@ public final class Humanoids {
         Vector3 way = flat.mul(1.0 / away);
         Vector3 moved = at.add(way.mul(step));
         boolean airborne = JUMPS.containsKey(character);
-        moved = new Vector3(moved.x(), airborne ? at.y() : at.y() + toward.y() * (step / away), moved.z());
+        double height = airborne ? at.y() : at.y() + toward.y() * (step / away);
+        moved = new Vector3(moved.x(), height, moved.z());
         Ground ground = GROUNDS.get(character.tree());
         double floor = ground == null ? Double.NaN : ground.below(moved.x(), at.y(), moved.z());
-        if (!Double.isNaN(floor) && (!airborne || floor > at.y())) {
+        boolean snapsToFloor = !airborne || floor > at.y();
+        if (!Double.isNaN(floor) && snapsToFloor) {
             double y = floor > at.y() ? Math.min(floor, at.y() + RISE * dt) : Math.max(floor, at.y() - SINK * dt);
             moved = new Vector3(moved.x(), y, moved.z());
         }
