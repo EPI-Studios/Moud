@@ -4,16 +4,19 @@ import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiKey;
 import java.util.Locale;
+import net.minecraft.client.input.InputQuirks;
 import org.jspecify.annotations.Nullable;
 
 public record Shortcut(boolean ctrl, boolean shift, boolean alt, int key, String label) {
 
+    private static final String CTRL = InputQuirks.REPLACE_CTRL_KEY_WITH_CMD_KEY ? "Cmd+" : "Ctrl+";
+
     public static Shortcut ctrl(int key, String name) {
-        return new Shortcut(true, false, false, key, "Ctrl+" + name);
+        return new Shortcut(true, false, false, key, CTRL + name);
     }
 
     public static Shortcut ctrlShift(int key, String name) {
-        return new Shortcut(true, true, false, key, "Ctrl+Shift+" + name);
+        return new Shortcut(true, true, false, key, CTRL + "Shift+" + name);
     }
 
     public static Shortcut alt(int key, String name) {
@@ -31,7 +34,7 @@ public record Shortcut(boolean ctrl, boolean shift, boolean alt, int key, String
         String[] parts = text.split("\\+");
         for (int n = 0; n < parts.length - 1; n++) {
             switch (parts[n].strip().toLowerCase(Locale.ROOT)) {
-                case "ctrl", "control" -> ctrl = true;
+                case "ctrl", "control", "cmd", "command" -> ctrl = true;
                 case "shift" -> shift = true;
                 case "alt" -> alt = true;
                 default -> {
@@ -42,7 +45,7 @@ public record Shortcut(boolean ctrl, boolean shift, boolean alt, int key, String
         String name = parts[parts.length - 1].strip().toUpperCase(Locale.ROOT);
         int key = key(name);
         if (key < 0) return null;
-        String label = (ctrl ? "Ctrl+" : "") + (shift ? "Shift+" : "") + (alt ? "Alt+" : "") + name;
+        String label = (ctrl ? CTRL : "") + (shift ? "Shift+" : "") + (alt ? "Alt+" : "") + name;
         return new Shortcut(ctrl, shift, alt, key, label);
     }
 

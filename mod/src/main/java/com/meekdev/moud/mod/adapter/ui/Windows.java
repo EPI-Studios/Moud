@@ -37,6 +37,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.InputQuirks;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.glfw.Callbacks;
 import org.lwjgl.glfw.GLFW;
@@ -159,7 +160,8 @@ public final class Windows {
         List<Long> handles = new ArrayList<>(BY_HANDLE.keySet());
         handles.add(mainHandle());
         for (long handle : handles) {
-            boolean control = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+            boolean control = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS
+                    || InputQuirks.REPLACE_CTRL_KEY_WITH_CMD_KEY && (GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SUPER) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SUPER) == GLFW.GLFW_PRESS);
             boolean shift = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
             if (control && shift && GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS) return !OPEN.isEmpty() || GLFW.glfwGetWindowAttrib(mainHandle(), GLFW.GLFW_VISIBLE) == GLFW.GLFW_FALSE;
         }
