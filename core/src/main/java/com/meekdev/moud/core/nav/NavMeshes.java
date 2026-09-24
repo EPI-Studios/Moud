@@ -162,7 +162,7 @@ public final class NavMeshes {
                 minRegion, mergeRegion, 12, 1.3f, VERTS_PER_POLY, true, 6, 1, WALKABLE);
     }
 
-    public void blockChanged(int x, int y, int z) {
+    public synchronized void blockChanged(int x, int y, int z) {
         float border = config.borderSize * CELL + 1;
         for (int tx = tile(x - border); tx <= tile(x + border); tx++) {
             for (int tz = tile(z - border); tz <= tile(z + border); tz++) {
@@ -211,7 +211,7 @@ public final class NavMeshes {
         return usable ? route.positions() : null;
     }
 
-    public Route route(World world, Vector3 from, Vector3 to, Agent agent) {
+    public synchronized Route route(World world, Vector3 from, Vector3 to, Agent agent) {
         QueryFilter filter = costs(agent);
         Route best = null;
         for (int reach = 1; ; reach += 2) {
@@ -330,7 +330,7 @@ public final class NavMeshes {
         return blocked(world, from, ahead, Agent.PLAYER);
     }
 
-    public int blocked(World world, Vector3 from, List<Vector3> ahead, Agent agent) {
+    public synchronized int blocked(World world, Vector3 from, List<Vector3> ahead, Agent agent) {
         Set<Key> wanted = new HashSet<>();
         Vector3 at = from;
         for (Vector3 point : ahead) {
@@ -413,7 +413,7 @@ public final class NavMeshes {
         return reach >= Math.max(lastX - firstX, lastZ - firstZ);
     }
 
-    public Vector3 randomNear(World world, Vector3 centre, double range, Random random) {
+    public synchronized Vector3 randomNear(World world, Vector3 centre, double range, Random random) {
         Set<Key> wanted = tilesAlong(centre, centre, (int) Math.ceil(range / TILE));
         if (wanted.size() > MAX_TILES) return null;
         prepare(world, wanted, centre, centre);
@@ -425,7 +425,7 @@ public final class NavMeshes {
         return vector(found.result.getRandomPt());
     }
 
-    public int builtTiles() {
+    public synchronized int builtTiles() {
         int n = 0;
         for (Tile t : tiles.values()) if (t.built) n++;
         return n;

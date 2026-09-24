@@ -41,18 +41,19 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 public final class Paths {
 
     private static final Random RANDOM = new Random();
-    private static final Map<Instance, Map<Agent.Shape, NavMeshes>> MESHES = new WeakHashMap<>();
+    private static final Map<Instance, Map<Agent.Shape, NavMeshes>> MESHES = Collections.synchronizedMap(new WeakHashMap<>());
     private static final double RECHECK = 0.25;
 
     private Paths() {}
 
     private static NavMeshes mesh(Instance world, Agent agent) {
-        return MESHES.computeIfAbsent(world, w -> new HashMap<>()).computeIfAbsent(agent.shape(), NavMeshes::new);
+        return MESHES.computeIfAbsent(world, w -> new ConcurrentHashMap<>()).computeIfAbsent(agent.shape(), NavMeshes::new);
     }
 
     private static final class Path implements HostObject {
@@ -123,13 +124,16 @@ public final class Paths {
         }
 
         int occluded(int start) {
-            if (route == null || route.waypoints().size() < 2) return -1;
-            int first = Math.clamp(start, 1, route.waypoints().size()) - 1;
+            List<Waypoint> waypoints = route == null ? List.of() : route.waypoints();
+            if (waypoints.size() < 2) return -1;
+            int from = Math.clamp(start, 1, waypoints.size()) - 1;
             List<Vector3> ahead = new ArrayList<>();
-            for (int i = first + 1; i < route.waypoints().size(); i++) ahead.add(route.waypoints().get(i).position());
+            for (int i = from + 1; i < waypoints.size(); i++) ahead.add(waypoints.get(i).position());
             if (ahead.isEmpty()) return -1;
-            int hit = mesh(world, agent).blocked(source, route.waypoints().get(first).position(), ahead, agent);
-            return hit < 0 ? -1 : first + hit + 2;
+            int hit = mesh(world, agent).blocked(source, waypoints.get(from).position(), ahead, agent);
+            if (hit < 0) return -1;
+            int blockedWaypoint = from + 1 + hit;
+            return blockedWaypoint + 1;
         }
 
         void watch() {
@@ -172,13 +176,18 @@ public final class Paths {
     }
 
     private static PathfindingModifier modifierOf(Part part) {
-        for (Instance child : part.children()) {
-            if (child instanceof PathfindingModifier modifier) return modifier;
+        PathfindingModifier own = modifierIn(part);
+        if (own != null) return own;
+        for (Instance model = part.parent(); model instanceof Model; model = model.parent()) {
+            PathfindingModifier shared = modifierIn(model);
+            if (shared != null) return shared;
         }
-        for (Instance at = part.parent(); at instanceof Model; at = at.parent()) {
-            for (Instance child : at.children()) {
-                if (child instanceof PathfindingModifier modifier) return modifier;
-            }
+        return null;
+    }
+
+    private static PathfindingModifier modifierIn(Instance holder) {
+        for (Instance child : holder.children()) {
+            if (child instanceof PathfindingModifier modifier) return modifier;
         }
         return null;
     }
@@ -191,64 +200,101 @@ public final class Paths {
     }
 
     private static boolean overlaps(Part part, Vector3 min, Vector3 max) {
-        Vector3 at = Transforms.world(part).position();
+        Vector3 centre = Transforms.world(part).position();
         double reach = part.size.length() * 0.5;
-        return at.x() + reach >= min.x() && at.x() - reach <= max.x() && at.y() + reach >= min.y() && at.y() - reach <= max.y()
-                && at.z() + reach >= min.z() && at.z() - reach <= max.z();
+        return overlaps(centre.x(), reach, min.x(), max.x())
+                && overlaps(centre.y(), reach, min.y(), max.y())
+                && overlaps(centre.z(), reach, min.z(), max.z());
     }
 
-    private static NavMeshes.World source(Host host) {
-        Instance world = host.world();
-        BlockRef blocks = host.blocks();
-        Predicate<Part> ground = ground();
-        return new NavMeshes.World() {
-            @Override
-            public BlockShape block(int x, int y, int z) {
-                return blocks == null ? BlockShape.AIR : blocks.shape(x, y, z);
-            }
+    private static boolean overlaps(double centre, double reach, double min, double max) {
+        return centre + reach >= min && centre - reach <= max;
+    }
 
-            @Override
-            public List<Box> boxes(Vector3 min, Vector3 max) {
-                Vector3 size = max.sub(min);
-                List<Box> boxes = new ArrayList<>();
-                for (Part part : Queries.inBox(world, CFrame.at(min.add(size.mul(0.5))), size, ground)) {
-                    PathfindingModifier modifier = modifierOf(part);
-                    boxes.add(modifier == null ? new Box(Transforms.world(part), part.size)
-                            : new Box(Transforms.world(part), part.size, !modifier.passThrough, label(modifier)));
-                }
-                InstanceTree tree = world.tree();
-                if (tree == null) return boxes;
-                Map<Part, Boolean> seen = new IdentityHashMap<>();
-                for (PathfindingModifier modifier : tree.ofClass(Classes.PATHFINDING_MODIFIER)) {
-                    if (label(modifier) == null || modifier.parent() == null) continue;
-                    List<Part> parts = new ArrayList<>();
-                    partsOf(modifier.parent(), parts);
-                    for (Part part : parts) {
-                        if (part.collides && !insideBody(part) || seen.put(part, true) != null || !overlaps(part, min, max)) continue;
-                        if (modifierOf(part) != modifier) continue;
-                        boxes.add(new Box(Transforms.world(part), part.size, false, label(modifier)));
-                    }
-                }
-                return boxes;
-            }
+    private static final class Terrain implements NavMeshes.World {
 
-            @Override
-            public List<Link> links(Vector3 min, Vector3 max) {
-                InstanceTree tree = world.tree();
-                if (tree == null) return List.of();
-                List<Link> links = new ArrayList<>();
-                for (PathfindingLink link : tree.ofClass(Classes.PATHFINDING_LINK)) {
-                    if (!(link.attachment0 instanceof Spatial a) || !(link.attachment1 instanceof Spatial b)) continue;
-                    if (!a.isAlive() || !b.isAlive()) continue;
-                    Vector3 from = Transforms.world(a).position(), to = Transforms.world(b).position();
-                    boolean near = inside(from, min, max) || link.bidirectional && inside(to, min, max);
-                    if (!near) continue;
-                    String label = link.label.isBlank() ? null : link.label;
-                    links.add(new Link(from, to, link.bidirectional, label));
-                }
-                return links;
+        private final Instance world;
+        private final BlockRef blocks;
+        private final Predicate<Part> ground = ground();
+
+        Terrain(Host host) {
+            this.world = host.world();
+            this.blocks = host.blocks();
+        }
+
+        @Override
+        public BlockShape block(int x, int y, int z) {
+            return blocks == null ? BlockShape.AIR : blocks.shape(x, y, z);
+        }
+
+        @Override
+        public List<Box> boxes(Vector3 min, Vector3 max) {
+            List<Box> boxes = new ArrayList<>();
+            addSolidParts(boxes, min, max);
+            addLabelledParts(boxes, min, max);
+            return boxes;
+        }
+
+        private void addSolidParts(List<Box> boxes, Vector3 min, Vector3 max) {
+            Vector3 size = max.sub(min);
+            for (Part part : Queries.inBox(world, CFrame.at(min.add(size.mul(0.5))), size, ground)) {
+                PathfindingModifier modifier = modifierOf(part);
+                CFrame frame = Transforms.world(part);
+                boxes.add(modifier == null ? new Box(frame, part.size) : new Box(frame, part.size, !modifier.passThrough, label(modifier)));
             }
-        };
+        }
+
+        private void addLabelledParts(List<Box> boxes, Vector3 min, Vector3 max) {
+            InstanceTree tree = world.tree();
+            if (tree == null) return;
+            Set<Part> seen = Collections.newSetFromMap(new IdentityHashMap<>());
+            for (PathfindingModifier modifier : tree.ofClass(Classes.PATHFINDING_MODIFIER)) {
+                if (label(modifier) == null || modifier.parent() == null) continue;
+                List<Part> parts = new ArrayList<>();
+                partsOf(modifier.parent(), parts);
+                for (Part part : parts) {
+                    boolean alreadySolid = part.collides && !insideBody(part);
+                    if (alreadySolid || !seen.add(part) || !overlaps(part, min, max)) continue;
+                    if (modifierOf(part) != modifier) continue;
+                    boxes.add(new Box(Transforms.world(part), part.size, false, label(modifier)));
+                }
+            }
+        }
+
+        @Override
+        public List<Link> links(Vector3 min, Vector3 max) {
+            InstanceTree tree = world.tree();
+            if (tree == null) return List.of();
+            List<Link> links = new ArrayList<>();
+            for (PathfindingLink link : tree.ofClass(Classes.PATHFINDING_LINK)) {
+                if (!(link.attachment0 instanceof Spatial start) || !(link.attachment1 instanceof Spatial end)) continue;
+                if (!start.isAlive() || !end.isAlive()) continue;
+                Vector3 from = Transforms.world(start).position();
+                Vector3 to = Transforms.world(end).position();
+                boolean near = inside(from, min, max) || link.bidirectional && inside(to, min, max);
+                if (!near) continue;
+                String label = link.label.isBlank() ? null : link.label;
+                links.add(new Link(from, to, link.bidirectional, label));
+            }
+            return links;
+        }
+    }
+
+    private static final class Watch {
+
+        final List<WeakReference<Path>> paths = new ArrayList<>();
+        double time;
+        double lastCheck;
+
+        void checkPaths() {
+            if (time - lastCheck < RECHECK) return;
+            lastCheck = time;
+            paths.removeIf(held -> held.get() == null);
+            for (WeakReference<Path> held : new ArrayList<>(paths)) {
+                Path path = held.get();
+                if (path != null) path.watch();
+            }
+        }
     }
 
     private static boolean inside(Vector3 at, Vector3 min, Vector3 max) {
@@ -264,13 +310,13 @@ public final class Paths {
     public static void install(Host host, Members game) {
         Instance world = host.world();
         if (world.tree() != null) Humanoids.ground(world.tree(), groundOf(host));
-        List<WeakReference<Path>> paths = new ArrayList<>();
+        Watch watch = new Watch();
         host.onClose(() -> {
             MESHES.remove(world);
-            paths.clear();
+            watch.paths.clear();
             if (world.tree() != null) Humanoids.ground(world.tree(), null);
         });
-        NavMeshes.World source = source(host);
+        NavMeshes.World source = new Terrain(host);
         Walkers.Finder finder = new Walkers.Finder() {
             @Override
             public Route find(Vector3 from, Vector3 to, Agent agent) {
@@ -282,17 +328,10 @@ public final class Paths {
                 return mesh(world, agent).blocked(source, from, ahead, agent);
             }
         };
-        double[] clock = {0, 0};
         host.onStep(dt -> {
-            clock[0] += dt;
-            Walkers.step(world.tree(), finder, clock[0]);
-            if (clock[0] - clock[1] < RECHECK) return;
-            clock[1] = clock[0];
-            paths.removeIf(held -> held.get() == null);
-            for (WeakReference<Path> held : new ArrayList<>(paths)) {
-                Path path = held.get();
-                if (path != null) path.watch();
-            }
+            watch.time += dt;
+            Walkers.step(world.tree(), finder, watch.time);
+            watch.checkPaths();
         });
 
         host.api().alias("PathOptions", "{ partial: boolean?, radius: number?, height: number?, canJump: boolean?, "
@@ -316,7 +355,7 @@ public final class Paths {
                         a -> mesh(world, agent(a.get(3))).randomNear(source, a.vector(1), a.number(2), RANDOM))
                 .method("create", "(options: PathOptions?) -> Path", a -> {
                     Path path = new Path(host, agent(a.get(1)), source);
-                    paths.add(new WeakReference<>(path));
+                    watch.paths.add(new WeakReference<>(path));
                     return path;
                 });
         host.declare(service);
@@ -374,24 +413,30 @@ public final class Paths {
 
     private static Agent agent(Object options) {
         if (!(options instanceof Map<?, ?> table)) return Agent.PLAYER;
-        Agent base = Agent.PLAYER;
+        Agent player = Agent.PLAYER;
+        double radius = number(table, "radius", player.radius());
+        double height = number(table, "height", player.height());
+        boolean canJump = flag(table, "canJump", player.canJump());
+        boolean canClimb = flag(table, "canClimb", player.canClimb());
+        double spacing = number(table, "spacing", player.spacing());
+        return new Agent(radius, height, canJump, canClimb, spacing, costs(table));
+    }
+
+    private static Map<String, Double> costs(Map<?, ?> table) {
         Map<String, Double> costs = new HashMap<>();
-        if (table.get("costs") instanceof Map<?, ?> given) {
-            for (Map.Entry<?, ?> entry : given.entrySet()) {
-                if (entry.getKey() instanceof String key && entry.getValue() instanceof Number value) costs.put(key, value.doubleValue());
-            }
+        if (!(table.get("costs") instanceof Map<?, ?> given)) return costs;
+        for (Map.Entry<?, ?> entry : given.entrySet()) {
+            if (entry.getKey() instanceof String label && entry.getValue() instanceof Number cost) costs.put(label, cost.doubleValue());
         }
-        return new Agent(number(table, "radius", base.radius()), number(table, "height", base.height()),
-                flag(table, "canJump", base.canJump()), flag(table, "canClimb", base.canClimb()),
-                number(table, "spacing", base.spacing()), costs);
+        return costs;
     }
 
     private static double number(Map<?, ?> table, String key, double fallback) {
-        return table.get(key) instanceof Number n ? n.doubleValue() : fallback;
+        return table.get(key) instanceof Number value ? value.doubleValue() : fallback;
     }
 
     private static boolean flag(Map<?, ?> table, String key, boolean fallback) {
-        return table.get(key) instanceof Boolean b ? b : fallback;
+        return table.get(key) instanceof Boolean value ? value : fallback;
     }
 
     private static Humanoids.Ground groundOf(Host host) {
