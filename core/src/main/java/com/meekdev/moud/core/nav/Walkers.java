@@ -8,13 +8,16 @@ import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Vector3;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 public final class Walkers {
 
@@ -34,7 +37,9 @@ public final class Walkers {
         boolean resting;
     }
 
-    private static final Map<Character, Plan> PLANS = new HashMap<>();
+    private static final Map<InstanceTree, Walkers> TREES = Collections.synchronizedMap(new WeakHashMap<>());
+
+    private final Map<Character, Plan> plans = new HashMap<>();
 
     public interface Pilot {
         void walk(Character body, List<Vector3> waypoints);
@@ -54,10 +59,15 @@ public final class Walkers {
 
     private Walkers() {}
 
+    private static Map<Character, Plan> plans(Character body) {
+        InstanceTree tree = body.tree();
+        return tree == null ? new HashMap<>() : TREES.computeIfAbsent(tree, t -> new Walkers()).plans;
+    }
+
     public static void walk(Character body, List<Vector3> waypoints) {
         Plan plan = new Plan();
         plan.waypoints = waypoints;
-        PLANS.put(body, plan);
+        plans(body).put(body, plan);
         if (body.hasPlayer() && pilot != null) pilot.walk(body, waypoints);
     }
 
@@ -75,30 +85,30 @@ public final class Walkers {
             if (pilot != null) pilot.move(body, direction, relativeToCamera);
             return;
         }
-        PLANS.remove(body);
+        plans(body).remove(body);
         Humanoids.move(body, direction);
     }
 
     public static void cancelled(Character body) {
-        PLANS.remove(body);
+        plans(body).remove(body);
     }
 
     public static void follow(Character body, Instance target, double distance) {
         Plan plan = new Plan();
         plan.target = target;
         plan.distance = distance;
-        PLANS.put(body, plan);
+        plans(body).put(body, plan);
     }
 
     public static void stop(Character body) {
-        PLANS.remove(body);
+        plans(body).remove(body);
         if (body.hasPlayer() && pilot != null) pilot.stop(body);
         Humanoid living = Rig.humanoid(body);
         if (living != null && body.isAlive()) Instances.setBool(living, WALKING, false);
     }
 
     public static boolean busy(Character body) {
-        return PLANS.containsKey(body);
+        return plans(body).containsKey(body);
     }
 
     @FunctionalInterface
@@ -106,8 +116,10 @@ public final class Walkers {
         List<Vector3> find(Vector3 from, Vector3 to, boolean partial);
     }
 
-    public static void step(Finder finder, double now) {
-        for (Iterator<Map.Entry<Character, Plan>> it = PLANS.entrySet().iterator(); it.hasNext(); ) {
+    public static void step(InstanceTree tree, Finder finder, double now) {
+        Walkers walkers = tree == null ? null : TREES.get(tree);
+        if (walkers == null) return;
+        for (Iterator<Map.Entry<Character, Plan>> it = walkers.plans.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Character, Plan> entry = it.next();
             Character body = entry.getKey();
             Plan plan = entry.getValue();

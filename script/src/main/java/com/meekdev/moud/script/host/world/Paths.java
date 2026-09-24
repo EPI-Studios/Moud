@@ -80,7 +80,7 @@ public final class Paths {
         });
         NavMeshes.World source = source(host);
         Walkers.Finder finder = (from, to, partial) -> mesh(world).find(source, from, to, partial);
-        host.onStep(dt -> Walkers.step(finder, System.nanoTime() / 1e9));
+        host.onStep(dt -> Walkers.step(world.tree(), finder, System.nanoTime() / 1e9));
 
         host.api().alias("PathOptions", "{ partial: boolean? }");
         Members path = new Members("Path")
