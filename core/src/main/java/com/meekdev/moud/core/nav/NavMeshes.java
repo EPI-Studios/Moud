@@ -21,13 +21,16 @@ import org.recast4j.detour.QueryFilter;
 import org.recast4j.detour.Result;
 import org.recast4j.detour.StraightPathItem;
 import org.recast4j.recast.AreaModification;
+import org.recast4j.recast.Heightfield;
 import org.recast4j.recast.PolyMesh;
 import org.recast4j.recast.PolyMeshDetail;
+import org.recast4j.recast.Recast;
 import org.recast4j.recast.RecastBuilder;
 import org.recast4j.recast.RecastBuilderConfig;
 import org.recast4j.recast.RecastConfig;
 import org.recast4j.recast.RecastConstants;
-import org.recast4j.recast.geom.SimpleInputGeomProvider;
+import org.recast4j.recast.RecastRasterization;
+import org.recast4j.recast.Telemetry;
 
 public final class NavMeshes {
 
@@ -54,9 +57,10 @@ public final class NavMeshes {
     private static final float[] EXTENTS = {1.5f, 3f, 1.5f};
 
     private static final AreaModification WALKABLE = new AreaModification(1);
+    private static final float ERODE = (float) (Math.floor(RADIUS / CELL + 0.01) * CELL);
     private static final RecastConfig CONFIG = new RecastConfig(true, TILE_CELLS, TILE_CELLS,
             RecastConfig.calcBorder(RADIUS, CELL), RecastConstants.PartitionType.WATERSHED,
-            CELL, CELL_HEIGHT, SLOPE, true, true, true, HEIGHT, RADIUS, CLIMB,
+            CELL, CELL_HEIGHT, SLOPE, true, true, true, HEIGHT, ERODE, CLIMB,
             8 * 8 * CELL * CELL, 20 * 20 * CELL * CELL, 12, 1.3f, VERTS_PER_POLY, true, 6, 1, WALKABLE);
 
     private record Key(int x, int z) {}
@@ -176,28 +180,44 @@ public final class NavMeshes {
     }
 
     private void build(World world, int tx, int tz, Tile t) {
-        float border = CONFIG.borderSize * CELL;
-        int x0 = (int) Math.floor(tx * TILE - border) - 1, x1 = (int) Math.ceil((tx + 1) * TILE + border) + 1;
-        int z0 = (int) Math.floor(tz * TILE - border) - 1, z1 = (int) Math.ceil((tz + 1) * TILE + border) + 1;
-        Geometry geometry = new Geometry();
-
-        int height = t.maxY - t.minY + 3;
-        boolean[] column = new boolean[height];
+        RecastBuilderConfig config = new RecastBuilderConfig(CONFIG, new float[] {0, t.minY - 1, 0}, new float[] {0, t.maxY + 2, 0}, tx, tz);
+        Heightfield field = new Heightfield(config.width, config.height, config.bmin, config.bmax, CELL, CELL_HEIGHT, CONFIG.borderSize);
+        int x0 = (int) Math.floor(config.bmin[0]), x1 = (int) Math.ceil(config.bmax[0]);
+        int z0 = (int) Math.floor(config.bmin[2]), z1 = (int) Math.ceil(config.bmax[2]);
+        int base = t.minY - 1;
+        int layers = t.maxY - t.minY + 3;
+        int perBlock = Math.round(1 / CELL);
+        int perLayer = Math.round(1 / CELL_HEIGHT);
+        int ox = Math.round((config.bmin[0] - x0) / CELL), oz = Math.round((config.bmin[2] - z0) / CELL);
         for (int x = x0; x < x1; x++) {
             for (int z = z0; z < z1; z++) {
-                for (int i = 0; i < height; i++) column[i] = world.solid(x, t.minY - 1 + i, z);
-                for (int i = 1; i < height - 1; i++) {
-                    if (!column[i]) continue;
-                    int y = t.minY - 1 + i;
-                    if (!column[i + 1]) geometry.flat(x, y + 1, z, true);
-                    if (!column[i - 1]) geometry.flat(x, y, z, false);
+                for (int i = 0; i < layers; i++) {
+                    if (!world.solid(x, base + i, z)) continue;
+                    for (int cx = 0; cx < perBlock; cx++) {
+                        int hx = (x - x0) * perBlock + cx - ox;
+                        if (hx < 0 || hx >= field.width) continue;
+                        for (int cz = 0; cz < perBlock; cz++) {
+                            int hz = (z - z0) * perBlock + cz - oz;
+                            if (hz < 0 || hz >= field.height) continue;
+                            RecastRasterization.addSpan(field, hx, hz, i * perLayer, (i + 1) * perLayer, 1, CONFIG.walkableClimb);
+                        }
+                    }
                 }
             }
         }
+
+        Geometry geometry = new Geometry();
         long parts = 0;
-        for (World.Box box : world.boxes(new Vector3(x0, t.minY - 1, z0), new Vector3(x1, t.maxY + 1, z1))) {
+        for (World.Box box : world.boxes(new Vector3(x0, base, z0), new Vector3(x1, t.maxY + 1, z1))) {
             geometry.box(box.frame(), box.size());
             parts += mix(box.frame(), box.size());
+        }
+        Telemetry telemetry = new Telemetry();
+        if (geometry.triangles() > 0) {
+            float[] vertices = geometry.vertices();
+            int[] indices = geometry.indices();
+            int[] areas = Recast.markWalkableTriangles(telemetry, SLOPE, vertices, indices, geometry.triangles(), WALKABLE);
+            RecastRasterization.rasterizeTriangles(field, vertices, indices, areas, geometry.triangles(), CONFIG.walkableClimb, telemetry);
         }
 
         long ref = mesh.getTileRefAt(tx, tz, 0);
@@ -205,13 +225,8 @@ public final class NavMeshes {
         t.parts = parts;
         t.dirty = false;
         t.built = true;
-        if (geometry.triangles() == 0) return;
 
-        SimpleInputGeomProvider input = new SimpleInputGeomProvider(geometry.vertices(), geometry.indices());
-        float[] bmin = {0, t.minY - 1, 0};
-        float[] bmax = {0, t.maxY + 2, 0};
-        RecastBuilderConfig config = new RecastBuilderConfig(CONFIG, bmin, bmax, tx, tz);
-        RecastBuilder.RecastBuilderResult built = new RecastBuilder().build(input, config);
+        RecastBuilder.RecastBuilderResult built = new RecastBuilder().build(tx, tz, null, CONFIG, field, telemetry);
         PolyMesh polys = built.getMesh();
         if (polys == null || polys.npolys == 0) return;
         for (int i = 0; i < polys.npolys; i++) polys.flags[i] = polys.areas[i] == 0 ? 0 : 1;
@@ -276,17 +291,6 @@ public final class NavMeshes {
 
         int[] indices() {
             return Arrays.copyOf(f, fn);
-        }
-
-        void flat(int x, int y, int z, boolean up) {
-            int a = vertex(x, y, z), b = vertex(x, y, z + 1), c = vertex(x + 1, y, z + 1), d = vertex(x + 1, y, z);
-            if (up) {
-                face(a, b, c);
-                face(a, c, d);
-            } else {
-                face(a, c, b);
-                face(a, d, c);
-            }
         }
 
         void box(CFrame frame, Vector3 size) {
