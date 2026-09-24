@@ -26,6 +26,8 @@ import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiDir;
 import imgui.flag.ImGuiFocusedFlags;
+import imgui.flag.ImGuiHoveredFlags;
+import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiPopupFlags;
@@ -204,7 +206,7 @@ public final class AssetsPanel implements Panel {
         tooltip("New folder");
         ImGui.sameLine();
         if (icons.iconButton("assets-new", EditorIcon.ADD, EditorStyle.iconSizeSmall())) ImGui.openPopup("##assets-new-menu");
-        tooltip("New script");
+        tooltip("New");
         renderNewMenu("##assets-new-menu");
         ImGui.sameLine();
         if (icons.iconButton("assets-refresh", EditorIcon.LOAD, EditorStyle.iconSizeSmall())) refresh();
@@ -214,6 +216,7 @@ public final class AssetsPanel implements Panel {
         Disabled.push(atRoot);
         boolean up = ImGui.arrowButton("##assets-up", ImGuiDir.Up);
         Disabled.pop(atRoot);
+        if (ImGui.isItemHovered(ImGuiHoveredFlags.AllowWhenDisabled)) ImGui.setTooltip("Up one folder");
         if (up && !atRoot) navigateTo(current.getParent());
         ImGui.sameLine();
         if (minecraft.active()) Texts.muted(minecraft.location());
@@ -237,15 +240,24 @@ public final class AssetsPanel implements Panel {
 
     private void renderNewMenu(String id) {
         if (!ImGui.beginPopup(id)) return;
-        if (ImGui.menuItem("Folder")) askNewFolder();
-        ImGui.separator();
-        for (ScriptTemplate template : ScriptTemplate.SERVER) {
-            if (ImGui.menuItem("Script: " + template.label())) createScript(template);
-        }
-        for (ScriptTemplate template : ScriptTemplate.CLIENT) {
-            if (ImGui.menuItem("Local script: " + template.label())) createScript(template);
-        }
+        renderNewItems();
         ImGui.endPopup();
+    }
+
+    private void renderNewItems() {
+        if (ImGui.menuItem("New folder")) askNewFolder();
+        if (ImGui.beginMenu("New script")) {
+            for (ScriptTemplate template : ScriptTemplate.SERVER) {
+                if (ImGui.menuItem(template.label())) createScript(template);
+            }
+            ImGui.endMenu();
+        }
+        if (ImGui.beginMenu("New local script")) {
+            for (ScriptTemplate template : ScriptTemplate.CLIENT) {
+                if (ImGui.menuItem(template.label())) createScript(template);
+            }
+            ImGui.endMenu();
+        }
     }
 
     private void renderFolderTreeColumn() {
@@ -318,7 +330,7 @@ public final class AssetsPanel implements Panel {
         }
         List<AssetEntry> visible = entries.stream().filter(entry -> typeFilter == null || entry.folder() || entry.kind() == typeFilter).toList();
         ImGui.sameLine();
-        Texts.muted(visible.size() + " items");
+        Texts.muted(visible.size() + (visible.size() == 1 ? " item" : " items"));
         ImGui.separator();
         if (visible.isEmpty()) {
             EmptyStates.centered(search.get().isBlank() ? "This folder is empty" : "Nothing matches", List.of("Drop files from your computer onto the window to import them"));
@@ -329,13 +341,8 @@ public final class AssetsPanel implements Panel {
         }
         ImGui.dummy(0, EditorScale.of(6.0f));
         if (ImGui.beginPopupContextWindow("##assets-background", ImGuiPopupFlags.MouseButtonRight | ImGuiPopupFlags.NoOpenOverItems)) {
-            if (ImGui.menuItem("New folder")) askNewFolder();
-            if (ImGui.beginMenu("New script")) {
-                for (ScriptTemplate template : ScriptTemplate.SERVER) {
-                    if (ImGui.menuItem(template.label())) createScript(template);
-                }
-                ImGui.endMenu();
-            }
+            renderNewItems();
+            ImGui.separator();
             if (ImGui.menuItem("Reveal in file manager")) reveal(current);
             ImGui.endPopup();
         }
@@ -616,7 +623,7 @@ public final class AssetsPanel implements Panel {
             ImGui.openPopup(REFERENCES_DIALOG);
             openReferences = false;
         }
-        if (!Dialogs.begin(REFERENCES_DIALOG, EditorScale.of(DIALOG_WIDTH * 1.6f))) return;
+        if (!Dialogs.begin(REFERENCES_DIALOG, DIALOG_WIDTH * 1.6f)) return;
         Dialogs.title(references.isEmpty() ? "Nothing uses " + referencesOf : references.size() + " place(s) use " + referencesOf);
         if (references.isEmpty()) Texts.muted("No instance property or script mentions it. It is safe to rename, move or delete.");
         else Texts.muted("Click one to select the instance or open the script at that line.");
@@ -655,7 +662,7 @@ public final class AssetsPanel implements Panel {
             ImGui.openPopup(RELOCATE_DIALOG);
             openRelocation = false;
         }
-        if (!Dialogs.begin(RELOCATE_DIALOG, EditorScale.of(DIALOG_WIDTH * 1.6f))) return;
+        if (!Dialogs.begin(RELOCATE_DIALOG, DIALOG_WIDTH * 1.6f)) return;
         Relocation pending = relocation;
         if (pending == null) {
             ImGui.closeCurrentPopup();
@@ -708,7 +715,7 @@ public final class AssetsPanel implements Panel {
             ImGui.openPopup(SETTINGS_DIALOG);
             openSettings = false;
         }
-        if (!Dialogs.begin(SETTINGS_DIALOG, EditorScale.of(DIALOG_WIDTH))) return;
+        if (!Dialogs.begin(SETTINGS_DIALOG, DIALOG_WIDTH)) return;
         Path file = settingsFile;
         if (file == null) {
             ImGui.closeCurrentPopup();
@@ -792,12 +799,11 @@ public final class AssetsPanel implements Panel {
             ImGui.openPopup(NAME_DIALOG);
             openNameDialog = false;
         }
-        if (!Dialogs.begin(NAME_DIALOG, EditorScale.of(DIALOG_WIDTH))) return;
+        if (!Dialogs.begin(NAME_DIALOG, DIALOG_WIDTH)) return;
         Dialogs.title(nameTitle);
         if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
         ImGui.setNextItemWidth(-1.0f);
-        ImGui.inputText("##asset-name-input", nameInput);
-        boolean submitted = ImGui.isItemDeactivated() && ImGui.isKeyPressed(ImGuiKey.Enter);
+        boolean submitted = ImGui.inputText("##asset-name-input", nameInput, ImGuiInputTextFlags.EnterReturnsTrue);
         Dialogs.gap();
         Dialogs.alignFooter(2);
         if (Dialogs.button("Cancel##asset-name-cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
@@ -826,12 +832,12 @@ public final class AssetsPanel implements Panel {
             ImGui.openPopup(DELETE_DIALOG);
             openDeleteDialog = false;
         }
-        if (!Dialogs.begin(DELETE_DIALOG, EditorScale.of(DIALOG_WIDTH))) return;
-        Dialogs.title(pendingDelete.size() == 1 ? "Delete this file?" : "Delete " + pendingDelete.size() + " items?");
-        Texts.muted(pendingDelete.size() == 1 ? pendingDelete.getFirst().getFileName() + " will be removed from disk." : "They will be removed from disk.");
+        if (!Dialogs.begin(DELETE_DIALOG, DIALOG_WIDTH)) return;
+        Dialogs.title(pendingDelete.size() == 1 ? "Delete " + pendingDelete.getFirst().getFileName() + "?" : "Delete " + pendingDelete.size() + " items?");
+        Texts.muted(pendingDelete.size() == 1 ? "It is removed from disk." : "They are removed from disk.");
         Dialogs.gap();
         Dialogs.alignFooter(2);
-        if (Dialogs.button("Cancel##asset-delete-cancel")) ImGui.closeCurrentPopup();
+        if (Dialogs.button("Cancel##asset-delete-cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
         ImGui.sameLine();
         if (Dialogs.primaryButton("Delete##asset-delete-ok", true)) {
             ImGui.closeCurrentPopup();

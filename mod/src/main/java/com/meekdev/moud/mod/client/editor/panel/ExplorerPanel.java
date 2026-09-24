@@ -95,6 +95,7 @@ public final class ExplorerPanel implements Panel {
     private final List<Row> rows = new ArrayList<>();
     private final Set<Integer> collapsed = new HashSet<>();
     private int anchor = -1;
+    private int seenLoads = -1;
     private int renaming;
     private boolean focusRename;
     private final ImString renameInput = new ImString(RENAME_CAPACITY);
@@ -117,6 +118,12 @@ public final class ExplorerPanel implements Panel {
 
     @Override
     public void render() {
+        if (seenLoads != document.loads()) {
+            seenLoads = document.loads();
+            collapsed.clear();
+            anchor = -1;
+            renaming = 0;
+        }
         renderHeader();
         ImGui.separator();
         rebuildRows();
@@ -226,17 +233,12 @@ public final class ExplorerPanel implements Panel {
     }
 
     private void renderRows() {
-        if (rows.size() <= 1 && !query().isEmpty()) {
-            Texts.muted("Nothing matches the filter.");
+        if (rows.isEmpty()) {
+            Texts.muted("No scene is loaded yet.");
             return;
         }
-        if (rows.isEmpty()) {
-            if (query().isEmpty()) {
-                Texts.muted("The scene is empty.");
-                Texts.muted("Right click or use the add button to insert one.");
-            } else {
-                Texts.muted("Nothing matches the filter.");
-            }
+        if (rows.size() == 1 && !query().isEmpty()) {
+            Texts.muted("Nothing matches the filter.");
             return;
         }
         ImGuiListClipper.forEach(rows.size(), new ImListClipperCallback() {
@@ -245,6 +247,10 @@ public final class ExplorerPanel implements Panel {
                 renderRow(rows.get(index), index);
             }
         });
+        if (!rows.getFirst().hasChildren()) {
+            Texts.muted("The scene is empty.");
+            Texts.muted("Right click or use the add button to insert an instance.");
+        }
     }
 
     private void renderRow(Row row, int index) {
@@ -333,23 +339,30 @@ public final class ExplorerPanel implements Panel {
         }
     }
 
+    private void renderRootDrop(Instance world) {
+        if (!ImGui.beginDragDropTarget()) return;
+        Integer dropped = ImGui.acceptDragDropPayload(PAYLOAD_INSTANCE, Integer.class);
+        if (dropped != null) moveInto(dropped, world.id());
+        String asset = ImGui.acceptDragDropPayload(AssetsPanel.PAYLOAD, String.class);
+        if (asset != null) document.placeAsset(asset, world.id(), null);
+        ImGui.endDragDropTarget();
+    }
+
     private void renderRootDropAndMenu(Instance world) {
-        if (ImGui.beginDragDropTarget()) {
-            Integer dropped = ImGui.acceptDragDropPayload(PAYLOAD_INSTANCE, Integer.class);
-            if (dropped != null) moveInto(dropped, world.id());
-            String asset = ImGui.acceptDragDropPayload(AssetsPanel.PAYLOAD, String.class);
-            if (asset != null) document.placeAsset(asset, world.id(), null);
-            ImGui.endDragDropTarget();
-        }
+        renderRootDrop(world);
         if (ImGui.beginPopupContextItem("explorer-root-menu")) {
-            if (ImGui.beginMenu("Insert")) {
-                renderInsertItems(world.id());
-                ImGui.endMenu();
-            }
-            renderScriptItems(world.id());
-            if (ImGui.menuItem("Paste", "Ctrl+V")) document.pasteText(ImGui.getClipboardText());
+            renderRootMenu(world);
             ImGui.endPopup();
         }
+    }
+
+    private void renderRootMenu(Instance world) {
+        if (ImGui.beginMenu("Insert")) {
+            renderInsertItems(world.id());
+            ImGui.endMenu();
+        }
+        renderScriptItems(world.id());
+        if (ImGui.menuItem("Paste", "Ctrl+V")) document.pasteText(ImGui.getClipboardText());
     }
 
     private static void paintRow(float left, float top, String label, boolean selected, boolean hovered, boolean editable) {
@@ -523,18 +536,14 @@ public final class ExplorerPanel implements Panel {
 
     private void renderBackgroundDropZone() {
         ImGui.invisibleButton("##explorer-background", Math.max(1.0f, ImGui.getContentRegionAvailX()),
-                Math.max(24.0f, ImGui.getContentRegionAvailY()));
+                Math.max(EditorScale.of(24.0f), ImGui.getContentRegionAvailY()));
         if (ImGui.isItemClicked()) document.selection().clear();
-        if (ImGui.beginPopupContextItem("explorer-background-menu")) {
-            Instance world = document.world();
-            if (world != null) renderInsertItems(world.id());
+        Instance world = document.world();
+        if (world != null && ImGui.beginPopupContextItem("explorer-background-menu")) {
+            renderRootMenu(world);
             ImGui.endPopup();
         }
-        if (!ImGui.beginDragDropTarget()) return;
-        Integer dropped = ImGui.acceptDragDropPayload(PAYLOAD_INSTANCE, Integer.class);
-        Instance world = document.world();
-        if (dropped != null && world != null) moveInto(dropped, world.id());
-        ImGui.endDragDropTarget();
+        if (world != null) renderRootDrop(world);
     }
 
     private void handleShortcuts() {

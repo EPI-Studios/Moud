@@ -78,6 +78,7 @@ public final class SceneDocument {
     private Function<String, @Nullable Vector3> meshSize = id -> null;
     private BiFunction<String, Instance, @Nullable Rigged> rigs = (res, holder) -> null;
     private @Nullable InstanceTree seen;
+    private int loads;
     private boolean gathering;
 
     public Selection selection() {
@@ -86,6 +87,10 @@ public final class SceneDocument {
 
     public History history() {
         return history;
+    }
+
+    public int loads() {
+        return loads;
     }
 
     public void meshSizes(Function<String, @Nullable Vector3> source) {
@@ -195,6 +200,7 @@ public final class SceneDocument {
         if (tree != seen || SceneLink.generation() != generation) {
             seen = tree;
             generation = SceneLink.generation();
+            loads++;
             selection.clear();
             history.clear();
             refs.clear();

@@ -107,10 +107,11 @@ final class MinecraftBrowser {
         if (open == null) return;
         ensureIndex();
         List<Item> items = visible(filter);
-        if (ImGui.button("Reload##mc-reload")) rebuild();
+        if (icons.iconButton("mc-reload", EditorIcon.LOAD, EditorStyle.iconSizeSmall())) rebuild();
         if (ImGui.isItemHovered()) ImGui.setTooltip("Read the resources again, after changing resource packs");
         ImGui.sameLine();
-        Texts.muted(filter.isBlank() ? items.size() + " items" : items.size() + " matches in every " + (open.section() == Section.TEXTURES ? "texture" : "sound"));
+        String counted = items.size() + (items.size() == 1 ? " item" : " items");
+        Texts.muted(filter.isBlank() ? counted : (items.size() == 1 ? "1 match" : items.size() + " matches") + " in every " + (open.section() == Section.TEXTURES ? "texture" : "sound"));
         ImGui.separator();
         if (items.isEmpty()) {
             EmptyStates.centered("Nothing matches", List.of("Search looks through every group of this section"));

@@ -52,12 +52,12 @@ import org.jspecify.annotations.Nullable;
 public final class PropertyRows {
 
     static final float DRAG_STEP = 0.05f;
-    private static final float NUDGE_FAST = 10.0f;
     private static final float NUDGE_FINE = 0.1f;
     private static final float LABEL_SHARE = 0.36f;
     private static final float LABEL_MIN = 84.0f;
     private static final float LABEL_MAX = 150.0f;
     static final float DEGREE_STEP = 0.5f;
+    private static final float INT_STEP = 0.2f;
     static final float RADIANS_TO_DEGREES = 57.295776f;
     static final float DEGREES_TO_RADIANS = 0.017453293f;
     private static final float QUAT_EPSILON = 0.0001f;
@@ -230,7 +230,7 @@ public final class PropertyRows {
             List<String> tips = new ArrayList<>();
             if (doc != null && !doc.isEmpty()) tips.add(doc);
             if (mixed) tips.add("The selected instances have different values, editing sets them all.");
-            if (numeric) tips.add("Drag the name sideways to change the value. Shift is faster, Alt is finer.");
+            if (numeric) tips.add("Drag the name or the field sideways to change the value. Hold Shift for finer steps.");
             tips.add("Right-click for reset, copy and paste.");
             ImGui.setTooltip(String.join("\n\n", tips));
         }
@@ -249,9 +249,7 @@ public final class PropertyRows {
     }
 
     private static float nudgeSpeed() {
-        if (ImGui.getIO().getKeyShift()) return NUDGE_FAST;
-        if (ImGui.getIO().getKeyAlt()) return NUDGE_FINE;
-        return 1.0f;
+        return ImGui.getIO().getKeyShift() ? NUDGE_FINE : 1.0f;
     }
 
     private void nudge(float mouseDelta) {
@@ -348,11 +346,14 @@ public final class PropertyRows {
 
     private void renderInt(Instance instance, PropertyDef property) {
         int current = (int) property.getNum(instance);
-        int[] value = {current};
         beginLabelled(label(property));
-        int min = Double.isFinite(property.min()) ? (int) property.min() : 0;
-        int max = Double.isFinite(property.max()) ? (int) property.max() : 0;
-        if (ImGui.dragInt("##value", value, 1.0f, min, max) && value[0] != current) commit(instance, property, value[0]);
+        String id = "##" + instance.id() + ":" + property.index();
+        float width = ImGui.getContentRegionAvailX();
+        float updated = Double.isFinite(property.min()) && Double.isFinite(property.max())
+                ? NumberFields.ranged(id, current, INT_STEP, width, (float) property.min(), (float) property.max())
+                : NumberFields.scalar(id, current, INT_STEP, width);
+        int rounded = (int) property.clamp(Math.round(updated));
+        if (rounded != current) commit(instance, property, rounded);
     }
 
     private void renderNumber(Instance instance, PropertyDef property) {

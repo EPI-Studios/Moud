@@ -26,7 +26,6 @@ import com.meekdev.moud.mod.client.editor.kit.SearchField;
 import com.meekdev.moud.mod.client.editor.kit.Sections;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.style.ClassIcons;
-import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
 import com.meekdev.moud.mod.client.editor.viewport.ViewTools;
@@ -251,7 +250,7 @@ public final class PropertiesPanel implements Panel {
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() * 0.5f);
         ImGui.inputTextWithHint("##value-name", "Name", valueName);
         ImGui.sameLine();
-        if (ImGui.button("Add##value-add")) ImGui.openPopup("##value-kind");
+        if (ImGui.button("Add value##value-add")) ImGui.openPopup("##value-kind");
         if (ImGui.beginPopup("##value-kind")) {
             for (String kind : VALUE_CLASSES) {
                 if (ImGui.menuItem(kind.replace("Value", ""))) {
@@ -271,7 +270,7 @@ public final class PropertiesPanel implements Panel {
             nameInput.set(instance.name());
         }
         float start = ImGui.getCursorPosX();
-        float column = Math.clamp(ImGui.getContentRegionAvailX() * 0.36f, EditorScale.of(84.0f), EditorScale.of(150.0f));
+        float column = PropertyRows.labelColumn(ImGui.getContentRegionAvailX());
         ImGui.alignTextToFramePadding();
         ImGui.textUnformatted("Name");
         ImGui.sameLine(start + column);

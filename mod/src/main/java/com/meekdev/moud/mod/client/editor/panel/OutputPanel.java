@@ -3,6 +3,8 @@ package com.meekdev.moud.mod.client.editor.panel;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.editor.files.CodeEditor;
 import com.meekdev.moud.mod.client.editor.kit.EmptyStates;
+import com.meekdev.moud.mod.client.editor.kit.SearchField;
+import com.meekdev.moud.mod.client.editor.kit.ToggleStyle;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.place.Output;
@@ -44,7 +46,6 @@ public final class OutputPanel implements Panel {
     private final Deque<Output.Line> lines = new ArrayDeque<>();
     private final ImString searchInput = new ImString(SEARCH_CAPACITY);
     private Filter filter = Filter.ALL;
-    private boolean stickToBottom = true;
     private long seen;
 
     @Override
@@ -78,30 +79,28 @@ public final class OutputPanel implements Panel {
             renderFilterButton(candidate);
             ImGui.sameLine();
         }
-        ImGui.setNextItemWidth(EditorScale.of(SEARCH_WIDTH));
-        ImGui.inputTextWithHint("##output-search", "Filter text", searchInput);
+        SearchField.render("##output-search", "Filter text", searchInput, EditorScale.of(SEARCH_WIDTH));
         ImGui.sameLine();
-        if (ImGui.smallButton("Clear##output-clear")) {
-            lines.clear();
-            stickToBottom = true;
-        }
+        if (ImGui.button("Clear##output-clear")) lines.clear();
     }
 
     private void renderFilterButton(Filter candidate) {
         boolean active = filter == candidate;
-        if (active) ImGui.pushStyleColor(ImGuiCol.Button, EditorStyle.COLOR_WIDGET_ACTIVE);
         String label = switch (candidate) {
             case ALL -> "All";
             case INFO -> "Info";
             case WARN -> "Warnings";
             case ERROR -> "Errors";
         };
-        if (ImGui.smallButton(label + "##output-filter-" + candidate.name())) filter = candidate;
-        if (active) ImGui.popStyleColor();
+        ToggleStyle.push(active);
+        boolean clicked = ImGui.button(label + "##output-filter-" + candidate.name());
+        ToggleStyle.pop(active);
+        if (clicked) filter = candidate;
     }
 
     private void renderLines() {
         ImGui.beginChild("##output-lines", 0.0f, 0.0f, false);
+        boolean atBottom = ImGui.getScrollY() >= ImGui.getScrollMaxY() - 1.0f;
         if (lines.isEmpty()) {
             EmptyStates.centered("Output", List.of("Prints, script errors and editor messages show here."));
         }
@@ -125,7 +124,7 @@ public final class OutputPanel implements Panel {
             ImGui.popID();
             repeats = 0;
         }
-        applyStickToBottom();
+        if (atBottom) ImGui.setScrollHereY(1.0f);
         ImGui.endChild();
     }
 
@@ -134,6 +133,7 @@ public final class OutputPanel implements Panel {
         ImDrawList draw = ImGui.getWindowDrawList();
         float left = ImGui.getCursorScreenPosX();
         float top = ImGui.getCursorScreenPosY();
+        float localLeft = ImGui.getCursorPosX();
         float width = ImGui.getContentRegionAvailX();
         float pad = EditorScale.of(8);
         int accent = colorFor(line.level());
@@ -141,7 +141,7 @@ public final class OutputPanel implements Panel {
         draw.channelsSetCurrent(1);
         ImGui.setCursorScreenPos(left + pad * 1.5f, top + pad);
         ImGui.beginGroup();
-        ImGui.pushTextWrapPos(left + width - pad);
+        ImGui.pushTextWrapPos(localLeft + width - pad);
         ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_FOCUS);
         ImGui.textWrapped(help.title());
         ImGui.popStyleColor();
@@ -151,8 +151,7 @@ public final class OutputPanel implements Panel {
         Optional<Location> link = locationIn(line.message());
         if (link.isPresent()) {
             ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_ACCENT);
-            String where = PlaceToml.root().relativize(link.get().file()) + ":" + link.get().line();
-            if (ImGui.selectable("Open " + where + "##open")) open(link.get());
+            if (ImGui.selectable("Open " + where(link.get()) + "##open")) open(link.get());
             ImGui.popStyleColor();
         }
         if (!help.why().isEmpty()) {
@@ -180,13 +179,6 @@ public final class OutputPanel implements Panel {
         ImGui.dummy(width, 0);
     }
 
-    private void applyStickToBottom() {
-        if (stickToBottom && ImGui.getScrollY() < ImGui.getScrollMaxY()) ImGui.setScrollHereY(1.0f);
-        if (ImGui.getIO().getMouseWheel() != 0.0f && ImGui.isWindowHovered()) {
-            stickToBottom = ImGui.getScrollY() >= ImGui.getScrollMaxY() - 1.0f;
-        }
-    }
-
     private void renderLine(Output.Line line, int count) {
         drawLevelMarker(line.level());
         ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_TEXT_FAINT);
@@ -198,7 +190,7 @@ public final class OutputPanel implements Panel {
             ImGui.pushStyleColor(ImGuiCol.Text, EditorStyle.COLOR_ACCENT);
             if (ImGui.selectable(line.message())) open(link.get());
             ImGui.popStyleColor();
-            if (ImGui.isItemHovered()) ImGui.setTooltip("Open " + link.get().file() + ":" + link.get().line());
+            if (ImGui.isItemHovered()) ImGui.setTooltip("Open " + where(link.get()));
         } else {
             ImGui.pushStyleColor(ImGuiCol.Text, colorFor(line.level()));
             ImGui.textUnformatted(line.message());
@@ -221,6 +213,10 @@ public final class OutputPanel implements Panel {
         int lineNumber = matcher.group(2) == null ? 1 : Integer.parseInt(matcher.group(2));
         Path candidate = PlaceToml.root().resolve(matcher.group(1));
         return Files.isRegularFile(candidate) ? Optional.of(new Location(candidate, lineNumber)) : Optional.empty();
+    }
+
+    private static String where(Location location) {
+        return PlaceToml.root().relativize(location.file()) + ":" + location.line();
     }
 
     private static void open(Location location) {
