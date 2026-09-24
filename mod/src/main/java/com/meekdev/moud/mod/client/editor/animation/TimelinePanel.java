@@ -209,7 +209,7 @@ final class TimelinePanel implements Panel {
         for (Skeletons.Joint joint : workspace.skeleton()) {
             lanes.add(new Lane(Kind.JOINT, joint.name(), null, 0, joint.name()));
             if (!session.expanded().contains(joint.name())) continue;
-            for (Channel channel : Channel.values()) lanes.add(new Lane(Kind.CHANNEL, joint.name(), channel, 1, channel.key()));
+            for (Channel channel : Channel.values()) lanes.add(new Lane(Kind.CHANNEL, joint.name(), channel, 1, channel.label()));
         }
         return lanes;
     }
@@ -327,7 +327,7 @@ final class TimelinePanel implements Panel {
                 for (double time : times) {
                     float at = x(time);
                     boolean selected = anySelectedAt(lane.joint(), time);
-                    boolean over = hovered && near(mouseX, mouseY, at, middle, radius);
+                    boolean over = hovered && mouseX >= lanesLeft && near(mouseX, mouseY, at, middle, radius);
                     Paint.diamond(draw, at, middle, radius, keyColor(selected, over, Paint.KEY_MUTED));
                     if (over) found = new Hit(lane.joint(), null, time);
                 }
@@ -337,7 +337,7 @@ final class TimelinePanel implements Panel {
                 for (AnimKey key : clip.keys(lane.joint(), channel)) {
                     float at = x(key.time());
                     boolean selected = session.keys().contains(new KeyRef(lane.joint(), channel, key.time()));
-                    boolean over = hovered && near(mouseX, mouseY, at, middle, radius);
+                    boolean over = hovered && mouseX >= lanesLeft && near(mouseX, mouseY, at, middle, radius);
                     Paint.diamond(draw, at, middle, radius, keyColor(selected, over, Paint.KEY));
                     if (key.interp() == Interp.STEP) draw.addRectFilled(at + radius + 1, middle - 1, at + radius + 4, middle + 1, Paint.KEY_MUTED);
                     if (over) found = new Hit(lane.joint(), channel, key.time());
@@ -402,7 +402,7 @@ final class TimelinePanel implements Panel {
             draw.addLine(x, top + height - EditorScale.of(8), x, top + height - 1, EditorStyle.COLOR_TEXT_FAINT);
             float half = x(at + step * 0.5);
             draw.addLine(half, top + height - EditorScale.of(4), half, top + height - 1, EditorStyle.withAlpha(EditorStyle.COLOR_TEXT_FAINT, 0.5f));
-            String label = step < 0.1 ? String.format(Locale.ROOT, "%.2f", at) : String.format(Locale.ROOT, "%.1f", at);
+            String label = String.format(Locale.ROOT, Math.abs(step * 10 - Math.rint(step * 10)) > 1e-9 ? "%.2f" : "%.1f", at);
             Paint.small(draw, x + EditorScale.of(3), top + EditorScale.of(3), EditorStyle.COLOR_TEXT_MUTED, label);
         }
         float end = x(clip.length);
@@ -463,7 +463,7 @@ final class TimelinePanel implements Panel {
                 pressLane(clip, lane, key, mouseX);
             }
         }
-        if (hovered && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left) && inLanes && lane != null && key == null) {
+        if (hovered && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left) && inLanes && lane != null && key == null && !onChip(clip, lane, mouseX)) {
             doubleClick(lane, session.snap() ? clip.snap(time(mouseX)) : time(mouseX));
         }
         if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Right) && (inLanes || inNames) && lane != null) {
@@ -564,10 +564,18 @@ final class TimelinePanel implements Panel {
                     double placed = session.snap() ? clip.snap(at) : at;
                     int index = dragIndex;
                     boolean marker = drag == Drag.MARKER;
+                    int[] now = {-1};
                     session.editFrom(dragStart, marker ? "Move marker" : "Move event", dragGesture, changed -> {
-                        if (marker && index < changed.markers.size()) changed.markers.set(index, changed.markers.get(index).at(placed));
-                        if (!marker && index < changed.events.size()) changed.events.set(index, changed.events.get(index).at(placed));
+                        List<?> items = marker ? changed.markers : changed.events;
+                        if (index >= items.size()) return;
+                        Object moved = marker ? changed.markers.get(index).at(placed) : changed.events.get(index).at(placed);
+                        if (marker) changed.markers.set(index, (AnimClip.Marker) moved);
+                        else changed.events.set(index, (AnimClip.Event) moved);
+                        changed.sortTimed();
+                        now[0] = items.indexOf(moved);
                     });
+                    if (marker) session.marker(now[0]);
+                    else session.event(now[0]);
                 }
             }
             case BOX -> {
@@ -576,24 +584,9 @@ final class TimelinePanel implements Panel {
             default -> { }
         }
         if (!held) {
-            if ((drag == Drag.MARKER || drag == Drag.EVENT) && moved) resortTimed(drag == Drag.MARKER);
             drag = Drag.NONE;
             dragStart = null;
         }
-    }
-
-    private void resortTimed(boolean markers) {
-        AnimClip clip = session.clip();
-        Object chosen = markers ? chosen(clip.markers, session.marker()) : chosen(clip.events, session.event());
-        clip.sortTimed();
-        if (chosen == null) return;
-        if (markers) session.marker(clip.markers.indexOf(chosen));
-        else session.event(clip.events.indexOf(chosen));
-    }
-
-    private static @Nullable Object chosen(List<?> items, int index) {
-        if (index < 0 || index >= items.size()) return null;
-        return items.get(index);
     }
 
     private void finishBox(AnimClip clip, List<Lane> lanes, float rowsTop, float row, float mouseX, float mouseY) {
@@ -624,6 +617,14 @@ final class TimelinePanel implements Panel {
         double before = session.time();
         session.seek(to);
         workspace.scrubbed(before, session.time());
+    }
+
+    private boolean onChip(AnimClip clip, Lane lane, float mouseX) {
+        return switch (lane.kind()) {
+            case MARKERS -> markerAt(clip, mouseX) >= 0;
+            case EVENTS -> eventAt(clip, mouseX) >= 0;
+            default -> false;
+        };
     }
 
     private void doubleClick(Lane lane, double at) {
@@ -842,7 +843,7 @@ final class TimelinePanel implements Panel {
                 float py = y(Curves.component(key.value(), curve.axis()));
                 KeyRef ref = new KeyRef(curve.joint(), curve.channel(), key.time());
                 boolean selected = session.keys().contains(ref);
-                boolean over = hovered && near(mouseX, mouseY, px, py, radius);
+                boolean over = hovered && mouseX >= lanesLeft && near(mouseX, mouseY, px, py, radius);
                 Paint.diamond(draw, px, py, radius, keyColor(selected, over, Paint.KEY));
                 if (over) {
                     hoverKey = ref;
@@ -966,7 +967,7 @@ final class TimelinePanel implements Panel {
                 float hy = y(Curves.component(key.value().add(out.dv()), curve.axis()));
                 draw.addLine(kx, ky, hx, hy, EditorStyle.COLOR_TEXT_MUTED);
                 draw.addCircleFilled(hx, hy, radius, EditorStyle.COLOR_TEXT_MUTED);
-                if (hovered && near(mouseX, mouseY, hx, hy, radius)) found = new HandleHit(ref, curve.axis(), true);
+                if (hovered && mouseX >= lanesLeft && near(mouseX, mouseY, hx, hy, radius)) found = new HandleHit(ref, curve.axis(), true);
             }
             if (index > 0 && keys.get(index - 1).interp() == Interp.BEZIER) {
                 AnimKey.Handle in = Curves.inHandle(keys.get(index - 1), key);
@@ -974,7 +975,7 @@ final class TimelinePanel implements Panel {
                 float hy = y(Curves.component(key.value().add(in.dv()), curve.axis()));
                 draw.addLine(kx, ky, hx, hy, EditorStyle.COLOR_TEXT_MUTED);
                 draw.addCircleFilled(hx, hy, radius, EditorStyle.COLOR_TEXT_MUTED);
-                if (hovered && near(mouseX, mouseY, hx, hy, radius)) found = new HandleHit(ref, curve.axis(), false);
+                if (hovered && mouseX >= lanesLeft && near(mouseX, mouseY, hx, hy, radius)) found = new HandleHit(ref, curve.axis(), false);
             }
         }
         return found;
@@ -995,7 +996,7 @@ final class TimelinePanel implements Panel {
             float middle = y + row * 0.5f;
             draw.addRectFilled(x, middle - dot * 0.5f, x + dot, middle + dot * 0.5f, hidden ? EditorStyle.COLOR_TEXT_FAINT : Paint.axis(curve.axis()), EditorScale.of(2));
             draw.addText(x + dot + EditorScale.of(7), middle - ImGui.getTextLineHeight() * 0.5f, hidden ? EditorStyle.COLOR_TEXT_FAINT : EditorStyle.COLOR_TEXT,
-                    curve.joint() + "  " + curve.channel().key() + " " + axes[curve.axis()]);
+                    curve.joint() + "  " + curve.channel().label() + " " + axes[curve.axis()]);
             if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left) && mouseX < lanesLeft && mouseY >= y && mouseY < y + row) {
                 if (!hiddenCurves.remove(curve.id())) hiddenCurves.add(curve.id());
             }
