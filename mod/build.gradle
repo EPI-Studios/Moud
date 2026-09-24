@@ -53,6 +53,7 @@ repositories {
 }
 
 def box3dNatives = file(findProperty('box3dNatives') ?: "${rootDir}/../box3d-java/natives")
+def shippedPlatforms = ['linux-x64', 'windows-x64', 'macos-x64', 'macos-arm64']
 
 def nativePlatform = {
     def os = System.getProperty('os.name').toLowerCase()
@@ -121,11 +122,17 @@ dependencies {
     include 'org.recast4j:detour:1.5.12'
     include 'net.bytebuddy:byte-buddy:1.18.13'
     include 'net.bytebuddy:byte-buddy-agent:1.18.13'
+    include "dev.hollowcube:luau:${project.luau_version}"
+    shippedPlatforms.each { platform ->
+        include "dev.hollowcube:luau-natives-${platform}:${project.luau_version}"
+    }
 }
 
 processResources {
     if (box3dNatives.exists()) {
         from(box3dNatives) { into 'natives' }
+        def missing = shippedPlatforms.findAll { !new File(box3dNatives, it).isDirectory() }
+        if (missing) logger.warn("moud: no box3d natives for ${missing.join(', ')} in ${box3dNatives}, run allNatives in box3d-java")
     } else {
         logger.warn("moud: no box3d natives at ${box3dNatives}, sub level collision will fail to load")
     }
