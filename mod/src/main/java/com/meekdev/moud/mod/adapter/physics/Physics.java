@@ -45,6 +45,7 @@ public final class Physics {
             level = loaded;
             SHAPES.level(loaded);
             Bkun.collision(loaded).addProvider(provider);
+            Bkun.physics(loaded).world().setHitEventThreshold(Float.MAX_VALUE);
         });
         ServerLevelEvents.UNLOAD.register((server, unloaded) -> {
             if (unloaded == level) {
