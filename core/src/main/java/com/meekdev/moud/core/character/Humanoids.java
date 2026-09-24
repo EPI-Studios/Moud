@@ -226,10 +226,11 @@ public final class Humanoids {
         double step = Math.min(away, living.walkSpeed * dt);
         Vector3 way = flat.mul(1.0 / away);
         Vector3 moved = at.add(way.mul(step));
-        moved = new Vector3(moved.x(), at.y() + toward.y() * (step / away), moved.z());
+        boolean airborne = JUMPS.containsKey(character);
+        moved = new Vector3(moved.x(), airborne ? at.y() : at.y() + toward.y() * (step / away), moved.z());
         Ground ground = GROUNDS.get(character.tree());
         double floor = ground == null ? Double.NaN : ground.below(moved.x(), at.y(), moved.z());
-        if (!Double.isNaN(floor)) {
+        if (!Double.isNaN(floor) && (!airborne || floor > at.y())) {
             double y = floor > at.y() ? Math.min(floor, at.y() + RISE * dt) : Math.max(floor, at.y() - SINK * dt);
             moved = new Vector3(moved.x(), y, moved.z());
         }
