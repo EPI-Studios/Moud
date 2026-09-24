@@ -1,7 +1,12 @@
 def zig = findProperty('zig') ?: 'zig'
 def nativeDir = file('native')
 def nativeOut = layout.buildDirectory.dir('native')
-def platform = 'linux-x86_64'
+def targets = [
+        'linux-x64'  : 'x86_64-linux-gnu.2.28',
+        'macos-arm64': 'aarch64-macos',
+        'macos-x64'  : 'x86_64-macos',
+        'windows-x64': 'x86_64-windows-gnu',
+]
 
 dependencies {
     compileOnly project(':core')
@@ -48,22 +53,34 @@ tasks.register('prepareNative', Sync) {
     }
 }
 
-tasks.register('buildNative', Exec) {
+def buildTasks = targets.collect { platform, target ->
+    def out = nativeOut.map { it.dir(platform) }
+    tasks.register("buildNative${platform.split('-').collect { it.capitalize() }.join()}", Exec) {
+        group = 'build'
+        description = "Builds libmoudrevo for ${platform} from the patched revo copy"
+        dependsOn 'patchRevo', 'prepareNative'
+        workingDir nativeSrc
+        inputs.dir(nativeDir)
+        inputs.files(fileTree(revoCheckout) { include 'build.zig', 'build.zig.zon', 'src/**/*.zig' })
+        outputs.dir(out)
+        commandLine zig, 'build', '-Doptimize=ReleaseFast', "-Dtarget=${target}", '--prefix', out.get().asFile.absolutePath
+    }
+}
+
+tasks.register('buildNative') {
     group = 'build'
-    description = 'Builds libmoudrevo from the patched revo copy'
-    dependsOn 'patchRevo', 'prepareNative'
-    workingDir nativeSrc
-    inputs.dir(nativeDir)
-    inputs.files(fileTree(revoCheckout) { include 'build.zig', 'build.zig.zon', 'src/**/*.zig' })
-    outputs.dir(nativeOut)
-    commandLine zig, 'build', '-Doptimize=ReleaseFast', '--prefix', nativeOut.get().asFile.absolutePath
+    description = 'Builds libmoudrevo for every platform'
+    dependsOn buildTasks
 }
 
 processResources {
     dependsOn 'buildNative'
-    from(nativeOut.map { it.dir('lib') }) {
-        include '*.so'
-        into "natives/${platform}"
+    targets.keySet().each { platform ->
+        from(nativeOut.map { it.dir(platform) }) {
+            include 'lib/*.so', 'lib/*.dylib', 'bin/*.dll'
+            eachFile { path = "natives/${platform}/${name}" }
+            includeEmptyDirs = false
+        }
     }
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') {

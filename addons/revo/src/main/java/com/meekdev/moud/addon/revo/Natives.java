@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Locale;
 import java.util.OptionalLong;
 
 final class Natives {
@@ -33,7 +34,8 @@ final class Natives {
     private static final long BOX_MASK = 0xFFF8_0000_0000_0000L;
     private static final long PAYLOAD = 0x0000_FFFF_FFFF_FFFFL;
     private static final int ERROR_LIMIT = 1 << 20;
-    private static final String LIBRARY = "/natives/linux-x86_64/libmoudrevo.so";
+    private static final String FILE = System.mapLibraryName("moudrevo");
+    private static final String LIBRARY = "/natives/" + platform() + "/" + FILE;
 
     static final long NIL = boxed(ATOM, 0);
     static final long FALSE = boxed(ATOM, FALSE_ATOM);
@@ -324,6 +326,13 @@ final class Natives {
         return slot.get(ValueLayout.JAVA_LONG, 0);
     }
 
+    private static String platform() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        String system = os.contains("win") ? "windows" : os.contains("mac") || os.contains("darwin") ? "macos" : "linux";
+        return system + "-" + (arch.contains("aarch64") || arch.contains("arm64") ? "arm64" : "x64");
+    }
+
     private static MethodHandle handle(String name, FunctionDescriptor descriptor) {
         MemorySegment symbol = library.find(name).orElseThrow(() -> new IllegalStateException("libmoudrevo has no " + name));
         return LINKER.downcallHandle(symbol, descriptor);
@@ -332,7 +341,7 @@ final class Natives {
     private static Path extract() {
         try (InputStream in = Natives.class.getResourceAsStream(LIBRARY)) {
             if (in == null) throw new IllegalStateException("the revo addon was built without " + LIBRARY);
-            Path file = Files.createTempFile("moudrevo", ".so");
+            Path file = Files.createTempFile("moudrevo", FILE.substring(FILE.lastIndexOf('.')));
             file.toFile().deleteOnExit();
             Files.copy(in, file, StandardCopyOption.REPLACE_EXISTING);
             return file;
