@@ -90,16 +90,16 @@ public final class Tasks {
         return host.scheduler().start(released(fiber, kept), host.ownership().current(), args);
     }
 
-    public static int delay(Host host, double seconds, Callable fn) {
+    public static int delay(Host host, double seconds, Callable fn, Object... args) {
         Callable kept = fn.retain();
         Fiber fiber = host.engine() == null ? null : host.engine().fiber(kept);
         double[] waited = {0};
-        Suspend wait = new Suspend(dt -> (waited[0] += dt) >= seconds ? new Object[0] : null);
+        Suspend wait = new Suspend(dt -> (waited[0] += dt) >= seconds ? args : null);
         if (fiber == null) {
             fiber = new Fiber() {
                 @Override
                 public Suspend resume(Object... values) {
-                    host.call(kept, "task.delay");
+                    host.call(kept, "task.delay", args);
                     return null;
                 }
 
@@ -207,9 +207,8 @@ public final class Tasks {
         };
     }
 
-    private static int defer(Host host, Callable fn, Object... args) {
-        Callable kept = fn.retain();
-        return delay(host, 0, kept);
+    public static int defer(Host host, Callable fn, Object... args) {
+        return delay(host, 0, fn, args);
     }
 
     private static String stamp(String pattern, ZonedDateTime moment) {
