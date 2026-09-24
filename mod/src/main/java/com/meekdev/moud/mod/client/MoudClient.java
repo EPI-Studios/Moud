@@ -55,6 +55,7 @@ public final class MoudClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        ClassWarmup.listen();
         Input.register();
         ClientChat.listen();
         Autopilot.listen();

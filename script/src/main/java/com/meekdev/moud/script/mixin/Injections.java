@@ -325,6 +325,10 @@ public final class Injections {
         warm.start();
     }
 
+    public static Class<?>[] loadedClasses() {
+        return instrumentation().getAllLoadedClasses();
+    }
+
     private static synchronized Instrumentation instrumentation() {
         if (instrumentation == null) instrumentation = ByteBuddyAgent.install();
         return instrumentation;

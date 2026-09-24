@@ -33,6 +33,7 @@
     "world.WeatherMixin"
   ],
   "client": [
+    "client.MainMixin",
     "client.ProgramCacheMixin",
     "client.ClickMixin",
     "client.WheelMixin",
