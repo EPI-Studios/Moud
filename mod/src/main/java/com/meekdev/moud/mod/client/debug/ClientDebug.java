@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -117,7 +118,7 @@ public final class ClientDebug implements DebugRef {
             Map<String, Object> row = new HashMap<>();
             row.put("cpu", (double) e.avgMs);
             if (e.avgGpuMs >= 0) row.put("gpu", (double) e.avgGpuMs);
-            row.put("stage", e.stage == null ? "other" : e.stage.name().toLowerCase());
+            row.put("stage", e.stage == null ? "other" : e.stage.name().toLowerCase(Locale.ROOT));
             out.put(e.label, row);
         }
         return out;

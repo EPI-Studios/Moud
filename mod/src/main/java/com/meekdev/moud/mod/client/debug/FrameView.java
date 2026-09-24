@@ -10,6 +10,7 @@ import com.meekdev.moud.mod.adapter.text.TextLook;
 import com.meekdev.moud.mod.adapter.text.TextPainter;
 import com.mojang.blaze3d.platform.InputConstants;
 import java.util.List;
+import java.util.Locale;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
@@ -59,14 +60,14 @@ public final class FrameView {
 
         float x = 4, y = 4;
         d.rect(x, y, WIDTH, ROW * (shown + 1) + 5, 0xA0000000);
-        String head = frame > 0 ? String.format("frame %.2f ms  %.0f fps", frame, 1000 / frame) : "frame -";
+        String head = frame > 0 ? String.format(Locale.ROOT, "frame %.2f ms  %.0f fps", frame, 1000 / frame) : "frame -";
         text(d, head, x + 3, y + 2, WIDTH - 6, WHITE, HorizontalAlign.LEFT);
         column(d, "cpu", "gpu", x, y + 2, DIM);
         y += ROW + 2;
         for (int i = 0; i < shown; i++) {
             PassProfiler.Entry e = entries.get(i);
             text(d, e.label, x + 3, y, WIDTH - 66, WHITE, HorizontalAlign.LEFT);
-            column(d, String.format("%.2f", e.avgMs), e.avgGpuMs >= 0 ? String.format("%.2f", e.avgGpuMs) : "-", x, y, DIM);
+            column(d, String.format(Locale.ROOT, "%.2f", e.avgMs), e.avgGpuMs >= 0 ? String.format(Locale.ROOT, "%.2f", e.avgGpuMs) : "-", x, y, DIM);
             if (scale > 0) {
                 d.rect(x + 3, y + 7, (WIDTH - 6) * Math.min(1, e.avgMs / scale), 0.7f, CPU);
                 if (e.avgGpuMs > 0) d.rect(x + 3, y + 7.8f, (WIDTH - 6) * Math.min(1, e.avgGpuMs / scale), 0.7f, GPU);
