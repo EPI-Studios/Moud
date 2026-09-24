@@ -1,0 +1,28 @@
+name: natives
+
+on:
+  workflow_dispatch:
+    inputs:
+      jar:
+        description: URL of a built moud jar
+        required: true
+
+jobs:
+  load:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - name: download the jar
+        shell: bash
+        run: curl -fsSL -o moud.jar "${{ inputs.jar }}"
+      - name: load every native for this platform
+        shell: bash
+        run: java --enable-native-access=ALL-UNNAMED .github/scripts/LoadNatives.java moud.jar
