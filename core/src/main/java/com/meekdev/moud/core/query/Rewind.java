@@ -42,7 +42,9 @@ public final class Rewind {
             ArrayDeque<Sample> samples = history.computeIfAbsent(id, key -> new ArrayDeque<>());
             if (samples.isEmpty() || !samples.peekLast().frame().equals(now)) samples.addLast(new Sample(tick, now));
             while (samples.size() >= 2 && secondOf(samples).tick() <= tick - WINDOW) samples.removeFirst();
+            if (samples.size() == 1 && samples.peekFirst().tick() <= tick - WINDOW) it.remove();
         }
+        if (tick % WINDOW == 0) history.keySet().removeIf(id -> !watched.contains(id) && !(tree.byId(id) instanceof Part));
     }
 
     public void clear() {
