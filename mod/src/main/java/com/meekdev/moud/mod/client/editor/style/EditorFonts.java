@@ -139,6 +139,7 @@ public final class EditorFonts {
         ImFontGlyphRangesBuilder builder = new ImFontGlyphRangesBuilder();
         builder.addRanges(atlas.getGlyphRangesDefault());
         builder.addRanges(atlas.getGlyphRangesCyrillic());
+        builder.addRanges(new short[] {0x2010, 0x205E, 0});
         return builder.buildRanges();
     }
 
