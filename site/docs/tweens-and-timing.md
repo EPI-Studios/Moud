@@ -182,6 +182,17 @@ task.defer(function() print(#wall:descendants(), "left") end)
 > end)
 > ```
 
+A coroutine can wait too. The wait hands control back to whoever resumed it, and once it is over the
+engine resumes the coroutine itself:
+
+```lua
+coroutine.wrap(function()
+    task.wait(1)
+    print("a second later")
+end)()
+print("right away")
+```
+
 ## Signals
 
 A signal is something that happens, and `connect` runs your function every time it does. Every

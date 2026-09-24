@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.ToIntFunction;
 import net.hollowcube.luau.BuilinLibrary;
+import net.hollowcube.luau.LuaCoStatus;
 import net.hollowcube.luau.LuaError;
 import net.hollowcube.luau.LuaFunc;
 import net.hollowcube.luau.LuaState;
@@ -47,6 +48,7 @@ final class LuauEngine implements ScriptEngine {
     private final LuaState state;
     private final Map<Builtin, Integer> builtins = new IdentityHashMap<>();
     private Suspend pending;
+    private LuauFiber running;
     private int resumedWith;
     private List<Function> fresh = new ArrayList<>();
     private boolean closed;
@@ -63,8 +65,10 @@ final class LuauEngine implements ScriptEngine {
         @Override
         public Object[] call(Object... args) {
             if (dropped || closed) return new Object[0];
-            ScriptEngine running = host.parallel().running();
-            if (running != null && running != LuauEngine.this) throw new HostError("a function from another VM cannot run in parallel");
+            ScriptEngine parallelVm = host.parallel().running();
+            if (parallelVm != null && parallelVm != LuauEngine.this) {
+                throw new HostError("a function from another VM cannot run in parallel");
+            }
             ScriptEngine before = host.enter(LuauEngine.this);
             int base = state.top();
             state.getRef(ref);
@@ -126,14 +130,16 @@ final class LuauEngine implements ScriptEngine {
     private final class LuauFiber implements Fiber {
         private final LuaState thread;
         private final int threadRef;
+        private final boolean adopted;
         private Object[] initial;
         private Object[] results = new Object[0];
         private boolean finished;
 
-        LuauFiber(LuaState thread, int threadRef, Object[] initial) {
+        LuauFiber(LuaState thread, int threadRef, Object[] initial, boolean adopted) {
             this.thread = thread;
             this.threadRef = threadRef;
             this.initial = initial;
+            this.adopted = adopted;
         }
 
         @Override
@@ -143,12 +149,18 @@ final class LuauEngine implements ScriptEngine {
                 finished = true;
                 return null;
             }
+            if (adopted && state.costatus(thread) != LuaCoStatus.SUSPENDED) {
+                finish();
+                return null;
+            }
             Object[] args = values;
             if (initial != null) {
                 args = initial;
                 initial = null;
             }
             ScriptEngine before = host.enter(LuauEngine.this);
+            LuauFiber outer = running;
+            running = this;
             LuaStatus status;
             try {
                 for (Object arg : args) push(thread, arg);
@@ -158,15 +170,10 @@ final class LuauEngine implements ScriptEngine {
                 finish();
                 throw e;
             } finally {
+                running = outer;
                 host.leave(before);
             }
-            if (status == LuaStatus.YIELD) {
-                Suspend next = pending;
-                pending = null;
-                if (next == null) next = Suspend.seconds(thread.top() > 0 && thread.type(-1) == LuaType.NUMBER ? thread.toNumber(-1) : 0);
-                thread.pop(thread.top());
-                return next;
-            }
+            if (status == LuaStatus.YIELD) return yielded();
             String failure = status == LuaStatus.OK ? null : thread.toString(-1);
             if (failure == null) {
                 results = new Object[thread.top()];
@@ -175,6 +182,19 @@ final class LuauEngine implements ScriptEngine {
             finish();
             if (failure != null) throw new ScriptError("task", failure, null);
             return null;
+        }
+
+        private Suspend yielded() {
+            Suspend next = pending;
+            pending = null;
+            if (next == null && adopted) {
+                thread.pop(thread.top());
+                finish();
+                return null;
+            }
+            if (next == null) next = Suspend.seconds(thread.top() > 0 && thread.type(-1) == LuaType.NUMBER ? thread.toNumber(-1) : 0);
+            thread.pop(thread.top());
+            return next;
         }
 
         @Override
@@ -330,7 +350,8 @@ final class LuauEngine implements ScriptEngine {
                     suspend.cancel().run();
                     throw new HostError("cannot wait here, run this inside task.spawn or a script");
                 }
-                pending = suspend;
+                if (resumedByFiber(s)) pending = suspend;
+                else adopt(s, suspend);
                 return s.yield(0);
             }
             default -> {
@@ -338,6 +359,17 @@ final class LuauEngine implements ScriptEngine {
                 return 1;
             }
         }
+    }
+
+    private boolean resumedByFiber(LuaState thread) {
+        return running != null && running.thread.costatus(thread) == LuaCoStatus.RUNNING;
+    }
+
+    private void adopt(LuaState thread, Suspend wait) {
+        state.pushThread(thread);
+        int threadRef = state.ref(-1);
+        state.pop(1);
+        host.parallel().later(new LuauFiber(thread, threadRef, null, true), wait);
     }
 
     private int resumed(LuaState s, LuaStatus status) {
@@ -535,7 +567,7 @@ final class LuauEngine implements ScriptEngine {
         state.pop(1);
         state.getRef(function.ref);
         state.xmove(thread, 1);
-        return new LuauFiber(thread, threadRef, null);
+        return new LuauFiber(thread, threadRef, null, false);
     }
 
     @Override
@@ -545,7 +577,7 @@ final class LuauEngine implements ScriptEngine {
         int threadRef = state.ref(-1);
         state.pop(1);
         thread.load(chunk, bytecode);
-        return new LuauFiber(thread, threadRef, new Object[] {script});
+        return new LuauFiber(thread, threadRef, new Object[] {script}, false);
     }
 
     @Override

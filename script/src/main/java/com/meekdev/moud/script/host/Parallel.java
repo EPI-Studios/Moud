@@ -16,13 +16,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 
 public final class Parallel {
 
     static final Suspend DESYNCHRONIZE = new Suspend(dt -> new Object[0]);
     static final Suspend SYNCHRONIZE = new Suspend(dt -> new Object[0]);
 
-    private static final long STACK = 16L << 20;
+    private static final long WORKER_STACK = 16L * 1024 * 1024;
 
     private record Mail(Instance actor, String topic, Object[] args) {}
 
@@ -51,6 +52,8 @@ public final class Parallel {
     private final Queue<String> printed = new ConcurrentLinkedQueue<>();
     private final Map<String, SharedTable> named = new ConcurrentHashMap<>();
     private final ThreadLocal<Vm> phase = new ThreadLocal<>();
+    private final ThreadLocal<Object> owner = new ThreadLocal<>();
+    private final Queue<Outcome> parked = new ConcurrentLinkedQueue<>();
     private ExecutorService workers;
 
     Parallel(Host host) {
@@ -157,6 +160,11 @@ public final class Parallel {
         return running == null ? null : running.engine;
     }
 
+    public void later(Fiber fiber, Suspend wait) {
+        if (active()) parked.add(new Outcome(null, fiber, owner.get(), wait, null));
+        else host.scheduler().later(fiber, host.ownership().current(), wait);
+    }
+
     public void guard(String what) {
         if (active()) throw new HostError("%s cannot be called in parallel, call task.synchronize() first", what);
     }
@@ -202,13 +210,13 @@ public final class Parallel {
         Callable kept = fn.retain();
         Object owner = host.ownership().current();
         List<Binding> bound = vm.bindings.computeIfAbsent(topic, key -> new ArrayList<>());
-        Binding[] made = new Binding[1];
+        Binding[] binding = new Binding[1];
         Connection connection = new Connection(() -> {
-            bound.remove(made[0]);
+            bound.remove(binding[0]);
             kept.release();
         });
-        made[0] = new Binding(kept, owner, parallel, connection);
-        bound.add(made[0]);
+        binding[0] = new Binding(kept, owner, parallel, connection);
+        bound.add(binding[0]);
         host.ownership().onRelease(owner, connection::disconnect);
         return connection;
     }
@@ -251,7 +259,7 @@ public final class Parallel {
         deliver();
         Map<Vm, List<Object>> work = new LinkedHashMap<>();
         for (Scheduler.Resumption waiting : host.scheduler().takeDesynced()) {
-            Vm vm = waiting.task().fiber.engine() == null ? null : byEngine.get(waiting.task().fiber.engine());
+            Vm vm = vmOf(waiting.task().fiber);
             if (vm != null) work.computeIfAbsent(vm, key -> new ArrayList<>()).add(waiting);
         }
         for (Vm vm : byActor.values()) {
@@ -259,12 +267,17 @@ public final class Parallel {
             work.computeIfAbsent(vm, key -> new ArrayList<>()).addAll(vm.calls);
             vm.calls = new ArrayList<>();
         }
-        if (!work.isEmpty()) settle(phase(work));
+        if (!work.isEmpty()) settle(runInParallel(work));
         host.scheduler().resumeSynced();
         deliver();
     }
 
-    private List<Outcome> phase(Map<Vm, List<Object>> work) {
+    private Vm vmOf(Fiber fiber) {
+        ScriptEngine engine = fiber.engine();
+        return engine == null ? null : byEngine.get(engine);
+    }
+
+    private List<Outcome> runInParallel(Map<Vm, List<Object>> work) {
         long started = System.nanoTime();
         List<Future<List<Outcome>>> running = new ArrayList<>();
         for (Map.Entry<Vm, List<Object>> entry : work.entrySet()) {
@@ -295,39 +308,48 @@ public final class Parallel {
     }
 
     private List<Outcome> work(Vm vm, List<Object> items) {
-        List<Outcome> out = new ArrayList<>();
+        List<Outcome> outcomes = new ArrayList<>();
         phase.set(vm);
         ScriptEngine before = host.enter(vm.engine);
         try {
             for (Object item : items) {
-                switch (item) {
-                    case Scheduler.Resumption waiting -> {
-                        Scheduler.Task task = waiting.task();
-                        if (task.done) continue;
-                        try {
-                            out.add(new Outcome(task, null, null, task.fiber.resume(waiting.values()), null));
-                        } catch (RuntimeException e) {
-                            out.add(new Outcome(task, null, null, null, e));
-                        }
-                    }
-                    case Call call -> {
-                        if (!call.connection().connected()) continue;
-                        Fiber fiber = null;
-                        try {
-                            fiber = vm.engine.fiber(call.fn());
-                            if (fiber != null) out.add(new Outcome(null, fiber, call.owner(), fiber.resume(call.args()), null));
-                        } catch (RuntimeException e) {
-                            out.add(new Outcome(null, fiber, call.owner(), null, e));
-                        }
-                    }
-                    default -> { }
-                }
+                Outcome outcome = switch (item) {
+                    case Scheduler.Resumption waiting -> resume(waiting);
+                    case Call call -> start(vm, call);
+                    default -> null;
+                };
+                if (outcome != null) outcomes.add(outcome);
             }
         } finally {
             host.leave(before);
+            owner.remove();
             phase.remove();
         }
-        return out;
+        return outcomes;
+    }
+
+    private Outcome resume(Scheduler.Resumption waiting) {
+        Scheduler.Task task = waiting.task();
+        if (task.done) return null;
+        owner.set(task.owner);
+        try {
+            return new Outcome(task, null, null, task.fiber.resume(waiting.values()), null);
+        } catch (RuntimeException e) {
+            return new Outcome(task, null, null, null, e);
+        }
+    }
+
+    private Outcome start(Vm vm, Call call) {
+        if (!call.connection().connected()) return null;
+        owner.set(call.owner());
+        Fiber fiber = null;
+        try {
+            fiber = vm.engine.fiber(call.fn());
+            if (fiber == null) return null;
+            return new Outcome(null, fiber, call.owner(), fiber.resume(call.args()), null);
+        } catch (RuntimeException e) {
+            return new Outcome(null, fiber, call.owner(), null, e);
+        }
     }
 
     private void settle(List<Outcome> outcomes) {
@@ -341,27 +363,36 @@ public final class Parallel {
                 host.scheduler().adopt(outcome.fiber(), outcome.owner(), outcome.next());
             }
         }
+        Outcome waiting;
+        while ((waiting = parked.poll()) != null) {
+            host.scheduler().adopt(waiting.fiber(), waiting.owner(), waiting.next());
+        }
     }
 
     private void deliver() {
-        for (int left = mail.size(); left > 0; left--) {
+        int waiting = mail.size();
+        for (int delivered = 0; delivered < waiting; delivered++) {
             Mail next = mail.poll();
             if (next == null) return;
-            Vm vm = byActor.get(next.actor());
-            List<Binding> bound = vm == null ? null : vm.bindings.get(next.topic());
-            if (bound == null) continue;
-            for (Binding binding : List.copyOf(bound)) {
-                if (!binding.connection().connected()) continue;
-                if (binding.parallel()) {
-                    vm.calls.add(new Call(binding.fn(), next.args(), binding.owner(), binding.connection()));
-                    continue;
-                }
-                Object before = host.ownership().enter(binding.owner());
-                try {
-                    Tasks.spawn(host, binding.fn(), next.args());
-                } finally {
-                    host.ownership().leave(before);
-                }
+            deliver(next);
+        }
+    }
+
+    private void deliver(Mail letter) {
+        Vm vm = byActor.get(letter.actor());
+        List<Binding> bound = vm == null ? null : vm.bindings.get(letter.topic());
+        if (bound == null) return;
+        for (Binding binding : List.copyOf(bound)) {
+            if (!binding.connection().connected()) continue;
+            if (binding.parallel()) {
+                vm.calls.add(new Call(binding.fn(), letter.args(), binding.owner(), binding.connection()));
+                continue;
+            }
+            Object before = host.ownership().enter(binding.owner());
+            try {
+                Tasks.spawn(host, binding.fn(), letter.args());
+            } finally {
+                host.ownership().leave(before);
             }
         }
     }
@@ -369,7 +400,12 @@ public final class Parallel {
     private ExecutorService workers() {
         if (workers == null) {
             int count = Math.max(1, Runtime.getRuntime().availableProcessors());
-            workers = Executors.newFixedThreadPool(count, Thread.ofPlatform().name("moud-parallel-", 1).daemon().stackSize(STACK).factory());
+            ThreadFactory threads = Thread.ofPlatform()
+                    .name("moud-parallel-", 1)
+                    .daemon()
+                    .stackSize(WORKER_STACK)
+                    .factory();
+            workers = Executors.newFixedThreadPool(count, threads);
         }
         return workers;
     }
