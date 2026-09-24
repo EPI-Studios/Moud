@@ -12,6 +12,7 @@
     "Torque": "TOOL_ROTATE",
     "Part": "MESH_INSTANCE_3D",
     "Limb": "MESH",
+    "SpecialMesh": "MESH",
     "SpawnLocation": "NAVIGATION_REGION_3D",
     "Seat": "STATIC_BODY_3D",
     "VehicleSeat": "RIGID_BODY_3D",

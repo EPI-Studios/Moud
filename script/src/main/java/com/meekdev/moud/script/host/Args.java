@@ -97,6 +97,11 @@ public final class Args {
         return value != null && !Boolean.FALSE.equals(value);
     }
 
+    public byte[] bytes(int at) {
+        if (get(at) instanceof byte[] b) return b;
+        throw expected(at, "a buffer");
+    }
+
     public Vector3 vector(int at) {
         if (get(at) instanceof Vector3 v) return v;
         throw expected(at, "a vec3");

@@ -923,6 +923,21 @@ Extends [Instance](#instance).
 | `texture` | `string` |
 | `transparency` | `number` |
 
+<a id="specialmesh"></a>
+
+## SpecialMesh
+
+Extends [Instance](#instance).
+
+| Property | Type |
+|---|---|
+| `meshId` | `string` |
+| `meshType` | `"brick" \| "sphere" \| "cylinder" \| "wedge" \| "head" \| "fileMesh"` |
+| `offset` | `Vector3` |
+| `scale` | `Vector3` |
+| `textureId` | `string` |
+| `vertexColor` | `Color` |
+
 <a id="posteffect"></a>
 
 ## PostEffect
@@ -3733,6 +3748,71 @@ Methods:
 
 - `remove(): ()`
 
+<a id="editablemesh"></a>
+
+## EditableMesh
+
+A mesh a script builds. See [EditableMesh](rendering.md#editablemesh).
+
+| Property | Type |
+|---|---|
+| `uri` | `string` |
+
+Methods:
+
+- `addVertex(position: Vector3): number`
+- `getPosition(vertex: number): Vector3`
+- `setPosition(vertex: number, position: Vector3): ()`
+- `addNormal(normal: Vector3?): number`
+- `getNormal(normal: number): Vector3`
+- `setNormal(normal: number, value: Vector3): ()`
+- `resetNormal(normal: number): ()`
+- `addUV(uv: Vector3): number`
+- `getUV(uv: number): Vector3`
+- `setUV(uv: number, value: Vector3): ()`
+- `addColor(color: Color, transparency: number?): number`
+- `getColor(color: number): (Color, number)`
+- `setColor(color: number, value: Color, transparency: number?): ()`
+- `addTriangle(vertex1: number, vertex2: number, vertex3: number): number`
+- `removeFace(face: number): ()`
+- `getFaceVertices(face: number): { number }`
+- `setFaceVertices(face: number, vertices: { number }): ()`
+- `getFaceNormals(face: number): { number }`
+- `setFaceNormals(face: number, normals: { number }): ()`
+- `getFaceUVs(face: number): { number }`
+- `setFaceUVs(face: number, uvs: { number }): ()`
+- `getFaceColors(face: number): { number }`
+- `setFaceColors(face: number, colors: { number }): ()`
+- `getVertices(): { number }`
+- `getFaces(): { number }`
+- `getNormals(): { number }`
+- `getUVs(): { number }`
+- `getColors(): { number }`
+- `getVertexFaces(vertex: number): { number }`
+- `getAdjacentVertices(vertex: number): { number }`
+- `getAdjacentFaces(face: number): { number }`
+- `findClosestVertex(point: Vector3): number?`
+- `findVerticesWithinSphere(center: Vector3, radius: number): { number }`
+- `findClosestPointOnSurface(point: Vector3): (number?, Vector3?, Vector3?)`
+- `raycast(origin: Vector3, direction: Vector3, range: number?): (number?, Vector3?, Vector3?)`
+- `getSize(): Vector3`
+- `getCenter(): Vector3`
+- `removeUnused(): ()`
+- `clear(): ()`
+- `copy(): EditableMesh`
+- `destroy(): ()`
+
+<a id="meshes"></a>
+
+## Meshes
+
+The `meshes` global. See [EditableMesh](rendering.md#editablemesh).
+
+Functions:
+
+- `create(): EditableMesh`
+- `load(source: string): EditableMesh` (client, yields)
+
 <a id="editableimage"></a>
 
 ## EditableImage
@@ -3758,11 +3838,15 @@ Methods:
 - `drawPolygon(points: { Vector3 } | { number }, color: Color, options: DrawOptions?): ()`
 - `drawGradient(x: number, y: number, width: number, height: number, from: Color, to: Color, options: GradientOptions?): ()`
 - `drawImage(image: EditableImage, x: number, y: number, options: ImageDrawOptions?): ()`
+- `drawImageTransformed(image: EditableImage, x: number, y: number, options: TransformOptions?): ()`
+- `drawImageProjected(mesh: EditableMesh, image: EditableImage, projection: Projection, options: ProjectOptions?): ()`
 - `floodFill(x: number, y: number, color: Color, options: FillOptions?): number`
 - `drawText(text: string, x: number, y: number, color: Color, options: TextOptions?): (number, number)` (Minecraft's font, see [Text](images.md#text))
 - `measureText(text: string, options: TextOptions?): (number, number)`
 - `readPixels(x: number?, y: number?, width: number?, height: number?): { number }`
 - `writePixels(x: number, y: number, width: number, height: number, pixels: { number }): ()`
+- `readPixelsBuffer(x: number?, y: number?, width: number?, height: number?): buffer`
+- `writePixelsBuffer(x: number, y: number, width: number, height: number, pixels: buffer): ()`
 - `resize(width: number, height: number, smooth: boolean?): ()`
 - `crop(x: number, y: number, width: number, height: number): EditableImage`
 - `copy(): EditableImage`
@@ -3812,6 +3896,12 @@ type GradientOptions = { rotation: number?, fromTransparency: number?, toTranspa
     blend: ImageBlend? }
 type ImageDrawOptions = { width: number?, height: number?, sourceX: number?, sourceY: number?,
     sourceWidth: number?, sourceHeight: number?, transparency: number?, blend: ImageBlend?,
+    smooth: boolean? }
+type TransformOptions = { scaleX: number?, scaleY: number?, rotation: number?, pivotX: number?,
+    pivotY: number?, sourceX: number?, sourceY: number?, sourceWidth: number?,
+    sourceHeight: number?, transparency: number?, blend: ImageBlend?, smooth: boolean? }
+type Projection = { position: Vector3, direction: Vector3, size: Vector3, up: Vector3? }
+type ProjectOptions = { fadeAngle: number?, transparency: number?, blend: ImageBlend?,
     smooth: boolean? }
 type FillOptions = { tolerance: number?, transparency: number?, blend: ImageBlend? }
 type TextAlign = "left" | "center" | "right"
@@ -3949,6 +4039,8 @@ declare java: Java
 declare mixin: MixinService
 
 declare shaders: Shaders     -- client only
+
+declare meshes: Meshes
 
 declare images: Images
 

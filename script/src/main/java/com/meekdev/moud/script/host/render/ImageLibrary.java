@@ -18,13 +18,13 @@ import com.meekdev.moud.script.host.Results;
 import com.meekdev.moud.script.host.Suspend;
 import com.meekdev.moud.script.host.player.Players;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class ImageLibrary {
 
@@ -104,11 +104,39 @@ public final class ImageLibrary {
                     if (!(a.get(1) instanceof Image other)) throw new HostError("drawImage expects an EditableImage");
                     EditableImage source = other.live();
                     Map<String, Object> options = a.map(4, Map.of());
-                    int sx = (int) number(options, "sourceX", 0);
-                    int sy = (int) number(options, "sourceY", 0);
-                    int sw = (int) number(options, "sourceWidth", source.width() - sx);
-                    int sh = (int) number(options, "sourceHeight", source.height() - sy);
-                    target.image(source, sx, sy, sw, sh, a.number(2), a.number(3), number(options, "width", sw), number(options, "height", sh),
+                    Region region = Region.of(options, source);
+                    target.image(source, region.x(), region.y(), region.width(), region.height(), a.number(2), a.number(3),
+                            number(options, "width", region.width()), number(options, "height", region.height()),
+                            number(options, "transparency", 0), blend(options.get("blend")), Boolean.TRUE.equals(options.get("smooth")));
+                    return null;
+                })
+                .method("drawImageTransformed", "(image: EditableImage, x: number, y: number, options: TransformOptions?) -> ()", a -> {
+                    EditableImage target = a.self(Image.class).live();
+                    if (!(a.get(1) instanceof Image other)) throw new HostError("drawImageTransformed expects an EditableImage");
+                    EditableImage source = other.live();
+                    Map<String, Object> options = a.map(4, Map.of());
+                    Region region = Region.of(options, source);
+                    target.transformed(source, region.x(), region.y(), region.width(), region.height(), a.number(2), a.number(3),
+                            number(options, "scaleX", 1), number(options, "scaleY", 1), number(options, "rotation", 0),
+                            number(options, "pivotX", region.width() / 2.0), number(options, "pivotY", region.height() / 2.0),
+                            number(options, "transparency", 0), blend(options.get("blend")), Boolean.TRUE.equals(options.get("smooth")));
+                    return null;
+                })
+                .method("drawImageProjected", "(mesh: EditableMesh, image: EditableImage, projection: Projection, options: ProjectOptions?) -> ()", a -> {
+                    EditableImage target = a.self(Image.class).live();
+                    if (!(a.get(1) instanceof MeshLibrary.Mesh mesh)) throw new HostError("drawImageProjected expects an EditableMesh");
+                    if (!(a.get(2) instanceof Image decal)) throw new HostError("drawImageProjected expects an EditableImage to project");
+                    Map<String, Object> projection = a.map(3);
+                    Map<String, Object> options = a.map(4, Map.of());
+                    Vector3 direction = vector(projection, "direction", null);
+                    Vector3 size = vector(projection, "size", null);
+                    if (direction.lengthSq() == 0) throw new HostError("the projection's direction can not be zero");
+                    if (size.x() <= 0 || size.y() <= 0 || size.z() <= 0) {
+                        throw new HostError("the projection's size must be above 0 on every axis, not %s", size);
+                    }
+                    Vector3 position = vector(projection, "position", null);
+                    Vector3 up = vector(projection, "up", Vector3.UP);
+                    target.projected(mesh.live(), decal.live(), position, direction, up, size, number(options, "fadeAngle", 90),
                             number(options, "transparency", 0), blend(options.get("blend")), Boolean.TRUE.equals(options.get("smooth")));
                     return null;
                 })
@@ -174,6 +202,48 @@ public final class ImageLibrary {
                     image.touched();
                     return null;
                 })
+                .method("readPixelsBuffer", "(x: number?, y: number?, width: number?, height: number?) -> buffer", a -> {
+                    EditableImage image = a.self(Image.class).live();
+                    int x = a.integer(1, 0);
+                    int y = a.integer(2, 0);
+                    int width = a.integer(3, image.width() - x);
+                    int height = a.integer(4, image.height() - y);
+                    if (width < 0 || height < 0 || (long) width * height > MOST_PIXELS_READ) {
+                        throw new HostError("readPixelsBuffer was asked for %d by %d pixels", width, height);
+                    }
+                    byte[] out = new byte[width * height * 4];
+                    int at = 0;
+                    for (int py = y; py < y + height; py++) {
+                        for (int px = x; px < x + width; px++) {
+                            putRgba(out, at, image.get(px, py));
+                            at += 4;
+                        }
+                    }
+                    return out;
+                })
+                .method("writePixelsBuffer", "(x: number, y: number, width: number, height: number, pixels: buffer) -> ()", a -> {
+                    EditableImage image = a.self(Image.class).live();
+                    int x = a.integer(1);
+                    int y = a.integer(2);
+                    int width = a.integer(3);
+                    int height = a.integer(4);
+                    byte[] pixels = a.bytes(5);
+                    if (width < 0 || height < 0 || pixels.length != (long) width * height * 4) {
+                        throw new HostError("writePixelsBuffer wants %d bytes for %d by %d pixels, got %d",
+                                Math.max(0, (long) width * height * 4), width, height, pixels.length);
+                    }
+                    int at = 0;
+                    for (int py = y; py < y + height; py++) {
+                        for (int px = x; px < x + width; px++) {
+                            int value = argb(pixels, at);
+                            at += 4;
+                            boolean inside = px >= 0 && py >= 0 && px < image.width() && py < image.height();
+                            if (inside) image.pixels()[py * image.width() + px] = value;
+                        }
+                    }
+                    image.touched();
+                    return null;
+                })
                 .method("resize", "(width: number, height: number, smooth: boolean?) -> ()", a -> {
                     try {
                         a.self(Image.class).live().resize(a.integer(1), a.integer(2), a.has(3) && a.truthy(3));
@@ -209,13 +279,17 @@ public final class ImageLibrary {
                     return null;
                 });
 
+        ImageStore store() {
+            return ImageStore.of(host.client());
+        }
+
         EditableImage live() {
-            if (ImageStore.find(id) != pixels) throw new HostError("this image was destroyed");
+            if (store().find(id) != pixels) throw new HostError("this image was destroyed");
             return pixels;
         }
 
         void destroy() {
-            ImageStore.remove(id);
+            store().remove(id);
             owned.remove(id);
         }
 
@@ -239,6 +313,17 @@ public final class ImageLibrary {
         }
     }
 
+    private record Region(int x, int y, int width, int height) {
+
+        static Region of(Map<String, Object> options, EditableImage source) {
+            int x = (int) number(options, "sourceX", 0);
+            int y = (int) number(options, "sourceY", 0);
+            int width = (int) number(options, "sourceWidth", source.width() - x);
+            int height = (int) number(options, "sourceHeight", source.height() - y);
+            return new Region(x, y, width, height);
+        }
+    }
+
     private record Style(Paint paint, boolean filled, double thickness, double corner, boolean smooth) {
 
         static Style of(Args a, int at, Color color) {
@@ -250,11 +335,14 @@ public final class ImageLibrary {
     }
 
     public static void install(Host host) {
-        Set<Integer> owned = new HashSet<>();
+        Set<Integer> owned = ConcurrentHashMap.newKeySet();
         host.api().alias("ImageBlend", BLEND);
         host.api().alias("DrawOptions", "{ transparency: number?, blend: ImageBlend?, smooth: boolean?, filled: boolean?, thickness: number?, cornerRadius: number? }");
         host.api().alias("GradientOptions", "{ rotation: number?, fromTransparency: number?, toTransparency: number?, blend: ImageBlend? }");
         host.api().alias("ImageDrawOptions", "{ width: number?, height: number?, sourceX: number?, sourceY: number?, sourceWidth: number?, sourceHeight: number?, transparency: number?, blend: ImageBlend?, smooth: boolean? }");
+        host.api().alias("TransformOptions", "{ scaleX: number?, scaleY: number?, rotation: number?, pivotX: number?, pivotY: number?, sourceX: number?, sourceY: number?, sourceWidth: number?, sourceHeight: number?, transparency: number?, blend: ImageBlend?, smooth: boolean? }");
+        host.api().alias("Projection", "{ position: Vector3, direction: Vector3, size: Vector3, up: Vector3? }");
+        host.api().alias("ProjectOptions", "{ fadeAngle: number?, transparency: number?, blend: ImageBlend?, smooth: boolean? }");
         host.api().alias("TextAlign", ALIGN);
         host.api().alias("TextOptions", "{ size: number?, shadow: boolean?, align: TextAlign?, wrap: number?, lineHeight: number?, transparency: number?, blend: ImageBlend?, bold: boolean?, italic: boolean?, smooth: boolean? }");
         host.api().alias("FillOptions", "{ tolerance: number?, transparency: number?, blend: ImageBlend? }");
@@ -289,13 +377,13 @@ public final class ImageLibrary {
         host.global("images", "Images", images);
         host.declare(images);
         host.onClose(() -> {
-            for (int id : owned) ImageStore.remove(id);
+            for (int id : owned) ImageStore.of(host.client()).remove(id);
             owned.clear();
         });
     }
 
     private static Image track(Host host, Set<Integer> owned, EditableImage image) {
-        Image made = new Image(host, owned, ImageStore.add(image), image);
+        Image made = new Image(host, owned, ImageStore.of(host.client()).add(image), image);
         owned.add(made.id());
         return made;
     }
@@ -380,6 +468,28 @@ public final class ImageLibrary {
         if (value == null) return fallback;
         if (!(value instanceof Number number) || !Double.isFinite(number.doubleValue())) throw new HostError("%s must be a number", key);
         return number.doubleValue();
+    }
+
+    static Vector3 vector(Map<String, Object> options, String key, Vector3 fallback) {
+        Object value = options.get(key);
+        if (value == null && fallback != null) return fallback;
+        if (!(value instanceof Vector3 v)) throw new HostError("%s must be a Vector3", key);
+        return v;
+    }
+
+    private static void putRgba(byte[] into, int at, int argb) {
+        into[at] = (byte) (argb >> 16);
+        into[at + 1] = (byte) (argb >> 8);
+        into[at + 2] = (byte) argb;
+        into[at + 3] = (byte) (argb >>> 24);
+    }
+
+    private static int argb(byte[] rgba, int at) {
+        int red = rgba[at] & 0xFF;
+        int green = rgba[at + 1] & 0xFF;
+        int blue = rgba[at + 2] & 0xFF;
+        int alpha = rgba[at + 3] & 0xFF;
+        return alpha << 24 | red << 16 | green << 8 | blue;
     }
 
     private static float channel(Object value) {

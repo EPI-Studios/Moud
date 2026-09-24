@@ -43,7 +43,7 @@ public final class UiImages {
 
     public static int @Nullable [] size(String src) {
         if (src.isEmpty()) return null;
-        EditableImage editable = ImageStore.find(src);
+        EditableImage editable = ImageStore.client().find(src);
         if (editable != null) return new int[] {editable.width(), editable.height()};
         if (Videos.isVideo(src)) return Videos.size(src);
         if (src.startsWith(Res.SCHEME)) {

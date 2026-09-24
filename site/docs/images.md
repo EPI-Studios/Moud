@@ -33,6 +33,8 @@ Every one of these takes the same kind of image string:
 | `ImageLabel`, `ImageButton` in a `ScreenGui`, `SurfaceGui` or `BillboardGui` | `image`, `hoverImage`, `pressedImage` |
 | a `ScreenGui` shown in a [window](window.md) | same as above |
 | `Decal`, `Texture` on a part | `texture` |
+| `MaterialOverride` in a `MeshPart` | `texture` |
+| `SpecialMesh` in a part | `textureId` |
 | `ParticleEmitter`, `Beam`, `Trail` | `texture` |
 | `Sky` | `skyboxBk` and the other faces, `sunTextureId`, `moonTextureId` |
 | [rich text](rich-text.md) | `<img src="...">` |
@@ -210,13 +212,13 @@ Coordinates are pixels. `(0, 0)` is the top left corner, x goes right and y goes
 Pixel `(x, y)` is the square from `x` to `x + 1` and from `y` to `y + 1`. The calls read that in two
 ways:
 
-- `drawRectangle`, `drawGradient`, `drawPolygon` and `drawImage` take edges. A rectangle at
-  `(0, 0)` with size `24, 24` covers exactly the pixels 0 to 23.
+- `drawRectangle`, `drawGradient`, `drawPolygon`, `drawImage` and `drawImageTransformed` take
+  edges. A rectangle at `(0, 0)` with size `24, 24` covers exactly the pixels 0 to 23.
 - `drawCircle`, `drawEllipse` and `drawLine` take pixels. The point is the centre of that pixel, so
   `drawCircle(10, 10, ...)` is centred in pixel 10, 10.
 
-`setPixel`, `getPixel`, `floodFill`, `crop`, `readPixels` and `writePixels` take whole pixels.
-Fractions are dropped.
+`setPixel`, `getPixel`, `floodFill`, `crop` and the calls that read and write pixels take whole
+pixels. Fractions are dropped.
 
 Drawing past the edge of the image is fine. The part outside is left out.
 
@@ -225,7 +227,8 @@ Drawing past the edge of the image is fine. The part outside is left out.
 Transparency is `0` for solid and `1` for gone, as everywhere else in Moud. A colour's own alpha,
 from `color(r, g, b, a)`, counts too: the two multiply.
 
-`readPixels` and `writePixels` are the exception. They work with alpha, `1` for solid.
+`readPixels`, `writePixels` and their buffer versions are the exception. They work with alpha:
+`1` for solid, or `255` in a buffer.
 
 ### Limits
 
@@ -337,6 +340,93 @@ canvas:drawImage(other, x, y, options?)
 
 An image may be drawn onto itself.
 
+### Turning and scaling an image
+
+```lua
+canvas:drawImageTransformed(other, x, y, options?)
+```
+
+`other` is scaled and turned about its pivot, and the pivot lands on `x, y`. `TransformOptions`:
+
+| Option | Default | |
+|---|---|---|
+| `scaleX`, `scaleY` | `1` | how many times wider and taller it is drawn. A negative scale mirrors it |
+| `rotation` | `0` | how far it is turned, in degrees, clockwise |
+| `pivotX`, `pivotY` | the middle | the point it turns about, in pixels of `other` |
+| `sourceX`, `sourceY`, `sourceWidth`, `sourceHeight` | the whole of `other` | the part of `other` to draw, as for `drawImage` |
+| `transparency` | `0` | fades it |
+| `blend` | `"over"` | see [Blends](#blends) |
+| `smooth` | `false` | smooths it; without it, pixels stay square |
+
+```lua
+-- client
+local needle = images.create(4, 40, color(0.9, 0.2, 0.2))
+dial:drawImageTransformed(needle, 64, 64, { rotation = 45, pivotX = 2, pivotY = 40, smooth = true })
+```
+
+The needle turns about the middle of its bottom edge, which sits on the centre of the dial.
+
+- The pivot is counted from the top left of the part drawn, so with `sourceX` set, `pivotX = 0` is
+  the left edge of that part.
+- A scale of `0` draws nothing.
+- An image may be drawn onto itself.
+
+### Painting onto a mesh
+
+```lua
+canvas:drawImageProjected(mesh, other, projection, options?)
+```
+
+`drawImageProjected` shines `other` onto an [`EditableMesh`](rendering.md#editablemesh) the way a
+projector would, and paints what lands on each face into `canvas`, where the face's UVs point. Show
+`canvas` on that mesh and the picture sits on its surface, bent around its shape. It is how a splat,
+a sticker or a scorch mark goes onto a model.
+
+`Projection`:
+
+| Field | |
+|---|---|
+| `position` | where the projector stands |
+| `direction` | which way it shines |
+| `size` | x and y are the width and height of the picture, z how far it reaches from `position` |
+| `up` | which way is up in the picture. The default is `vec3(0, 1, 0)` |
+
+`ProjectOptions`:
+
+| Option | Default | |
+|---|---|---|
+| `fadeAngle` | `90` | faces turned further than this from the projector, in degrees, get less paint, down to none at 90 |
+| `transparency` | `0` | fades it |
+| `blend` | `"over"` | see [Blends](#blends) |
+| `smooth` | `false` | smooths `other`; without it, pixels stay square |
+
+```lua
+-- client
+local skin = images.create(256, 256, color(1, 1, 1))
+blob:add("MaterialOverride", { texture = skin.uri })
+
+local splat = images.create(32, 32)
+splat:drawCircle(15.5, 15.5, 15, color(0.2, 0.6, 1), { smooth = true })
+
+local function paint(worldPoint: Vector3, worldNormal: Vector3)
+    local at = blob.cframe:pointToObjectSpace(worldPoint)
+    local facing = blob.cframe:vectorToObjectSpace(worldNormal)
+    skin:drawImageProjected(mesh, splat, {
+        position = at + facing * 0.5,
+        direction = -facing,
+        size = vec3(0.6, 0.6, 1),
+    }, { fadeAngle = 60, smooth = true })
+end
+```
+
+`blob` is a `MeshPart` showing `mesh`, and `paint` takes a point and a normal from a raycast.
+
+- `position`, `direction` and `up` are in the mesh's own frame, not the world's.
+- Only faces that face the projector are painted.
+- A face behind another one is painted too. The projector does not know what is in front.
+- Each pixel of `canvas` is painted at most once a call, by the first face over it.
+- A face whose UVs fall outside `0` to `1` is painted only where they are inside.
+
 ### Flood fill
 
 ```lua
@@ -446,6 +536,33 @@ by row, left to right, starting at the top left. Pixel `(px, py)` of the area st
 
 One `writePixels` call is much faster than many `setPixel` calls. Keep the list and fill it again
 each frame, as the [plasma example](#a-plasma-animation) does.
+
+### Pixels in a buffer
+
+```lua
+local bytes = canvas:readPixelsBuffer(x?, y?, width?, height?)
+canvas:writePixelsBuffer(x, y, width, height, bytes)
+```
+
+These read and write the same pixels as `readPixels` and `writePixels`, in a Luau `buffer` instead
+of a table: four bytes a pixel, red, green, blue and alpha, each from 0 to 255. Pixel `(px, py)` of
+the area starts at byte `(py * width + px) * 4`.
+
+```lua
+local bytes = canvas:readPixelsBuffer()
+for at = 0, buffer.len(bytes) - 4, 4 do
+    local red = buffer.readu8(bytes, at)
+    buffer.writeu8(bytes, at, 255 - red)
+end
+canvas:writePixelsBuffer(0, 0, canvas.width, canvas.height, bytes)
+```
+
+That turns the red of every pixel around.
+
+- The rules are those of `readPixels` and `writePixels`: at most 1024 by 1024 pixels read at once,
+  pixels outside the image read as `0` and are skipped when written, and writing replaces the pixels
+  without blending.
+- `writePixelsBuffer` needs exactly `width * height * 4` bytes.
 
 ### Changing an image
 

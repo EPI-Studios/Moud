@@ -16,6 +16,7 @@ import com.meekdev.moud.script.host.SharedTable;
 import com.meekdev.moud.script.host.Values;
 import com.meekdev.moud.script.host.Suspend;
 import java.lang.foreign.Arena;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -364,6 +365,7 @@ final class LuauEngine implements ScriptEngine {
             case Boolean b -> s.pushBoolean(b);
             case Number n -> s.pushNumber(n.doubleValue());
             case String text -> s.pushString(text);
+            case byte[] bytes -> s.newBuffer(bytes.length).put(bytes);
             case Builtin fn -> pushBuiltin(s, fn);
             case Function function when function.owner() == this -> s.getRef(function.ref);
             case Ref ref when ref.owner() == this -> s.getRef(ref.ref);
@@ -409,6 +411,12 @@ final class LuauEngine implements ScriptEngine {
                 yield function;
             }
             case TABLE -> table(s, index, depth);
+            case BUFFER -> {
+                ByteBuffer buffer = s.toBuffer(index).duplicate();
+                byte[] bytes = new byte[buffer.remaining()];
+                buffer.get(bytes);
+                yield bytes;
+            }
             default -> throw new HostError("a %s cannot be used here", type.typeName());
         };
     }

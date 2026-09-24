@@ -266,9 +266,9 @@ rate is, and the engine does the dividing.
 - [Interface](interface.md): screen, billboard and surface guis, layouts, text boxes, scrolling, mouse events
 - [Chat](chat.md): channels, delivery, messages, the window, bubbles, commands
 - [Rich text](rich-text.md): every tag, links, hover, pictures, text shaders
-- [Images](images.md): fitting, nine-slice, sprite sheets, drawing images in code, loading files, textures and skins
+- [Images](images.md): fitting, nine-slice, sprite sheets, drawing images in code, turning them, painting them onto meshes, loading files, textures and skins
 - [Sound](sound.md): sound instances, buses, sound effects and the audio global
-- [Models, lights, post effects and held items](rendering.md): models, lights, post effects and what a body holds
+- [Models, lights, post effects and held items](rendering.md): models, special meshes, meshes built in code, lights, post effects and what a body holds
 - [Lighting, sky, weather and presets](lighting.md): the day clock, the sun, skyboxes, distance fog, clouds, rain, snow, storms and lightning, and presets that set a whole look at once
 - [Particles, beams, trails, highlights and decals](effects.md): emitters, fire, smoke, bursts, selection boxes, explosions
 - [Mixins, Java and shader patches](mixins.md): hooks, mixin files, state, conversions, shaders

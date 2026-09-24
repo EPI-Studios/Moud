@@ -78,6 +78,7 @@ public final class MaskPass {
             Meshes.fillMask(meshPart, projectionView, eye, partialTick, r, g, b, a);
             return;
         }
+        if (SpecialMeshes.fillMask(part, projectionView, eye, partialTick, r, g, b, a)) return;
         CFrame world = ClientScene.motion().sample(part, partialTick);
         Vector3 at = world.position().sub(eye);
         Quat turn = world.rotation();

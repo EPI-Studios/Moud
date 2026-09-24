@@ -90,7 +90,7 @@ public final class Parts {
         if (tree == null) return;
         for (Part part : tree.ofClass(Classes.PART)) {
             if (part.shading == PartShading.PBR) physical = true;
-            if (part.texture.isEmpty() || part instanceof MeshPart || Skins.wearsSkin(part)) continue;
+            if (part.texture.isEmpty() || part instanceof MeshPart || Skins.wearsSkin(part) || SpecialMeshes.drawn(part)) continue;
             if (ViewportFrame.inside(part)) continue;
             boolean ghost = EditorView.ghost(part);
             if (!ghost && (!part.visible || part.transparency >= 1.0)) continue;
@@ -293,6 +293,7 @@ public final class Parts {
         if (isTransparent(part) != glass) return false;
         if (part instanceof MeshPart) return false;
         if (Skins.wearsSkin(part)) return false;
+        if (SpecialMeshes.drawn(part)) return false;
         if (!part.texture.isEmpty()) return false;
         if (ViewportFrame.inside(part)) return false;
 

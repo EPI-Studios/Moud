@@ -17,6 +17,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.mesh.MeshStore;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.core.physics.RopeConstraint;
 import com.meekdev.moud.core.physics.RopeCurve;
@@ -244,6 +245,7 @@ public final class Meshes {
     static Matrix4f placement(CFrame world, Vector3 size, Model model, Model.@Nullable Piece piece, Matrix4f into) {
         Vector3 at = world.position();
         Quat turn = world.rotation();
+        if (EditableModels.owns(model)) return frame(at, turn, into);
         Vector3f min = piece == null ? model.boundsMin() : piece.min();
         Vector3f max = piece == null ? model.boundsMax() : piece.max();
         float sx = stretch(size.x(), max.x - min.x);
@@ -304,13 +306,7 @@ public final class Meshes {
         Vector3 at = world.position().sub(camera);
         Quat turn = world.rotation();
         Model.Piece piece = MeshLooks.piece(part.meshId, model);
-        Vector3f min = piece == null ? model.boundsMin() : piece.min();
-        Vector3f max = piece == null ? model.boundsMax() : piece.max();
-        Matrix4f matrix = new Matrix4f()
-                .translation((float) at.x(), (float) at.y(), (float) at.z())
-                .rotate(new Quaternionf((float) turn.x(), (float) turn.y(), (float) turn.z(), (float) turn.w()))
-                .scale(stretch(part.size.x(), max.x - min.x), stretch(part.size.y(), max.y - min.y), stretch(part.size.z(), max.z - min.z))
-                .translate(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -(min.z + max.z) / 2);
+        Matrix4f matrix = placement(new CFrame(at, turn), part.size, model, piece, new Matrix4f());
         Matrix4f[] boned = BONED.get(part.id());
         if (boned != null && boned.length == rest(model).world().length) {
             model.fillMask(projectionView, frame(at, turn, matrix).scale(grown(part)), boned, r, g, b, a);
@@ -339,6 +335,7 @@ public final class Meshes {
     private static @Nullable Model model(String meshId, String variant) {
         meshId = MeshLooks.file(meshId);
         String slot = variant.isEmpty() ? meshId : meshId + "#" + variant;
+        if (MeshStore.isEditable(meshId)) return EditableModels.of(meshId, slot);
         if (meshId.startsWith(Res.SCHEME)) return fromPlace(meshId, slot);
         Loaded known = MODELS.get(slot);
         if (known != null) return known.model();

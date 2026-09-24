@@ -23,10 +23,12 @@ import com.meekdev.moud.mod.adapter.render.SceneLights;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.adapter.render.SkyBox;
 import com.meekdev.moud.mod.adapter.render.Skins;
+import com.meekdev.moud.mod.adapter.render.SpecialMeshes;
 import com.meekdev.moud.mod.adapter.render.WeatherView;
 import com.meekdev.moud.mod.adapter.physics.OwnedBodies;
 import com.meekdev.moud.mod.adapter.image.ClientImageSources;
 import com.meekdev.moud.mod.adapter.image.ImageSources;
+import com.meekdev.moud.mod.adapter.render.EditableModels;
 import com.meekdev.moud.mod.adapter.render.EditableTextures;
 import com.meekdev.moud.mod.adapter.render.effect.Effects;
 import com.meekdev.moud.mod.adapter.ui.Ui;
@@ -76,6 +78,7 @@ public final class MoudClient implements ClientModInitializer {
         GameTypes.install(ClientScene::tree, id -> Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getPlayerByUUID(id));
         Parts.register();
         Meshes.register();
+        SpecialMeshes.register();
         FirstPersonView.install();
         PostStack.register();
         SkyBox.register();
@@ -106,6 +109,7 @@ public final class MoudClient implements ClientModInitializer {
                     .getGameTimeDeltaPartialTick(true);
             Skins.prepareFrame(partialTick);
             BlockLightGrid.frame();
+            SpecialMeshes.prepareFrame();
             Parts.prepareFrame();
             CoreGui.INSTANCE.frame();
             Ui.frame(partialTick);
@@ -115,6 +119,7 @@ public final class MoudClient implements ClientModInitializer {
             WeatherView.frame();
             Effects.frame();
             EditableTextures.sweep();
+            EditableModels.sweep();
             ClientImageSources.INSTANCE.frame();
             Bubbles.frame(partialTick);
             ClientPrompts.frame();

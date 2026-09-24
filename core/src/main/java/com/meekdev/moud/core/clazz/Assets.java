@@ -2,6 +2,7 @@ package com.meekdev.moud.core.clazz;
 
 import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.image.ImageStore;
+import com.meekdev.moud.core.mesh.MeshStore;
 
 public final class Assets {
 
@@ -30,7 +31,7 @@ public final class Assets {
     public static void check(String where, String value) {
         int piece = value.indexOf('#');
         if (piece > 0) value = value.substring(0, piece);
-        if (value.isEmpty() || ImageStore.isEditable(value)) return;
+        if (value.isEmpty() || ImageStore.isEditable(value) || MeshStore.isEditable(value)) return;
         if (value.startsWith(Res.SCHEME)) {
             try {
                 Res.parse(value);

@@ -13,6 +13,7 @@ import com.meekdev.moud.mod.adapter.physics.BlockRays;
 import com.meekdev.moud.mod.adapter.render.CameraApi;
 import com.meekdev.moud.mod.adapter.render.Cameras;
 import com.meekdev.moud.mod.adapter.render.FirstPersonView;
+import com.meekdev.moud.mod.adapter.render.MeshSources;
 import com.meekdev.moud.mod.adapter.render.ShaderPatches;
 import com.meekdev.moud.mod.adapter.render.WeatherView;
 import com.meekdev.moud.mod.addon.Addons;
@@ -138,6 +139,7 @@ public final class ClientPlace {
                     .settings(PlayerSettings.INSTANCE)
                     .window(WindowApi.INSTANCE)
                     .images(ClientImageSources.INSTANCE)
+                    .meshes(MeshSources.INSTANCE)
                     .coreGui(CoreGui.INSTANCE)
                     .devices(DEVICES);
             CoreGui.INSTANCE.reset();

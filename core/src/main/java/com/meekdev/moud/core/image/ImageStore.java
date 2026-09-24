@@ -1,25 +1,41 @@
 package com.meekdev.moud.core.image;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ImageStore {
 
     public static final String SCHEME = "editable://";
 
-    private static final Map<Integer, EditableImage> IMAGES = new HashMap<>();
-    private static int next = 1;
+    private static final AtomicInteger NEXT = new AtomicInteger(1);
+    private static final ImageStore SERVER = new ImageStore();
+    private static final ImageStore CLIENT = new ImageStore();
+
+    private final Map<Integer, EditableImage> images = new ConcurrentHashMap<>();
 
     private ImageStore() {}
 
-    public static synchronized int add(EditableImage image) {
-        int id = next++;
-        IMAGES.put(id, image);
+    public static ImageStore server() {
+        return SERVER;
+    }
+
+    public static ImageStore client() {
+        return CLIENT;
+    }
+
+    public static ImageStore of(boolean client) {
+        return client ? CLIENT : SERVER;
+    }
+
+    public int add(EditableImage image) {
+        int id = NEXT.getAndIncrement();
+        images.put(id, image);
         return id;
     }
 
-    public static synchronized void remove(int id) {
-        IMAGES.remove(id);
+    public void remove(int id) {
+        images.remove(id);
     }
 
     public static String uri(int id) {
@@ -30,16 +46,16 @@ public final class ImageStore {
         return source.startsWith(SCHEME);
     }
 
-    public static synchronized EditableImage find(String source) {
+    public EditableImage find(String source) {
         if (!isEditable(source)) return null;
         try {
-            return IMAGES.get(Integer.parseInt(source.substring(SCHEME.length())));
+            return images.get(Integer.parseInt(source.substring(SCHEME.length())));
         } catch (NumberFormatException e) {
             return null;
         }
     }
 
-    public static synchronized EditableImage find(int id) {
-        return IMAGES.get(id);
+    public EditableImage find(int id) {
+        return images.get(id);
     }
 }

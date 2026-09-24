@@ -123,7 +123,8 @@ world:add("MeshPart", {
 
 - **`meshId`** is the model file. Moud reads `.gltf`, `.glb`, `.ammesh` and `.bbmodel`, and a resource
   pack id works in its place. `#` and a name after it draws one piece of the file, see
-  [One piece of a file](#one-piece-of-a-file).
+  [One piece of a file](#one-piece-of-a-file). The `uri` of an `EditableMesh` draws a mesh a script
+  built, see [EditableMesh](#editablemesh).
 - **`size`** works as it does on any part, and the model is stretched to fill it. That means a
   `MeshPart` moves, scales and turns like a part, and you never scale the model file itself.
 - **`animation`** names a clip inside the file, with **`animationSpeed`** and **`animationLooped`**
@@ -303,6 +304,193 @@ return vec3(sin(v.time * 2.0 + v.worldPos.y) * 0.05 * v.localPos.y, 0.0, 0.0);
 ```
 
 The model's lighting follows the moved shape, so a flag that ripples is shaded along its folds.
+
+## SpecialMesh
+
+A `SpecialMesh` inside a part changes the shape the part is drawn as. The part still collides, is
+queried and is selected as its own box. Only the picture changes.
+
+```lua
+local egg = world:add("Part", {
+    size = vec3(2, 2, 2),
+    cframe = cframe(0, 65, 0),
+    color = color(0.9, 0.85, 0.7),
+    anchored = true,
+})
+local shape = egg:add("SpecialMesh", { meshType = "sphere", scale = vec3(0.8, 1.2, 0.8) })
+```
+
+| Property | Default | |
+|---|---|---|
+| `meshType` | `"brick"` | the shape drawn: `"brick"`, `"sphere"`, `"cylinder"`, `"wedge"`, `"head"` or `"fileMesh"` |
+| `meshId` | `""` | with `"fileMesh"`, the model drawn. It takes what a `MeshPart`'s `meshId` takes |
+| `textureId` | `""` | an image laid on the shape by its texture coordinates |
+| `scale` | `vec3(1, 1, 1)` | multiplies the size it is drawn at |
+| `offset` | `vec3(0, 0, 0)` | moves the drawn shape away from the part's centre, in metres along the part's own axes |
+| `vertexColor` | white | tints the image, and the model of a `"fileMesh"` |
+
+- A built-in shape fills the part's `size`, times `scale`. It stretches on every axis, so a
+  `"sphere"` in a 4 by 1 by 1 part is a long egg, where a part with `shape = "ball"` stays round.
+- A `"fileMesh"` is drawn at the size it has in the file, times `scale`, centred on the part. The
+  part's `size` does not stretch it. That is how it differs from a `MeshPart`.
+- A `"cylinder"` lies along the part's x axis, as a cylinder part does. A `"wedge"` slopes the way a
+  wedge part does. A `"head"` is an upright cylinder with rounded top and bottom edges.
+- A built-in shape takes the part's `color`, `roughness`, `metallic` and `transparency`. With a
+  `textureId`, the image takes the place of `color` and `vertexColor` tints it.
+- A `"fileMesh"` keeps the file's own materials, tinted by `vertexColor`. A `textureId` replaces the
+  colour image of every material.
+- The part is lit the way a model is, from the sun and the sky, whatever its `shading`.
+- Only the first `SpecialMesh` in a part is used. A `SpecialMesh` inside a `MeshPart`, a body's limb
+  or a part in a `ViewportFrame` does nothing.
+
+`offset` and `scale` move only the picture, so tweening them never touches the physics:
+
+```lua
+shape:tween({ offset = vec3(0, 0.5, 0) }, { time = 1, reverses = true, repeats = -1 })
+```
+
+## EditableMesh
+
+`meshes` is a global that makes meshes a script builds, vertex by vertex, while the game runs. Each
+one is an `EditableMesh`. A `MeshPart` shows one when its `meshId` is the mesh's `uri`.
+
+```lua
+-- client
+local mesh = meshes.create()
+local a = mesh:addVertex(vec3(-1, -1, 0))
+local b = mesh:addVertex(vec3(1, -1, 0))
+local c = mesh:addVertex(vec3(0, 1, 0))
+mesh:addTriangle(a, b, c)
+
+world:add("MeshPart", { meshId = mesh.uri, size = mesh:getSize(), cframe = cframe(0, 65, 0) })
+```
+
+- `meshes.create()` makes an empty mesh.
+- `meshes.load(source)` reads a model file of the place into a new mesh: `.gltf`, `.glb`, `.ammesh`
+  or `.bbmodel`. It waits for the file, so call it inside `task.spawn`. It keeps the shape, the
+  normals, the UVs and the colour of each material, and drops the images, the bones and the clips.
+  It works in client scripts only.
+- `meshes.load(other.uri)` returns a copy of another mesh, and so does `other:copy()`.
+- `mesh:destroy()` throws a mesh away. Every mesh a script made is thrown away when its scripts
+  stop, which includes every reload.
+
+> [!IMPORTANT]
+> Show meshes from a client script. A mesh lives in the memory of the side that made it. A server
+> `Script` can build a mesh and cast rays against it, but its `uri` means nothing on a player's
+> machine, so players do not see it.
+
+### Showing a mesh
+
+- A mesh is drawn at its own size, in the part's frame: a vertex at `vec3(1, 0, 0)` is drawn one
+  metre along the part's right. The part's `size` does not stretch it, as it stretches a model file.
+- `size` is still the box the part collides, is queried and is selected with, centred on the part.
+  Build the mesh around `vec3(0, 0, 0)` and give the part `mesh:getSize()`, and the two match.
+- A `MaterialOverride` with no `material` changes the whole mesh. Its `texture` lays an image on the
+  mesh by its UVs, `color` tints it and `doubleSided` draws the back of every face.
+- A `SpecialMesh` with `meshType = "fileMesh"` takes a mesh's `uri` too. It draws the mesh from its
+  own origin, times `scale`, without centring it.
+- A change shows up the next time the mesh is drawn. The whole mesh goes to the graphics card again,
+  at most once a frame however many calls you made, so the cost grows with the size of the mesh.
+
+### Vertices and faces
+
+Every `add` call returns a number, the id of what it added. An id never changes and is never handed
+out again: after `removeFace(4)`, the faces are 1, 2, 3 and 5. Vertices, normals, UVs, colours and
+faces each count on their own, so vertex 3 and face 3 are two different things. Go through a mesh
+with `getVertices()` and `getFaces()` rather than counting from 1.
+
+| Call | What it does |
+|---|---|
+| `mesh:addVertex(position)` | adds a vertex and returns its id |
+| `mesh:getPosition(vertex)`, `mesh:setPosition(vertex, position)` | read and move a vertex |
+| `mesh:addTriangle(vertex1, vertex2, vertex3)` | adds a face and returns its id |
+| `mesh:removeFace(face)` | removes a face. Its vertices stay |
+| `mesh:getFaceVertices(face)`, `mesh:setFaceVertices(face, vertices)` | read and change the three vertices of a face |
+| `mesh:getVertices()`, `mesh:getFaces()` | every id there is |
+| `mesh:removeUnused()` | removes every vertex, normal, UV and colour no face uses |
+| `mesh:clear()` | removes everything |
+
+- A face is a triangle. Its front is the side from which its three vertices go round
+  counterclockwise, and only the front is drawn.
+- Positions are metres in the mesh's own frame.
+- A mesh holds at most 65536 vertices and 65536 faces. Adding more is an error.
+
+### Normals, UVs and colours
+
+A vertex has one position. Its normal, UV and colour belong to each corner of each face instead, so
+a vertex shared by two faces can look smooth across their edge, or sharp.
+
+When `addTriangle` adds a face, each corner takes the normal, UV and colour its vertex already has in
+another face. A vertex no face uses yet gets a new normal, the UV `(0, 0)` and white. So a grid of
+shared vertices comes out smooth, with one UV per vertex.
+
+To make an edge sharp, give each face its own normal:
+
+```lua
+local face = mesh:addTriangle(a, b, c)
+local normal = mesh:addNormal()
+mesh:setFaceNormals(face, { normal, normal, normal })
+```
+
+| Call | What it does |
+|---|---|
+| `mesh:addNormal(normal?)` | adds a normal. Without a value it is worked out from the faces that use it |
+| `mesh:getNormal(id)`, `mesh:setNormal(id, normal)` | read and set one. A normal you set is no longer worked out |
+| `mesh:resetNormal(id)` | works it out again |
+| `mesh:addUV(uv)` | adds a UV. x runs across the image and y down it. z is ignored |
+| `mesh:getUV(id)`, `mesh:setUV(id, uv)` | read and set one |
+| `mesh:addColor(color, transparency?)` | adds a colour |
+| `mesh:getColor(id)`, `mesh:setColor(id, color, transparency?)` | read and set one. `getColor` returns the colour and its transparency |
+| `mesh:getFaceNormals(face)`, `mesh:setFaceNormals(face, ids)` | the normal of each corner, in the order of `getFaceVertices` |
+| `mesh:getFaceUVs(face)`, `mesh:setFaceUVs(face, ids)` | the UV of each corner |
+| `mesh:getFaceColors(face)`, `mesh:setFaceColors(face, ids)` | the colour of each corner |
+| `mesh:getNormals()`, `mesh:getUVs()`, `mesh:getColors()` | every id there is |
+
+- A worked-out normal is the average of the faces that use it, the bigger faces counting more.
+- UV `(0, 0)` is the top left of the image and `(1, 1)` the bottom right. Past 1 the image repeats.
+- A face is drawn in one colour, the average of its three corners. The colour multiplies the
+  texture when there is one.
+- The mesh is drawn in one piece per colour, so keep the number of different colours small.
+
+### Finding things on a mesh
+
+| Call | Returns |
+|---|---|
+| `mesh:raycast(origin, direction, range?)` | the face hit, the point, and the weights of its three corners |
+| `mesh:findClosestPointOnSurface(point)` | the closest face, the point on it, and the weights of its three corners |
+| `mesh:findClosestVertex(point)` | the closest vertex |
+| `mesh:findVerticesWithinSphere(center, radius)` | every vertex inside the sphere |
+| `mesh:getVertexFaces(vertex)` | the faces that use the vertex |
+| `mesh:getAdjacentVertices(vertex)` | the vertices that share a face with it |
+| `mesh:getAdjacentFaces(face)` | the faces that share an edge with it |
+| `mesh:getSize()`, `mesh:getCenter()` | the size and the middle of the box the vertices fill |
+
+- `raycast` reaches `range` metres along `direction`, 1000 by default, and hits a face from either
+  side. When it hits nothing, all three results are `nil`.
+- The weights are a `Vector3`: x, y and z are how much of the first, second and third corner of
+  `getFaceVertices` the point is made of. They add up to 1, so they mix anything a corner holds, such
+  as a UV or a normal.
+- Everything is in the mesh's own frame. Turn a world point into it with the part's
+  `cframe:pointToObjectSpace(point)`, and a direction with `cframe:vectorToObjectSpace(direction)`.
+
+Here a click pushes in the sheet the camera looks at, which is the start of a sculpting tool:
+
+```lua
+-- client
+input.inputBegan:connect(function(object, gameProcessed)
+    if gameProcessed or object.inputType ~= "mouseButton1" then return end
+    local frame = sheet.cframe
+    local face, point = mesh:raycast(
+        frame:pointToObjectSpace(camera.cframe.position),
+        frame:vectorToObjectSpace(camera.cframe.lookVector), 50)
+    if face == nil or point == nil then return end
+    for _, vertex in mesh:findVerticesWithinSphere(point, 0.5) do
+        mesh:setPosition(vertex, mesh:getPosition(vertex) + vec3(0, 0, -0.05))
+    end
+end)
+```
+
+`sheet` is the `MeshPart` and `mesh` the `EditableMesh` it shows.
 
 ## Lights
 

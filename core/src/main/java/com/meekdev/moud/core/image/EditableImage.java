@@ -1,6 +1,8 @@
 package com.meekdev.moud.core.image;
 
 import com.meekdev.moud.core.math.Color;
+import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.mesh.EditableMesh;
 import java.util.ArrayDeque;
 import java.util.List;
 
@@ -313,54 +315,220 @@ public final class EditableImage {
     public void image(EditableImage source, int sx, int sy, int sw, int sh, double x, double y, double w, double h,
                       double transparency, Blend blend, boolean smooth) {
         if (sw <= 0 || sh <= 0 || w <= 0 || h <= 0) return;
-        float keep = (float) (1 - Math.clamp(transparency, 0, 1));
-        int x0 = (int) Math.max(0, Math.floor(x));
-        int y0 = (int) Math.max(0, Math.floor(y));
-        int x1 = (int) Math.min(width, Math.ceil(x + w));
-        int y1 = (int) Math.min(height, Math.ceil(y + h));
-        int[] from = source == this ? argb.clone() : source.argb;
-        for (int py = y0; py < y1; py++) {
-            for (int px = x0; px < x1; px++) {
+        Sampler sampler = new Sampler(source, sx, sy, sw, sh, smooth, source == this);
+        float opacity = opacity(transparency);
+        int left = (int) Math.max(0, Math.floor(x));
+        int top = (int) Math.max(0, Math.floor(y));
+        int right = (int) Math.min(width, Math.ceil(x + w));
+        int bottom = (int) Math.min(height, Math.ceil(y + h));
+        for (int py = top; py < bottom; py++) {
+            for (int px = left; px < right; px++) {
                 double u = (px + 0.5 - x) / w * sw;
                 double v = (py + 0.5 - y) / h * sh;
-                if (u < 0 || v < 0 || u >= sw || v >= sh) continue;
-                int sample = smooth ? bilinear(source, from, sx, sy, sw, sh, u - 0.5, v - 0.5)
-                        : pixel(source, from, sx + (int) u, sy + (int) v);
-                float a = alpha(sample) * keep;
-                if (a <= 0 && blend != Blend.REPLACE) continue;
-                Color c = color(sample);
-                int at = py * width + px;
-                argb[at] = mix(argb[at], new Paint(c.r(), c.g(), c.b(), a, blend), 1);
+                if (sampler.covers(u, v)) stamp(px, py, sampler.at(u, v), opacity, blend);
             }
         }
         version++;
     }
 
-    private static int pixel(EditableImage source, int[] from, int x, int y) {
-        if (x < 0 || y < 0 || x >= source.width || y >= source.height) return 0;
-        return from[y * source.width + x];
+    public void transformed(EditableImage source, int sx, int sy, int sw, int sh, double x, double y, double scaleX, double scaleY,
+                            double degrees, double pivotX, double pivotY, double transparency, Blend blend, boolean smooth) {
+        if (sw <= 0 || sh <= 0 || scaleX == 0 || scaleY == 0) return;
+        Sampler sampler = new Sampler(source, sx, sy, sw, sh, smooth, source == this);
+        float opacity = opacity(transparency);
+        double angle = Math.toRadians(degrees);
+        double cos = Math.cos(angle);
+        double sin = Math.sin(angle);
+
+        Bounds bounds = new Bounds();
+        for (double cornerX : new double[] {0, sw}) {
+            for (double cornerY : new double[] {0, sh}) {
+                double ox = (cornerX - pivotX) * scaleX;
+                double oy = (cornerY - pivotY) * scaleY;
+                bounds.add(x + ox * cos - oy * sin, y + ox * sin + oy * cos);
+            }
+        }
+
+        for (int py = bounds.top(); py < bounds.bottom(height); py++) {
+            for (int px = bounds.left(); px < bounds.right(width); px++) {
+                double dx = px + 0.5 - x;
+                double dy = py + 0.5 - y;
+                double u = (dx * cos + dy * sin) / scaleX + pivotX;
+                double v = (dy * cos - dx * sin) / scaleY + pivotY;
+                if (sampler.covers(u, v)) stamp(px, py, sampler.at(u, v), opacity, blend);
+            }
+        }
+        version++;
     }
 
-    private static int bilinear(EditableImage source, int[] from, int sx, int sy, int sw, int sh, double u, double v) {
-        double cu = Math.clamp(u, 0, sw - 1);
-        double cv = Math.clamp(v, 0, sh - 1);
-        int u0 = (int) Math.floor(cu);
-        int v0 = (int) Math.floor(cv);
-        int u1 = Math.min(u0 + 1, sw - 1);
-        int v1 = Math.min(v0 + 1, sh - 1);
-        double fu = cu - u0;
-        double fv = cv - v0;
-        int a = pixel(source, from, sx + u0, sy + v0);
-        int b = pixel(source, from, sx + u1, sy + v0);
-        int c = pixel(source, from, sx + u0, sy + v1);
-        int d = pixel(source, from, sx + u1, sy + v1);
-        int out = 0;
-        for (int shift = 0; shift <= 24; shift += 8) {
-            double top = ((a >>> shift) & 0xFF) * (1 - fu) + ((b >>> shift) & 0xFF) * fu;
-            double bottom = ((c >>> shift) & 0xFF) * (1 - fu) + ((d >>> shift) & 0xFF) * fu;
-            out |= ((int) Math.round(top * (1 - fv) + bottom * fv) & 0xFF) << shift;
+    public void projected(EditableMesh mesh, EditableImage decal, Vector3 position, Vector3 direction, Vector3 up, Vector3 size,
+                          double fadeAngle, double transparency, Blend blend, boolean smooth) {
+        Projector projector = Projector.of(position, direction, up, size, fadeAngle);
+        if (projector == null) return;
+        Sampler sampler = new Sampler(decal, 0, 0, decal.width, decal.height, smooth, decal == this);
+        float opacity = opacity(transparency);
+        boolean[] painted = new boolean[width * height];
+        EditableMesh.Baked baked = mesh.bake();
+
+        for (int face = 0; face < baked.faces(); face++) {
+            Triangle triangle = Triangle.onImage(baked, face, width, height);
+            if (triangle == null) continue;
+            for (int py = triangle.top(); py <= triangle.bottom(); py++) {
+                for (int px = triangle.left(); px <= triangle.right(); px++) {
+                    if (painted[py * width + px]) continue;
+                    Weights weights = triangle.weights(px + 0.5, py + 0.5);
+                    if (weights == null) continue;
+                    Vector3 point = weights.mix(baked.position(face, 0), baked.position(face, 1), baked.position(face, 2));
+                    Vector3 normal = weights.mix(baked.normal(face, 0), baked.normal(face, 1), baked.normal(face, 2));
+                    Projector.Spot spot = projector.spot(point, normal.normalize());
+                    if (spot == null) continue;
+                    painted[py * width + px] = true;
+                    int sample = sampler.at(spot.u() * decal.width, spot.v() * decal.height);
+                    stamp(px, py, sample, (float) (opacity * spot.strength()), blend);
+                }
+            }
         }
-        return out;
+        version++;
+    }
+
+    private static float opacity(double transparency) {
+        return (float) (1 - Math.clamp(transparency, 0, 1));
+    }
+
+    private void stamp(int x, int y, int sample, float opacity, Blend blend) {
+        float a = alpha(sample) * opacity;
+        if (a <= 0 && blend != Blend.REPLACE) return;
+        Color c = color(sample);
+        int at = y * width + x;
+        argb[at] = mix(argb[at], new Paint(c.r(), c.g(), c.b(), a, blend), 1);
+    }
+
+    private static final class Sampler {
+        private final int[] pixels;
+        private final int stride;
+        private final int rows;
+        private final int left;
+        private final int top;
+        private final int width;
+        private final int height;
+        private final boolean smooth;
+
+        Sampler(EditableImage image, int left, int top, int width, int height, boolean smooth, boolean copy) {
+            this.pixels = copy ? image.argb.clone() : image.argb;
+            this.stride = image.width;
+            this.rows = image.height;
+            this.left = left;
+            this.top = top;
+            this.width = width;
+            this.height = height;
+            this.smooth = smooth;
+        }
+
+        boolean covers(double u, double v) {
+            return u >= 0 && v >= 0 && u < width && v < height;
+        }
+
+        int at(double u, double v) {
+            if (!smooth) return pixel(left + (int) u, top + (int) v);
+            double su = Math.clamp(u - 0.5, 0, width - 1);
+            double sv = Math.clamp(v - 0.5, 0, height - 1);
+            int u0 = (int) su;
+            int v0 = (int) sv;
+            int u1 = Math.min(u0 + 1, width - 1);
+            int v1 = Math.min(v0 + 1, height - 1);
+            double across = su - u0;
+            double down = sv - v0;
+            int topLeft = pixel(left + u0, top + v0);
+            int topRight = pixel(left + u1, top + v0);
+            int bottomLeft = pixel(left + u0, top + v1);
+            int bottomRight = pixel(left + u1, top + v1);
+            int out = 0;
+            for (int shift = 0; shift <= 24; shift += 8) {
+                double upper = lerp(channel(topLeft, shift), channel(topRight, shift), across);
+                double lower = lerp(channel(bottomLeft, shift), channel(bottomRight, shift), across);
+                out |= ((int) Math.round(lerp(upper, lower, down)) & 0xFF) << shift;
+            }
+            return out;
+        }
+
+        private int pixel(int x, int y) {
+            if (x < 0 || y < 0 || x >= stride || y >= rows) return 0;
+            return pixels[y * stride + x];
+        }
+
+        private static int channel(int value, int shift) {
+            return (value >>> shift) & 0xFF;
+        }
+
+        private static double lerp(double a, double b, double t) {
+            return a + (b - a) * t;
+        }
+    }
+
+    private static final class Bounds {
+        private double minX = Double.POSITIVE_INFINITY;
+        private double minY = Double.POSITIVE_INFINITY;
+        private double maxX = Double.NEGATIVE_INFINITY;
+        private double maxY = Double.NEGATIVE_INFINITY;
+
+        void add(double x, double y) {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+        }
+
+        int left() {
+            return (int) Math.max(0, Math.floor(minX));
+        }
+
+        int top() {
+            return (int) Math.max(0, Math.floor(minY));
+        }
+
+        int right(int limit) {
+            return (int) Math.min(limit, Math.ceil(maxX));
+        }
+
+        int bottom(int limit) {
+            return (int) Math.min(limit, Math.ceil(maxY));
+        }
+    }
+
+    private record Weights(double a, double b, double c) {
+        Vector3 mix(Vector3 first, Vector3 second, Vector3 third) {
+            return first.mul(a).add(second.mul(b)).add(third.mul(c));
+        }
+    }
+
+    private record Triangle(double ax, double ay, double bx, double by, double cx, double cy, double area,
+                            int left, int top, int right, int bottom) {
+
+        private static final double EDGE = 1e-9;
+
+        static Triangle onImage(EditableMesh.Baked baked, int face, int width, int height) {
+            double ax = baked.u(face, 0) * width;
+            double ay = baked.v(face, 0) * height;
+            double bx = baked.u(face, 1) * width;
+            double by = baked.v(face, 1) * height;
+            double cx = baked.u(face, 2) * width;
+            double cy = baked.v(face, 2) * height;
+            double area = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay);
+            if (Math.abs(area) < EDGE) return null;
+            int left = (int) Math.max(0, Math.floor(Math.min(ax, Math.min(bx, cx))));
+            int top = (int) Math.max(0, Math.floor(Math.min(ay, Math.min(by, cy))));
+            int right = (int) Math.min(width - 1, Math.ceil(Math.max(ax, Math.max(bx, cx))));
+            int bottom = (int) Math.min(height - 1, Math.ceil(Math.max(ay, Math.max(by, cy))));
+            return new Triangle(ax, ay, bx, by, cx, cy, area, left, top, right, bottom);
+        }
+
+        Weights weights(double x, double y) {
+            double a = ((bx - x) * (cy - y) - (cx - x) * (by - y)) / area;
+            double b = ((cx - x) * (ay - y) - (ax - x) * (cy - y)) / area;
+            double c = 1 - a - b;
+            if (a < -EDGE || b < -EDGE || c < -EDGE) return null;
+            return new Weights(a, b, c);
+        }
     }
 
     public EditableImage copy() {

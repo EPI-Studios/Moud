@@ -36,7 +36,7 @@ public final class EditableTextures {
     private EditableTextures() {}
 
     public static int gl(String source) {
-        EditableImage image = ImageStore.find(source);
+        EditableImage image = ImageStore.client().find(source);
         Uploaded uploaded = UPLOADED.get(source);
         if (image == null) {
             if (uploaded != null) release(source, uploaded);
@@ -68,7 +68,7 @@ public final class EditableTextures {
     public static void sweep() {
         for (Iterator<Map.Entry<String, Uploaded>> it = UPLOADED.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<String, Uploaded> entry = it.next();
-            if (ImageStore.find(entry.getKey()) == entry.getValue().image) continue;
+            if (ImageStore.client().find(entry.getKey()) == entry.getValue().image) continue;
             Minecraft.getInstance().getTextureManager().release(entry.getValue().id);
             it.remove();
         }
