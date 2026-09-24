@@ -170,13 +170,17 @@ public final class SubLevels {
 
     static void dressBody(B3Body body, Part part) {
         round(body, part);
-        float density = part.massless ? MASSLESS_DENSITY : (float) part.density;
+        float density = density(part);
         for (B3Shape shape : body.shapes()) {
             shape.setDensity(density);
             shape.setFriction((float) part.friction);
             shape.setRestitution((float) part.elasticity);
         }
         body.recomputeMass();
+    }
+
+    private static float density(Part part) {
+        return part.massless ? MASSLESS_DENSITY : (float) part.density;
     }
 
     private static final Set<B3Body> REHULLED = Collections.newSetFromMap(new WeakHashMap<>());
@@ -309,6 +313,7 @@ public final class SubLevels {
         if (subLevel == null) {
             subLevel = allocate(id, world);
             if (subLevel == null) return;
+            subLevel.setDensity(density(part));
             subLevel.setModel(wanted);
             subLevel.recentreOrigin();
             subLevel.markShapesDirty();
