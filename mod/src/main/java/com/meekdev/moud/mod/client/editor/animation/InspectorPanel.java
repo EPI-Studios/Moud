@@ -35,6 +35,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.DoubleUnaryOperator;
+import org.jspecify.annotations.Nullable;
 
 final class InspectorPanel implements Panel {
 
@@ -61,6 +62,7 @@ final class InspectorPanel implements Panel {
     private final List<ImString> fieldKeys = new ArrayList<>();
     private final List<ImString> fieldValues = new ArrayList<>();
     private String bound = "";
+    private @Nullable AnimClip boundClip;
 
     InspectorPanel(AnimationWorkspace workspace, AnimationSession session, PreviewRig rig, IconWidgets icons) {
         this.workspace = workspace;
@@ -99,8 +101,9 @@ final class InspectorPanel implements Panel {
 
     private void bind(AnimClip clip) {
         String key = session.path() + "|" + session.event() + "|" + session.marker();
-        if (key.equals(bound) && !(session.event() >= 0 && fieldKeys.size() != eventOrEmpty(clip).fields().size())) return;
+        if (key.equals(bound) && (clip == boundClip || ImGui.isAnyItemActive())) return;
         bound = key;
+        boundClip = clip;
         AnimClip.Event event = eventOrEmpty(clip);
         eventName.set(event.name());
         eventSound.set(event.sound());
@@ -358,7 +361,8 @@ final class InspectorPanel implements Panel {
     private void renderBone(AnimClip clip, String bone) {
         if (!header("Bone", Paint.seconds(session.keyTime()) + " s")) return;
         String joint = session.channel(bone, workspace.retargets());
-        readOnly("Bone", (joint.equals(bone) ? bone : bone + " \u2190 " + joint) + "  \u00b7  " + clip.keyCount(joint) + " keys");
+        int count = clip.keyCount(joint);
+        readOnly("Bone", (joint.equals(bone) ? bone : bone + " plays " + joint) + "  \u00b7  " + count + (count == 1 ? " key" : " keys"));
         JointPose pose = JointPose.of(clip, joint, session.keyTime());
         for (Channel channel : Channel.values()) {
             label(channel.label());
@@ -399,7 +403,14 @@ final class InspectorPanel implements Panel {
         float time = NumberFields.scalar("##anim-marker-time", (float) marker.time(), 1f / clip.fps, ImGui.getContentRegionAvailX() - EditorScale.of(PAD));
         if (Math.abs(time - marker.time()) > 1e-6) {
             double at = Math.max(0, session.snap() ? clip.snap(time) : time);
-            session.edit("Move marker", "anim-marker-time", edited -> edited.markers.set(index, edited.markers.get(index).at(at)));
+            int[] now = {index};
+            session.edit("Move marker", "anim-marker-time", edited -> {
+                AnimClip.Marker moved = edited.markers.get(index).at(at);
+                edited.markers.set(index, moved);
+                edited.sortTimed();
+                now[0] = edited.markers.indexOf(moved);
+            });
+            session.marker(now[0]);
         }
         Sections.caption("Scripts hear it with getMarkerReachedSignal(\"" + marker.name() + "\")");
         ImGui.dummy(0, EditorScale.of(6));
@@ -546,8 +557,7 @@ final class InspectorPanel implements Panel {
         float width = ImGui.getContentRegionAvailX() - EditorScale.of(PAD);
         ImGui.pushStyleColor(ImGuiCol.ChildBg, EditorStyle.COLOR_ELEVATED_BACKGROUND);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, EditorScale.of(10), EditorScale.of(10));
-        float height = event.preview() ? EditorScale.of(168) : EditorScale.of(92);
-        ImGui.beginChild("##anim-event-preview", width, height, ImGuiChildFlags.AlwaysUseWindowPadding, ImGuiWindowFlags.NoScrollbar);
+        ImGui.beginChild("##anim-event-preview", width, 0, ImGuiChildFlags.AlwaysUseWindowPadding | ImGuiChildFlags.AutoResizeY, ImGuiWindowFlags.NoScrollbar);
         ImGui.alignTextToFramePadding();
         ImGui.textUnformatted("Preview in editor");
         ImGui.sameLine(ImGui.getContentRegionMaxX() - Switches.width());
@@ -650,7 +660,7 @@ final class InspectorPanel implements Panel {
             String path = model.get().strip();
             session.edit("Set view model", "anim-view-model-path", edited -> edited.view = new AnimClip.ViewModel(path));
         }
-        Sections.caption("Empty uses the player's own skin arms.");
+        Sections.caption("Empty uses the player's own skin arms");
         ImGui.dummy(0, EditorScale.of(2));
         label("Held item");
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - EditorScale.of(PAD));

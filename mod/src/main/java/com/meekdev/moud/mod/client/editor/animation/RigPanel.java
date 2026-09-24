@@ -6,10 +6,12 @@ import com.meekdev.moud.core.character.JointSprings;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
+import com.meekdev.moud.mod.client.editor.kit.IconButtons;
 import com.meekdev.moud.mod.client.editor.kit.SearchField;
 import com.meekdev.moud.mod.client.editor.kit.Sections;
 import com.meekdev.moud.mod.client.editor.kit.SegmentedControl;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
+import com.meekdev.moud.mod.client.editor.kit.Toolbars;
 import com.meekdev.moud.mod.client.editor.panel.Panel;
 import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
@@ -18,6 +20,7 @@ import com.meekdev.moud.mod.client.editor.style.IconWidgets;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
+import imgui.flag.ImGuiStyleVar;
 import imgui.type.ImString;
 import java.nio.file.Path;
 import java.util.List;
@@ -123,15 +126,7 @@ final class RigPanel implements Panel {
 
     private void renderClips() {
         boolean open = Sections.header("Clips");
-        float right = ImGui.getItemRectMaxX();
-        float top = ImGui.getItemRectMinY();
-        float height = ImGui.getItemRectMaxY() - top;
-        float size = EditorStyle.iconSizeSmall();
-        ImGui.getWindowDrawList().addImage(icons.textureId(EditorIcon.ADD), right - size - EditorScale.of(6), top + (height - size) * 0.5f,
-                right - EditorScale.of(6), top + (height + size) * 0.5f);
-        if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && ImGui.isMouseHoveringRect(right - size - EditorScale.of(10), top, right, top + height)) {
-            askNew = true;
-        }
+        newClipButton();
         if (!open) return;
         Path folder = workspace.clipFolder(session.clip().space);
         List<ClipLibrary.Listed> clips = session.library().clips().stream().filter(clip -> clip.path().startsWith(folder)).toList();
@@ -145,12 +140,30 @@ final class RigPanel implements Panel {
             boolean current = clip.path().equals(session.path());
             ClipLibrary.Open loaded = session.library().get(clip.path());
             String meta = clip.error() != null ? "broken" : clip.space() == AnimClip.Space.VIEW ? "view" : Paint.number(clip.length()) + " s";
-                        int metaColor = clip.error() != null ? EditorStyle.COLOR_DANGER : loaded != null && loaded.dirty() ? EditorStyle.COLOR_WARNING : EditorStyle.COLOR_TEXT_FAINT;
+            int metaColor = clip.error() != null ? EditorStyle.COLOR_DANGER : loaded != null && loaded.dirty() ? EditorStyle.COLOR_WARNING : EditorStyle.COLOR_TEXT_FAINT;
             if (ListRow.draw(icons, "anim-clip-" + clip.path(), 0, null, clip.name(), meta, current, true, metaColor)) {
                 if (clip.error() == null) workspace.openClip(clip.path());
             }
             if (clip.error() != null && ImGui.isItemHovered()) ImGui.setTooltip(clip.error());
         }
+    }
+
+    private void newClipButton() {
+        float left = ImGui.getItemRectMinX();
+        float right = ImGui.getItemRectMaxX();
+        float top = ImGui.getItemRectMinY();
+        float bottom = ImGui.getItemRectMaxY();
+        float size = EditorStyle.iconSizeSmall();
+        float pad = EditorScale.of(2);
+        ImGui.setCursorScreenPos(right - size - pad * 2 - EditorScale.of(4), top + (bottom - top - size) * 0.5f - pad);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, pad, pad);
+        Toolbars.pushFlatButtons();
+        if (icons.iconButton("anim-new-clip-button", EditorIcon.ADD, size)) askNew = true;
+        Toolbars.popFlatButtons();
+        ImGui.popStyleVar();
+        IconButtons.tooltip("New clip");
+        ImGui.setCursorScreenPos(left, bottom);
+        ImGui.dummy(0, 0);
     }
 
     private void renderNewClip() {
@@ -169,7 +182,7 @@ final class RigPanel implements Panel {
         if (ImGui.isWindowAppearing()) ImGui.setKeyboardFocusHere();
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX());
         ImGui.inputTextWithHint("##anim-new-name", "wave", newName);
-        boolean entered = ImGui.isItemDeactivated() && ImGui.isKeyPressed(ImGuiKey.Enter);
+        boolean entered = ImGui.isItemDeactivated() && (ImGui.isKeyPressed(ImGuiKey.Enter) || ImGui.isKeyPressed(ImGuiKey.KeypadEnter));
         Dialogs.gap();
         newSpace = SegmentedControl.render("anim-new-space", List.of("Body", "View"), newSpace);
         Dialogs.gap();

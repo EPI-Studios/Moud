@@ -565,8 +565,12 @@ public final class AnimationWorkspace {
         session.advance(ImGui.getIO().getDeltaTime());
         AnimClip clip = session.clip();
         double after = session.time();
-        if (after > before) EventPreview.crossed(clip, before, after, rig.world().position().add(new Vector3(0, 1.2, 0)));
-        else if (session.playing() && after < before) EventPreview.crossed(clip, -1e-9, after, rig.world().position().add(new Vector3(0, 1.2, 0)));
+        Vector3 above = rig.world().position().add(new Vector3(0, 1.2, 0));
+        if (after > before) EventPreview.crossed(clip, before, after, above);
+        else if (session.playing() && after < before) {
+            EventPreview.crossed(clip, before, clip.length, above);
+            EventPreview.crossed(clip, -1e-9, after, above);
+        }
         landConversion();
         adoptWanted();
         comeBack();
@@ -596,7 +600,8 @@ public final class AnimationWorkspace {
         double yaw = Math.toDegrees(Math.atan2(-flat.x(), -flat.z())) + 180;
         if (!rig.ensure(feet, yaw)) return;
         placed = true;
-        settling = 0;        frameRig();
+        settling = 0;
+        frameRig();
     }
 
     void frameRig() {

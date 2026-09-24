@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.Notices;
 import com.meekdev.moud.mod.client.editor.kit.Sections;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
+import com.meekdev.moud.mod.client.editor.kit.Toolbars;
 import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
@@ -72,6 +73,7 @@ final class BbmodelImportDialog {
         joints.clear();
         chosen.clear();
         tab = 0;
+        previewTime = 0;
         try {
             summary = importer.inspect(path);
             for (ModelImport.Group group : summary.groups()) joints.put(group.uuid(), group.joint());
@@ -443,7 +445,7 @@ final class BbmodelImportDialog {
         String action = model ? "Import model and " + count(clips, "clip") : "Import " + count(clips, "clip");
         float actionWidth = ImGui.calcTextSizeX(action) + EditorScale.of(28);
         float cancelWidth = Dialogs.buttonWidth();
-        float buttonHeight = ImGui.getFrameHeight() + EditorScale.of(6);
+        float buttonHeight = Toolbars.buttonHeight();
         float buttonsLeft = left + width - pad - actionWidth - cancelWidth - EditorStyle.itemSpacingX() * 2;
         ImGui.setCursorScreenPos(buttonsLeft, top + (height - buttonHeight) * 0.5f);
         String cancel = outcome != null && outcome.done() ? "Close##bb-close" : "Cancel##bb-cancel";

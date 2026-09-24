@@ -155,6 +155,8 @@ public final class AnimationSession {
         event = -1;
         marker = -1;
         time = 0;
+        playing = false;
+        lastTime = 0;
         save();
         return path;
     }

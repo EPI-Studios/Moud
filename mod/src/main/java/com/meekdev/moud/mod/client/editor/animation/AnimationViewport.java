@@ -7,7 +7,6 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.mod.adapter.render.EditorOverlay;
-import com.meekdev.moud.mod.client.editor.kit.ToggleStyle;
 import com.meekdev.moud.mod.client.editor.kit.Toolbars;
 import com.meekdev.moud.mod.client.editor.style.EditorIcon;
 import com.meekdev.moud.mod.client.editor.style.EditorScale;
@@ -84,17 +83,11 @@ final class AnimationViewport implements ViewportTakeover {
             if (icons.toggleButton("anim-ik", EditorIcon.SKELETON_IK_3D, EditorStyle.iconSizeToolbar(), session.ikDrag())) session.ikDrag(!session.ikDrag());
             tip("Drag an arm to aim it, the same as holding Alt");
             ImGui.sameLine();
+            ImGui.beginDisabled(rig.model() == null);
             if (icons.toggleButton("anim-bones", EditorIcon.SKELETON_3D, EditorStyle.iconSizeToolbar(), session.bones())) session.bones(!session.bones());
-            tip("Bones (B)");
+            ImGui.endDisabled();
+            tip("Bones of the rigged model (B)");
         }
-    }
-
-    private static void toggle(String label, boolean active, Runnable action, String tipText) {
-        ToggleStyle.push(active);
-        boolean clicked = Toolbars.textButton(label);
-        ToggleStyle.pop(active);
-        if (clicked) action.run();
-        tip(tipText);
     }
 
     private static void tip(String text) {
@@ -131,7 +124,7 @@ final class AnimationViewport implements ViewportTakeover {
         }
         EditorOverlay.show(instance -> limbs.containsKey(instance.id()), selected, hoveredId);
         if (session.onion() && session.hasClip() && !view()) drawOnion(draw, sceneView, pose);
-        if (view()) drawCameraBone(draw, sceneView, pose);
+        if (view()) drawCameraBone(draw, sceneView, pose, hovered);
         String bone = rig.model() != null && !view() ? drawBones(draw, sceneView, pose, hovered && !gizmo.dragging() && !gizmo.hovering()) : null;
         boolean busy = !view() && controls.draw(draw, sceneView, hovered && !gizmo.dragging());
         if (!busy) busy = handleAim(draw, sceneView, pose, hovered);
@@ -397,7 +390,7 @@ final class AnimationViewport implements ViewportTakeover {
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
     }
 
-    private void drawCameraBone(ImDrawList draw, SceneView sceneView, Map<String, JointPose> pose) {
+    private void drawCameraBone(ImDrawList draw, SceneView sceneView, Map<String, JointPose> pose, boolean hovered) {
         if (workspace.through()) {
             float centreX = sceneView.originX() + sceneView.width() * 0.5f;
             float centreY = sceneView.originY() + sceneView.height() * 0.5f;
@@ -425,7 +418,7 @@ final class AnimationViewport implements ViewportTakeover {
         draw.addRect(at[0] - box, at[1] - box, at[0] + box, at[1] + box, color, 0, 0, EditorScale.of(1.5f));
         Paint.small(draw, at[0] + EditorScale.of(10), at[1] + EditorScale.of(6), color, "camera bone");
         float grab = EditorScale.of(10);
-        if (!gizmo.hovering() && ImGui.isMouseClicked(ImGuiMouseButton.Left) && ImGui.isMouseHoveringRect(at[0] - grab, at[1] - grab, at[0] + grab + Paint.smallWidth("camera bone"), at[1] + grab * 2)) {
+        if (hovered && !gizmo.hovering() && ImGui.isMouseClicked(ImGuiMouseButton.Left) && ImGui.isMouseHoveringRect(at[0] - grab, at[1] - grab, at[0] + grab + Paint.smallWidth("camera bone"), at[1] + grab * 2)) {
             session.joint("camera");
         }
     }
@@ -435,7 +428,8 @@ final class AnimationViewport implements ViewportTakeover {
         float clipBottom = Math.min(sceneView.originY() + sceneView.height(), ImGui.getWindowPosY() + ImGui.getWindowHeight());
         float clipLeft = Math.max(sceneView.originX(), ImGui.getWindowPosX());
         float clipRight = Math.min(sceneView.originX() + sceneView.width(), ImGui.getWindowPosX() + ImGui.getWindowWidth());
-        String hint = view() ? "R rotate  ·  G move  ·  M mirror" : rig.model() != null ? "R rotate  ·  G move  ·  B bones" : "R rotate  ·  G move  ·  Alt drag aims an arm  ·  M mirror";
+        String hint = view() ? "R rotate  ·  G move  ·  M mirror  ·  V camera" : rig.model() != null ? "R rotate  ·  G move  ·  M mirror  ·  B bones"
+                : "R rotate  ·  G move  ·  Alt drag aims an arm  ·  M mirror";
         Paint.small(draw, clipRight - Paint.smallWidth(hint) - pad * 1.5f, clipBottom - Paint.smallSize() - pad * 1.5f, EditorStyle.COLOR_TEXT_MUTED, hint);
         String joint = session.joint();
         if (joint == null) return;
