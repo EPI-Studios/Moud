@@ -1,6 +1,8 @@
 package com.meekdev.moud.mod.client;
 
+import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.editor.Editor;
+import com.meekdev.moud.mod.client.editor.project.ProjectHubScreen;
 import com.meekdev.moud.mod.features.Feature;
 import com.meekdev.moud.mod.features.Features;
 import com.meekdev.moud.mod.place.Game;
@@ -10,11 +12,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.tutorial.TutorialSteps;
 import net.minecraft.world.level.levelgen.WorldOptions;
+import org.jspecify.annotations.Nullable;
 
 public final class Launch {
 
@@ -30,12 +34,29 @@ public final class Launch {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             if (PlaceToml.chosenAtLaunch() && !features.isOn(Feature.TITLE_SCREEN)) LevelPreload.start(client);
         });
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> LevelPreload.cancel());
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> LevelPreload.cancel());
+    }
+
+    public static @Nullable Path projectToOpen() {
+        String project = System.getProperty("moud.openProject");
+        return project == null || project.isBlank() ? null : Path.of(project);
     }
 
     private void tick(Minecraft client) {
         if (PlaceToml.chosenAtLaunch() && client.screen instanceof AccessibilityOnboardingScreen) {
             client.options.onboardingAccessibilityFinished();
             client.setScreen(new TitleScreen());
+            return;
+        }
+        if (client.screen instanceof ProjectHubScreen && client.level == null && client.getSingleplayerServer() == null) {
+            LevelPreload.start(client);
+            Path project = projectToOpen();
+            if (project != null && !started) {
+                started = true;
+                MoudMod.LOG.info("opening {} from the hub", project);
+                openProject(project);
+            }
             return;
         }
         if (!(client.screen instanceof TitleScreen)) return;

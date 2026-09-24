@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.server;
 import com.meekdev.moud.mod.level.PlaceChunkGenerator;
 import com.meekdev.moud.mod.place.Blocks;
 import java.util.Map;
+import net.hollowcube.polar.PolarWorld;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldDimensions;
+import org.jspecify.annotations.Nullable;
 
 public final class VoidLevel {
 
@@ -26,11 +28,15 @@ public final class VoidLevel {
     private VoidLevel() {}
 
     public static WorldDimensions dimensions(HolderLookup.Provider registries) {
+        return dimensions(registries, Blocks.load());
+    }
+
+    public static WorldDimensions dimensions(HolderLookup.Provider registries, @Nullable PolarWorld terrain) {
         LevelStem stem = new LevelStem(
                 registries.lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(TYPE),
                 new PlaceChunkGenerator(
                         registries.lookupOrThrow(Registries.BIOME).getOrThrow(Biomes.THE_VOID),
-                        Blocks.load()));
+                        terrain));
         return new WorldDimensions(Map.of(LevelStem.OVERWORLD, stem));
     }
 
