@@ -35,7 +35,7 @@ import org.recast4j.recast.Telemetry;
 public final class NavMeshes {
 
     public interface World {
-        boolean solid(int x, int y, int z);
+        BlockShape block(int x, int y, int z);
 
         record Box(CFrame frame, Vector3 size) {}
 
@@ -192,14 +192,25 @@ public final class NavMeshes {
         for (int x = x0; x < x1; x++) {
             for (int z = z0; z < z1; z++) {
                 for (int i = 0; i < layers; i++) {
-                    if (!world.solid(x, base + i, z)) continue;
-                    for (int cx = 0; cx < perBlock; cx++) {
-                        int hx = (x - x0) * perBlock + cx - ox;
-                        if (hx < 0 || hx >= field.width) continue;
-                        for (int cz = 0; cz < perBlock; cz++) {
-                            int hz = (z - z0) * perBlock + cz - oz;
-                            if (hz < 0 || hz >= field.height) continue;
-                            RecastRasterization.addSpan(field, hx, hz, i * perLayer, (i + 1) * perLayer, 1, CONFIG.walkableClimb);
+                    BlockShape block = world.block(x, base + i, z);
+                    if (block.empty()) continue;
+                    float[] b = block.boxes();
+                    for (int k = 0; k + 5 < b.length; k += 6) {
+                        int low = Math.max(0, (int) Math.floor((i + b[k + 1]) * perLayer + 1e-3));
+                        int high = (int) Math.ceil((i + b[k + 4]) * perLayer - 1e-3);
+                        if (high <= low) high = low + 1;
+                        for (int cx = 0; cx < perBlock; cx++) {
+                            float mx = (cx + 0.5f) * CELL;
+                            if (mx < b[k] - 1e-3f || mx > b[k + 3] + 1e-3f) continue;
+                            int hx = (x - x0) * perBlock + cx - ox;
+                            if (hx < 0 || hx >= field.width) continue;
+                            for (int cz = 0; cz < perBlock; cz++) {
+                                float mz = (cz + 0.5f) * CELL;
+                                if (mz < b[k + 2] - 1e-3f || mz > b[k + 5] + 1e-3f) continue;
+                                int hz = (z - z0) * perBlock + cz - oz;
+                                if (hz < 0 || hz >= field.height) continue;
+                                RecastRasterization.addSpan(field, hx, hz, low, high, 1, CONFIG.walkableClimb);
+                            }
                         }
                     }
                 }

@@ -1,9 +1,13 @@
 package com.meekdev.moud.mod.adapter.physics;
 
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.nav.BlockShape;
 import com.meekdev.moud.script.api.BlockRef;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import java.util.List;
+import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -17,16 +21,19 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 public final class BlockRays implements BlockRef {
 
     private final Supplier<@Nullable Level> level;
     private final boolean writable;
+    private final Map<BlockState, BlockShape> shapes = new ConcurrentHashMap<>();
 
     public BlockRays(Supplier<@Nullable Level> level, boolean writable) {
         this.level = level;
@@ -100,6 +107,33 @@ public final class BlockRays implements BlockRef {
     public boolean solid(int x, int y, int z) {
         Level in = level.get();
         return in != null && in.getBlockState(new BlockPos(x, y, z)).blocksMotion();
+    }
+
+    @Override
+    public BlockShape shape(int x, int y, int z) {
+        Level in = level.get();
+        if (in == null) return BlockShape.AIR;
+        BlockPos pos = new BlockPos(x, y, z);
+        BlockState state = in.getBlockState(pos);
+        if (state.isAir()) return BlockShape.AIR;
+        if (state.hasBlockEntity()) return shapeOf(state.getCollisionShape(in, pos));
+        return shapes.computeIfAbsent(state, s -> shapeOf(s.getCollisionShape(in, pos)));
+    }
+
+    private static BlockShape shapeOf(VoxelShape shape) {
+        if (shape.isEmpty()) return BlockShape.AIR;
+        List<AABB> boxes = shape.toAabbs();
+        double[] flat = new double[boxes.size() * 6];
+        int n = 0;
+        for (AABB box : boxes) {
+            flat[n++] = box.minX;
+            flat[n++] = box.minY;
+            flat[n++] = box.minZ;
+            flat[n++] = box.maxX;
+            flat[n++] = box.maxY;
+            flat[n++] = box.maxZ;
+        }
+        return BlockShape.of(flat);
     }
 
     @Override

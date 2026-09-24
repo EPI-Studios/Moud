@@ -11,6 +11,7 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.nav.BlockShape;
 import com.meekdev.moud.core.nav.NavMeshes;
 import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.core.part.Part;
@@ -49,8 +50,8 @@ public final class Paths {
         Predicate<Part> ground = ground();
         return new NavMeshes.World() {
             @Override
-            public boolean solid(int x, int y, int z) {
-                return blocks != null && blocks.solid(x, y, z);
+            public BlockShape block(int x, int y, int z) {
+                return blocks == null ? BlockShape.AIR : blocks.shape(x, y, z);
             }
 
             @Override

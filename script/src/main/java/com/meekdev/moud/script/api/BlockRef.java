@@ -1,6 +1,7 @@
 package com.meekdev.moud.script.api;
 
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.core.nav.BlockShape;
 import java.util.function.Consumer;
 
 public interface BlockRef {
@@ -27,6 +28,10 @@ public interface BlockRef {
 
     default boolean solid(int x, int y, int z) {
         return !id(x, y, z).equals("minecraft:air");
+    }
+
+    default BlockShape shape(int x, int y, int z) {
+        return solid(x, y, z) ? BlockShape.SOLID : BlockShape.AIR;
     }
 
     default boolean air(int x, int y, int z) {
