@@ -240,7 +240,7 @@ public final class SubLevels {
             case Change.Created created -> refresh(created.id());
             case Change.Wrote wrote -> {
                 if (wrote.property() == CFRAME.index() || wrote.property() == PIVOT.index()) refreshBranch(wrote.id());
-                else refresh(wrote.id(), false);
+                else if (wrote.property() != VELOCITY.index() && wrote.property() != ANGULAR_VELOCITY.index()) refresh(wrote.id(), false);
             }
             case Change.Moved moved -> refreshBranch(moved.id());
             case Change.Tagged ignored -> { }
@@ -303,7 +303,7 @@ public final class SubLevels {
         if (subLevel != null && !part.anchored && simulating && (!moved || owned(part) || same(world, written.get(id)))) {
             type(subLevel, part);
             B3Body body = subLevel.body();
-            if (body != null) dress(body, part);
+            if (body != null && !moved) dress(body, part);
             return;
         }
         if (subLevel == null) {
