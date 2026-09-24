@@ -21,6 +21,7 @@ import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.part.PartShading;
 import com.meekdev.moud.core.part.PartShape;
 import com.meekdev.moud.core.ui.ViewportFrame;
+import com.meekdev.moud.mod.adapter.gl.Textures;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
@@ -28,9 +29,11 @@ import com.meekdev.moud.mod.adapter.render.effect.EffectTextures;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
@@ -50,6 +53,7 @@ public final class Parts {
     private static final Vector4f TINT = new Vector4f();
 
     private static final Map<Textured, List<Part>> PACKED = new HashMap<>();
+    private static final Set<Integer> SHARP = new HashSet<>();
 
     private record Textured(PartShape shape, String texture, boolean glass) {}
 
@@ -107,9 +111,15 @@ public final class Parts {
                 + (key.glass() ? "_glass_" : "_") + Integer.toHexString(key.texture().hashCode());
         InstancedMesh.Builder<Lit> builder = key.glass() ? glass(key.shape()) : mesh(key.shape());
         builder.shader(Identifier.fromNamespaceAndPath("moud", "instance/part_textured"))
-                .extraSampler("Albedo", () -> EffectTextures.of(key.texture()).gl(), 2)
+                .extraSampler("Albedo", () -> albedo(key.texture()), 2)
                 .onRender((ctx, batch) -> renderTextured(key, ctx, batch))
                 .register(Identifier.fromNamespaceAndPath("moud", name));
+    }
+
+    private static int albedo(String texture) {
+        EffectTextures.Sprite sprite = EffectTextures.of(texture);
+        if (sprite.nearest() && SHARP.add(sprite.gl())) Textures.filterNearest(sprite.gl());
+        return sprite.gl();
     }
 
     private static void renderTextured(Textured key, InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
