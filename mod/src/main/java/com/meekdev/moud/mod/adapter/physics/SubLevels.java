@@ -28,6 +28,7 @@ import com.meekdev.moud.net.replicate.Change;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,6 +45,7 @@ public final class SubLevels {
     private final Map<Integer, CFrame> written = new HashMap<>();
     private final Map<Integer, Vector3> sped = new HashMap<>();
     private final Map<Integer, Vector3> spun = new HashMap<>();
+    private final Set<Integer> resting = new HashSet<>();
     private static boolean simulating = true;
     private final Map<Integer, B3Body> dressed = new HashMap<>();
     private final Map<Integer, List<Consumer<B3Body>>> pending = new HashMap<>();
@@ -62,6 +64,7 @@ public final class SubLevels {
         if (simulating == on) return;
         simulating = on;
         written.clear();
+        resting.clear();
         for (Map.Entry<Integer, SubLevel> entry : byInstance.entrySet()) {
             if (tree != null && tree.byId(entry.getKey()) instanceof Part part) {
                 type(entry.getValue(), part);
@@ -93,7 +96,7 @@ public final class SubLevels {
             }
             square.remove(entry.getKey());
             SubLevel subLevel = entry.getValue();
-            type(subLevel, part);
+            B3BodyType kind = type(subLevel, part);
             B3Body body = subLevel.body();
             if (body != null) {
                 if (dressed.get(entry.getKey()) != body) dress(body, part);
@@ -101,11 +104,12 @@ public final class SubLevels {
                 List<Consumer<B3Body>> queued = pending.remove(entry.getKey());
                 if (queued != null) queued.forEach(action -> action.accept(body));
             }
+            if (part.anchored || !simulating || owned(part)) resting.remove(entry.getKey());
             if (part.anchored || !simulating) drive(subLevel, part);
             else if (owned(part)) chase(subLevel, part);
             else {
-                launch(part, body);
-                follow(subLevel, part);
+                launch(part, body, kind);
+                follow(body, part, kind);
             }
         }
         if (letGo != null) {
@@ -113,9 +117,10 @@ public final class SubLevels {
         }
     }
 
-    private void follow(SubLevel subLevel, Part part) {
-        B3Body body = subLevel.body();
-        if (body == null || body.type() != B3BodyType.DYNAMIC) return;
+    private void follow(@Nullable B3Body body, Part part, @Nullable B3BodyType kind) {
+        if (body == null || kind != B3BodyType.DYNAMIC) return;
+        if (body.isAwake()) resting.remove(part.id());
+        else if (!resting.add(part.id())) return;
         CFrame world = BoxFrames.of(body);
         CFrame was = Transforms.world(part);
         if (world.position().sub(was.position()).lengthSq() > STILL * STILL || turned(world, was)) {
@@ -325,17 +330,18 @@ public final class SubLevels {
         type(subLevel, part);
     }
 
-    private static void type(SubLevel subLevel, Part part) {
+    private static @Nullable B3BodyType type(SubLevel subLevel, Part part) {
         B3Body body = subLevel.body();
-        if (body == null) return;
+        if (body == null) return null;
         B3BodyType wanted = part.anchored || !simulating || owned(part) ? B3BodyType.KINEMATIC : B3BodyType.DYNAMIC;
-        if (body.type() == wanted) return;
+        if (body.type() == wanted) return wanted;
         body.setType(wanted);
         if (wanted == B3BodyType.DYNAMIC) {
             body.setLinearVelocity(BoxFrames.vec(part.velocity));
             body.setAngularVelocity(BoxFrames.vec(part.angularVelocity));
             body.setAwake(true);
         }
+        return wanted;
     }
 
     private static final int SQUARE_TICKS = 40;
@@ -379,10 +385,12 @@ public final class SubLevels {
         return subLevel;
     }
 
-    private void launch(Part part, @Nullable B3Body body) {
-        Vector3 speed = sped.put(part.id(), part.velocity);
-        Vector3 spin = spun.put(part.id(), part.angularVelocity);
-        if (body == null || body.type() != B3BodyType.DYNAMIC) return;
+    private void launch(Part part, @Nullable B3Body body, @Nullable B3BodyType kind) {
+        Vector3 speed = sped.get(part.id());
+        Vector3 spin = spun.get(part.id());
+        if (speed != part.velocity) sped.put(part.id(), part.velocity);
+        if (spin != part.angularVelocity) spun.put(part.id(), part.angularVelocity);
+        if (body == null || kind != B3BodyType.DYNAMIC) return;
         if (speed != null && !speed.equals(part.velocity)) {
             body.setLinearVelocity(BoxFrames.vec(part.velocity));
             body.setAwake(true);
@@ -398,6 +406,7 @@ public final class SubLevels {
         written.remove(id);
         sped.remove(id);
         spun.remove(id);
+        resting.remove(id);
         dressed.remove(id);
         pending.remove(id);
         SubLevelEntity entity = entities.remove(id);
@@ -417,6 +426,7 @@ public final class SubLevels {
         written.clear();
         sped.clear();
         spun.clear();
+        resting.clear();
         dressed.clear();
         pending.clear();
         warned = false;
