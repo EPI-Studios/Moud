@@ -8,6 +8,7 @@ import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.server.VoidLevel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
@@ -26,6 +27,9 @@ public final class Launch {
 
     public void install() {
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            if (PlaceToml.chosenAtLaunch() && !features.isOn(Feature.TITLE_SCREEN)) LevelPreload.start(client);
+        });
     }
 
     private void tick(Minecraft client) {
@@ -59,6 +63,7 @@ public final class Launch {
     private static void open(Minecraft client) {
         opened = true;
         client.getTutorial().setStep(TutorialSteps.NONE);
+        if (LevelPreload.open(client)) return;
         client.createWorldOpenFlows().createFreshLevel(
                 VoidLevel.NAME,
                 VoidLevel.settings(),
