@@ -56,6 +56,7 @@ public final class NavMeshes {
     private static final int REACH_Y = 16;
     private static final int MAX_TILES = 400;
     private static final float[] EXTENTS = {1.5f, 3f, 1.5f};
+    private static final float[] BELOW = {1.5f, REACH_Y, 1.5f};
 
     private static final AreaModification WALKABLE = new AreaModification(1);
     private static final float ERODE = (float) (Math.floor(RADIUS / CELL + 0.01) * CELL);
@@ -122,7 +123,8 @@ public final class NavMeshes {
         if (start == null) return null;
         if (end == null) {
             if (!partial) return null;
-            end = nearest(from.add(to.sub(from).normalize().mul(Math.min(to.sub(from).length(), TILE))));
+            end = nearest(to, BELOW);
+            if (end == null) end = nearest(from.add(to.sub(from).normalize().mul(Math.min(to.sub(from).length(), TILE))));
             if (end == null) return null;
         }
         Result<List<Long>> corridor = query.findPath(start.getNearestRef(), end.getNearestRef(),
@@ -186,8 +188,12 @@ public final class NavMeshes {
     }
 
     private FindNearestPolyResult nearest(Vector3 at) {
+        return nearest(at, EXTENTS);
+    }
+
+    private FindNearestPolyResult nearest(Vector3 at, float[] extents) {
         Result<FindNearestPolyResult> found = query.findNearestPoly(new float[] {(float) at.x(), (float) at.y(), (float) at.z()},
-                EXTENTS, filter);
+                extents, filter);
         if (found.failed() || found.result == null || found.result.getNearestRef() == 0) return null;
         return found.result;
     }
