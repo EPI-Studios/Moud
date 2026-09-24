@@ -379,7 +379,7 @@ public final class EditorShell {
         ToggleStyle.pop(animating);
         ImGui.endDisabled();
         if (toggled) toggleAnimation();
-        tooltip("Animation editor (Ctrl+Shift+A)");
+        tooltip("Animation editor (" + Shortcut.ctrlLabel("Shift+A") + ")");
         float leftEdge = ImGui.getCursorPosX();
         float centered = (ImGui.getWindowWidth() - playGroupWidth()) * 0.5f;
         ImGui.sameLine(Math.max(centered, leftEdge));

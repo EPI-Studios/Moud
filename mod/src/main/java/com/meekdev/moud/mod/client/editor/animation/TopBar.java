@@ -4,6 +4,7 @@ import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.instance.Model;
 import com.meekdev.moud.core.part.MeshPart;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
+import com.meekdev.moud.mod.client.editor.command.Shortcut;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.SegmentedControl;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
@@ -192,7 +193,7 @@ final class TopBar {
         ImGui.sameLine(0, EditorStyle.itemSpacingX() * 2);
         ImGui.setCursorPosY(line);
         if (Dialogs.primaryButton("Save##anim-save", session.hasClip() && session.dirty())) session.save();
-        tooltip("Write the clip to its .anim file (Ctrl+S)");
+        tooltip("Write the clip to its .anim file (" + Shortcut.ctrlLabel("S") + ")");
     }
 
     private void renderRigPicker(float width) {

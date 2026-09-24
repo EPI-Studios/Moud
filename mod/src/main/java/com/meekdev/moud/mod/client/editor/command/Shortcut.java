@@ -11,6 +11,10 @@ public record Shortcut(boolean ctrl, boolean shift, boolean alt, int key, String
 
     private static final String CTRL = InputQuirks.REPLACE_CTRL_KEY_WITH_CMD_KEY ? "Cmd+" : "Ctrl+";
 
+    public static String ctrlLabel(String rest) {
+        return CTRL + rest;
+    }
+
     public static Shortcut ctrl(int key, String name) {
         return new Shortcut(true, false, false, key, CTRL + name);
     }

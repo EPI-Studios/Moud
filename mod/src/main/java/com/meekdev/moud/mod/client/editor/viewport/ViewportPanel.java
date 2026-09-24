@@ -20,6 +20,7 @@ import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.editor.assets.AssetKind;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
+import com.meekdev.moud.mod.client.editor.command.Shortcut;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.ConstraintKind;
 import com.meekdev.moud.mod.client.editor.document.Edit;
@@ -458,11 +459,11 @@ public final class ViewportPanel implements Panel, ViewTools {
         ImGui.endDisabled();
         ImGui.separator();
         ImGui.beginDisabled(document.selectedRoots().isEmpty());
-        if (ImGui.menuItem("Group", "Ctrl+G")) document.group();
-        if (ImGui.menuItem("Ungroup", "Ctrl+U")) document.ungroup();
+        if (ImGui.menuItem("Group", Shortcut.ctrlLabel("G"))) document.group();
+        if (ImGui.menuItem("Ungroup", Shortcut.ctrlLabel("U"))) document.ungroup();
         ImGui.separator();
-        if (ImGui.menuItem("Rotate 90° around Y", "Ctrl+R")) Manipulate.rotate90(document, 1);
-        if (ImGui.menuItem("Rotate 90° around X", "Ctrl+T")) Manipulate.rotate90(document, 0);
+        if (ImGui.menuItem("Rotate 90° around Y", Shortcut.ctrlLabel("R"))) Manipulate.rotate90(document, 1);
+        if (ImGui.menuItem("Rotate 90° around X", Shortcut.ctrlLabel("T"))) Manipulate.rotate90(document, 0);
         if (ImGui.beginMenu("Mirror")) {
             for (int axis = 0; axis < 3; axis++) {
                 if (ImGui.menuItem("In place across " + axes[axis])) Manipulate.mirror(document, axis, false);
@@ -485,8 +486,8 @@ public final class ViewportPanel implements Panel, ViewTools {
             ImGui.endMenu();
         }
         ImGui.separator();
-        if (ImGui.menuItem("Lock", "Ctrl+L")) Manipulate.lock(document, true);
-        if (ImGui.menuItem("Unlock", "Ctrl+Shift+L")) Manipulate.lock(document, false);
+        if (ImGui.menuItem("Lock", Shortcut.ctrlLabel("L"))) Manipulate.lock(document, true);
+        if (ImGui.menuItem("Unlock", Shortcut.ctrlLabel("Shift+L"))) Manipulate.lock(document, false);
         ImGui.endDisabled();
         ImGui.endPopup();
     }

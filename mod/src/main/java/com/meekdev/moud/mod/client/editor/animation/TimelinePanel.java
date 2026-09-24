@@ -2,9 +2,10 @@ package com.meekdev.moud.mod.client.editor.animation;
 
 import com.meekdev.moud.core.character.ClipCurve;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.mod.client.editor.command.Shortcut;
 import com.meekdev.moud.mod.client.editor.kit.EmptyStates;
-import com.meekdev.moud.mod.client.editor.kit.SegmentedControl;
 import com.meekdev.moud.mod.client.editor.kit.Sections;
+import com.meekdev.moud.mod.client.editor.kit.SegmentedControl;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.kit.Toggles;
 import com.meekdev.moud.mod.client.editor.kit.Toolbars;
@@ -735,8 +736,8 @@ final class TimelinePanel implements Panel {
             Sections.caption(count == 1 ? "1 key" : count + " keys");
             interpolationRow();
             ImGui.separator();
-            if (ImGui.menuItem("Copy", "Ctrl+C")) session.copyKeys();
-            if (ImGui.menuItem("Duplicate", "Ctrl+D")) {
+            if (ImGui.menuItem("Copy", Shortcut.ctrlLabel("C"))) session.copyKeys();
+            if (ImGui.menuItem("Duplicate", Shortcut.ctrlLabel("D"))) {
                 session.copyKeys();
                 session.pasteKeys();
             }
@@ -757,7 +758,7 @@ final class TimelinePanel implements Panel {
                     if (ImGui.menuItem("Add " + channel.key() + " key")) addKey(lane.joint(), channel, contextTime);
                 }
             }
-            if (ImGui.menuItem("Paste", "Ctrl+V")) {
+            if (ImGui.menuItem("Paste", Shortcut.ctrlLabel("V"))) {
                 session.seek(contextTime);
                 session.pasteKeys();
             }

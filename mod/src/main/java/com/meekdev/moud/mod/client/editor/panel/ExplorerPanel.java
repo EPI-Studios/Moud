@@ -18,6 +18,7 @@ import com.meekdev.moud.core.ui.UIComponent;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
+import com.meekdev.moud.mod.client.editor.command.Shortcut;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.Rename;
@@ -370,7 +371,7 @@ public final class ExplorerPanel implements Panel {
             ImGui.endMenu();
         }
         renderScriptItems(world.id());
-        if (ImGui.menuItem("Paste", "Ctrl+V")) document.pasteText(ImGui.getClipboardText());
+        if (ImGui.menuItem("Paste", Shortcut.ctrlLabel("V"))) document.pasteText(ImGui.getClipboardText());
     }
 
     private static void paintRow(float left, float top, String label, boolean selected, boolean hovered, boolean editable) {
@@ -517,9 +518,9 @@ public final class ExplorerPanel implements Panel {
         if (openable(instance) && ImGui.menuItem("Open script")) openScript(instance);
         ImGui.separator();
         if (ImGui.menuItem("Rename", "F2")) beginRename(instance.id());
-        if (ImGui.menuItem("Duplicate", "Ctrl+D")) document.duplicateSelected();
-        if (ImGui.menuItem("Copy", "Ctrl+C")) copy(document);
-        if (ImGui.menuItem("Paste", "Ctrl+V")) document.pasteText(ImGui.getClipboardText());
+        if (ImGui.menuItem("Duplicate", Shortcut.ctrlLabel("D"))) document.duplicateSelected();
+        if (ImGui.menuItem("Copy", Shortcut.ctrlLabel("C"))) copy(document);
+        if (ImGui.menuItem("Paste", Shortcut.ctrlLabel("V"))) document.pasteText(ImGui.getClipboardText());
         Instance world = document.world();
         if (world != null && instance.parent() != world && ImGui.menuItem("Move to top")) moveInto(instance.id(), world.id());
         if (ImGui.beginMenu("Select")) {
@@ -535,7 +536,7 @@ public final class ExplorerPanel implements Panel {
             ImGui.endMenu();
         }
         if (instance instanceof Part part) {
-            if (ImGui.menuItem(part.locked ? "Unlock" : "Lock", part.locked ? "Ctrl+Shift+L" : "Ctrl+L")) Manipulate.lock(document, !part.locked);
+            if (ImGui.menuItem(part.locked ? "Unlock" : "Lock", part.locked ? Shortcut.ctrlLabel("Shift+L") : Shortcut.ctrlLabel("L"))) Manipulate.lock(document, !part.locked);
         }
         ImGui.separator();
         if (ImGui.menuItem("Delete", "Del")) deleteSelected();
