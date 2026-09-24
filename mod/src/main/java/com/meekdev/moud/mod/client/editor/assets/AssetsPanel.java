@@ -486,7 +486,7 @@ public final class AssetsPanel implements Panel {
         if (entry.kind() == AssetKind.ANIMATION && ImGui.menuItem("Open in the animation editor")) animationOpener.accept(entry.path());
         if (isBbmodel(entry) && ImGui.menuItem("Import animations...")) modelImporter.accept(entry.path());
         if (entry.kind() == AssetKind.SCRIPT || entry.kind() == AssetKind.SHADER || entry.kind() == AssetKind.SCENE) {
-            if (ImGui.menuItem("Open in Zed")) CodeEditor.open(entry.path(), 1);
+            if (ImGui.menuItem("Open in code editor")) CodeEditor.open(entry.path(), 1);
         }
         if (placeable(entry) && ImGui.menuItem("Place in scene")) place(entry);
         if (entry.kind() == AssetKind.SOUND && res != null && ImGui.menuItem(SoundPreview.playing(res) ? "Stop" : "Listen")) SoundPreview.toggle(res);
