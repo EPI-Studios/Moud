@@ -144,7 +144,7 @@ public final class MemoryLibrary {
                     double expiration = expiration(a, 2);
                     double priority = a.number(3, 0);
                     if (!Double.isFinite(priority)) throw new HostError("a queue priority is a finite number");
-                    stores(host).queue(name).add(value, expiration, priority);
+                    stores(host).queue(name).add(value, expiration, withoutNegativeZero(priority));
                     return null;
                 })
                 .method("readAsync", "(count: number, allOrNothing: boolean?, waitTimeout: number?) -> ({ any }, string?)", a -> {
@@ -152,7 +152,9 @@ public final class MemoryLibrary {
                     if (count < 1 || count > MOST_READ) throw new HostError("readAsync reads 1 to %d items, not %d", MOST_READ, count);
                     boolean all = a.bool(2, false);
                     double timeout = a.number(3, -1);
-                    if (timeout < 0 && timeout != -1) throw new HostError("waitTimeout is a number of seconds, or -1 to wait until items come");
+                    if (Double.isNaN(timeout) || (timeout < 0 && timeout != -1)) {
+                        throw new HostError("waitTimeout is a number of seconds, or -1 to wait until items come");
+                    }
                     Object[] now = read(host, name, count, all, invisible);
                     if (now != null || timeout == 0) return now == null ? Results.of(new ArrayList<>(), null) : Results.of(now);
                     double[] waited = {0};
@@ -210,8 +212,9 @@ public final class MemoryLibrary {
         return switch (value) {
             case null -> null;
             case Number n -> {
-                if (!Double.isFinite(n.doubleValue())) throw new HostError("a sortKey number must be finite");
-                yield n.doubleValue();
+                double number = n.doubleValue();
+                if (!Double.isFinite(number)) throw new HostError("a sortKey number must be finite");
+                yield withoutNegativeZero(number);
             }
             case String s -> {
                 if (s.length() > LONGEST_KEY) throw new HostError("a sortKey string is up to %d letters long", LONGEST_KEY);
@@ -219,6 +222,10 @@ public final class MemoryLibrary {
             }
             default -> throw new HostError("a sortKey is a number or a string, not a %s", Host.typeOf(value));
         };
+    }
+
+    private static double withoutNegativeZero(double number) {
+        return number == 0 ? 0.0 : number;
     }
 
     private static MemorySorted.Bound bound(Args a, int at) {
