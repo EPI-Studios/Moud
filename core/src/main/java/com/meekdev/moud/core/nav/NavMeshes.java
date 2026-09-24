@@ -5,9 +5,11 @@ import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import org.recast4j.detour.DefaultQueryFilter;
 import org.recast4j.detour.FindNearestPolyResult;
 import org.recast4j.detour.FindRandomPointResult;
@@ -52,8 +54,7 @@ public final class NavMeshes {
     private static final float TILE = TILE_CELLS * CELL;
     private static final int VERTS_PER_POLY = 6;
     private static final int REACH_Y = 16;
-    private static final int BUILD_BUDGET = 6;
-    private static final int MAX_TILES = 16;
+    private static final int MAX_TILES = 400;
     private static final float[] EXTENTS = {1.5f, 3f, 1.5f};
 
     private static final AreaModification WALKABLE = new AreaModification(1);
@@ -99,7 +100,23 @@ public final class NavMeshes {
     }
 
     public List<Vector3> find(World world, Vector3 from, Vector3 to, boolean partial) {
-        if (!prepare(world, from, to)) return null;
+        List<Vector3> best = null;
+        for (int reach = 1; ; reach += 2) {
+            Set<Key> wanted = corridor(from, to, reach);
+            if (wanted.size() > MAX_TILES) break;
+            prepare(world, wanted, from, to);
+            List<Vector3> found = search(from, to, partial);
+            if (found != null) {
+                Vector3 last = found.getLast();
+                if (reached(last, to)) return found;
+                best = found;
+            }
+            if (covers(wanted, from, to, reach)) break;
+        }
+        return partial ? best : null;
+    }
+
+    private List<Vector3> search(Vector3 from, Vector3 to, boolean partial) {
         FindNearestPolyResult start = nearest(from);
         FindNearestPolyResult end = nearest(to);
         if (start == null) return null;
@@ -119,15 +136,40 @@ public final class NavMeshes {
             float[] p = item.getPos();
             out.add(new Vector3(p[0], p[1], p[2]));
         }
-        Vector3 last = out.getLast();
-        boolean reached = new Vector3(last.x() - to.x(), 0, last.z() - to.z()).length() < 1.0 && Math.abs(last.y() - to.y()) < 2.5;
-        if (!reached && !partial) return null;
+        if (!reached(out.getLast(), to) && !partial) return null;
         if (out.size() > 1) out.removeFirst();
         return out;
     }
 
+    private static boolean reached(Vector3 last, Vector3 to) {
+        return new Vector3(last.x() - to.x(), 0, last.z() - to.z()).length() < 1.0 && Math.abs(last.y() - to.y()) < 2.5;
+    }
+
+    private static Set<Key> corridor(Vector3 a, Vector3 b, int reach) {
+        Set<Key> keys = new HashSet<>();
+        double length = Math.hypot(b.x() - a.x(), b.z() - a.z());
+        int steps = Math.max(1, (int) Math.ceil(length / (TILE / 2)));
+        for (int i = 0; i <= steps; i++) {
+            double t = (double) i / steps;
+            int tx = tile(a.x() + (b.x() - a.x()) * t), tz = tile(a.z() + (b.z() - a.z()) * t);
+            for (int dx = -reach; dx <= reach; dx++) {
+                for (int dz = -reach; dz <= reach; dz++) keys.add(new Key(tx + dx, tz + dz));
+            }
+            if (keys.size() > MAX_TILES) return keys;
+        }
+        return keys;
+    }
+
+    private static boolean covers(Set<Key> keys, Vector3 a, Vector3 b, int reach) {
+        int x0 = tile(Math.min(a.x(), b.x())) - 2, x1 = tile(Math.max(a.x(), b.x())) + 2;
+        int z0 = tile(Math.min(a.z(), b.z())) - 2, z1 = tile(Math.max(a.z(), b.z())) + 2;
+        return reach >= Math.max(x1 - x0, z1 - z0);
+    }
+
     public Vector3 randomNear(World world, Vector3 centre, double radius, Random random) {
-        if (!prepare(world, centre.sub(new Vector3(radius, 0, radius)), centre.add(new Vector3(radius, 0, radius)))) return null;
+        Set<Key> wanted = corridor(centre, centre, (int) Math.ceil(radius / TILE));
+        if (wanted.size() > MAX_TILES) return null;
+        prepare(world, wanted, centre, centre);
         FindNearestPolyResult start = nearest(centre);
         if (start == null) return null;
         Result<FindRandomPointResult> found = query.findRandomPointAroundCircle(start.getNearestRef(),
@@ -150,29 +192,20 @@ public final class NavMeshes {
         return found.result;
     }
 
-    private boolean prepare(World world, Vector3 a, Vector3 b) {
+    private void prepare(World world, Set<Key> wanted, Vector3 a, Vector3 b) {
         int minY = (int) Math.floor(Math.min(a.y(), b.y())) - REACH_Y;
         int maxY = (int) Math.ceil(Math.max(a.y(), b.y())) + REACH_Y;
-        int x0 = tile(Math.min(a.x(), b.x()) - 4), x1 = tile(Math.max(a.x(), b.x()) + 4);
-        int z0 = tile(Math.min(a.z(), b.z()) - 4), z1 = tile(Math.max(a.z(), b.z()) + 4);
-        if ((x1 - x0 + 1) * (z1 - z0 + 1) > MAX_TILES * MAX_TILES) return false;
-        int budget = BUILD_BUDGET;
-        for (int tx = x0; tx <= x1; tx++) {
-            for (int tz = z0; tz <= z1; tz++) {
-                Key key = new Key(tx, tz);
-                Tile t = tiles.computeIfAbsent(key, k -> new Tile());
-                boolean taller = !t.built || minY < t.minY || maxY > t.maxY;
-                long parts = t.built && !taller && !t.dirty ? signature(world, tx, tz, t.minY, t.maxY) : 0;
-                if (t.built && !taller && !t.dirty && parts == t.parts) continue;
-                if (budget-- <= 0) continue;
-                if (taller) {
-                    t.minY = t.built ? Math.min(t.minY, minY) : minY;
-                    t.maxY = t.built ? Math.max(t.maxY, maxY) : maxY;
-                }
-                build(world, tx, tz, t);
+        for (Key key : wanted) {
+            Tile t = tiles.computeIfAbsent(key, k -> new Tile());
+            boolean taller = !t.built || minY < t.minY || maxY > t.maxY;
+            long parts = t.built && !taller && !t.dirty ? signature(world, key.x(), key.z(), t.minY, t.maxY) : 0;
+            if (t.built && !taller && !t.dirty && parts == t.parts) continue;
+            if (taller) {
+                t.minY = t.built ? Math.min(t.minY, minY) : minY;
+                t.maxY = t.built ? Math.max(t.maxY, maxY) : maxY;
             }
+            build(world, key.x(), key.z(), t);
         }
-        return true;
     }
 
     private static int tile(double x) {
