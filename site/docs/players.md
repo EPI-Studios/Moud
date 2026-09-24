@@ -417,31 +417,13 @@ npc:face(direction)
 ```
 
 `walkTo` answers false straight away when there is no path, so check what it returns before you wait
-on `humanoid.arrived`.
-
-You can also ask for a path without walking anything along it:
-
-```lua
-local corners = game.path:find(from, to)                    -- nil when there is no way
-local closest = game.path:find(from, to, { partial = true }) -- as close as it gets instead of nil
-game.path:isReachable(from, to)
-local wander = game.path:randomPointNear(npc.position, 12)
-npc:walkTo(point, { partial = true })
-```
-
-`partial = true` is what you want for a wandering npc, which should set off in roughly the right
-direction rather than stand still because the target is unreachable.
-
-Paths run on a navmesh built with Recast and walked with Detour. It is made from the level's blocks and every part that collides, sized for a player: 1.8 tall,
-0.3 wide either side of the middle, climbing one block, walking slopes up to 50 degrees. It is built
-in 32 by 32 block tiles the first time a path crosses them, and a tile is built again when a block in
-it changes or a part in it moves. A path is the corners a body turns at, not every step.
+on `humanoid.arrived`. Paths, their options and what they can cross are on their own page:
+[Paths](paths.md).
 
 A walking body keeps to the ground under it the whole way, so it rises onto a step and goes down a
 slope between two corners instead of cutting a straight line through the air. It turns toward where
-it goes at a person's pace. A follower stops at its distance, sets off again once the target is a
-step and a half further, and walks as close as it can get when the target stands somewhere it cannot
-reach. A player walked by the server jumps when they walk into a step.
+it goes at a person's pace. A player walked by the server jumps when they walk into a step or reach
+a gap.
 
 ## The player object
 

@@ -48,6 +48,7 @@ const PAGE_ICONS: Record<string, string> = {
   players: "p:users-three",
   tools: "e:ToolSelect",
   movement: "p:person-simple-run",
+  paths: "e:NavigationAgent3D",
   editor: "e:ToolMove",
   plugins: "p:puzzle-piece",
   physics: "e:RigidBody3D",

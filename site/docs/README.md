@@ -251,7 +251,8 @@ rate is, and the engine does the dividing.
 - [Working with the tree](tree.md): finding, selector queries, hierarchy signals, waiting, values, copies, callbacks
 - [Characters](character.md): the body, its joints, its skin and its animation
 - [Animations](animation.md): .anim files, keyframe sequences, tracks, fades and markers
-- [Players and bodies](players.md): finding players, asking a body, teams, leaderstats, paths and following
+- [Players and bodies](players.md): finding players, asking a body, teams, leaderstats, walking a body
+- [Paths](paths.md): walking around what is in the way, following, path objects, costs, modifiers and links
 - [Tools](tools.md): the backpack, the hotbar, clicking, handles, starter packs, dropping
 - [Movement, collision and input](movement.md): humanoids, seats, collision groups, input actions, ownership
 - [Building in the editor](editor.md): joining parts with the constraint tool, welding the selection, seeing constraints

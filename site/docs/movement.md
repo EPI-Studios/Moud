@@ -50,8 +50,8 @@ on, for every player who can see it.
 A player's body gets its state from the player every tick on the server: on a ladder or vine is
 `climbing`, in water off the ground is `swimming`, creative flight is `flying`, in the air is
 `jumping` on the way up and `falling` on the way down, and on the ground is `running` or `standing`.
-A body without a player is `running` while it walks, `jumping` and `falling` through a hop, and
-`standing` otherwise.
+A body without a player is `running` while it walks, `jumping` and `falling` through a hop,
+`climbing` while a path takes it up or down a ladder, and `standing` otherwise.
 
 > [!IMPORTANT]
 > Writing `state` yourself lasts until the next tick, when the engine works it out again and
@@ -109,8 +109,8 @@ body is destroyed:
 | `seated` | true or false | entering and leaving `seated` |
 | `platformStanding` | true or false | entering and leaving `platformStanding` |
 
-A body without a player runs at its `walkSpeed`. It only swims or climbs when `changeState` puts it
-there.
+A body without a player runs at its `walkSpeed`. It climbs while a [path](paths.md) takes it up
+or down a ladder, and only swims when `changeState` puts it there.
 
 ```lua
 local h = body.humanoid
@@ -210,7 +210,7 @@ three seconds after it spawned. `visible` is kept on the class, but nothing draw
 
 For bodies a place owns: `walkTo` and `walking` walk in a straight line; `jump = true` hops once.
 For walking around obstacles use `body:walkTo(point)` and `body:follow(target)`, see
-[Players and bodies](players.md).
+[Paths](paths.md).
 
 ## Pushing a body
 

@@ -538,7 +538,8 @@ Methods:
 - `lookDirection(): Vector3`
 - `facing(other: Instance, maxAngle: number?): boolean`
 - `walkTo(point: Vector3, options: PathOptions?): boolean`
-- `follow(target: Instance, distance: number?): ()`
+- `walkAlong(path: Path): boolean`
+- `follow(target: Instance, distance: number?, options: PathOptions?): ()`
 - `stopWalking(): ()`
 - `isWalking(): boolean`
 - `jump(): ()`
@@ -2495,6 +2496,30 @@ Extends [Instance](#instance).
 |---|---|
 | `visible` | `boolean` |
 
+<a id="pathfindingmodifier"></a>
+
+## PathfindingModifier
+
+Extends [Instance](#instance).
+
+| Property | Type |
+|---|---|
+| `label` | `string` |
+| `passThrough` | `boolean` |
+
+<a id="pathfindinglink"></a>
+
+## PathfindingLink
+
+Extends [Instance](#instance).
+
+| Property | Type |
+|---|---|
+| `attachment0` | `Instance?` |
+| `attachment1` | `Instance?` |
+| `bidirectional` | `boolean` |
+| `label` | `string` |
+
 <a id="tool"></a>
 
 ## Tool
@@ -3252,13 +3277,37 @@ Methods:
 - `watch(a: Instance, b: Instance, range: number): ProximityWatcher`
 - `function falloff(distance: number, min: number, max: number, rolloff: number?): number`
 
-## Path
+## Pathfinding
 
 Methods:
 
 - `find(from: Vector3, to: Vector3, options: PathOptions?): { Vector3 }?`
 - `isReachable(from: Vector3, to: Vector3, options: PathOptions?): boolean`
 - `randomPointNear(point: Vector3, radius: number, options: PathOptions?): Vector3?`
+- `create(options: PathOptions?): Path`
+
+## Path
+
+| Property | Type |
+|---|---|
+| `status` | `PathStatus` |
+| `blocked` | `PathBlockedSignal` |
+| `unblocked` | `PathBlockedSignal` |
+
+Methods:
+
+- `compute(from: Vector3, to: Vector3): PathStatus`
+- `waypoints(): { PathWaypoint }`
+- `checkOcclusion(start: number?): number`
+
+## PathBlockedSignal
+
+Methods:
+
+- `connect(handler: (index: number) -> ()): Connection`
+- `once(handler: (...any) -> ()): Connection`
+- `wait(timeout: number?): ...any`
+- `every(n: number, handler: (...any) -> ()): Connection`
 
 ## Debug
 
@@ -3296,7 +3345,7 @@ Methods:
 | `world` | `Instance` |
 | `zones` | `Zones` |
 | `proximity` | `Proximity` |
-| `path` | `Path` |
+| `path` | `Pathfinding` |
 | `debug` | `Debug` |
 | `history` | `History` |
 | `players` | `Players` |
@@ -3879,7 +3928,11 @@ type QueryOptions = { exclude: { Instance }?, include: { Instance }?, respectCol
 type BlockCopy = { size: Vector3, palette: { string }, blocks: { number } }
 type ChatMessage = { id: number, text: string, prefix: string, metadata: string, channel: Instance?, source: Instance?, body: Instance?, position: Vector3?, timestamp: number, status: string, [string]: any }
 type ChatCheck = (message: ChatMessage, source: Instance) -> boolean
-type PathOptions = { partial: boolean? }
+type PathOptions = { partial: boolean?, radius: number?, height: number?, canJump: boolean?,
+    canClimb: boolean?, spacing: number?, costs: { [string]: number }? }
+type PathAction = "walk" | "jump" | "climb" | "custom"
+type PathStatus = "success" | "closest" | "noPath" | "tooFar" | "notComputed"
+type PathWaypoint = { position: Vector3, action: PathAction, label: string? }
 type GradientKeypoint = { number | Color }
 type TimelineKey = { any }
 type SharedTable = { [string | number]: any }
