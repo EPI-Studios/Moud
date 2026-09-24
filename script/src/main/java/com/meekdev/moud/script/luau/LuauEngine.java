@@ -3,7 +3,6 @@ package com.meekdev.moud.script.luau;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.err.ScriptError;
-import com.meekdev.moud.script.host.Args;
 import com.meekdev.moud.script.host.Builtin;
 import com.meekdev.moud.script.host.Callable;
 import com.meekdev.moud.script.host.Fiber;
@@ -13,6 +12,7 @@ import com.meekdev.moud.script.host.Invocable;
 import com.meekdev.moud.script.host.Members;
 import com.meekdev.moud.script.host.Results;
 import com.meekdev.moud.script.host.ScriptValue;
+import com.meekdev.moud.script.host.SharedTable;
 import com.meekdev.moud.script.host.Values;
 import com.meekdev.moud.script.host.Suspend;
 import java.lang.foreign.Arena;
@@ -62,6 +62,9 @@ final class LuauEngine implements ScriptEngine {
         @Override
         public Object[] call(Object... args) {
             if (dropped || closed) return new Object[0];
+            ScriptEngine running = host.parallel().running();
+            if (running != null && running != LuauEngine.this) throw new HostError("a function from another VM cannot run in parallel");
+            ScriptEngine before = host.enter(LuauEngine.this);
             int base = state.top();
             state.getRef(ref);
             for (Object arg : args) push(state, arg);
@@ -73,7 +76,12 @@ final class LuauEngine implements ScriptEngine {
                 return out;
             } finally {
                 state.top(base);
+                host.leave(before);
             }
+        }
+
+        LuauEngine owner() {
+            return LuauEngine.this;
         }
 
         @Override
@@ -102,6 +110,10 @@ final class LuauEngine implements ScriptEngine {
             this.ref = ref;
         }
 
+        LuauEngine owner() {
+            return LuauEngine.this;
+        }
+
         @Override
         public void release() {
             if (dropped) return;
@@ -126,19 +138,26 @@ final class LuauEngine implements ScriptEngine {
         @Override
         public Suspend resume(Object... values) {
             if (finished) return null;
+            if (closed) {
+                finished = true;
+                return null;
+            }
             Object[] args = values;
             if (initial != null) {
                 args = initial;
                 initial = null;
             }
-            for (Object arg : args) push(thread, arg);
-            resumedWith = args.length;
+            ScriptEngine before = host.enter(LuauEngine.this);
             LuaStatus status;
             try {
+                for (Object arg : args) push(thread, arg);
+                resumedWith = args.length;
                 status = thread.resume(state, args.length);
             } catch (RuntimeException e) {
                 finish();
                 throw e;
+            } finally {
+                host.leave(before);
             }
             if (status == LuaStatus.YIELD) {
                 Suspend next = pending;
@@ -165,6 +184,11 @@ final class LuauEngine implements ScriptEngine {
         @Override
         public void cancel() {
             finish();
+        }
+
+        @Override
+        public ScriptEngine engine() {
+            return LuauEngine.this;
         }
 
         private void finish() {
@@ -217,12 +241,23 @@ final class LuauEngine implements ScriptEngine {
     private void installMetatable() {
         state.newTable();
         metamethod("__index", s -> {
+            Object target = s.toUserDataTagged(1, HOST);
+            if (target instanceof SharedTable table) return one(s, table.at(read(s, 2, 0)));
             String key = s.type(2) == LuaType.STRING ? s.toString(2) : s.toStringRepr(2);
-            return one(s, host.index(s.toUserDataTagged(1, HOST), key));
+            return one(s, host.index(target, key));
         });
         metamethod("__newindex", s -> {
-            host.assign(s.toUserDataTagged(1, HOST), s.checkString(2), read(s, 3, 0));
+            Object target = s.toUserDataTagged(1, HOST);
+            if (target instanceof SharedTable table) {
+                table.put(read(s, 2, 0), read(s, 3, 0));
+                return 0;
+            }
+            host.assign(target, s.checkString(2), read(s, 3, 0));
             return 0;
+        });
+        metamethod("__iter", s -> {
+            for (Object value : host.iterate(s.toUserDataTagged(1, HOST))) push(s, value);
+            return 3;
         });
         metamethod("__tostring", s -> {
             s.pushString(host.text(s.toUserDataTagged(1, HOST)));
@@ -234,8 +269,7 @@ final class LuauEngine implements ScriptEngine {
         });
         metamethod("__call", s -> {
             if (!(s.toUserDataTagged(1, HOST) instanceof Invocable target)) throw new HostError("attempt to call a %s", host.text(s.toUserDataTagged(1, HOST)));
-            Object[] args = arguments(s, 2);
-            return results(s, target.invoke(new Args(host, target.typeName(), args)));
+            return results(s, host.invoke(target, arguments(s, 2)));
         });
         metamethod("__add", s -> one(s, host.operate(Host.Op.ADD, read(s, 1, 0), read(s, 2, 0))));
         metamethod("__sub", s -> one(s, host.operate(Host.Op.SUB, read(s, 1, 0), read(s, 2, 0))));
@@ -331,9 +365,11 @@ final class LuauEngine implements ScriptEngine {
             case Number n -> s.pushNumber(n.doubleValue());
             case String text -> s.pushString(text);
             case Builtin fn -> pushBuiltin(s, fn);
-            case Function function -> s.getRef(function.ref);
-            case Ref ref -> s.getRef(ref.ref);
+            case Function function when function.owner() == this -> s.getRef(function.ref);
+            case Ref ref when ref.owner() == this -> s.getRef(ref.ref);
+            case Ref ref -> throw new HostError("a table from another VM cannot be used here");
             case Callable callable -> s.pushFunction(LuaFunc.wrap(t -> guarded(t, u -> {
+                host.parallel().guard("function");
                 Object[] out = callable.call(arguments(u, 1));
                 return results(u, out == null ? Results.NONE : new Results(out));
             }), "function"));
@@ -430,8 +466,13 @@ final class LuauEngine implements ScriptEngine {
     @Override
     public void run(String chunk, String source) {
         byte[] bytecode = compile(chunk, source);
-        state.load(chunk, bytecode);
-        state.call(0, 0);
+        ScriptEngine before = host.enter(this);
+        try {
+            state.load(chunk, bytecode);
+            state.call(0, 0);
+        } finally {
+            host.leave(before);
+        }
     }
 
     @Override
@@ -448,6 +489,7 @@ final class LuauEngine implements ScriptEngine {
             throw new HostError("res://%s does not compile: %s", chunk, e.getMessage());
         }
         int before = state.top();
+        ScriptEngine entered = host.enter(this);
         try {
             state.load(chunk, bytecode);
             if (script != null) push(state, script);
@@ -459,6 +501,8 @@ final class LuauEngine implements ScriptEngine {
                 throw new HostError("res://%s yielded while loading, modules cannot yield at load time", chunk);
             }
             throw new HostError("res://%s: %s", chunk, why);
+        } finally {
+            host.leave(entered);
         }
         int returned = state.top() - before;
         if (returned != 1) {
@@ -477,6 +521,7 @@ final class LuauEngine implements ScriptEngine {
     @Override
     public Fiber fiber(Callable fn) {
         if (!(fn instanceof Function function)) return null;
+        if (function.owner() != this) return function.owner().fiber(fn);
         LuaState thread = state.newThread();
         int threadRef = state.ref(-1);
         state.pop(1);
@@ -505,6 +550,7 @@ final class LuauEngine implements ScriptEngine {
     @SuppressWarnings("unchecked")
     public Map<String, Object> read(ScriptValue table) {
         if (!(table instanceof Ref ref) || ref.dropped) return Map.of();
+        if (ref.owner() != this) return ref.owner().read(table);
         int before = state.top();
         try {
             state.getRef(ref.ref);

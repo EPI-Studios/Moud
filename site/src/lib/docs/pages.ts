@@ -68,6 +68,7 @@ const PAGE_ICONS: Record<string, string> = {
   mixins: "e:Shader",
   languages: "e:Script",
   "tweens-and-timing": "p:timer",
+  parallel: "p:cpu",
   math: "p:function",
   saving: "e:Save",
   memory: "e:KeyValue",

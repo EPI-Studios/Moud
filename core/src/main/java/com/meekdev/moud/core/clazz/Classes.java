@@ -57,6 +57,7 @@ import com.meekdev.moud.core.effect.Texture;
 import com.meekdev.moud.core.effect.Trail;
 import com.meekdev.moud.core.input.ClickDetector;
 import com.meekdev.moud.core.input.InputAction;
+import com.meekdev.moud.core.instance.Actor;
 import com.meekdev.moud.core.instance.Attachment;
 import com.meekdev.moud.core.instance.Bone;
 import com.meekdev.moud.core.instance.Folder;
@@ -405,6 +406,7 @@ public final class Classes {
     public static final ClassDef<Joint> JOINT = ClassDef.of("Joint", null, Joint.class, Joint::new);
     public static final ClassDef<Motor> MOTOR = ClassDef.of("Motor", JOINT, Motor.class, Motor::new);
     public static final ClassDef<Model> MODEL = ClassDef.of("Model", SPATIAL, Model.class, Model::new);
+    public static final ClassDef<Actor> ACTOR = ClassDef.of("Actor", MODEL, Actor.class, Actor::new);
     public static final ClassDef<ForceField> FORCE_FIELD = ClassDef.of("ForceField", null, ForceField.class, ForceField::new);
     public static final ClassDef<Tool> TOOL = ClassDef.of("Tool", null, Tool.class, Tool::new);
     public static final ClassDef<Team> TEAM = ClassDef.of("Team", null, Team.class, Team::new);
@@ -655,6 +657,7 @@ public final class Classes {
         r.register(SPARKLES);
         r.register(SELECTION_BOX);
         r.register(SELECTION_SPHERE);
+        r.register(ACTOR);
         for (Addon addon : addons) {
             try {
                 addon.classes(r);

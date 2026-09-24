@@ -1,6 +1,7 @@
 {
     "Folder": "FOLDER",
     "Model": "PACKED_SCENE",
+    "Actor": "PACKED_SCENE",
     "WeldConstraint": "REMOTE_TRANSFORM_3D",
     "Constraint": "HINGE_JOINT_3D",
     "AlignPosition": "TOOL_MOVE",

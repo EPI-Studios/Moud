@@ -22,7 +22,7 @@ final class InterfaceLibrary {
             double scale = a.number(0);
             double offset = a.number(1);
             return new UDim2(scale, offset, scale, offset);
-        }));
+        }, true));
 
         Members boxes = host.instances().of(Classes.TEXT_BOX);
         boxes.method("captureFocus", "() -> ()", a -> {

@@ -10,6 +10,11 @@ public final class HostSignal implements HostObject {
     private static final Builtin CONNECT = new Builtin("Signal:connect", args ->
             args.self(HostSignal.class).connect(args.callable(1)));
 
+    private static final Builtin CONNECT_PARALLEL = new Builtin("Signal:connectParallel", args -> {
+        HostSignal signal = args.self(HostSignal.class);
+        return signal.host.parallel().connect(signal, args.callable(1));
+    });
+
     private static final Builtin ONCE = new Builtin("Signal:once", args -> {
         HostSignal signal = args.self(HostSignal.class);
         Callable fn = args.callable(1).retain();
@@ -134,6 +139,7 @@ public final class HostSignal implements HostObject {
     public Object get(String key) {
         return switch (key) {
             case "connect" -> CONNECT;
+            case "connectParallel" -> CONNECT_PARALLEL;
             case "once" -> ONCE;
             case "every" -> EVERY;
             case "wait" -> WAIT;
@@ -147,6 +153,7 @@ public final class HostSignal implements HostObject {
     public static Api.Decl decl(String type, String handler) {
         return new Api.Decl(type, null, List.of(
                 new Api.Member("connect", Api.Kind.METHOD, "(handler: " + handler + ") -> Connection"),
+                new Api.Member("connectParallel", Api.Kind.METHOD, "(handler: " + handler + ") -> Connection"),
                 new Api.Member("once", Api.Kind.METHOD, "(handler: " + handler + ") -> Connection"),
                 new Api.Member("every", Api.Kind.METHOD, "(n: number, handler: " + handler + ") -> Connection"),
                 new Api.Member("wait", Api.Kind.METHOD, "(timeout: number?) -> ...any"),

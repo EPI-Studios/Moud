@@ -111,6 +111,7 @@ Methods:
 Methods:
 
 - `connect(handler: (property: string) -> ()): Connection`
+- `connectParallel(handler: (property: string) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -120,6 +121,7 @@ Methods:
 Methods:
 
 - `connect(handler: (instance: Instance) -> ()): Connection`
+- `connectParallel(handler: (instance: Instance) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -129,6 +131,7 @@ Methods:
 Methods:
 
 - `connect(handler: (name: string) -> ()): Connection`
+- `connectParallel(handler: (name: string) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -138,6 +141,7 @@ Methods:
 Methods:
 
 - `connect(handler: (child: Instance, parent: Instance?) -> ()): Connection`
+- `connectParallel(handler: (child: Instance, parent: Instance?) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -147,6 +151,7 @@ Methods:
 Methods:
 
 - `connect(handler: (...any) -> ()): Connection`
+- `connectParallel(handler: (...any) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -156,6 +161,7 @@ Methods:
 Methods:
 
 - `connect(handler: (value: number) -> ()): Connection`
+- `connectParallel(handler: (value: number) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -165,6 +171,7 @@ Methods:
 Methods:
 
 - `connect(handler: (active: boolean) -> ()): Connection`
+- `connectParallel(handler: (active: boolean) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -174,6 +181,7 @@ Methods:
 Methods:
 
 - `connect(handler: (value: string) -> ()): Connection`
+- `connectParallel(handler: (value: string) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -183,6 +191,7 @@ Methods:
 Methods:
 
 - `connect(handler: (delta: number) -> ()): Connection`
+- `connectParallel(handler: (delta: number) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -192,6 +201,7 @@ Methods:
 Methods:
 
 - `connect(handler: () -> ()): Connection`
+- `connectParallel(handler: () -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -201,6 +211,7 @@ Methods:
 Methods:
 
 - `connect(handler: (player: Player) -> ()): Connection`
+- `connectParallel(handler: (player: Player) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -210,6 +221,7 @@ Methods:
 Methods:
 
 - `connect(handler: (part: Instance, distance: number) -> ()): Connection`
+- `connectParallel(handler: (part: Instance, distance: number) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -219,6 +231,7 @@ Methods:
 Methods:
 
 - `connect(handler: (x: number, y: number) -> ()): Connection`
+- `connectParallel(handler: (x: number, y: number) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -228,6 +241,7 @@ Methods:
 Methods:
 
 - `connect(handler: (enterPressed: boolean) -> ()): Connection`
+- `connectParallel(handler: (enterPressed: boolean) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -379,6 +393,7 @@ Methods:
 - `getAttributeChangedSignal(name: string): AnySignal`
 - `getPropertyChangedSignal(property: string): AnySignal`
 - `tween(goals: { [string]: any }, info: TweenInfo?): Tween`
+- `getActor(): Instance?`
 - `fireServer(...: any): ()`
 - `fireClient(to: Instance, ...: any): ()`
 - `fireAllClients(...: any): ()`
@@ -3060,6 +3075,20 @@ Extends [Instance](#instance).
 | `transparency` | `number` |
 | `visible` | `boolean` |
 
+<a id="actor"></a>
+
+## Actor
+
+Extends [Model](#model).
+
+Methods:
+
+- `sendMessage(topic: string, ...: any): ()`
+- `bindToMessage(topic: string, handler: (...any) -> ()): Connection`
+- `bindToMessageParallel(topic: string, handler: (...any) -> ()): Connection`
+
+Scripts inside an actor run in a VM of their own. See [Parallel Luau](parallel.md).
+
 ## Blocks
 
 | Property | Type |
@@ -3092,6 +3121,7 @@ Methods:
 Methods:
 
 - `connect(handler: (at: Vector3, block: string) -> ()): Connection`
+- `connectParallel(handler: (at: Vector3, block: string) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -3109,6 +3139,7 @@ Methods:
 Methods:
 
 - `connect(handler: (body: Instance?, text: string, args: { string }) -> ()): Connection`
+- `connectParallel(handler: (body: Instance?, text: string, args: { string }) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -3118,6 +3149,7 @@ Methods:
 Methods:
 
 - `connect(handler: (message: ChatMessage) -> ()): Connection`
+- `connectParallel(handler: (message: ChatMessage) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -3127,6 +3159,7 @@ Methods:
 Methods:
 
 - `connect(handler: (...any) -> ()): Connection`
+- `connectParallel(handler: (...any) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -3406,6 +3439,7 @@ Methods:
 Methods:
 
 - `connect(handler: (input: InputObject, gameProcessed: boolean) -> ()): Connection`
+- `connectParallel(handler: (input: InputObject, gameProcessed: boolean) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -3415,6 +3449,7 @@ Methods:
 Methods:
 
 - `connect(handler: (gamepad: number) -> ()): Connection`
+- `connectParallel(handler: (gamepad: number) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`
@@ -3549,6 +3584,22 @@ Methods:
 
 - `unsubscribe(): ()`
 
+## SharedTables
+
+Functions:
+
+- `new(data: { [any]: any }?): SharedTable`
+- `named(name: string): SharedTable`
+- `size(table: SharedTable): number`
+- `clear(table: SharedTable): ()`
+- `clone(table: SharedTable, deep: boolean?): SharedTable`
+- `cloneAndFreeze(table: SharedTable, deep: boolean?): SharedTable`
+- `isFrozen(table: SharedTable): boolean`
+- `increment(table: SharedTable, key: string | number, delta: number): number`
+- `update(table: SharedTable, key: string | number, fn: (value: any) -> any): ()`
+
+`sharedTable(data)` is `sharedTable.new(data)`. See [Shared tables](parallel.md#shared-tables).
+
 ## CoreGui
 
 Functions:
@@ -3578,6 +3629,7 @@ Functions:
 Methods:
 
 - `connect(handler: (...any) -> ()): Connection`
+- `connectParallel(handler: (...any) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `every(n: number, handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
@@ -3746,6 +3798,7 @@ type ChatCheck = (message: ChatMessage, source: Instance) -> boolean
 type PathOptions = { partial: boolean? }
 type GradientKeypoint = { number | Color }
 type TimelineKey = { any }
+type SharedTable = { [string | number]: any }
 type ActionHandler = (name: string, state: "begin" | "change" | "end" | "cancel", input: InputObject) -> ("sink" | "pass")?
 type PlayOptions = { volume: number?, pitch: number?, looped: boolean?, bus: string?,
     priority: number?, at: Vector3?, minDistance: number?, maxDistance: number?,
@@ -3783,6 +3836,8 @@ declare input: Input
 declare ui: CoreGui           -- client only
 
 declare messaging: Messaging
+
+declare sharedTable: SharedTables
 
 declare audio: {
     play: (soundId: string, options: PlayOptions?) -> Voice?,
@@ -3907,5 +3962,7 @@ declare task: {
     after: (seconds: number, handler: () -> ()) -> { cancel: (self: any) -> () },
     debounce: <A...>(handler: (A...) -> (), seconds: number) -> (A...) -> (),
     throttle: <A..., R...>(handler: (A...) -> R..., seconds: number) -> (A...) -> R...,
+    desynchronize: () -> (),
+    synchronize: () -> (),
 }
 ```

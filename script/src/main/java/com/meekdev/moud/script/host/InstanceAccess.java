@@ -35,6 +35,7 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 public final class InstanceAccess {
 
@@ -72,17 +73,17 @@ public final class InstanceAccess {
             case "name" -> { return instance.name(); }
             case "className" -> { return instance.def().name(); }
             case "parent" -> { return instance.parent(); }
-            case "changed" -> { return signals(instance).changed(); }
-            case "childAdded" -> { return signals(instance).childAdded(); }
-            case "destroying" -> { return signals(instance).destroying(); }
-            case "attributeChanged" -> { return signals(instance).attributeChanged(); }
-            case "ancestryChanged" -> { return signals(instance).ancestryChanged(); }
-            case "descendantAdded" -> { return signals(instance).descendantAdded(); }
-            case "descendantRemoving" -> { return signals(instance).descendantRemoving(); }
+            case "changed" -> { return signal(instance, Signals::changed); }
+            case "childAdded" -> { return signal(instance, Signals::childAdded); }
+            case "destroying" -> { return signal(instance, Signals::destroying); }
+            case "attributeChanged" -> { return signal(instance, Signals::attributeChanged); }
+            case "ancestryChanged" -> { return signal(instance, Signals::ancestryChanged); }
+            case "descendantAdded" -> { return signal(instance, Signals::descendantAdded); }
+            case "descendantRemoving" -> { return signal(instance, Signals::descendantRemoving); }
             default -> { }
         }
         EventDef event = instance.def().event(key);
-        if (event != null) return signals(instance).named(event);
+        if (event != null) return signal(instance, bundle -> bundle.named(event));
         CallbackDef callback = instance.def().callback(key);
         if (callback != null) return assigned.get(callback.on(instance));
 
@@ -196,11 +197,11 @@ public final class InstanceAccess {
                 property.name(), owner.isEmpty() ? "" : " (owned by " + owner + ")");
     }
 
-    public HostSignal attributeSignal(Instance instance, String name) {
+    public synchronized HostSignal attributeSignal(Instance instance, String name) {
         return signals(instance).attribute(name);
     }
 
-    public HostSignal propertySignal(Instance instance, String name) {
+    public synchronized HostSignal propertySignal(Instance instance, String name) {
         switch (name) {
             case "name" -> { return signals(instance).renamed(); }
             case "parent" -> { return signals(instance).reparented(); }
@@ -291,6 +292,10 @@ public final class InstanceAccess {
             return;
         }
         callback.set(args -> host.call(kept, where, args));
+    }
+
+    private synchronized HostSignal signal(Instance instance, Function<Signals, HostSignal> pick) {
+        return pick.apply(signals(instance));
     }
 
     private Signals signals(Instance instance) {

@@ -70,6 +70,21 @@ public class Members implements HostObject {
         return field(name, fieldType, () -> value);
     }
 
+    public Members parallel(String... names) {
+        for (String name : names) {
+            if (entries.get(name) instanceof Builtin builtin) entries.put(name, builtin.inParallel());
+            else throw new IllegalArgumentException(type + " has no function " + name);
+        }
+        return this;
+    }
+
+    public Members parallelAll() {
+        for (Map.Entry<String, Object> entry : entries.entrySet()) {
+            if (entry.getValue() instanceof Builtin builtin) entry.setValue(builtin.inParallel());
+        }
+        return this;
+    }
+
     public Set<String> names() {
         return entries.keySet();
     }

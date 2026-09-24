@@ -157,6 +157,10 @@ local shoot = task.throttle(function() end, 0.2) -- at most once every 0.2 s
 
 <!-- demo:tweens-and-timing-debounce -->
 
+A script inside an `Actor` has two more: `task.desynchronize()` moves it to a worker thread, where it
+runs at the same time as other actors, and `task.synchronize()` brings it back. See
+[Parallel Luau](parallel.md).
+
 `task.defer` runs a function once the step that is running now is finished, without waiting a set
 time. Use it to let a whole batch of changes land before you look at the result:
 

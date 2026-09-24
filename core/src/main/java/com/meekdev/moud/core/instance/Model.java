@@ -2,7 +2,7 @@ package com.meekdev.moud.core.instance;
 
 import com.meekdev.moud.core.clazz.Prop;
 
-public final class Model extends Spatial {
+public class Model extends Spatial {
 
     public Instance primaryPart;
 

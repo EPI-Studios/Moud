@@ -274,6 +274,7 @@ rate is, and the engine does the dividing.
 - [Mixins, Java and shader patches](mixins.md): hooks, mixin files, state, conversions, shaders
 - [Other languages](languages.md): places in Revo or Java, and writing a language addon
 - [Tweens and timing](tweens-and-timing.md): tweens, task, signal helpers, which side runs, the render step, debris, cooldowns
+- [Parallel Luau](parallel.md): actors, desynchronize and synchronize, what works in parallel, messages, shared tables
 - [Math](math.md): vectors, frames, rotations, numbers, random
 - [Saving](saving.md): stores and sessions
 - [Memory stores](memory.md): expiring hash maps, sorted maps and queues shared by server scripts

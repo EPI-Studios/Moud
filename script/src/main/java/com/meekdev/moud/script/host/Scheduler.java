@@ -5,12 +5,13 @@ import java.util.List;
 
 public final class Scheduler {
 
-    private static final class Task {
+    static final class Task {
         final int id;
         final Fiber fiber;
         final Object owner;
         Suspend waiting;
         boolean done;
+        boolean parallel;
 
         Task(int id, Fiber fiber, Object owner) {
             this.id = id;
@@ -19,8 +20,14 @@ public final class Scheduler {
         }
     }
 
+    record Resumption(Task task, Object[] values) {}
+
+    private static final Object[] NOTHING = new Object[0];
+
     private final Host host;
     private final List<Task> sleeping = new ArrayList<>();
+    private List<Resumption> desynced = new ArrayList<>();
+    private List<Task> synced = new ArrayList<>();
     private int nextId = 1;
 
     Scheduler(Host host) {
@@ -28,28 +35,44 @@ public final class Scheduler {
     }
 
     public int start(Fiber fiber, Object owner, Object... args) {
-        Task task = new Task(nextId++, fiber, owner);
-        host.ownership().onRelease(owner, () -> stop(task));
+        Task task = task(fiber, owner);
         resume(task, args);
         return task.id;
     }
 
     public int later(Fiber fiber, Object owner, Suspend first) {
-        Task task = new Task(nextId++, fiber, owner);
-        host.ownership().onRelease(owner, () -> stop(task));
+        Task task = task(fiber, owner);
         task.waiting = first;
         sleeping.add(task);
         return task.id;
+    }
+
+    void adopt(Fiber fiber, Object owner, Suspend next) {
+        Task task = task(fiber, owner);
+        task.parallel = true;
+        settle(task, next);
+    }
+
+    private Task task(Fiber fiber, Object owner) {
+        Task task = new Task(nextId++, fiber, owner);
+        host.ownership().onRelease(owner, () -> stop(task));
+        return task;
     }
 
     public void cancel(int id) {
         for (Task task : new ArrayList<>(sleeping)) {
             if (task.id == id) stop(task);
         }
+        for (Resumption waiting : desynced) {
+            if (waiting.task().id == id) stop(waiting.task());
+        }
+        for (Task task : new ArrayList<>(synced)) {
+            if (task.id == id) stop(task);
+        }
     }
 
     public int sleepingCount() {
-        return sleeping.size();
+        return sleeping.size() + desynced.size() + synced.size();
     }
 
     public void advance(double dt) {
@@ -70,7 +93,24 @@ public final class Scheduler {
             ready.add(task);
             values.add(out);
         }
-        for (int n = 0; n < ready.size(); n++) resume(ready.get(n), values.get(n));
+        for (int n = 0; n < ready.size(); n++) {
+            Task task = ready.get(n);
+            if (task.parallel) desynced.add(new Resumption(task, values.get(n)));
+            else resume(task, values.get(n));
+        }
+    }
+
+    List<Resumption> takeDesynced() {
+        List<Resumption> taken = desynced;
+        desynced = new ArrayList<>();
+        taken.removeIf(waiting -> waiting.task().done);
+        return taken;
+    }
+
+    void resumeSynced() {
+        List<Task> taken = synced;
+        synced = new ArrayList<>();
+        for (Task task : taken) resume(task, NOTHING);
     }
 
     private void resume(Task task, Object[] args) {
@@ -89,22 +129,47 @@ public final class Scheduler {
             host.profiler().leave(System.nanoTime() - started);
             host.ownership().leave(before);
         }
+        settle(task, next);
+    }
+
+    void settle(Task task, Suspend next) {
+        if (task.done) return;
         if (next == null) {
             task.done = true;
+            return;
+        }
+        if (next == Parallel.DESYNCHRONIZE) {
+            task.parallel = true;
+            desynced.add(new Resumption(task, NOTHING));
+            return;
+        }
+        if (next == Parallel.SYNCHRONIZE) {
+            task.parallel = false;
+            synced.add(task);
             return;
         }
         task.waiting = next;
         sleeping.add(task);
     }
 
+    void failed(Task task, RuntimeException e) {
+        task.done = true;
+        host.error("task " + task.id, e);
+    }
+
     private void stop(Task task) {
         if (task.done) return;
         task.done = true;
         if (sleeping.remove(task) && task.waiting != null) task.waiting.cancel().run();
+        synced.remove(task);
         task.fiber.cancel();
     }
 
     void stopAll() {
         for (Task task : new ArrayList<>(sleeping)) stop(task);
+        for (Resumption waiting : desynced) stop(waiting.task());
+        for (Task task : new ArrayList<>(synced)) stop(task);
+        desynced.clear();
+        synced.clear();
     }
 }

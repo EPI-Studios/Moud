@@ -13,6 +13,7 @@ import icon_puzzlePiece from "@phosphor-icons/core/assets/fill/puzzle-piece-fill
 import icon_browser from "@phosphor-icons/core/assets/fill/browser-fill.svg?raw"
 import icon_chatCircleText from "@phosphor-icons/core/assets/fill/chat-circle-text-fill.svg?raw"
 import icon_timer from "@phosphor-icons/core/assets/fill/timer-fill.svg?raw"
+import icon_cpu from "@phosphor-icons/core/assets/fill/cpu-fill.svg?raw"
 import icon_function from "@phosphor-icons/core/assets/fill/function-fill.svg?raw"
 import icon_globe from "@phosphor-icons/core/assets/fill/globe-fill.svg?raw"
 import icon_bug from "@phosphor-icons/core/assets/fill/bug-fill.svg?raw"
@@ -55,6 +56,7 @@ export const ICONS: Record<string, string> = {
   "browser": icon_browser,
   "chat-circle-text": icon_chatCircleText,
   "timer": icon_timer,
+  "cpu": icon_cpu,
   "function": icon_function,
   "globe": icon_globe,
   "bug": icon_bug,

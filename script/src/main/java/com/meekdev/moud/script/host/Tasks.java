@@ -1,5 +1,6 @@
 package com.meekdev.moud.script.host;
 
+import com.meekdev.moud.script.engine.ScriptEngine;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -27,12 +28,15 @@ public final class Tasks {
                 .function("every", "(seconds: number, handler: () -> ()) -> TaskHandle", a -> every(host, a.number(0), a.callable(1)))
                 .function("after", "(seconds: number, handler: () -> ()) -> TaskHandle", a -> after(host, a.number(0), a.callable(1)))
                 .function("debounce", "(handler: (...any) -> (), seconds: number) -> (...any) -> ()", a -> debounce(host, a.callable(0), a.number(1)))
-                .function("throttle", "(handler: (...any) -> ...any, seconds: number) -> (...any) -> ...any", a -> throttle(host, a.callable(0), a.number(1)));
+                .function("throttle", "(handler: (...any) -> ...any, seconds: number) -> (...any) -> ...any", a -> throttle(host, a.callable(0), a.number(1)))
+                .function("desynchronize", "() -> ()", a -> host.parallel().desynchronize())
+                .function("synchronize", "() -> ()", a -> host.parallel().synchronize())
+                .parallel("wait", "desynchronize", "synchronize");
         host.global("task", "Task", task);
         host.declare(task);
         host.api().declare(handle(() -> {}).decl());
 
-        host.global("clock", "() -> number", new Builtin("clock", a -> now()));
+        host.global("clock", "() -> number", new Builtin("clock", a -> now(), true));
 
         Members os = new Members("Os")
                 .function("time", "() -> number", a -> (double) (System.currentTimeMillis() / 1000))
@@ -44,7 +48,8 @@ public final class Tasks {
                     boolean local = !pattern.startsWith("!");
                     ZonedDateTime moment = when.atZone(local ? ZoneId.systemDefault() : ZoneOffset.UTC);
                     return stamp(local ? pattern : pattern.substring(1), moment);
-                });
+                })
+                .parallelAll();
         host.global("os", "Os", os);
         host.declare(os);
 
@@ -124,6 +129,11 @@ public final class Tasks {
             public void cancel() {
                 fiber.cancel();
                 fn.release();
+            }
+
+            @Override
+            public ScriptEngine engine() {
+                return fiber.engine();
             }
         };
     }

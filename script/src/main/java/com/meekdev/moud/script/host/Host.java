@@ -69,6 +69,9 @@ public final class Host {
     private final Ownership ownership = new Ownership();
     private final Profiler profiler = new Profiler();
     private final Scheduler scheduler = new Scheduler(this);
+    private final Parallel parallel = new Parallel(this);
+    private final ThreadLocal<ScriptEngine> running = new ThreadLocal<>();
+    private final List<Consumer<ScriptEngine>> engineClosers = new ArrayList<>();
     private final InstanceAccess instances;
     private final List<Runnable> closers = new ArrayList<>();
     private final List<Consumer<Double>> steps = new ArrayList<>();
@@ -212,7 +215,7 @@ public final class Host {
     public Profiler profiler() { return profiler; }
     public Scheduler scheduler() { return scheduler; }
     public InstanceAccess instances() { return instances; }
-    public ScriptEngine engine() { return engine; }
+    public Parallel parallel() { return parallel; }
     public ScriptLanguage language() { return language; }
     public Map<String, Object> globals() { return globals; }
 
@@ -310,6 +313,30 @@ public final class Host {
         return this;
     }
 
+    public ScriptEngine engine() {
+        ScriptEngine current = running.get();
+        return current != null ? current : engine;
+    }
+
+    public ScriptEngine enter(ScriptEngine next) {
+        ScriptEngine before = running.get();
+        running.set(next);
+        return before;
+    }
+
+    public void leave(ScriptEngine before) {
+        if (before == null) running.remove();
+        else running.set(before);
+    }
+
+    void onEngineClosed(Consumer<ScriptEngine> closer) {
+        engineClosers.add(closer);
+    }
+
+    void engineClosed(ScriptEngine closed) {
+        for (Consumer<ScriptEngine> closer : engineClosers) closer.accept(closed);
+    }
+
     public Script readScript(String path) {
         int slash = path.lastIndexOf('/');
         List<String> candidates = path.indexOf('.', slash + 1) > slash + 1 || language == null
@@ -332,6 +359,7 @@ public final class Host {
     }
 
     ScriptValue persistTable() {
+        if (parallel.active()) throw new HostError("game.persist cannot be used in parallel, call task.synchronize() first");
         if (persist == null) persist = engine.table(carried);
         return persist;
     }
@@ -403,7 +431,8 @@ public final class Host {
     }
 
     public void print(String line) {
-        printer.accept(line);
+        if (parallel.active()) parallel.print(line);
+        else printer.accept(line);
     }
 
     public void error(String where, RuntimeException e) {
@@ -432,7 +461,18 @@ public final class Host {
     }
 
     public Object invoke(Builtin fn, Object[] args) {
+        if (!fn.parallel()) parallel.guard(fn.name());
         return fn.body().call(new Args(this, fn.name(), args));
+    }
+
+    public Object invoke(Invocable target, Object[] args) {
+        if (!target.parallel()) parallel.guard(target.typeName());
+        return target.invoke(new Args(this, target.typeName(), args));
+    }
+
+    public Object[] iterate(Object target) {
+        if (target instanceof SharedTable table) return new Object[] {SharedTable.NEXT, table.snapshot(), null};
+        throw new HostError("attempt to iterate over a %s", typeOf(target));
     }
 
     public Object index(Object target, String key) {
@@ -450,6 +490,9 @@ public final class Host {
     }
 
     public void assign(Object target, String key, Object value) {
+        if (parallel.active()) {
+            throw new HostError("%s.%s cannot be set in parallel, call task.synchronize() first", typeOf(target), key);
+        }
         switch (target) {
             case Instance instance -> instances.set(instance, key, value);
             case HostObject object -> object.set(key, value);
@@ -510,6 +553,7 @@ public final class Host {
             }
         }
         stepped.fire(dt);
+        if (!client) parallel.run();
     }
 
     public void renderStep(double dt) {
@@ -526,6 +570,7 @@ public final class Host {
             }
         }
         renderStepped.fire(dt);
+        if (client) parallel.run();
     }
 
     public void cameraUpdated() {
@@ -585,6 +630,7 @@ public final class Host {
         }
         instances.close();
         if (persist != null) persist.release();
+        parallel.close();
         if (engine != null) engine.close();
     }
 }

@@ -43,7 +43,8 @@ public final class Values {
             .declare("y", "number")
             .declare("z", "number")
             .declare("magnitude", "number")
-            .declare("unit", "Vector3");
+            .declare("unit", "Vector3")
+            .parallelAll();
 
     private static final Members CFRAME = new Members("CFrame")
             .method("mul", "(other: CFrame) -> CFrame", a -> self(a, CFrame.class).mul(a.cframe(1)))
@@ -63,7 +64,8 @@ public final class Values {
             .declare("rotation", "Quat")
             .declare("lookVector", "Vector3")
             .declare("rightVector", "Vector3")
-            .declare("upVector", "Vector3");
+            .declare("upVector", "Vector3")
+            .parallelAll();
 
     private static final Members QUAT = new Members("Quat")
             .method("slerp", "(goal: Quat, alpha: number) -> Quat", a -> self(a, Quat.class).slerp(a.quat(1), a.number(2)))
@@ -73,7 +75,8 @@ public final class Values {
             .declare("x", "number")
             .declare("y", "number")
             .declare("z", "number")
-            .declare("w", "number");
+            .declare("w", "number")
+            .parallelAll();
 
     private Values() {}
 
@@ -97,17 +100,18 @@ public final class Values {
                 new Api.Member("yOffset", Api.Kind.FIELD, "number"))));
 
         host.global("vec3", "(x: number, y: number, z: number) -> Vector3",
-                new Builtin("vec3", a -> new Vector3(a.number(0), a.number(1), a.number(2))));
+                new Builtin("vec3", a -> new Vector3(a.number(0), a.number(1), a.number(2)), true));
         host.global("color", "(r: number, g: number, b: number, a: number?) -> Color",
                 new Builtin("color", a -> new Color((float) a.number(0), (float) a.number(1), (float) a.number(2),
-                        (float) a.number(3, 1))));
+                        (float) a.number(3, 1)), true));
 
         Members cframes = new Members("CFrameConstructors")
                 .function("new", "(x: number | Vector3, y: (number | Vector3)?, z: number?) -> CFrame", Values::newCFrame)
                 .function("angles", "(x: number, y: number, z: number) -> CFrame",
                         a -> CFrame.angles(a.number(0), a.number(1), a.number(2)))
                 .function("lookAt", "(from: Vector3, to: Vector3) -> CFrame", a -> CFrame.lookAt(a.vector(0), a.vector(1)))
-                .value("identity", "CFrame", CFrame.IDENTITY);
+                .value("identity", "CFrame", CFrame.IDENTITY)
+                .parallelAll();
         cframes.declareMethod("__call", "(x: number | Vector3, y: (number | Vector3)?, z: number?) -> CFrame");
         host.global("cframe", "CFrameConstructors", callable(cframes, Values::newCFrame));
         host.declare(cframes);
@@ -118,14 +122,16 @@ public final class Values {
                 .function("euler", "(x: number, y: number, z: number) -> Quat", a -> Quat.euler(a.number(0), a.number(1), a.number(2)))
                 .function("lookAt", "(direction: Vector3, up: Vector3?) -> Quat", a -> Quat.lookAt(a.vector(0), a.vector(1, Vector3.UP)))
                 .function("fromTo", "(from: Vector3, to: Vector3) -> Quat", a -> fromTo(a.vector(0), a.vector(1)))
-                .value("identity", "Quat", Quat.IDENTITY);
+                .value("identity", "Quat", Quat.IDENTITY)
+                .parallelAll();
         host.global("quat", "QuatConstructors", quats);
         host.declare(quats);
 
         Members udims = new Members("UDim2Constructors")
                 .function("new", "(xScale: number, xOffset: number, yScale: number, yOffset: number) -> UDim2", Values::newUDim2)
                 .function("fromScale", "(x: number, y: number) -> UDim2", a -> UDim2.fromScale(a.number(0), a.number(1)))
-                .function("fromOffset", "(x: number, y: number) -> UDim2", a -> UDim2.fromOffset(a.number(0), a.number(1)));
+                .function("fromOffset", "(x: number, y: number) -> UDim2", a -> UDim2.fromOffset(a.number(0), a.number(1)))
+                .parallelAll();
         udims.declareMethod("__call", "(xScale: number, xOffset: number, yScale: number, yOffset: number) -> UDim2");
         host.global("udim2", "UDim2Constructors", callable(udims, Values::newUDim2));
         host.declare(udims);
@@ -146,6 +152,11 @@ public final class Values {
             @Override
             public Object invoke(Args args) {
                 return body.call(args);
+            }
+
+            @Override
+            public boolean parallel() {
+                return true;
             }
 
             @Override

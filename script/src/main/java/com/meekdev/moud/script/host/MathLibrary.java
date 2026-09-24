@@ -68,7 +68,8 @@ public final class MathLibrary {
                     }
                     return work.getFirst();
                 })
-                .function("catmullRom", "(points: { any }, t: number) -> any", a -> catmullRom(host, a.list(0), a.number(1)));
+                .function("catmullRom", "(points: { any }, t: number) -> any", a -> catmullRom(host, a.list(0), a.number(1)))
+                .parallelAll();
         host.extend("math", math);
         host.api().declare(math.decl());
 
@@ -76,7 +77,8 @@ public final class MathLibrary {
                 .function("wrap", "(a: number) -> number", a -> wrap(a.number(0)))
                 .function("delta", "(a: number, b: number) -> number", a -> wrap(a.number(1) - a.number(0)))
                 .function("lerp", "(a: number, b: number, t: number) -> number",
-                        a -> a.number(0) + wrap(a.number(1) - a.number(0)) * a.number(2));
+                        a -> a.number(0) + wrap(a.number(1) - a.number(0)) * a.number(2))
+                .parallelAll();
         host.global("angle", "Angle", angle);
         host.declare(angle);
 
@@ -107,6 +109,7 @@ public final class MathLibrary {
                     Vector3 size = a.vector(0);
                     return new Vector3(range(-size.x() / 2, size.x() / 2), range(-size.y() / 2, size.y() / 2), range(-size.z() / 2, size.z() / 2));
                 });
+        random.parallelAll();
         host.global("random", "Random", random);
         host.declare(random);
     }

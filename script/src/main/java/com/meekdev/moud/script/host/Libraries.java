@@ -4,6 +4,7 @@ import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.ClassDef;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.script.ModuleScript;
+import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.host.audio.AudioLibrary;
 import com.meekdev.moud.script.host.chat.ChatLibrary;
 import com.meekdev.moud.script.host.data.HttpLibrary;
@@ -29,6 +30,7 @@ import com.meekdev.moud.script.host.world.PartPhysics;
 import com.meekdev.moud.script.host.world.WorldQueries;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -96,6 +98,7 @@ final class Libraries {
         InterfaceLibrary.install(host);
         if (host.chat() != null) host.chatLibrary(ChatLibrary.install(host, game));
         if (host.plugins() != null) host.plugins().install(host);
+        Parallel.install(host);
 
         host.global("game", "Game", game);
         host.declare(game);
@@ -107,7 +110,7 @@ final class Libraries {
             }
             host.print(line.toString());
             return null;
-        }));
+        }, true));
         installRequire(host);
 
         host.api().declare(host.instances().shared().decl());
@@ -117,9 +120,10 @@ final class Libraries {
     }
 
     private static void installRequire(Host host) {
-        Map<Object, Object> cache = new HashMap<>();
+        Map<ScriptEngine, Map<Object, Object>> caches = new IdentityHashMap<>();
         LinkedHashSet<Object> loading = new LinkedHashSet<>();
         host.global("require", "(module: string | Instance) -> any", new Builtin("require", a -> {
+            Map<Object, Object> cache = caches.computeIfAbsent(host.engine(), key -> new HashMap<>());
             if (a.get(0) instanceof ModuleScript module) {
                 if (!module.isAlive()) throw new HostError("%s has been destroyed", module.name());
                 Object cached = cache.get(module);
@@ -139,13 +143,22 @@ final class Libraries {
             return load(host, cache, loading, found.path(), found.path(), found.code(), null);
         }));
         host.forgetting(path -> {
-            if (cache.remove(path) instanceof ScriptValue value) value.release();
-        });
-        host.onClose(() -> {
-            for (Object module : cache.values()) {
-                if (module instanceof ScriptValue value) value.release();
+            for (Map<Object, Object> cache : caches.values()) {
+                if (cache.remove(path) instanceof ScriptValue value) value.release();
             }
         });
+        host.onEngineClosed(engine -> release(caches.remove(engine)));
+        host.onClose(() -> {
+            for (Map<Object, Object> cache : caches.values()) release(cache);
+            caches.clear();
+        });
+    }
+
+    private static void release(Map<Object, Object> cache) {
+        if (cache == null) return;
+        for (Object module : cache.values()) {
+            if (module instanceof ScriptValue value) value.release();
+        }
     }
 
     private static final String PLUGIN = "@moud/plugin";

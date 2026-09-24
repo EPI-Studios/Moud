@@ -6,6 +6,7 @@ import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.script.LocalScript;
 import com.meekdev.moud.core.script.Script;
+import com.meekdev.moud.script.engine.ScriptEngine;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -29,6 +30,7 @@ final class ScriptInstances {
                 host.ownership().release(instance);
             }
         }
+        host.parallel().sweep();
         List<? extends Instance> scripts = host.client() ? tree.ofClass(Classes.LOCAL_SCRIPT) : tree.ofClass(Classes.SCRIPT);
         for (Instance instance : new ArrayList<>(scripts)) {
             if (enabled(instance) && running.add(instance)) start(instance);
@@ -59,7 +61,8 @@ final class ScriptInstances {
         }
         Object before = host.ownership().enter(instance);
         try {
-            Fiber fiber = host.engine().script(name, code, instance);
+            ScriptEngine actor = host.parallel().engineFor(instance);
+            Fiber fiber = (actor == null ? host.engine() : actor).script(name, code, instance);
             if (fiber != null) host.scheduler().start(fiber, instance);
         } catch (RuntimeException e) {
             host.error(name, e);
