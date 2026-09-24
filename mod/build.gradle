@@ -131,7 +131,7 @@ dependencies {
 processResources {
     if (box3dNatives.exists()) {
         from(box3dNatives) { into 'natives' }
-        def missing = shippedPlatforms.findAll { !new File(box3dNatives, it).isDirectory() }
+        def missing = project.hasProperty('allPlatforms') ? shippedPlatforms.findAll { !new File(box3dNatives, it).isDirectory() } : []
         if (missing) logger.warn("moud: no box3d natives for ${missing.join(', ')} in ${box3dNatives}, run allNatives in box3d-java")
     } else {
         logger.warn("moud: no box3d natives at ${box3dNatives}, sub level collision will fail to load")
