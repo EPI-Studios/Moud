@@ -6,10 +6,17 @@ import com.meekdev.moud.mod.place.PlaceToml;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 
 public final class CodeEditor {
 
-    private static final List<String> ZED = List.of("zed", System.getProperty("user.home") + "/.local/bin/zed", "zeditor");
+    private static final boolean MAC = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
+    private static final List<String> ZED = MAC
+            ? List.of("zed", "/usr/local/bin/zed", "/opt/homebrew/bin/zed", "/Applications/Zed.app/Contents/MacOS/cli")
+            : List.of("zed", System.getProperty("user.home") + "/.local/bin/zed", "zeditor");
+    private static final List<String> CODE = MAC
+            ? List.of("code", "/usr/local/bin/code", "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code")
+            : List.of("code");
 
     private CodeEditor() {}
 
@@ -19,7 +26,10 @@ public final class CodeEditor {
         for (String zed : ZED) {
             if (start(List.of(zed, root, target))) return;
         }
-        if (start(List.of("code", root, "--goto", target))) return;
+        for (String code : CODE) {
+            if (start(List.of(code, root, "--goto", target))) return;
+        }
+        if (MAC && start(List.of("open", "-t", file.toAbsolutePath().toString()))) return;
         MoudMod.LOG.warn("no code editor found to open {}", target);
         Output.add(Output.Level.WARN, "editor", "No code editor found to open " + target);
     }
