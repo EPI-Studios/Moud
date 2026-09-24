@@ -52,6 +52,9 @@ public final class NavMeshes {
     private static final float CELL_HEIGHT = 0.1f;
     private static final int TILE_CELLS = 128;
     private static final float TILE = TILE_CELLS * CELL;
+    private static final int TILE_BLOCKS = Math.round(TILE);
+    private static final float DROP = 3.2f;
+    private static final float LINK_RADIUS = 0.4f;
     private static final int VERTS_PER_POLY = 6;
     private static final int REACH_Y = 16;
     private static final int MAX_TILES = 400;
@@ -228,20 +231,19 @@ public final class NavMeshes {
         int perBlock = Math.round(1 / CELL);
         int perLayer = Math.round(1 / CELL_HEIGHT);
         int ox = Math.round((config.bmin[0] - x0) / CELL), oz = Math.round((config.bmin[2] - z0) / CELL);
-        BlockShape[] column = new BlockShape[layers + 2];
+        Voxels voxels = new Voxels(world, x0, z0, x1, z1, base, layers + 2, HEIGHT);
         for (int x = x0; x < x1; x++) {
             for (int z = z0; z < z1; z++) {
-                for (int i = 0; i < column.length; i++) column[i] = world.block(x, base + i, z);
                 for (int i = 0; i < layers; i++) {
-                    BlockShape block = column[i];
+                    BlockShape block = voxels.at(x, i, z);
                     if (block.empty()) continue;
                     float[] b = block.boxes();
                     for (int k = 0; k + 5 < b.length; k += 6) {
                         int low = Math.max(0, (int) Math.floor((i + b[k + 1]) * perLayer + 1e-3));
                         int high = (int) Math.ceil((i + b[k + 4]) * perLayer - 1e-3);
                         if (high <= low) high = low + 1;
-                        int feet = Math.min(column.length - 1, i + (int) Math.floor(b[k + 4] + 1e-3));
-                        int area = column[feet].liquid() == BlockShape.Liquid.LAVA ? 0 : 1;
+                        int feet = i + (int) Math.floor(b[k + 4] + 1e-3);
+                        int area = voxels.at(x, feet, z).liquid() == BlockShape.Liquid.LAVA ? 0 : 1;
                         for (int cx = 0; cx < perBlock; cx++) {
                             float mx = (cx + 0.5f) * CELL;
                             if (mx < b[k] - 1e-3f || mx > b[k + 3] + 1e-3f) continue;
@@ -259,6 +261,8 @@ public final class NavMeshes {
                 }
             }
         }
+        Links links = new Links();
+        links.drops(voxels, tx * TILE_BLOCKS, tz * TILE_BLOCKS, TILE_BLOCKS, CLIMB, HEIGHT, DROP, 1);
 
         Geometry geometry = new Geometry();
         long parts = 0;
@@ -292,6 +296,17 @@ public final class NavMeshes {
         params.polyFlags = polys.flags;
         params.polyCount = polys.npolys;
         params.nvp = polys.nvp;
+        if (links.count() > 0) {
+            params.offMeshConCount = links.count();
+            params.offMeshConVerts = links.verts();
+            params.offMeshConAreas = links.areas();
+            params.offMeshConDir = links.dirs();
+            params.offMeshConRad = new float[links.count()];
+            Arrays.fill(params.offMeshConRad, LINK_RADIUS);
+            params.offMeshConFlags = new int[links.count()];
+            Arrays.fill(params.offMeshConFlags, 1);
+            params.offMeshConUserID = new int[links.count()];
+        }
         PolyMeshDetail detail = built.getMeshDetail();
         if (detail != null) {
             params.detailMeshes = detail.meshes;
