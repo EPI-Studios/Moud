@@ -52,11 +52,12 @@ final class OrientationCube {
         }
         faces.sort(Comparator.comparingDouble(Face::depth).reversed());
 
+        boolean reachable = ImGui.isWindowHovered();
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
         Face over = null;
         for (Face face : faces) {
-            if (inside(face.corners(), mouseX, mouseY)) over = face;
+            if (reachable && inside(face.corners(), mouseX, mouseY)) over = face;
         }
         axis(draw, cx, cy, half, side, up, 0, EditorStyle.COLOR_AXIS_X);
         axis(draw, cx, cy, half, side, up, 1, EditorStyle.COLOR_AXIS_Y);
@@ -78,7 +79,7 @@ final class OrientationCube {
         float buttonTop = cy + half * 1.75f;
         String mode = camera.orthographic() ? "Orthographic" : "Perspective";
         float modeWidth = ImGui.calcTextSize(mode).x;
-        boolean overMode = mouseX >= cx - modeWidth * 0.5f - 4 && mouseX <= cx + modeWidth * 0.5f + 4
+        boolean overMode = reachable && mouseX >= cx - modeWidth * 0.5f - 4 && mouseX <= cx + modeWidth * 0.5f + 4
                 && mouseY >= buttonTop && mouseY <= buttonTop + ImGui.getTextLineHeight() + 4;
         draw.addRectFilled(cx - modeWidth * 0.5f - 4, buttonTop, cx + modeWidth * 0.5f + 4, buttonTop + ImGui.getTextLineHeight() + 4,
                 overMode ? FACE_HOVER : EditorStyle.withAlpha(FACE, 0.85f), 3.0f);

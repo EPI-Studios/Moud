@@ -291,7 +291,8 @@ public final class ViewportPanel implements Panel, ViewTools {
     private void renderToolbar(@Nullable ViewportTakeover owner) {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, EditorScale.of(TOOLBAR_MARGIN_X), EditorScale.of(TOOLBAR_MARGIN_Y));
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, EditorStyle.itemSpacingX(), 0.0f);
-        ImGui.beginChild("##viewport-toolbar", 0.0f, ImGui.getFrameHeight() + EditorScale.of(TOOLBAR_MARGIN_Y) * 2.0f, false);
+        ImGui.beginChild("##viewport-toolbar", 0.0f, Toolbars.buttonHeight() + EditorScale.of(TOOLBAR_MARGIN_Y) * 2.0f, false,
+                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
         Toolbars.pushFlatButtons();
         if (owner != null) {
             owner.toolbar();
@@ -309,7 +310,11 @@ public final class ViewportPanel implements Panel, ViewTools {
         renderToolButton("tool-scale", EditorIcon.TOOL_SCALE, GizmoState.Tool.SCALE, "Scale (S)");
         Toolbars.groupSeparator();
         ImGui.sameLine();
-        if (Toolbars.textButton("Pivot##tool-pivot-text")) gizmoState.setTool(GizmoState.Tool.PIVOT);
+        boolean pivoting = gizmoState.tool() == GizmoState.Tool.PIVOT;
+        ToggleStyle.push(pivoting);
+        boolean clicked = Toolbars.textButton("Pivot##tool-pivot-text");
+        ToggleStyle.pop(pivoting);
+        if (clicked) gizmoState.setTool(GizmoState.Tool.PIVOT);
         tooltip("Move a part's pivot, the point it turns about (P)");
         ImGui.sameLine();
         renderPaintButton();
@@ -873,7 +878,8 @@ public final class ViewportPanel implements Panel, ViewTools {
 
     private @Nullable Instance billboardAt(float mouseX, float mouseY) {
         Instance[] best = {null};
-        double[] closest = {BILLBOARD_CLICK_RADIUS * BILLBOARD_CLICK_RADIUS};
+        float radius = EditorScale.of(BILLBOARD_CLICK_RADIUS);
+        double[] closest = {radius * radius};
         forEachEditableSpatial(instance -> {
             if (instance instanceof Part) return;
             float[] screen = view.toScreen(Frames.center(instance));

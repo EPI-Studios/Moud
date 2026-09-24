@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client.editor.style;
 import com.meekdev.moud.mod.MoudMod;
 import foundry.imgui.api.ImGuiMC;
 import imgui.ImFont;
+import imgui.ImGui;
 import imgui.ImFontAtlas;
 import imgui.ImFontConfig;
 import imgui.ImFontGlyphRangesBuilder;
@@ -99,6 +100,20 @@ public final class EditorFonts {
 
     public static @Nullable ImFont monospace() {
         return monospace;
+    }
+
+    public record Sized(ImFont font, float size) {}
+
+    public static Sized nearest(float pixels) {
+        ImFont[] fonts = {small, body, title, heading, display};
+        float[] sizes = {SMALL, BODY, TITLE, HEADING, DISPLAY};
+        Sized best = null;
+        for (int index = 0; index < fonts.length; index++) {
+            if (fonts[index] == null) continue;
+            float size = EditorScale.of(sizes[index]);
+            if (best == null || Math.abs(size - pixels) < Math.abs(best.size() - pixels)) best = new Sized(fonts[index], size);
+        }
+        return best == null ? new Sized(ImGui.getFont(), ImGui.getFontSize()) : best;
     }
 
     public static @Nullable ImFont page(float size, boolean bold) {

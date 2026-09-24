@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.editor.viewport;
 
 import com.meekdev.moud.core.place.PlaceConfig;
 import com.meekdev.moud.mod.adapter.ui.UiImages;
+import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.meekdev.moud.mod.place.PlaceToml;
 import foundry.imgui.api.ImGuiMC;
 import foundry.imgui.impl.ImGuiMCImpl;
@@ -87,9 +88,9 @@ final class ScreenPreviews {
             text(draw, config.name(), left + width / 2, middle, unit * 2.5f, WHITE);
         }
         int dots = (int) (System.currentTimeMillis() / DOT_MILLIS % 4);
-        int size = Math.max(8, Math.round(9f * unit));
-        float textLeft = left + width / 2 - ImGui.calcTextSizeX(loading.text()) * size / ImGui.getFontSize() / 2;
-        draw.addText(ImGui.getFont(), size, textLeft, top + height * 0.68f - size / 2f, WHITE, loading.text() + ".".repeat(dots));
+        EditorFonts.Sized font = EditorFonts.nearest(9f * unit);
+        float textLeft = left + width / 2 - font.font().calcTextSizeAX(font.size(), Float.MAX_VALUE, 0.0f, loading.text()) / 2;
+        draw.addText(font.font(), Math.round(font.size()), textLeft, top + height * 0.68f - font.size() / 2f, WHITE, loading.text() + ".".repeat(dots));
         if (!loading.tips().isEmpty()) {
             String tip = loading.tips().get((int) (System.currentTimeMillis() / TIP_MILLIS % loading.tips().size()));
             text(draw, tip, left + width / 2, top + height - 24 * unit, unit, MUTED);
@@ -105,9 +106,9 @@ final class ScreenPreviews {
     }
 
     private static void text(ImDrawList draw, String text, float centreX, float centreY, float unit, int colour) {
-        int size = Math.max(8, Math.round(9f * unit));
-        float w = ImGui.calcTextSizeX(text) * size / ImGui.getFontSize();
-        draw.addText(ImGui.getFont(), size, centreX - w / 2, centreY - size / 2f, abgrColour(colour), text);
+        EditorFonts.Sized font = EditorFonts.nearest(9f * unit);
+        float w = font.font().calcTextSizeAX(font.size(), Float.MAX_VALUE, 0.0f, text);
+        draw.addText(font.font(), Math.round(font.size()), centreX - w / 2, centreY - font.size() / 2f, abgrColour(colour), text);
     }
 
     private record Image(long id, float width, float height) {}
