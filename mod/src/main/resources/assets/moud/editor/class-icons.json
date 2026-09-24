@@ -34,6 +34,8 @@
     "IKControl": "HINGE_JOINT_3D",
     "JointSpring": "HINGE_JOINT_3D",
     "ForceField": "FOG_VOLUME",
+    "PathfindingModifier": "NAVIGATION_REGION_3D",
+    "PathfindingLink": "NAVIGATION_AGENT_3D",
     "Tool": "TOOL_SELECT",
     "Team": "CHARACTER_BODY_3D",
     "Leaderboard": "FOLDER",

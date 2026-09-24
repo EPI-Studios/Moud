@@ -6,7 +6,10 @@ import com.meekdev.moud.core.character.Humanoids;
 import com.meekdev.moud.core.character.Rig;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Instances;
+import com.meekdev.moud.core.instance.Model;
+import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
@@ -14,6 +17,8 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.nav.Agent;
 import com.meekdev.moud.core.nav.BlockShape;
 import com.meekdev.moud.core.nav.NavMeshes;
+import com.meekdev.moud.core.nav.PathfindingLink;
+import com.meekdev.moud.core.nav.PathfindingModifier;
 import com.meekdev.moud.core.nav.Route;
 import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.core.nav.Waypoint;
@@ -29,6 +34,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -161,6 +167,36 @@ public final class Paths {
         return part.parent() instanceof Character || part.parent() != null && part.parent().parent() instanceof Character;
     }
 
+    private static String label(PathfindingModifier modifier) {
+        return modifier.label.isBlank() ? null : modifier.label;
+    }
+
+    private static PathfindingModifier modifierOf(Part part) {
+        for (Instance child : part.children()) {
+            if (child instanceof PathfindingModifier modifier) return modifier;
+        }
+        for (Instance at = part.parent(); at instanceof Model; at = at.parent()) {
+            for (Instance child : at.children()) {
+                if (child instanceof PathfindingModifier modifier) return modifier;
+            }
+        }
+        return null;
+    }
+
+    private static void partsOf(Instance at, List<Part> out) {
+        if (at instanceof Part part) out.add(part);
+        if (at instanceof Model) {
+            for (Instance child : at.children()) partsOf(child, out);
+        }
+    }
+
+    private static boolean overlaps(Part part, Vector3 min, Vector3 max) {
+        Vector3 at = Transforms.world(part).position();
+        double reach = part.size.length() * 0.5;
+        return at.x() + reach >= min.x() && at.x() - reach <= max.x() && at.y() + reach >= min.y() && at.y() - reach <= max.y()
+                && at.z() + reach >= min.z() && at.z() - reach <= max.z();
+    }
+
     private static NavMeshes.World source(Host host) {
         Instance world = host.world();
         BlockRef blocks = host.blocks();
@@ -176,11 +212,47 @@ public final class Paths {
                 Vector3 size = max.sub(min);
                 List<Box> boxes = new ArrayList<>();
                 for (Part part : Queries.inBox(world, CFrame.at(min.add(size.mul(0.5))), size, ground)) {
-                    boxes.add(new Box(Transforms.world(part), part.size));
+                    PathfindingModifier modifier = modifierOf(part);
+                    boxes.add(modifier == null ? new Box(Transforms.world(part), part.size)
+                            : new Box(Transforms.world(part), part.size, !modifier.passThrough, label(modifier)));
+                }
+                InstanceTree tree = world.tree();
+                if (tree == null) return boxes;
+                Map<Part, Boolean> seen = new IdentityHashMap<>();
+                for (PathfindingModifier modifier : tree.ofClass(Classes.PATHFINDING_MODIFIER)) {
+                    if (label(modifier) == null || modifier.parent() == null) continue;
+                    List<Part> parts = new ArrayList<>();
+                    partsOf(modifier.parent(), parts);
+                    for (Part part : parts) {
+                        if (part.collides && !insideBody(part) || seen.put(part, true) != null || !overlaps(part, min, max)) continue;
+                        if (modifierOf(part) != modifier) continue;
+                        boxes.add(new Box(Transforms.world(part), part.size, false, label(modifier)));
+                    }
                 }
                 return boxes;
             }
+
+            @Override
+            public List<Link> links(Vector3 min, Vector3 max) {
+                InstanceTree tree = world.tree();
+                if (tree == null) return List.of();
+                List<Link> links = new ArrayList<>();
+                for (PathfindingLink link : tree.ofClass(Classes.PATHFINDING_LINK)) {
+                    if (!(link.attachment0 instanceof Spatial a) || !(link.attachment1 instanceof Spatial b)) continue;
+                    if (!a.isAlive() || !b.isAlive()) continue;
+                    Vector3 from = Transforms.world(a).position(), to = Transforms.world(b).position();
+                    boolean near = inside(from, min, max) || link.bidirectional && inside(to, min, max);
+                    if (!near) continue;
+                    String label = link.label.isBlank() ? null : link.label;
+                    links.add(new Link(from, to, link.bidirectional, label));
+                }
+                return links;
+            }
         };
+    }
+
+    private static boolean inside(Vector3 at, Vector3 min, Vector3 max) {
+        return at.x() >= min.x() && at.x() <= max.x() && at.z() >= min.z() && at.z() <= max.z();
     }
 
     public static void blockChanged(Instance world, int x, int y, int z) {

@@ -65,6 +65,8 @@ import com.meekdev.moud.core.instance.Joint;
 import com.meekdev.moud.core.instance.Model;
 import com.meekdev.moud.core.instance.Motor;
 import com.meekdev.moud.core.instance.Spatial;
+import com.meekdev.moud.core.nav.PathfindingLink;
+import com.meekdev.moud.core.nav.PathfindingModifier;
 import com.meekdev.moud.core.part.CollisionGroup;
 import com.meekdev.moud.core.part.MaterialOverride;
 import com.meekdev.moud.core.part.MeshPart;
@@ -411,6 +413,10 @@ public final class Classes {
     public static final ClassDef<Model> MODEL = ClassDef.of("Model", SPATIAL, Model.class, Model::new);
     public static final ClassDef<Actor> ACTOR = ClassDef.of("Actor", MODEL, Actor.class, Actor::new);
     public static final ClassDef<ForceField> FORCE_FIELD = ClassDef.of("ForceField", null, ForceField.class, ForceField::new);
+    public static final ClassDef<PathfindingModifier> PATHFINDING_MODIFIER =
+            ClassDef.of("PathfindingModifier", null, PathfindingModifier.class, PathfindingModifier::new);
+    public static final ClassDef<PathfindingLink> PATHFINDING_LINK =
+            ClassDef.of("PathfindingLink", null, PathfindingLink.class, PathfindingLink::new);
     public static final ClassDef<Tool> TOOL = ClassDef.of("Tool", null, Tool.class, Tool::new);
     public static final ClassDef<Team> TEAM = ClassDef.of("Team", null, Team.class, Team::new);
     public static final ClassDef<Leaderboard> LEADERBOARD =
@@ -614,6 +620,8 @@ public final class Classes {
         r.register(MOTOR);
         r.register(MODEL);
         r.register(FORCE_FIELD);
+        r.register(PATHFINDING_MODIFIER);
+        r.register(PATHFINDING_LINK);
         r.register(TOOL);
         r.register(TEAM);
         r.register(LEADERBOARD);
