@@ -16,6 +16,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.gl.Textures;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.PlaceFiles;
+import com.meekdev.moud.mod.place.SyncedFiles.Stamp;
 import com.meekdev.resona.api.PlaySettings;
 import com.meekdev.resona.api.Resona;
 import com.meekdev.resona.api.SoundHandle;
@@ -63,13 +64,13 @@ public final class Videos {
             close();
             clock = from;
             over = false;
-            byte[] bytes = PlaceFiles.read(video);
-            if (bytes == null) {
+            Stamp stamp = PlaceFiles.stamp(video);
+            if (stamp == null) {
                 MoudMod.LOG.warn("the video {} is not in the place", video);
                 return;
             }
             if (!Ffmpeg.available()) return;
-            decoder = new VideoDecoder(video, bytes, from, !muted);
+            decoder = new VideoDecoder(video, stamp, from, !muted);
         }
 
         void close() {
@@ -159,6 +160,7 @@ public final class Videos {
             loop.dispose();
             loops.remove();
         }
+        if (trees.isEmpty()) VideoFiles.forget();
     }
 
     private static void loop(Playback loop, double delta) {

@@ -1,10 +1,10 @@
 package com.meekdev.moud.mod.adapter.video;
 
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.place.SyncedFiles.Stamp;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ShortBuffer;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -33,8 +33,9 @@ final class VideoDecoder {
     private volatile boolean finished;
     private volatile @Nullable Info info;
 
-    VideoDecoder(String name, byte[] bytes, double from, boolean sound) {
-        thread = Thread.ofPlatform().daemon().name("moud video " + name).start(() -> decode(name, bytes, from, sound));
+    VideoDecoder(String name, Stamp stamp, double from, boolean sound) {
+        String key = VideoFiles.key(name);
+        thread = Thread.ofPlatform().daemon().name("moud video " + name).start(() -> decode(name, key, stamp, from, sound));
     }
 
     @Nullable Info info() {
@@ -71,11 +72,13 @@ final class VideoDecoder {
         if (finished) release();
     }
 
-    private void decode(String name, byte[] bytes, double from, boolean withSound) {
-        Path file = null;
+    private void decode(String name, String key, Stamp stamp, double from, boolean withSound) {
         try {
-            file = Files.createTempFile("moud-video-", extension(name));
-            Files.write(file, bytes);
+            Path file = VideoFiles.file(key, name, stamp);
+            if (file == null) {
+                MoudMod.LOG.warn("the video {} is not in the place", name);
+                return;
+            }
             try (FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(file.toFile())) {
                 grabber.setPixelFormat(avutil.AV_PIX_FMT_RGBA);
                 grabber.setSampleFormat(avutil.AV_SAMPLE_FMT_S16);
@@ -103,12 +106,6 @@ final class VideoDecoder {
             MoudMod.LOG.warn("could not decode the video {}: {}", name, problem.getMessage());
         } finally {
             finished = true;
-            if (file != null) {
-                try {
-                    Files.deleteIfExists(file);
-                } catch (IOException ignored) {
-                }
-            }
             if (stopped) release();
         }
     }
@@ -141,11 +138,6 @@ final class VideoDecoder {
         }
         out.flip();
         return new Picture(at, duration, width, height, out);
-    }
-
-    private static String extension(String name) {
-        int dot = name.lastIndexOf('.');
-        return dot < 0 ? ".video" : name.substring(dot);
     }
 
     private void release() {
