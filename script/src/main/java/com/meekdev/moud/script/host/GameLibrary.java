@@ -23,12 +23,12 @@ final class GameLibrary {
                 .field("isStudio", "boolean", host::studio)
                 .field("renderPriority", "{ first: number, input: number, camera: number, character: number, last: number }", () -> new LinkedHashMap<>(priorities))
                 .method("bindToRenderStep", "(name: string, priority: number, handler: (delta: number) -> ()) -> ()", a -> {
-                    if (!host.client()) throw new HostError("bindToRenderStep is client-only");
+                    if (!host.client()) throw new HostError("game:bindToRenderStep runs on the client");
                     host.renderBindings().bind(a.string(1), a.number(2), a.callable(3));
                     return null;
                 })
                 .method("unbindFromRenderStep", "(name: string) -> ()", a -> {
-                    if (!host.client()) throw new HostError("unbindFromRenderStep is client-only");
+                    if (!host.client()) throw new HostError("game:unbindFromRenderStep runs on the client");
                     host.renderBindings().unbind(a.string(1));
                     return null;
                 });

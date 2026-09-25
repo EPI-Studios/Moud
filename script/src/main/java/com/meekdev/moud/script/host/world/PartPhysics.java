@@ -54,7 +54,7 @@ public final class PartPhysics {
 
         parts.method("setNetworkOwner", "(owner: (Player | Character)?) -> ()", a -> {
             Part part = a.self(Part.class);
-            if (host.physics() == null) throw new HostError("network ownership is set from a server Script");
+            if (host.physics() == null) throw new HostError("network ownership is set on the server");
             String why = host.physics().whyNotOwnable(part);
             if (!why.isEmpty()) throw new HostError("%s can not be given an owner: %s", part.name(), why);
             String owner = "";
@@ -66,14 +66,14 @@ public final class PartPhysics {
             return null;
         });
         parts.method("setNetworkOwnershipAuto", "() -> ()", a -> {
-            if (host.physics() == null) throw new HostError("network ownership is set from a server Script");
+            if (host.physics() == null) throw new HostError("network ownership is set on the server");
             host.physics().automatic(a.self(Part.class));
             return null;
         });
         parts.method("isNetworkOwnershipAuto", "() -> boolean", a -> !a.self(Part.class).ownershipSet());
         parts.method("canSetNetworkOwnership", "() -> (boolean, string?)", a -> {
             Part part = a.self(Part.class);
-            String why = host.physics() == null ? "network ownership is set from a server Script" : host.physics().whyNotOwnable(part);
+            String why = host.physics() == null ? "network ownership is set on the server" : host.physics().whyNotOwnable(part);
             return why.isEmpty() ? Results.of(true) : Results.of(false, why);
         });
         parts.method("getNetworkOwner", "() -> Player?", a -> {
@@ -120,7 +120,7 @@ public final class PartPhysics {
     }
 
     private static PartPhysicsRef physics(Host host) {
-        if (host.physics() == null) throw new HostError("parts can only be pushed from a server Script");
+        if (host.physics() == null) throw new HostError("parts are pushed on the server");
         return host.physics();
     }
 

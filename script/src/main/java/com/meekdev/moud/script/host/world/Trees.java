@@ -79,7 +79,7 @@ public final class Trees {
         shared.method("setOwner", "(to: Instance?) -> ()", a -> {
             Instance instance = a.self();
             if (host.instances().edited(instance)) throw new HostError("a plugin cannot set the owner of %s, it is part of the scene", instance.name());
-            if (host.client()) throw new HostError("setOwner is server-only");
+            if (host.client()) throw new HostError("setOwner runs on the server");
             if (!(instance instanceof Spatial)) throw new HostError("%s cannot have an owner", instance.def().name());
             PropertyDef owner = instance.def().property("owner");
             if (!a.has(1)) {
@@ -113,20 +113,20 @@ public final class Trees {
 
         shared.method("fireServer", "(...any) -> ()", a -> {
             Remote remote = remote(a);
-            if (!host.client()) throw new HostError("fireServer is client-only");
+            if (!host.client()) throw new HostError("fireServer runs on the client");
             post(host).toServer(remote.id(), declared(remote, a, 1), !(remote instanceof UnreliableRemote));
             return null;
         });
         shared.method("fireClient", "(to: Instance, ...any) -> ()", a -> {
             Remote remote = remote(a);
-            if (host.client()) throw new HostError("fireClient is server-only");
+            if (host.client()) throw new HostError("fireClient runs on the server");
             if (!(a.get(1) instanceof Character body)) throw new HostError("fireClient expects a body as the first argument");
             post(host).toClient(body.owner, remote.id(), declared(remote, a, 2), !(remote instanceof UnreliableRemote));
             return null;
         });
         shared.method("fireAllClients", "(...any) -> ()", a -> {
             Remote remote = remote(a);
-            if (host.client()) throw new HostError("fireAllClients is server-only");
+            if (host.client()) throw new HostError("fireAllClients runs on the server");
             post(host).toAllClients(remote.id(), declared(remote, a, 1), !(remote instanceof UnreliableRemote));
             return null;
         });

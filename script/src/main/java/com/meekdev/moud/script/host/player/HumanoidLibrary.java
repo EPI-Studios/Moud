@@ -118,7 +118,7 @@ final class HumanoidLibrary {
         });
         Members seats = host.instances().of(Classes.SEAT);
         seats.method("sit", "(humanoid: Humanoid) -> boolean", a -> {
-            if (host.client()) throw new HostError("seat:sit runs in a server Script");
+            if (host.client()) throw new HostError("seat:sit runs on the server");
             if (!(a.instance(1) instanceof Humanoid living)) throw new HostError("sit expects a Humanoid");
             return Seats.sit(a.self(Seat.class), living);
         });
@@ -140,7 +140,7 @@ final class HumanoidLibrary {
     }
 
     private static Humanoid server(Host host, Humanoid living, String what) {
-        if (host.client()) throw new HostError("humanoid:%s runs in a server Script", what);
+        if (host.client()) throw new HostError("humanoid:%s runs on the server", what);
         return living;
     }
 

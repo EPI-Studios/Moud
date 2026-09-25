@@ -31,13 +31,13 @@ public final class RemoteFunctions {
         Members functions = host.instances().of(Classes.REMOTE_FUNCTION);
         functions.method("invokeServer", "(...any) -> ...any", a -> {
             RemoteFunction remote = remote(a);
-            if (!host.client()) throw new HostError("invokeServer is client-only");
+            if (!host.client()) throw new HostError("invokeServer runs on the client");
             List<Object> args = declared(remote, a, 1);
             return call(remote, "", "the server", () -> true, call -> invoke(host).toServer(remote.id(), call, args));
         });
         functions.method("invokeClient", "(player: Player, ...any) -> ...any", a -> {
             RemoteFunction remote = remote(a);
-            if (host.client()) throw new HostError("invokeClient is server-only");
+            if (host.client()) throw new HostError("invokeClient runs on the server");
             String player = Players.idOf(a.get(1));
             if (player == null) throw new HostError("invokeClient expects a player as the first argument");
             List<Object> args = declared(remote, a, 2);

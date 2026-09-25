@@ -26,7 +26,7 @@ gets the same data. A hash map and a sorted map with the same name are two diffe
 ## What they share
 
 - **Server only.** `memory` works in a server `Script`. In a `LocalScript` every call errors with
-  "memory stores are used from a server Script".
+  "memory stores run on the server".
 - **Every write has an expiration.** It is a number of seconds, more than 0 and up to 3,888,000 (45
   days). There is no default, and leaving it out is an error. Writing a key again starts its
   expiration over. Expirations count real time, so a paused singleplayer game does not stop them.

@@ -20,7 +20,7 @@ import java.util.Map;
 
 public final class MemoryLibrary {
 
-    private static final String SERVER = "memory stores are used from a server Script";
+    private static final String SERVER = "memory stores run on the server";
     private static final int LONGEST_KEY = 128;
     private static final int LARGEST_VALUE = 32 * 1024;
     private static final int MOST_KEYS = 1000;
