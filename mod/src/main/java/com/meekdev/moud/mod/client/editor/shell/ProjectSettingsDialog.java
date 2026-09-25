@@ -7,6 +7,7 @@ import com.meekdev.moud.core.place.PlaceConfig;
 import com.meekdev.moud.core.place.TomlEdit;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
+import com.meekdev.moud.mod.client.LoadingPlace;
 import com.meekdev.moud.mod.client.editor.Editor;
 import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
@@ -81,6 +82,7 @@ final class ProjectSettingsDialog {
     private final ImString engine = new ImString(32);
     private final ImString server = new ImString(256);
     private final ImString client = new ImString(256);
+    private final ImString loading = new ImString(256);
     private final ImString scene = new ImString(256);
     private final ImString lookup = new ImString(512);
     private final ImString address = new ImString(256);
@@ -118,6 +120,7 @@ final class ProjectSettingsDialog {
         engine.set(loaded.engine());
         server.set(loaded.server());
         client.set(loaded.client());
+        loading.set(loaded.loadingScript().equals(PlaceConfig.DEFAULT.loadingScript()) ? "" : loaded.loadingScript());
         scene.set(loaded.scene());
         maxPlayers.set(loaded.maxPlayers());
         lookup.set(loaded.host().lookup());
@@ -253,6 +256,7 @@ final class ProjectSettingsDialog {
     private void renderEntry() {
         field("Server script", "Runs on the server when the place starts", () -> pick("##server", server, scripts, "server/"));
         field("Client script", "Runs on every player's game", () -> pick("##client", client, scripts, "client/"));
+        field("Loading script", "Draws the loading screen. Empty uses client/loading when it exists", () -> pick("##loading", loading, scripts, "client/"));
         field("Start scene", "Loaded under game.world before the server script runs", () -> pick("##scene", scene, scenes, ""));
     }
 
@@ -319,6 +323,7 @@ final class ProjectSettingsDialog {
             text = engine.get().isBlank() ? TomlEdit.remove(text, "", "engine") : TomlEdit.set(text, "", "engine", engine.get().strip());
             text = entry(text, "server", server.get(), PlaceConfig.DEFAULT.server());
             text = entry(text, "client", client.get(), PlaceConfig.DEFAULT.client());
+            text = entry(text, "loading", loading.get(), PlaceConfig.DEFAULT.loadingScript());
             text = entry(text, "scene", scene.get(), "");
             text = lookup.get().isBlank() ? TomlEdit.remove(text, "server", "lookup") : TomlEdit.set(text, "server", "lookup", lookup.get().strip());
             text = address.get().isBlank() ? TomlEdit.remove(text, "server", "address") : TomlEdit.set(text, "server", "address", address.get().strip());
@@ -331,6 +336,7 @@ final class ProjectSettingsDialog {
             PlaceConfig parsed = PlaceConfig.parse(text);
             Files.writeString(toml, text);
             needsReopen = !parsed.server().equals(loaded.server()) || !parsed.client().equals(loaded.client()) || !parsed.scene().equals(loaded.scene())
+                    || !parsed.loadingScript().equals(loaded.loadingScript())
                     || parsed.maxPlayers() != loaded.maxPlayers();
             loaded = parsed;
             problem = "";
@@ -350,9 +356,18 @@ final class ProjectSettingsDialog {
         if (name.get().isBlank()) return "The place needs a name";
         if (!ID.matcher(id.get().strip()).matches()) return "The id may only hold lowercase letters, digits and dashes";
         if (!VERSION.matcher(version.get().strip()).matches()) return "The version looks like 1.2.3";
-        for (ImString path : List.of(server, client)) {
+        for (ImString path : List.of(server, client, loading)) {
             String value = path.get().strip();
             if (!value.isEmpty() && !value.startsWith("res://")) return value + " should start with res://";
+        }
+        String screen = loading.get().strip();
+        Path root = ClientPlace.root();
+        if (!screen.isEmpty() && root != null) {
+            try {
+                if (LoadingPlace.script(root, screen) == null) return screen + " does not exist";
+            } catch (IllegalArgumentException e) {
+                return e.getMessage();
+            }
         }
         String start = scene.get().strip();
         if (!start.isEmpty() && !start.endsWith(".scene")) return "The start scene should be a .scene file";

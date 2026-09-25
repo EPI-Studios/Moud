@@ -81,18 +81,27 @@ public final class LoadingPlace {
         }
         if (PlaceToml.editOnStart() || !PlaceToml.opened()) return;
         Path root = PlaceToml.root();
-        String stem = Res.script(PlaceToml.config().loadingScript());
+        String file = script(root, PlaceToml.config().loadingScript());
+        if (file == null) return;
+        for (ScriptLanguage language : Languages.all()) {
+            if (language.extensions().stream().anyMatch(extension -> file.endsWith("." + extension))) {
+                run(root, language, file);
+                return;
+            }
+        }
+    }
+
+    public static @Nullable String script(Path root, String res) {
+        String stem = Res.script(res);
         int dot = stem.lastIndexOf('.');
         if (dot > stem.lastIndexOf('/')) stem = stem.substring(0, dot);
         for (ScriptLanguage language : Languages.all()) {
             for (String extension : language.extensions()) {
                 String file = stem + "." + extension;
-                if (Files.isRegularFile(root.resolve(file))) {
-                    run(root, language, file);
-                    return;
-                }
+                if (Files.isRegularFile(root.resolve(file))) return file;
             }
         }
+        return null;
     }
 
     private static void run(Path root, ScriptLanguage language, String file) {
