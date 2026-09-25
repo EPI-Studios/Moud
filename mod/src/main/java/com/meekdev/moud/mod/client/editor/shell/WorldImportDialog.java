@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.client.editor.shell;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.editor.document.SceneLink;
+import com.meekdev.moud.mod.client.editor.files.UserPaths;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.Notices;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
@@ -114,10 +115,10 @@ final class WorldImportDialog {
         ImGui.sameLine();
         if (ImGui.button("Browse...", Dialogs.buttonWidth(), 0)) browse();
         inspect();
-        Path world = Path.of(folder.get().strip().isEmpty() ? "." : folder.get().strip());
+        Path world = UserPaths.parse(folder.get()).orElse(null);
         boolean valid = !folder.get().isBlank() && !dimensions.isEmpty();
         if (!folder.get().isBlank() && dimensions.isEmpty()) {
-            Texts.colored(EditorStyle.COLOR_WARNING, Files.isDirectory(world) ? "No region files here. Pick the world folder itself, not saves/ or region/." : "That folder does not exist.");
+            Texts.colored(EditorStyle.COLOR_WARNING, world != null && Files.isDirectory(world) ? "No region files here. Pick the world folder itself, not saves/ or region/." : "That folder does not exist.");
         }
         if (valid) {
             Dialogs.gap();
@@ -195,12 +196,12 @@ final class WorldImportDialog {
 
     private void start(AnvilWorlds.Plan plan) {
         Path root = ClientPlace.root();
-        if (root == null || SceneLink.file().isEmpty()) return;
+        Path source = UserPaths.parse(folder.get()).orElse(null);
+        if (root == null || source == null || SceneLink.file().isEmpty()) return;
         scene = SceneLink.file();
         cancel.set(false);
         progress.set(null);
         stage = Stage.RUNNING;
-        Path source = Path.of(folder.get().strip());
         String into = scene;
         Thread worker = new Thread(() -> run(root, into, source, plan), "moud world import");
         worker.setDaemon(true);
@@ -255,11 +256,11 @@ final class WorldImportDialog {
         inspected = now;
         estimate = -1;
         dimension.set(0);
-        if (now.isEmpty()) {
+        Path world = UserPaths.parse(now).orElse(null);
+        if (world == null) {
             dimensions = List.of();
             return;
         }
-        Path world = Path.of(now);
         dimensions = AnvilWorlds.dimensions(world);
         int[] spawn = AnvilWorlds.spawnChunk(world);
         centre[0] = spawn[0];
@@ -286,8 +287,7 @@ final class WorldImportDialog {
     private static List<Path> findSaves() {
         List<Path> roots = new ArrayList<>();
         roots.add(Minecraft.getInstance().gameDirectory.toPath().resolve("saves"));
-        roots.add(Path.of(System.getProperty("user.home"), ".minecraft", "saves"));
-        String appData = System.getenv("APPDATA");
+        roots.add(Path.of(System.getProperty("user.home"), ".minecraft", "saves"));        String appData = System.getenv("APPDATA");
         if (appData != null) roots.add(Path.of(appData, ".minecraft", "saves"));
         List<Path> found = new ArrayList<>();
         for (Path root : roots) {

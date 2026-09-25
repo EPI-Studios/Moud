@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.client.editor.project;
 
 import com.meekdev.moud.mod.client.editor.files.FileBrowser;
+import com.meekdev.moud.mod.client.editor.files.UserPaths;
 import com.meekdev.moud.mod.client.editor.notify.Notifier;
 import com.meekdev.moud.mod.client.editor.style.EditorFonts;
 import com.meekdev.moud.mod.client.editor.style.EditorMotion;
@@ -21,7 +22,6 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -29,7 +29,6 @@ import java.util.function.Consumer;
 public final class NewProjectDialog {
 
     private static final String POPUP_ID = "##new-project";
-    private static final String INVALID_NAME_CHARS = "/\\:*?\"<>|";
     private static final float WIDTH = 600.0f;
     private static final float PADDING = 28.0f;
     private static final float ROW_HEIGHT = 96.0f;
@@ -224,19 +223,14 @@ public final class NewProjectDialog {
     }
 
     private Optional<Path> currentParent() {
-        String raw = parentInput.get().trim();
-        if (raw.isEmpty()) return Optional.empty();
-        try {
-            return Optional.of(Path.of(raw));
-        } catch (InvalidPathException e) {
-            return Optional.empty();
-        }
+        return UserPaths.parse(parentInput.get());
     }
 
     private Optional<String> validationError() {
         String name = nameInput.get().trim();
         if (name.isEmpty()) return Optional.of("Give the project a name.");
-        if (name.chars().anyMatch(c -> INVALID_NAME_CHARS.indexOf(c) >= 0)) return Optional.of("A name can not contain / \\ : * ? \" < > |");
+        Optional<String> problem = UserPaths.nameProblem(name);
+        if (problem.isPresent()) return problem.map(text -> text + ".");
         Optional<Path> parent = currentParent();
         if (parent.isEmpty()) return Optional.of("Choose where the project goes.");
         if (!Files.isDirectory(parent.get()) && !parent.get().equals(ProjectStore.defaultProjectsFolder())) return Optional.of("That folder does not exist.");

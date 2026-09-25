@@ -7,6 +7,7 @@ import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.files.CodeEditor;
 import com.meekdev.moud.mod.client.editor.files.FileManagerReveal;
+import com.meekdev.moud.mod.client.editor.files.UserPaths;
 import com.meekdev.moud.mod.client.editor.kit.Chips;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.Notices;
@@ -133,17 +134,18 @@ final class ExportDialog {
         ImGui.inputText("##export-destination", destination);
         ImGui.sameLine();
         if (ImGui.button("Browse...", Dialogs.buttonWidth(), 0)) browse();
-        String target = destination.get().strip();
-        boolean valid = target.toLowerCase(Locale.ROOT).endsWith(extension()) && root != null && !Path.of(target).toAbsolutePath().normalize().startsWith(root.toAbsolutePath().normalize());
-        if (!target.isEmpty() && !valid) Texts.colored(EditorStyle.COLOR_WARNING, "Pick a " + extension() + " file outside the place folder");
-        else if (valid && Files.exists(Path.of(target))) Texts.muted("That file is replaced");
+        String typed = destination.get().strip();
+        Path target = UserPaths.parse(typed).orElse(null);
+        boolean valid = target != null && target.toString().toLowerCase(Locale.ROOT).endsWith(extension()) && root != null && !target.toAbsolutePath().normalize().startsWith(root.toAbsolutePath().normalize());
+        if (!typed.isEmpty() && !valid) Texts.colored(EditorStyle.COLOR_WARNING, "Pick a " + extension() + " file outside the place folder");
+        else if (valid && Files.exists(target)) Texts.muted("That file is replaced");
         else Texts.muted(" ");
         long errors = issues.stream().filter(i -> i.severity() == PlaceExport.Severity.ERROR).count();
         footer();
         Dialogs.alignFooter(2);
         if (Dialogs.button("Cancel##export-cancel") || ImGui.isKeyPressed(ImGuiKey.Escape)) ImGui.closeCurrentPopup();
         ImGui.sameLine();
-        if (Dialogs.primaryButton((errors > 0 ? "Export anyway" : "Export") + "##export-go", valid)) start(root, Path.of(target));
+        if (Dialogs.primaryButton((errors > 0 ? "Export anyway" : "Export") + "##export-go", valid)) start(root, target);
     }
 
     private void renderCard(Path root) {

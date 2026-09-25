@@ -8,6 +8,7 @@ import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.ScriptTemplate;
 import com.meekdev.moud.mod.client.editor.files.CodeEditor;
 import com.meekdev.moud.mod.client.editor.files.FileManagerReveal;
+import com.meekdev.moud.mod.client.editor.files.UserPaths;
 import com.meekdev.moud.mod.client.editor.kit.Breadcrumb;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.Disabled;
@@ -550,6 +551,8 @@ public final class AssetsPanel implements Panel {
     private void askNewFolder() {
         openName("New folder", "New Folder", name -> {
             try {
+                Optional<String> problem = UserPaths.nameProblem(name.strip());
+                if (problem.isPresent()) throw new IOException(problem.get());
                 Path folder = AssetFiles.unique(current, name.strip());
                 Files.createDirectories(folder);
                 refresh();
@@ -563,6 +566,11 @@ public final class AssetsPanel implements Panel {
         openName("Rename " + path.getFileName(), path.getFileName().toString(), name -> {
             String original = path.getFileName().toString();
             String clean = name.strip();
+            Optional<String> problem = UserPaths.nameProblem(clean);
+            if (problem.isPresent()) {
+                Output.add(Output.Level.WARN, "editor", "Could not rename " + original + ": " + problem.get());
+                return;
+            }
             int dot = original.indexOf('.', 1);
             if (!Files.isDirectory(path) && dot > 0 && clean.indexOf('.', 1) < 0) clean += original.substring(dot);
             relocate(path, path.resolveSibling(clean), () -> AssetFiles.rename(path, name));
