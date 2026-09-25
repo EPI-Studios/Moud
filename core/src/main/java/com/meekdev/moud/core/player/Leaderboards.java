@@ -9,6 +9,7 @@ import com.meekdev.moud.core.value.StringValue;
 import com.meekdev.moud.core.value.Value;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public final class Leaderboards {
 
@@ -70,7 +71,7 @@ public final class Leaderboards {
 
     private static String number(double value) {
         if (value == Math.rint(value) && Math.abs(value) < 1e15) return String.valueOf((long) value);
-        return String.format("%.2f", value);
+        return String.format(Locale.ROOT, "%.2f", value);
     }
 
     public static double leading(Leaderstats stats) {
