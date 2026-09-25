@@ -147,7 +147,75 @@ public final class Players {
         }
     }
 
+    private record Seen(Host host, Character body) implements PlayerRef {
+
+        @Override
+        public String name() {
+            return body.name();
+        }
+
+        @Override
+        public String id() {
+            return body.owner;
+        }
+
+        @Override
+        public Instance character() {
+            return body.isAlive() ? body : null;
+        }
+
+        @Override
+        public void spawn(Vector3 position) {
+            throw new HostError("player:spawn runs on the server");
+        }
+
+        @Override
+        public ControlsRef controls() {
+            throw new HostError("player.controls is only there for your own player");
+        }
+
+        @Override
+        public void kick(String message) {
+            throw new HostError("player:kick runs on the server");
+        }
+
+        @Override
+        public Instance team() {
+            return body.team != null && body.team.isAlive() ? body.team : null;
+        }
+
+        @Override
+        public void team(Instance team) {
+            throw new HostError("player.team is set on the server");
+        }
+
+        @Override
+        public Instance leaderstats() {
+            return Leaderboards.find(host.world(), id());
+        }
+
+        @Override
+        public double ping() {
+            return 0;
+        }
+
+        @Override
+        public double viewTime() {
+            return 0;
+        }
+    }
+
     private Players() {}
+
+    private static List<PlayerRef> seen(Host host) {
+        List<PlayerRef> out = new ArrayList<>();
+        String me = host.me();
+        if (me != null && !me.isEmpty()) out.add(new Me(host));
+        for (Character body : host.world().tree().ofClass(Classes.CHARACTER)) {
+            if (body.hasPlayer() && !body.owner.equals(me)) out.add(new Seen(host, body));
+        }
+        return out;
+    }
 
     public static HostObject wrap(Host host, PlayerRef player) {
         return new Player(player);
@@ -194,8 +262,9 @@ public final class Players {
                     if (player.team() == team) members.add(wrap(host, player));
                 }
             } else if (host.client()) {
-                PlayerRef me = new Me(host);
-                if (me.team() == team) members.add(new Player(me));
+                for (PlayerRef player : seen(host)) {
+                    if (player.team() == team) members.add(new Player(player));
+                }
             }
             return members;
         });
@@ -302,6 +371,23 @@ public final class Players {
                 if (!(a.get(1) instanceof Character body) || !body.hasPlayer()) return null;
                 PlayerRef player = roster.find(body.owner);
                 return player == null ? null : wrap(host, player);
+            });
+        } else if (host.client()) {
+            players.method("list", "() -> { Player }", a -> {
+                List<Object> out = new ArrayList<>();
+                for (PlayerRef player : seen(host)) out.add(new Player(player));
+                return out;
+            });
+            players.method("byId", "(id: string) -> Player?", a -> {
+                String id = a.string(1);
+                for (PlayerRef player : seen(host)) {
+                    if (player.id().equals(id)) return new Player(player);
+                }
+                return null;
+            });
+            players.method("playerOf", "(body: Instance) -> Player?", a -> {
+                if (!(a.get(1) instanceof Character body) || !body.hasPlayer()) return null;
+                return new Player(body.owner.equals(host.me()) ? new Me(host) : new Seen(host, body));
             });
         }
         SpawnRef spawns = host.spawns();

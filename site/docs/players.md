@@ -299,10 +299,9 @@ about the list changes, and `tabList = false` in `place.toml` still hides it ent
 
 ### Reading someone else's
 
-On the server, go through the player object:
+Go through the player object, on the server or a client:
 
 ```lua
--- server
 local other = game.players:playerOf(body)
 if other then
     local kills = (other.leaderstats :: Leaderstats):find("Kills") :: NumberValue
@@ -310,7 +309,7 @@ if other then
 end
 ```
 
-On a client, read the board out of the tree:
+Or read the board out of the tree:
 
 ```lua
 -- client, straight off the tree
@@ -320,8 +319,8 @@ for _, stats in (board :: Instance):children() do
 end
 ```
 
-`player.leaderstats` on a client is the local player's own. Everyone else's is read off the board,
-where `owner` is the player id `body.owner` carries.
+`player.leaderstats` reads the board for that player's id, so it works for anyone a client can see.
+On the board, `owner` is the player id `body.owner` carries.
 
 ## Controls
 
@@ -440,3 +439,23 @@ end)
 - `player.character` is their body, or nil while they have none.
 - `ping()` is the round trip in seconds.
 - `viewTime()` is the server time the player was looking at, for `game.history:rewind`.
+
+Three calls find player objects, and they work in a `Script` and a `LocalScript` alike:
+
+```lua
+for _, player in game.players:list() do
+    print(player.name, player.id)
+end
+local host = game.players:byId(hostId)
+local owner = game.players:playerOf(body)
+```
+
+- `list()` is every player. On the server that is everyone connected. On a client it is you, first,
+  then every other player whose body is in the world.
+- `byId(id)` finds a player by the id `player.id` and `body.owner` carry, or nil.
+- `playerOf(body)` turns a body into its player, or nil for a body no player wears.
+
+A client knows other players only through their bodies, so a player who has none, before spawning
+or while dead, is not in a client's `list()` until they get one. On a client, `name`, `id`,
+`character`, `team` and `leaderstats` work for everyone. `spawn`, `kick`, `ban` and setting `team`
+run on the server only, and `controls` is only there for your own player.
