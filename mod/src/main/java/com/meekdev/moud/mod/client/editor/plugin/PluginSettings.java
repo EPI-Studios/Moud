@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.MoudMod;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -49,8 +50,11 @@ final class PluginSettings {
         writtenAt = System.nanoTime();
         try {
             Files.createDirectories(file.getParent());
-            Files.writeString(file, Json.write(kept));
+            Path next = file.resolveSibling(file.getFileName() + ".tmp");
+            Files.writeString(next, Json.write(kept));
+            Files.move(next, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (IOException e) {
+            dirty = true;
             MoudMod.LOG.warn("could not keep plugin settings in {}", file, e);
         }
     }
@@ -69,7 +73,11 @@ final class PluginSettings {
                 }
             }
         } catch (IOException | RuntimeException e) {
-            MoudMod.LOG.warn("could not read plugin settings from {}", file, e);
+            MoudMod.LOG.warn("could not read plugin settings from {}, kept it as {}.bad", file, file.getFileName(), e);
+            try {
+                Files.move(file, file.resolveSibling(file.getFileName() + ".bad"), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ignored) {
+            }
         }
         return kept;
     }
