@@ -79,8 +79,9 @@ public final class Tools {
         if (write) {
             if (handle.anchored) Instances.setBool(handle, ANCHORED, false);
             Instances.setObj(handle, CFRAME, target);
-        } else {
+        } else if (!target.equals(handle.cframe)) {
             handle.cframe = target;
+            handle.tree().spatialTouched.add(handle);
         }
     }
 
