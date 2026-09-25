@@ -25,6 +25,7 @@ public final class Effects {
     private static final int FULL_LIGHT = 240 | 240 << 16;
 
     private static final QuadBatch BATCH = new QuadBatch();
+    private static final QuadBatch DECALS = new QuadBatch();
     private static long last;
     private static double clock;
     private static boolean broken;
@@ -32,6 +33,7 @@ public final class Effects {
     private Effects() {}
 
     public static void register() {
+        Pipeline.add(RenderStage.AFTER_WATER, 5, "moud decals", context -> EditorView.filled(() -> decals(context)));
         Pipeline.add(RenderStage.AFTER_WATER, 50, "moud effects", context -> EditorView.filled(() -> draw(context)));
         Highlights.register();
     }
@@ -68,7 +70,6 @@ public final class Effects {
                     new Vector3(view.m01(), view.m11(), view.m21()),
                     new Vector3(-view.m02(), -view.m12(), -view.m22()));
             BATCH.begin(camera.eye.x, camera.eye.y, camera.eye.z);
-            SurfaceDecals.draw(BATCH, tree, partialTick);
             Emitters.draw(BATCH, seen);
             Precipitation.draw(BATCH, seen);
             Beams.draw(BATCH, seen, tree, partialTick, clock);
@@ -79,6 +80,21 @@ public final class Effects {
         } catch (RuntimeException e) {
             broken = true;
             MoudMod.LOG.error("effects failed to draw and are off until restart", e);
+        }
+    }
+
+    private static void decals(FrameContext context) {
+        CameraSnapshot camera = context.camera();
+        InstanceTree tree = ClientScene.tree();
+        if (camera == null || tree == null || broken) return;
+        try {
+            float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
+            DECALS.begin(camera.eye.x, camera.eye.y, camera.eye.z);
+            SurfaceDecals.draw(DECALS, tree, partialTick);
+            DECALS.draw(camera);
+        } catch (RuntimeException e) {
+            broken = true;
+            MoudMod.LOG.error("decals failed to draw and effects are off until restart", e);
         }
     }
 
