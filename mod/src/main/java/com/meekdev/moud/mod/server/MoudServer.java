@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.server;
 
+import com.meekdev.moud.core.audio.SoundClock;
 import com.meekdev.moud.core.character.Character;
 import com.meekdev.moud.core.character.Animators;
 import com.meekdev.moud.core.character.Humanoids;
@@ -113,6 +114,7 @@ public final class MoudServer {
         Post.wired().flush(server);
         if (place.reloadedFully()) Post.wired().sendReloaded(server);
         ServerWeather.tick(server, !place.editing(), dt);
+        SoundClock.step(ServerScene.tree(), dt);
         WorldTime.tick(server);
         if (!place.editing()) Explosions.tick(server);
         Physics.settle(ServerScene.tree(), !place.editing());

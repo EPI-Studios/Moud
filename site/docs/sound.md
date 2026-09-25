@@ -70,7 +70,9 @@ bell.loaded:connect(function() print(bell.timeLength, "seconds") end)
 | `paused` | true between `pause()` and `resume()`, false again after `stop()` |
 
 - `pause()` keeps the sound where it is; `resume()` carries on from there. `stop()` unpauses it and
-  forgets the position, so the next `play()` starts at the beginning.
+  sets `timePosition` back to 0, so the next `play()` starts at the beginning.
+- `play()` on a stopped sound starts at `timePosition`, so writing it first starts the sound part
+  way through. `play()` on a sound that is already playing starts it again from 0.
 - `loaded` fires on each client once the file is decoded, which is when `timeLength` is known.
   Changing `soundId` clears both and fires it again for the new file.
 - `pitch` moves the sound's speed and its pitch together.
@@ -79,9 +81,14 @@ bell.loaded:connect(function() print(bell.timeLength, "seconds") end)
 light that pulses with the music. Read it on the client, once a frame.
 
 > [!NOTE]
-> The three read-only properties and the real `timePosition` are worked out by the client that plays
-> the sound. On the server `timePosition` is only what a script last wrote there, `timeLength` and
-> `playbackLoudness` are 0 and `isLoaded` is false, because no sound comes out of a server.
+> The three read-only properties and the exact `timePosition` are worked out by the client that plays
+> the sound. The server keeps its own count of `timePosition`, moving it on while the sound plays and
+> is not paused, so a script there reads roughly how far along it is. `timeLength` and
+> `playbackLoudness` are 0 and `isLoaded` is false on the server, because no sound comes out of it.
+
+A player who joins while a sound is playing hears it from where everyone else is, not from the
+start. A looped sound picks up at the same point in its loop, and a sound that has already run out
+by the time they arrive stays silent for them.
 
 ## Buses
 

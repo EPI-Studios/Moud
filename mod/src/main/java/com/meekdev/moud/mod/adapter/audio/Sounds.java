@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.adapter.audio;
 
 import com.meekdev.moud.core.audio.Sound;
 import com.meekdev.moud.core.audio.SoundBus;
+import com.meekdev.moud.core.audio.SoundClock;
 import com.meekdev.moud.core.audio.SoundEffect;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
@@ -49,15 +50,24 @@ public final class Sounds {
         List<SoundEffect> shape = List.of();
         String asked = "";
         @Nullable Identifier sound;
+        double waiting;
     }
 
     private static final Map<Sound, Voice> VOICES = new HashMap<>();
     private static final Set<String> MIXED = new HashSet<>();
     private static final Set<String> MIXED_NOW = new HashSet<>();
+    private static final double LONGEST_FRAME = 0.25;
+    private static final double LOAD_WAIT = 2;
+
+    private static long lastFrame;
+    private static double elapsed;
 
     private Sounds() {}
 
     public static void frame(List<InstanceTree> trees, float partialTick) {
+        long now = System.nanoTime();
+        elapsed = lastFrame == 0 ? 0 : Math.min((now - lastFrame) / 1.0e9, LONGEST_FRAME);
+        lastFrame = now;
         if (trees.isEmpty()) {
             stopAll();
             return;
@@ -80,7 +90,7 @@ public final class Sounds {
 
     private static void frame(InstanceTree tree, float partialTick) {
         for (SoundBus bus : tree.ofClass(Classes.SOUND_BUS)) {
-            var mixed = Resona.bus(bus.bus);
+            Bus mixed = Resona.bus(bus.bus);
             mixed.setVolume((float) bus.volume);
             mixed.setMuted(bus.muted);
             mixed.setLowPass((float) bus.lowPass);
@@ -107,8 +117,20 @@ public final class Sounds {
                 voice.handle.stop();
                 voice.handle = null;
             }
-            if (sound.playing && (!voice.wanted || sound.plays != voice.plays || rebuild)) {
-                double from = rebuild && voice.handle != null ? voice.handle.position() : 0;
+            boolean fresh = sound.playing && (!voice.wanted || sound.plays != voice.plays);
+            if (fresh && !rebuild && waitsForLength(sound, voice)) {
+                sound.timePosition += elapsed * sound.pitch;
+                continue;
+            }
+            voice.waiting = 0;
+            if (fresh && !rebuild && SoundClock.over(sound)) {
+                voice.plays = sound.plays;
+                voice.wanted = true;
+                continue;
+            }
+            if (sound.playing && (fresh || rebuild)) {
+                double from = rebuild && voice.handle != null ? voice.handle.position() : SoundClock.startAt(sound);
+                sound.timePosition = from;
                 if (voice.handle != null) voice.handle.stop();
                 voice.chain = effects.isEmpty() ? null : new EffectChain();
                 if (voice.chain != null) voice.chain.set(units);
@@ -144,8 +166,10 @@ public final class Sounds {
                 voice.paused = sound.paused;
             }
             if (sound.timePosition != voice.at) {
-                voice.handle.seek(sound.timePosition);
-                voice.at = sound.timePosition;
+                double to = SoundClock.startAt(sound);
+                voice.handle.seek(to);
+                voice.at = to;
+                sound.timePosition = to;
             } else {
                 voice.at = voice.handle.position();
                 sound.timePosition = voice.at;
@@ -153,6 +177,13 @@ public final class Sounds {
             sound.playbackLoudness = Math.min(1000, Math.max(0, voice.handle.loudness() * 1000));
             if (at != null) voice.handle.setPosition(ResonaAudio.vec(at));
         }
+    }
+
+    private static boolean waitsForLength(Sound sound, Voice voice) {
+        if (sound.timePosition <= 0 || sound.isLoaded || voice.sound == null) return false;
+        if (!sound.event.isEmpty() || sound.stream) return false;
+        voice.waiting += elapsed;
+        return voice.waiting < LOAD_WAIT;
     }
 
     private static void load(Sound sound, Voice voice) {
