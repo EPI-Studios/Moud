@@ -77,7 +77,8 @@ public final class Animators {
         Clip clip = clip(track.animation);
         track.length = clip.length();
         boolean authoritative = server || track.id() < 0;
-        if (track.playing && !track.wasPlaying()) {
+        boolean started = track.playing && !track.wasPlaying();
+        if (started) {
             track.timePosition = track.speed < 0 ? clip.length() : 0;
             track.held(false);
             if (track.parent() instanceof Animator animator) animator.animationPlayed.fire(track);
@@ -88,7 +89,7 @@ public final class Animators {
         double rate = track.fadeTime <= 0 ? Double.POSITIVE_INFINITY : dt / track.fadeTime;
         track.fade(track.playing ? Math.min(1, track.fade() + rate) : Math.max(0, track.fade() - rate));
         if (!track.playing || clip.length() <= 0) return;
-        double before = track.timePosition;
+        double before = started && track.speed > 0 ? -1e-9 : track.timePosition;
         double after = before + dt * track.speed;
         boolean loops = track.looped || clip.loop() == Clip.Loop.LOOP;
         boolean holds = !loops && clip.loop() == Clip.Loop.HOLD;
@@ -105,11 +106,8 @@ public final class Animators {
             if (track.held()) return;
             markers(track, clip, before, clip.length() + 1e-9, server);
             track.timePosition = clip.length();
-            if (holds) {
-                track.held(true);
-            } else if (authoritative) {
-                Instances.setBool(track, PLAYING, false);
-            }
+            track.held(true);
+            if (!holds && authoritative) Instances.setBool(track, PLAYING, false);
             track.ended.fire(track);
             return;
         }
@@ -119,6 +117,8 @@ public final class Animators {
                 track.didLoop.fire(track);
             } else {
                 track.timePosition = 0;
+                if (track.held()) return;
+                track.held(true);
                 if (!holds && authoritative) Instances.setBool(track, PLAYING, false);
                 track.ended.fire(track);
                 return;
@@ -126,6 +126,7 @@ public final class Animators {
         }
         markers(track, clip, before, after, server);
         track.timePosition = after;
+        track.held(false);
     }
 
     private static void markers(AnimationTrack track, Clip clip, double from, double to, boolean server) {

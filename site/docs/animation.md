@@ -403,13 +403,13 @@ is already looped loops either way, and clearing the track's `looped` does not s
 How a track ends depends on the animation's `loop`:
 
 - `loop`, or `looped` on the track: it starts over and fires `didLoop`.
-- `once`: it fires `ended` and stops. When the server plays it, the server sets `playing` to false
-  and every client follows; it fades out from its last frame over `fadeTime`. A track a
-  `LocalScript` loads is only seen by that client, and it holds its last frame after `ended` until
-  you stop it.
+- `once`: it fires `ended` and stops. The side that plays it sets `playing` to false: the server for
+  a track it plays, which every client follows, and the client for a track a `LocalScript` loads. It
+  fades out from its last frame over `fadeTime`.
 - `hold`: it fires `ended` once and stays playing on its last frame until you call `stop`.
 
-Played backwards, a track that does not loop stays at the start, still playing.
+Played backwards, a track ends the same way at the start: `once` stops there and `hold` stays there,
+still playing.
 
 <!-- demo:animation-ends -->
 
