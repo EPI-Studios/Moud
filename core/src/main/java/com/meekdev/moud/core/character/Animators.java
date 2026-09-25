@@ -11,10 +11,10 @@ import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
 public final class Animators {
@@ -22,7 +22,7 @@ public final class Animators {
     private static final PropertyDef PLAYING = Classes.TRACK.property("playing");
 
     private static Function<String, Clip> files = path -> null;
-    private static final Map<String, Clip> LOADED = new HashMap<>();
+    private static final Map<String, Clip> LOADED = new ConcurrentHashMap<>();
 
     private record Layer(AnimationTrack track, Clip clip, double priority, double strength, boolean additive,
                          Set<String> mask, Map<String, Clip.Sample> composed) {}

@@ -7,6 +7,7 @@ import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,7 +19,7 @@ public final class Touches {
 
     public static final double MARGIN = 0.01;
 
-    private static final Map<InstanceTree, Touches> TREES = new WeakHashMap<>();
+    private static final Map<InstanceTree, Touches> TREES = Collections.synchronizedMap(new WeakHashMap<>());
 
     private final Map<Part, Set<Part>> touching = new HashMap<>();
 
