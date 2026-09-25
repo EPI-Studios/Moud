@@ -118,7 +118,9 @@ public final class Json {
     }
 
     private static void number(StringBuilder out, double n) {
-        if (n == Math.rint(n) && Math.abs(n) < 1e15) out.append((long) n);
+        if (Double.isNaN(n)) out.append("null");
+        else if (Double.isInfinite(n)) out.append(n > 0 ? "1e999" : "-1e999");
+        else if (n == Math.rint(n) && Math.abs(n) < 1e15) out.append((long) n);
         else out.append(n);
     }
 
@@ -216,6 +218,7 @@ public final class Json {
                 out.append(c);
                 continue;
             }
+            if (at >= text.length()) throw error("a string is not closed");
             char e = text.charAt(at++);
             switch (e) {
                 case '"', '\\', '/' -> out.append(e);
@@ -225,7 +228,12 @@ public final class Json {
                 case 'b' -> out.append('\b');
                 case 'f' -> out.append('\f');
                 case 'u' -> {
-                    out.append((char) Integer.parseInt(text.substring(at, at + 4), 16));
+                    if (at + 4 > text.length()) throw error("\\u needs four hex digits");
+                    try {
+                        out.append((char) Integer.parseInt(text.substring(at, at + 4), 16));
+                    } catch (NumberFormatException bad) {
+                        throw error("\\u needs four hex digits");
+                    }
                     at += 4;
                 }
                 default -> throw error("\\" + e + " is not an escape");

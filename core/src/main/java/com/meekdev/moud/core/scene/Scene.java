@@ -102,7 +102,7 @@ public final class Scene {
             case CFRAME -> frame((CFrame) value);
             case COLOR -> {
                 Color c = (Color) value;
-                yield List.of((double) c.r(), (double) c.g(), (double) c.b(), (double) c.a());
+                yield color(c);
             }
             case UDIM2 -> {
                 UDim2 u = (UDim2) value;
@@ -124,11 +124,19 @@ public final class Scene {
     private static Object attribute(Object value) {
         return switch (value) {
             case Vector3 v -> Map.of("vec3", vector(v));
-            case Color c -> Map.of("color", List.of((double) c.r(), (double) c.g(), (double) c.b(), (double) c.a()));
+            case Color c -> Map.of("color", color(c));
             case UDim2 u -> Map.of("udim2", List.of(u.xScale(), u.xOffset(), u.yScale(), u.yOffset()));
             case CFrame c -> Map.of("cframe", frame(c));
             default -> value;
         };
+    }
+
+    private static List<Object> color(Color c) {
+        return List.of(shade(c.r()), shade(c.g()), shade(c.b()), shade(c.a()));
+    }
+
+    private static double shade(float value) {
+        return Double.parseDouble(Float.toString(value));
     }
 
     private static List<Object> vector(Vector3 v) {
@@ -231,6 +239,7 @@ public final class Scene {
 
         private void write(Instance instance, PropertyDef property, Object raw, String where) {
             String at = where + "." + property.name();
+            if (raw == null && property.isNumeric()) return;
             try {
                 switch (property.type()) {
                     case BOOL -> Instances.setBool(instance, property, (Boolean) raw);
