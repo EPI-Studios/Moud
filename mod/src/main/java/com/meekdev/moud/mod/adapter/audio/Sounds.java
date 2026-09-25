@@ -53,6 +53,7 @@ public final class Sounds {
         String asked = "";
         @Nullable Identifier sound;
         double waiting;
+        long started;
     }
 
     private static final Map<Sound, Voice> VOICES = new HashMap<>();
@@ -60,6 +61,7 @@ public final class Sounds {
     private static final Set<String> MIXED_NOW = new HashSet<>();
     private static final double LONGEST_FRAME = 0.25;
     private static final double LOAD_WAIT = 2;
+    private static final long START_NANOS = 10_000_000_000L;
 
     private static long lastFrame;
     private static double elapsed;
@@ -138,6 +140,7 @@ public final class Sounds {
                 if (voice.chain != null) voice.chain.set(units);
                 voice.processed = !effects.isEmpty();
                 voice.handle = start(sound, voice.sound, at, voice.chain);
+                voice.started = System.nanoTime();
                 voice.volume = sound.volume;
                 voice.pitch = sound.pitch;
                 voice.paused = false;
@@ -153,6 +156,10 @@ public final class Sounds {
                 continue;
             }
             if (!voice.handle.isPlaying()) {
+                if (voice.handle.length() < 0 && System.nanoTime() - voice.started < START_NANOS) {
+                    sound.playbackLoudness = 0;
+                    continue;
+                }
                 voice.handle = null;
                 sound.playbackLoudness = 0;
                 if (sound.id() < 0) {
