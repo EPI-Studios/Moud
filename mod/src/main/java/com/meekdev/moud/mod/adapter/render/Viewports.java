@@ -231,6 +231,7 @@ public final class Viewports {
     private static void models(ViewportFrame viewport, Matrix4f projView, List<MeshPart> meshes) {
         if (meshes.isEmpty()) return;
         ModelLighting lighting = ModelLighting.INSTANCE;
+        boolean owned = lighting.sunSet();
         float[] before = {lighting.sunX(), lighting.sunY(), lighting.sunZ(), lighting.sunR(), lighting.sunG(), lighting.sunB(),
                 lighting.sunIntensity(), lighting.ambientStrength()};
         Vector3 toLight = viewport.lightDirection.neg().normalize();
@@ -252,6 +253,7 @@ public final class Viewports {
         } finally {
             lighting.sunDirection(before[0], before[1], before[2]).sunColor(before[3], before[4], before[5])
                     .sunIntensity(before[6]).ambientStrength(before[7]);
+            if (!owned) lighting.clearSun();
         }
     }
 
