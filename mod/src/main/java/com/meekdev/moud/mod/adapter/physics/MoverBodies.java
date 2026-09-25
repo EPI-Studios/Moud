@@ -29,6 +29,7 @@ import com.meekdev.moud.core.physics.Torque;
 import com.meekdev.moud.core.physics.VectorForce;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.IntFunction;
@@ -51,8 +52,25 @@ public final class MoverBodies {
 
     private record Load(double mass, Inertia inertia) {}
 
+    private static final class Group {
+
+        private final List<Member> members;
+        private @Nullable Load load;
+
+        Group(List<Member> members) {
+            this.members = members;
+        }
+
+        Load load() {
+            if (load == null) load = weigh(members);
+            return load;
+        }
+    }
+
+    private static final Group NOBODY = new Group(List.of());
+
     private record Driven(Constraint mover, End first, @Nullable End second, @Nullable CFrame fixed,
-                          List<Member> group, List<Member> others) {
+                          Group group, Group others) {
 
         boolean alive() {
             return first.body().isValid() && (second == null || second.body().isValid());
@@ -80,13 +98,13 @@ public final class MoverBodies {
         }
 
         double mass() {
-            double mass = load(group).mass();
-            return pushing() ? reducedMass(mass, load(others).mass()) : mass;
+            double mass = group.load().mass();
+            return pushing() ? reducedMass(mass, others.load().mass()) : mass;
         }
 
         Inertia inertia() {
-            Inertia inertia = load(group).inertia();
-            return pushing() ? Inertia.between(inertia, load(others).inertia()) : inertia;
+            Inertia inertia = group.load().inertia();
+            return pushing() ? Inertia.between(inertia, others.load().inertia()) : inertia;
         }
     }
 
@@ -103,6 +121,7 @@ public final class MoverBodies {
         driven.clear();
         if (tree == null) return;
         Map<Part, List<Part>> groups = null;
+        Map<List<Part>, Group> weighed = new HashMap<>();
         for (Constraint constraint : tree.ofClass(Classes.CONSTRAINT)) {
             if (!(constraint instanceof Mover)) continue;
             Part part = owner(constraint);
@@ -123,7 +142,7 @@ public final class MoverBodies {
                 continue;
             }
             if (groups == null) groups = Assemblies.join(tree);
-            driven.add(drive(constraint, part, body, second, groups, bodies));
+            driven.add(drive(constraint, part, body, second, groups, weighed, bodies));
             active(constraint, true);
         }
     }
@@ -135,16 +154,22 @@ public final class MoverBodies {
     }
 
     private static Driven drive(Constraint mover, Part part, B3Body body, @Nullable Attachment second,
-                                Map<Part, List<Part>> groups, IntFunction<@Nullable B3Body> bodies) {
+                                Map<Part, List<Part>> groups, Map<List<Part>, Group> weighed,
+                                IntFunction<@Nullable B3Body> bodies) {
         End first = new End(body, offset(part, (Attachment) mover.attachment0));
-        List<Member> group = members(groups, part, bodies);
-        if (second == null) return new Driven(mover, first, null, null, group, List.of());
+        Group group = group(groups, weighed, part, bodies);
+        if (second == null) return new Driven(mover, first, null, null, group, NOBODY);
 
         B3Body other = second.parent() instanceof Part holder ? bodies.apply(holder.id()) : null;
-        if (!usable(other)) return new Driven(mover, first, null, Transforms.world(second), group, List.of());
+        if (!usable(other)) return new Driven(mover, first, null, Transforms.world(second), group, NOBODY);
         Part holder = (Part) second.parent();
         End end = new End(other, offset(holder, second));
-        return new Driven(mover, first, end, null, group, members(groups, holder, bodies));
+        return new Driven(mover, first, end, null, group, group(groups, weighed, holder, bodies));
+    }
+
+    private static Group group(Map<Part, List<Part>> groups, Map<List<Part>, Group> weighed, Part part,
+                               IntFunction<@Nullable B3Body> bodies) {
+        return weighed.computeIfAbsent(groups.getOrDefault(part, List.of(part)), parts -> new Group(members(parts, bodies)));
     }
 
     private static boolean usable(@Nullable B3Body body) {
@@ -159,9 +184,9 @@ public final class MoverBodies {
         return Transforms.world(part).inverse().mul(Transforms.world(attachment));
     }
 
-    private static List<Member> members(Map<Part, List<Part>> groups, Part part, IntFunction<@Nullable B3Body> bodies) {
+    private static List<Member> members(List<Part> parts, IntFunction<@Nullable B3Body> bodies) {
         List<Member> members = new ArrayList<>();
-        for (Part joined : groups.getOrDefault(part, List.of(part))) {
+        for (Part joined : parts) {
             B3Body body = bodies.apply(joined.id());
             if (dynamic(body)) members.add(new Member(joined, body));
         }
@@ -278,7 +303,7 @@ public final class MoverBodies {
         return first + second <= TINY ? 0 : first * second / (first + second);
     }
 
-    private static Load load(List<Member> members) {
+    private static Load weigh(List<Member> members) {
         double mass = 0;
         Vector3 weighted = Vector3.ZERO;
         for (Member member : members) {

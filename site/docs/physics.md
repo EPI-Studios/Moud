@@ -990,7 +990,8 @@ These rules apply to every mover:
   wherever attachment0's part is simulated: on the server, or on the client of the player who owns
   it. See [Who simulates a part](#who-simulates-a-part).
 - The push is worked out again on every physics step, three times a tick, from where the part is at
-  that moment.
+  that moment. The mass and inertia of the assembly are worked out once a tick, and a weld made or
+  broken during a tick counts from the next one.
 - Moving an attachment takes effect on the next tick. Unlike the joints above, you do not have to
   turn `enabled` off and on.
 - `collideConnected` does nothing on a mover.
