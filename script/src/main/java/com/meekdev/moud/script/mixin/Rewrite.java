@@ -67,7 +67,8 @@ public sealed interface Rewrite {
         @Override
         public void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
             if (rewrite instanceof Redirect redirect && owner.equals(redirect.owner()) && name.equals(redirect.name())
-                    && descriptor.equals(redirect.descriptor()) && (opcode == Opcodes.INVOKESTATIC) == redirect.statics() && take()) {
+                    && descriptor.equals(redirect.descriptor()) && (opcode == Opcodes.INVOKESTATIC) == redirect.statics()
+                    && opcode != Opcodes.INVOKESPECIAL && take()) {
                 Type[] parameters = Type.getArgumentTypes(descriptor);
                 pack(parameters);
                 if (redirect.statics()) {

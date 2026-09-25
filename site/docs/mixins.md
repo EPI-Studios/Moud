@@ -33,12 +33,12 @@ java.typeof(stack)  java.instanceOf(stack, "net.minecraft.world.item.ItemStack")
 take the arguments is called. To hook one of several, narrow it down first:
 
 ```lua
-Player.hurt:overload("ServerLevel", "DamageSource", "float")
-Player.hurt:overload(2)
-Player.hurt:overload("(F)Z")
+Player.hurtServer:overload("ServerLevel", "DamageSource", "float")
+Player.hurtServer:overload(1)
+Player.hurtServer:overload("(Lnet/minecraft/server/level/ServerLevel;")
 ```
 
-You narrow it by the parameter type names, by a number, or by the descriptor.
+You narrow it by the parameter type names, by a number, or by the start of the descriptor.
 
 ## Hooks
 
@@ -54,7 +54,7 @@ Player.getSpeed:after(function(self, speed)
     return speed * 2                            -- returning a value replaces the result
 end)
 
-Player.jumpFromGround:replace(function(original, self)
+LivingEntity.jumpFromGround:replace(function(original, self)
     original(self)                              -- the real method, callable with other arguments
     original(self)
 end)
@@ -81,6 +81,9 @@ end)
 > A method must be **declared** by the class you name. Hooking a method a class only inherits is an
 > error, and the error says which class to hook instead.
 
+Minecraft's classes and those of mods can be hooked. A class of Java itself, such as
+`java.util.ArrayList`, cannot: hooking one is an error that says so.
+
 ### Inside a method
 
 The hooks above wrap a method. These three change what happens inside one:
@@ -91,12 +94,13 @@ Camera.extractRenderState:redirect(Projection.getMatrix, function(original, proj
     return dest:setOrtho(-10, 10, -10, 10, -300, 600, false)
 end)
 
-LivingEntity.travel:constant(0.91, 0.98)                         -- a fixed value, no script runs
-LivingEntity.travel:constant(0.91, view:ref("friction"))         -- read from a state each time
-LivingEntity.travel:variable("speed", function(speed) return speed * 1.5 end)   -- before each store
+LivingEntity.travelInAir:constant(0.91, 0.98)                    -- a fixed value, no script runs
+LivingEntity.travelInAir:constant(0.91, view:ref("friction"))    -- read from a state each time
+LivingEntity.travelInAir:variable("friction", function(friction) return friction * 1.05 end)   -- before each store
 ```
 
-- **`redirect`** picks one call made inside the method and sends it to you instead. Your handler gets
+- **`redirect`** picks one call made inside the method and sends it to you instead. A `super` call
+  cannot be redirected. Your handler gets
   `original`, then the object the call was made on and its arguments, so you can call it, change it or
   answer something else.
 - **`constant`** replaces a literal value in the method's code. The first argument is the value to
@@ -117,13 +121,13 @@ too.
 `Class.fields.name:changed(handler)` watches every write to a field:
 
 ```lua
-Player.fields.health:changed(function(self, old, new)
-    if new < 1 then return 1 end                -- returning a value writes that instead
+Player.fields.experienceLevel:changed(function(self, old, new)
+    if new > 30 then return 30 end              -- returning a value writes that instead
 end)
 ```
 
 The handler is given the object, the old value and the new one. Return a value and that is what gets
-written, so the example above keeps a player alive at 1 health.
+written, so the example above keeps a player's level at 30 or below.
 
 Every write to the field in a class that is loaded goes through the handler, including writes from
 other classes and subclasses. Writes inside constructors are left alone.
@@ -143,6 +147,7 @@ Every hook takes an options table last:
 | `once` | the hook comes off after it acted once |
 | `limit` | at most this many times per tick, the method runs untouched past it |
 | `priority` | higher runs first; for `replace` and `redirect`, higher is the outer one |
+| `ordinal` | for `redirect`, `constant` and `variable`, which one when the method has several, from 1 |
 | `raw` | arguments stay Java objects instead of Moud values |
 
 A hook returns a handle. You take it off with `hook:remove()`, switch it off and on with
@@ -151,7 +156,8 @@ it failed.
 
 ## Moud values in hooks
 
-Hook arguments and results arrive as Moud values, and go back converted:
+Hook arguments and results arrive as Moud values, and go back converted. `self` is the exception: it
+is always the Java object.
 
 | Java | Moud |
 |---|---|
@@ -205,8 +211,8 @@ return mixin "zoom" {
 
 - `mixin "name" { ... }` groups hooks together and gives them a name. Options written in the group,
   such as `when` above, are shared by every hook in it.
-- Returning the group from the file is what ties the hooks to the file, so saving the file can take
-  exactly those hooks off again.
+- Every hook made while the file runs belongs to the file, grouped or not, so saving the file takes
+  exactly those hooks off again. A hook made later, from a callback, stays until the place stops.
 - `return true` from the `before` handler skips Minecraft's own scroll handling, so the wheel only
   changes `view.size`, which the camera hooks in the same state read.
 

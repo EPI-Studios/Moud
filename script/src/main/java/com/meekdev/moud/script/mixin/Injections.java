@@ -53,6 +53,7 @@ public final class Injections {
     }
 
     public static synchronized void hook(Method method, Dispatch.Hook hook) {
+        reachable(method.getDeclaringClass());
         bodied(method);
         String id = id(method);
         Dispatch.Target target = Dispatch.TARGETS.get(id);
@@ -85,6 +86,7 @@ public final class Injections {
     }
 
     public static synchronized String rewrite(Method method, Rewrite rewrite, Method callee, Dispatch.Hook hook) {
+        reachable(method.getDeclaringClass());
         bodied(method);
         String id = id(method) + " " + rewrite.key();
         Dispatch.Site site = Dispatch.SITES.get(id);
@@ -192,7 +194,7 @@ public final class Injections {
         for (Class<?> type : loaded) {
             ClassLoader loader = type.getClassLoader();
             if (loader == null || !instrumentation().isModifiableClass(type)) continue;
-            if (!sees.computeIfAbsent(loader, l -> visible(l, declaring))) continue;
+            if (!sees.computeIfAbsent(loader, l -> visible(l, declaring) && visible(l, Dispatch.class))) continue;
             byte[] bytes;
             try {
                 bytes = ClassFileLocator.ForClassLoader.read(type);
@@ -202,6 +204,13 @@ public final class Injections {
             if (contains(bytes, name)) out.add(type);
         }
         return out;
+    }
+
+    private static void reachable(Class<?> type) {
+        ClassLoader loader = type.getClassLoader();
+        if (loader == null || !visible(loader, Dispatch.class) || type.getName().startsWith("com.meekdev.moud.script.")) {
+            throw new IllegalArgumentException(type.getName() + " can not be hooked");
+        }
     }
 
     private static boolean visible(ClassLoader loader, Class<?> type) {
@@ -294,6 +303,13 @@ public final class Injections {
         ResettableClassFileTransformer transformer = new AgentBuilder.Default(new ByteBuddy().with(TypeValidation.DISABLED))
                 .disableClassFormatChanges()
                 .with(AgentBuilder.RedefinitionStrategy.RETRANSFORMATION)
+                .with(new AgentBuilder.RedefinitionStrategy.Listener.Adapter() {
+                    @Override
+                    public Iterable<? extends List<Class<?>>> onError(int index, List<Class<?>> batch, Throwable throwable, List<Class<?>> types) {
+                        failures.add(throwable);
+                        return List.of();
+                    }
+                })
                 .with(AgentBuilder.TypeStrategy.Default.DECORATE)
                 .with(AgentBuilder.InitializationStrategy.NoOp.INSTANCE)
                 .ignore(ElementMatchers.none())

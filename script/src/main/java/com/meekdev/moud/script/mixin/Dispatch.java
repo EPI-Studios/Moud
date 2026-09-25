@@ -61,9 +61,10 @@ public final class Dispatch {
             } catch (Proceeding e) {
                 throw e;
             } catch (Throwable e) {
+                if (call.thrown != null) throw call.thrown;
                 errors++;
                 failed(e);
-                return PROCEED;
+                return call.ran ? call.result : PROCEED;
             } finally {
                 nanos += System.nanoTime() - started;
             }
@@ -81,6 +82,9 @@ public final class Dispatch {
         private final boolean receiver;
         private final String bypass;
         private int next;
+        private Proceeding thrown;
+        private boolean ran;
+        private Object result;
 
         Call(Object self, Object[] args, Class<?>[] parameters, Class<?> returns, Object value, List<Hook> chain,
              MethodHandle original, boolean receiver, String bypass) {
@@ -96,6 +100,17 @@ public final class Dispatch {
         }
 
         public Object proceed(Object self, Object[] args) {
+            try {
+                result = onward(self, args);
+                ran = true;
+                return result;
+            } catch (Proceeding e) {
+                thrown = e;
+                throw e;
+            }
+        }
+
+        private Object onward(Object self, Object[] args) {
             if (next < chain.size()) {
                 Hook hook = chain.get(next++);
                 Call inner = new Call(self, args, parameters, returns, null, chain, original, receiver, bypass);

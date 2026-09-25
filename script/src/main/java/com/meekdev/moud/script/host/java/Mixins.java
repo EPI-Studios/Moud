@@ -42,7 +42,7 @@ public final class Mixins {
             if (finished.isEmpty()) return;
             List<MixinHook> done = new ArrayList<>(finished);
             finished.clear();
-            done.forEach(MixinHook::remove);
+            removeAll(host, done);
         }
     }
 
@@ -54,13 +54,23 @@ public final class Mixins {
 
     private Mixins() {}
 
+    private static void removeAll(Host host, List<MixinHook> hooks) {
+        for (MixinHook hook : hooks) {
+            try {
+                hook.remove();
+            } catch (RuntimeException e) {
+                host.error("mixin", e);
+            }
+        }
+    }
+
     static void install(Host host) {
         Place place = new Place(host, Thread.currentThread());
         PLACES.put(host, place);
         host.onStep(dt -> place.settle());
         host.onClose(() -> {
             PLACES.remove(host);
-            new ArrayList<>(place.hooks).forEach(MixinHook::remove);
+            removeAll(host, new ArrayList<>(place.hooks));
             place.groups.clear();
         });
         host.api().declare(new Members("Mixin")
@@ -136,7 +146,9 @@ public final class Mixins {
     public static void unload(Host host, String file) {
         Place place = PLACES.get(host);
         if (place == null) return;
-        for (MixinHook hook : place.hooks) if (file.equals(hook.file)) hook.remove();
+        List<MixinHook> gone = new ArrayList<>();
+        for (MixinHook hook : place.hooks) if (file.equals(hook.file)) gone.add(hook);
+        removeAll(host, gone);
         place.groups.removeIf(group -> file.equals(group.file));
     }
 
