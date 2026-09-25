@@ -10,12 +10,19 @@ import java.util.Locale;
 
 public final class CodeEditor {
 
-    private static final boolean MAC = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
+    private static final String SYSTEM = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+    private static final boolean MAC = SYSTEM.contains("mac");
+    private static final boolean WINDOWS = SYSTEM.contains("win");
+    private static final String PROGRAMS = Path.of(System.getProperty("user.home"), "AppData", "Local", "Programs").toString();
     private static final List<String> ZED = MAC
             ? List.of("zed", "/usr/local/bin/zed", "/opt/homebrew/bin/zed", "/Applications/Zed.app/Contents/MacOS/cli")
+            : WINDOWS
+            ? List.of("zed", Path.of(PROGRAMS, "Zed", "bin", "zed.exe").toString(), Path.of(PROGRAMS, "Zed", "Zed.exe").toString())
             : List.of("zed", System.getProperty("user.home") + "/.local/bin/zed", "zeditor");
     private static final List<String> CODE = MAC
             ? List.of("code", "/usr/local/bin/code", "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code")
+            : WINDOWS
+            ? List.of("code.cmd", Path.of(PROGRAMS, "Microsoft VS Code", "bin", "code.cmd").toString())
             : List.of("code");
 
     private CodeEditor() {}
@@ -30,6 +37,7 @@ public final class CodeEditor {
             if (start(List.of(code, root, "--goto", target))) return;
         }
         if (MAC && start(List.of("open", "-t", file.toAbsolutePath().toString()))) return;
+        if (WINDOWS && start(List.of("notepad.exe", file.toAbsolutePath().toString()))) return;
         MoudMod.LOG.warn("no code editor found to open {}", target);
         Output.add(Output.Level.WARN, "editor", "No code editor found to open " + target);
     }
