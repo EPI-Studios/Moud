@@ -399,6 +399,9 @@ public final class Clip {
             if (v.length != 3 && !(rotation && v.length == 4)) {
                 throw new IllegalArgumentException(what + " values must be three numbers" + (rotation ? " or a quaternion" : ""));
             }
+            if (!keys.isEmpty() && keys.getFirst().value().length != v.length) {
+                throw new IllegalArgumentException(what + " keys must all be angles or all be quaternions");
+            }
             ClipCurve.Interp interp = key.size() > 2 && key.get(2) != null ? interp(key.get(2), what) : ClipCurve.Interp.LINEAR;
             ClipCurve.Handle in = null;
             ClipCurve.Handle out = null;
@@ -562,7 +565,10 @@ public final class Clip {
 
     private static Easing easing(Object value) {
         if (value == null) return Easing.LINEAR;
-        return Easing.valueOf(String.valueOf(value).toUpperCase(Locale.ROOT));
+        for (Easing easing : Easing.values()) {
+            if (easing.name().equalsIgnoreCase(String.valueOf(value))) return easing;
+        }
+        throw new IllegalArgumentException("easing must be linear, sine, quad, cubic, quart, quint, expo, circ, back, elastic or bounce, got " + value);
     }
 
     private static Easing.Direction direction(Object value) {
