@@ -17,6 +17,7 @@ import com.meekdev.moud.script.host.InstanceAccess;
 import com.meekdev.moud.script.host.Members;
 import com.meekdev.moud.script.host.Values;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -57,13 +58,13 @@ public final class TweenLibrary {
     public static void install(Host host) {
         host.api().declare(Handle.METHODS.decl());
         host.api().alias("TweenInfo", "{ time: number?, easing: string?, direction: string?, repeats: number?, reverses: boolean?, delay: number? }");
-        List<Tween> running = new ArrayList<>();
+        Map<Tween, Runnable> running = new LinkedHashMap<>();
         Consumer<Double> step = dt -> {
-            for (Tween tween : new ArrayList<>(running)) {
+            for (Tween tween : new ArrayList<>(running.keySet())) {
                 try {
-                    if (!tween.step(dt)) running.remove(tween);
+                    if (!tween.step(dt)) running.remove(tween).run();
                 } catch (RuntimeException e) {
-                    running.remove(tween);
+                    running.remove(tween).run();
                     host.error("tween", e);
                 }
             }
@@ -81,9 +82,11 @@ public final class TweenLibrary {
             }
             Tween tween = new Tween(instance, goals, info(a.map(2, Map.of())));
             HostSignal completed = new HostSignal(host, "AnySignal", "tween.completed");
-            tween.completed.connect(completed::fire);
-            running.add(tween);
-            host.ownership().onRelease(host.ownership().current(), tween::cancel);
+            tween.completed.connect(done -> {
+                completed.fire(done);
+                completed.clear();
+            });
+            running.put(tween, host.ownership().onRelease(host.ownership().current(), tween::cancel));
             return new Handle(tween, completed);
         });
         if (host.lens() != null) CameraPaths.install(host);

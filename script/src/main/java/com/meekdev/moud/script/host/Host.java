@@ -553,6 +553,7 @@ public final class Host {
     }
 
     public void step(double dt) {
+        instances.sweep();
         instances.scripts().poll(world.tree());
         if (!client) scheduler.advance(dt);
         for (Consumer<Double> step : steps) {
@@ -567,6 +568,7 @@ public final class Host {
     }
 
     public void renderStep(double dt) {
+        instances.sweep();
         if (client) {
             instances.scripts().poll(world.tree());
             scheduler.advance(dt);

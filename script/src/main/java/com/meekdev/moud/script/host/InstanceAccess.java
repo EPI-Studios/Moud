@@ -30,11 +30,13 @@ import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.host.player.Players;
 import com.meekdev.moud.script.host.world.RemoteFunctions;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -44,7 +46,8 @@ public final class InstanceAccess {
     private final Members shared = new Members("Instance");
     private final Map<ClassDef<?>, Members> byClass = new LinkedHashMap<>();
     private final Map<Callback, Callable> assigned = new IdentityHashMap<>();
-    private final List<Signals> bundles = new ArrayList<>();
+    private final Set<Signals> bundles = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final List<Signals> dead = new ArrayList<>();
     private final ScriptInstances scripts;
 
     InstanceAccess(Host host) {
@@ -274,8 +277,9 @@ public final class InstanceAccess {
         throw new HostError("%s expects %s, got %s", what, article, Host.typeOf(value));
     }
 
-    private void assign(Instance instance, CallbackDef def, Object value) {
+    private synchronized void assign(Instance instance, CallbackDef def, Object value) {
         Callback callback = def.on(instance);
+        signals(instance).callbacks.add(callback);
         Callable old = assigned.remove(callback);
         if (old != null) old.release();
         if (value == null) {
@@ -311,7 +315,26 @@ public final class InstanceAccess {
         Signals fresh = new Signals(host, instance);
         hosts.put(host, fresh);
         bundles.add(fresh);
+        fresh.links.add(instance.destroying().connect(gone -> dying(fresh)));
         return fresh;
+    }
+
+    private synchronized void dying(Signals bundle) {
+        dead.add(bundle);
+    }
+
+    synchronized void sweep() {
+        if (dead.isEmpty()) return;
+        for (Signals bundle : dead) {
+            bundles.remove(bundle);
+            for (Callback callback : bundle.callbacks) {
+                Callable old = assigned.remove(callback);
+                if (old != null) old.release();
+                callback.set(null);
+            }
+            bundle.close();
+        }
+        dead.clear();
     }
 
     private static synchronized Map<Host, Signals> hosts(Instance instance) {
@@ -323,7 +346,8 @@ public final class InstanceAccess {
 
     private static final class Hosts extends ConcurrentHashMap<Host, Signals> {}
 
-    void close() {
+    synchronized void close() {
+        dead.clear();
         for (Map.Entry<Callback, Callable> entry : assigned.entrySet()) {
             entry.getKey().set(null);
             entry.getValue().release();
@@ -353,6 +377,7 @@ public final class InstanceAccess {
         private final Host host;
         private final Instance instance;
         private final List<Signal.Connection> links = new ArrayList<>();
+        private final Set<Callback> callbacks = Collections.newSetFromMap(new IdentityHashMap<>());
         private final Map<String, HostSignal> named = new HashMap<>();
         private final Map<String, HostSignal> attributes = new HashMap<>();
         private final Map<String, HostSignal> properties = new HashMap<>();

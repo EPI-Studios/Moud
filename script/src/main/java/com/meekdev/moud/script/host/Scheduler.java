@@ -10,6 +10,7 @@ public final class Scheduler {
         final Fiber fiber;
         final Object owner;
         Suspend waiting;
+        Runnable forget = () -> { };
         boolean done;
         boolean parallel;
 
@@ -55,7 +56,7 @@ public final class Scheduler {
 
     private Task task(Fiber fiber, Object owner) {
         Task task = new Task(nextId++, fiber, owner);
-        host.ownership().onRelease(owner, () -> stop(task));
+        task.forget = host.ownership().onRelease(owner, () -> stop(task));
         return task;
     }
 
@@ -84,7 +85,7 @@ public final class Scheduler {
             try {
                 out = task.waiting.waiter().poll(dt);
             } catch (RuntimeException e) {
-                sleeping.remove(task);
+                stop(task);
                 host.error("task " + task.id, e);
                 continue;
             }
@@ -122,7 +123,7 @@ public final class Scheduler {
         try {
             next = task.fiber.resume(args);
         } catch (RuntimeException e) {
-            task.done = true;
+            finish(task);
             host.error("task " + task.id, e);
             return;
         } finally {
@@ -135,7 +136,7 @@ public final class Scheduler {
     void settle(Task task, Suspend next) {
         if (task.done) return;
         if (next == null) {
-            task.done = true;
+            finish(task);
             return;
         }
         if (next == Parallel.DESYNCHRONIZE) {
@@ -153,13 +154,18 @@ public final class Scheduler {
     }
 
     void failed(Task task, RuntimeException e) {
-        task.done = true;
+        finish(task);
         host.error("task " + task.id, e);
+    }
+
+    private void finish(Task task) {
+        task.done = true;
+        task.forget.run();
     }
 
     private void stop(Task task) {
         if (task.done) return;
-        task.done = true;
+        finish(task);
         if (sleeping.remove(task) && task.waiting != null) task.waiting.cancel().run();
         synced.remove(task);
         task.fiber.cancel();

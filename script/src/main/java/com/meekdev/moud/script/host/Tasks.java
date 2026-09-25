@@ -6,7 +6,9 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.TextStyle;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -14,7 +16,39 @@ public final class Tasks {
 
     private Tasks() {}
 
+    private static final class Every {
+        final Callable fn;
+        final double seconds;
+        final Object owner;
+        double elapsed;
+        boolean cancelled;
+
+        Every(Callable fn, double seconds, Object owner) {
+            this.fn = fn;
+            this.seconds = seconds;
+            this.owner = owner;
+        }
+    }
+
     static void install(Host host) {
+        List<Every> everies = new ArrayList<>();
+        host.onStep(dt -> {
+            int count = everies.size();
+            for (int n = 0; n < count; n++) {
+                Every one = everies.get(n);
+                if (one.cancelled) continue;
+                one.elapsed += dt;
+                if (one.elapsed < one.seconds) continue;
+                one.elapsed = 0;
+                Object before = host.ownership().enter(one.owner);
+                try {
+                    spawn(host, one.fn);
+                } finally {
+                    host.ownership().leave(before);
+                }
+            }
+            everies.removeIf(one -> one.cancelled);
+        });
         Members task = new Members("Task")
                 .function("wait", "(seconds: number?) -> number", a -> Suspend.seconds(seconds(a, 0, 0)))
                 .function("spawn", "(handler: (...any) -> (), ...any) -> number", a -> (double) spawn(host, a.callable(0), a.from(1)))
@@ -25,7 +59,7 @@ public final class Tasks {
                     host.scheduler().cancel(a.integer(0));
                     return null;
                 })
-                .function("every", "(seconds: number, handler: () -> ()) -> TaskHandle", a -> every(host, seconds(a, 0, 0), a.callable(1)))
+                .function("every", "(seconds: number, handler: () -> ()) -> TaskHandle", a -> every(host, everies, seconds(a, 0, 0), a.callable(1)))
                 .function("after", "(seconds: number, handler: () -> ()) -> TaskHandle", a -> after(host, seconds(a, 0, 0), a.callable(1)))
                 .function("debounce", "(handler: (...any) -> (), seconds: number) -> (...any) -> ()", a -> debounce(host, a.callable(0), a.number(1)))
                 .function("throttle", "(handler: (...any) -> ...any, seconds: number) -> (...any) -> ...any", a -> throttle(host, a.callable(0), a.number(1)))
@@ -151,29 +185,17 @@ public final class Tasks {
         return seconds;
     }
 
-    private static Object every(Host host, double seconds, Callable fn) {
-        Callable kept = fn.retain();
-        boolean[] cancelled = {false};
-        double[] elapsed = {0};
-        Object owner = host.ownership().current();
-        host.onStep(dt -> {
-            if (cancelled[0]) return;
-            elapsed[0] += dt;
-            if (elapsed[0] < seconds) return;
-            elapsed[0] = 0;
-            Object before = host.ownership().enter(owner);
-            try {
-                spawn(host, kept);
-            } finally {
-                host.ownership().leave(before);
-            }
-        });
+    private static Object every(Host host, List<Every> everies, double seconds, Callable fn) {
+        Every one = new Every(fn.retain(), seconds, host.ownership().current());
+        everies.add(one);
+        Runnable[] forget = new Runnable[1];
         Runnable cancel = () -> {
-            if (cancelled[0]) return;
-            cancelled[0] = true;
-            kept.release();
+            if (one.cancelled) return;
+            one.cancelled = true;
+            one.fn.release();
+            forget[0].run();
         };
-        host.ownership().onRelease(owner, cancel);
+        forget[0] = host.ownership().onRelease(one.owner, cancel);
         return handle(cancel);
     }
 

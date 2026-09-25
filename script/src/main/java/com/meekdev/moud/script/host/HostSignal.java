@@ -5,7 +5,7 @@ import java.util.List;
 
 public final class HostSignal implements HostObject {
 
-    private record Handler(Callable fn, Object owner) {}
+    private record Handler(Callable fn, Object owner, Connection connection) {}
 
     private static final Builtin CONNECT = new Builtin("Signal:connect", args ->
             args.self(HostSignal.class).connect(args.callable(1)));
@@ -18,10 +18,25 @@ public final class HostSignal implements HostObject {
     private static final Builtin ONCE = new Builtin("Signal:once", args -> {
         HostSignal signal = args.self(HostSignal.class);
         Callable fn = args.callable(1).retain();
+        boolean[] fired = {false};
         Connection[] connection = new Connection[1];
-        connection[0] = signal.connect(values -> {
-            connection[0].disconnect();
-            return signal.host.call(fn, signal.where, values);
+        connection[0] = signal.connect(new Callable() {
+            @Override
+            public Object[] call(Object... values) {
+                if (fired[0]) return null;
+                fired[0] = true;
+                connection[0].disconnect();
+                try {
+                    return signal.host.call(fn, signal.where, values);
+                } finally {
+                    fn.release();
+                }
+            }
+
+            @Override
+            public void release() {
+                if (!fired[0]) fn.release();
+            }
         });
         return connection[0];
     });
@@ -31,10 +46,18 @@ public final class HostSignal implements HostObject {
         int n = Math.max(1, args.integer(1));
         Callable fn = args.callable(2).retain();
         int[] count = {0};
-        return signal.connect(values -> {
-            if (++count[0] < n) return null;
-            count[0] = 0;
-            return signal.host.call(fn, signal.where, values);
+        return signal.connect(new Callable() {
+            @Override
+            public Object[] call(Object... values) {
+                if (++count[0] < n) return null;
+                count[0] = 0;
+                return signal.host.call(fn, signal.where, values);
+            }
+
+            @Override
+            public void release() {
+                fn.release();
+            }
         });
     });
 
@@ -95,18 +118,21 @@ public final class HostSignal implements HostObject {
     public Connection connect(Callable fn) {
         Callable kept = fn.retain();
         Object owner = host.ownership().current();
-        Handler handler = new Handler(kept, owner);
-        List<Handler> next = new ArrayList<>(handlers);
-        next.add(handler);
-        handlers = next;
+        Handler[] handler = new Handler[1];
+        Runnable[] forget = new Runnable[1];
         Connection connection = new Connection(() -> {
-            if (!handlers.contains(handler)) return;
+            if (!handlers.contains(handler[0])) return;
             List<Handler> rest = new ArrayList<>(handlers);
-            rest.remove(handler);
+            rest.remove(handler[0]);
             handlers = rest;
             kept.release();
+            forget[0].run();
         });
-        host.ownership().onRelease(owner, connection::disconnect);
+        handler[0] = new Handler(kept, owner, connection);
+        List<Handler> next = new ArrayList<>(handlers);
+        next.add(handler[0]);
+        handlers = next;
+        forget[0] = host.ownership().onRelease(owner, connection::disconnect);
         return connection;
     }
 
@@ -126,7 +152,7 @@ public final class HostSignal implements HostObject {
     }
 
     public void clear() {
-        for (Handler handler : handlers) handler.fn().release();
+        for (Handler handler : handlers) handler.connection().disconnect();
         handlers = List.of();
     }
 

@@ -2,13 +2,14 @@ package com.meekdev.moud.script.host;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
-import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.Map;
 
 public final class Ownership {
 
     private Object current;
-    private final Map<Object, List<Runnable>> undo = new IdentityHashMap<>();
+    private final Map<Object, Set<Runnable>> undo = new IdentityHashMap<>();
 
     public Object current() {
         return current;
@@ -24,12 +25,17 @@ public final class Ownership {
         current = before;
     }
 
-    public void onRelease(Object owner, Runnable action) {
-        if (owner != null) undo.computeIfAbsent(owner, key -> new ArrayList<>()).add(action);
+    public Runnable onRelease(Object owner, Runnable action) {
+        if (owner == null) return () -> { };
+        undo.computeIfAbsent(owner, key -> new LinkedHashSet<>()).add(action);
+        return () -> {
+            Set<Runnable> actions = undo.get(owner);
+            if (actions != null) actions.remove(action);
+        };
     }
 
     public void release(Object owner) {
-        List<Runnable> actions = undo.remove(owner);
+        Set<Runnable> actions = undo.remove(owner);
         if (actions != null) for (Runnable action : actions) action.run();
     }
 

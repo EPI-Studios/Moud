@@ -106,7 +106,15 @@ final class AnimationLibrary {
         tracks.method("getMarkerReachedSignal", "(name: string) -> MarkerSignal", a -> {
             AnimationTrack track = a.self(AnimationTrack.class);
             String name = a.string(1);
-            Map<String, HostSignal> byName = reached.computeIfAbsent(track, key -> new HashMap<>());
+            Map<String, HostSignal> byName = reached.get(track);
+            if (byName == null) {
+                Map<String, HostSignal> fresh = byName = new HashMap<>();
+                reached.put(track, fresh);
+                track.destroying().connect(gone -> {
+                    reached.remove(track);
+                    fresh.values().forEach(HostSignal::clear);
+                });
+            }
             HostSignal known = byName.get(name);
             if (known != null) return known;
             HostSignal signal = new HostSignal(host, "MarkerSignal", "markerReached");
