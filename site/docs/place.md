@@ -86,6 +86,9 @@ radius = 256      # metres, default 256, between 32 and 4096
   anything a far-away script looks at.
 - Anything that is not a `Spatial` has no position, so it is always sent: values, remotes,
   containers, the [leaderboard](players.md#leaderstats).
+- A property that points at an instance, like a weld's parts or an `ObjectValue`, is `nil` on a
+  client while what it points at is too far away to be sent. It fills in when that instance
+  arrives, and goes back to `nil` when it leaves.
 - `enabled = false` sends everything to everyone. Do that for a small place where a client script
   reads the whole world.
 - While you edit or playtest in the editor everything is sent, whatever this table says, so what the

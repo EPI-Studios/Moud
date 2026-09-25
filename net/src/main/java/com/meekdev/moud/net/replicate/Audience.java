@@ -1,13 +1,19 @@
 package com.meekdev.moud.net.replicate;
 
 import com.meekdev.moud.core.clazz.PropertyDef;
+import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Spatial;
 import com.meekdev.moud.core.instance.Transforms;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public final class Audience {
@@ -21,6 +27,12 @@ public final class Audience {
     private final BitSet has = new BitSet();
 
     private boolean seesServer;
+
+    private final Map<Long, Integer> refs = new HashMap<>();
+
+    private final Set<Long> resolved = new HashSet<>();
+
+    private boolean churn;
 
     public Audience(String player) {
         this.player = player;
@@ -40,14 +52,21 @@ public final class Audience {
     }
 
     public void drain(InstanceTree from, List<Change> tick, Vector3 focus, double radius, boolean seesServer,
-                      Consumer<Change> out) {
+                      Consumer<Change> sink) {
         this.seesServer = seesServer;
         if (from != tree) {
             tree = from;
             has.clear();
-            out.accept(new Change.Reset());
+            refs.clear();
+            resolved.clear();
+            sink.accept(new Change.Reset());
         }
         if (tree == null) return;
+        churn = false;
+        Consumer<Change> out = change -> {
+            if (change instanceof Change.Wrote wrote) note(wrote);
+            sink.accept(change);
+        };
 
         has.set(tree.root().id());
 
@@ -74,6 +93,7 @@ public final class Audience {
                     if (!has.get(gone.id())) continue;
                     out.accept(gone);
                     has.clear(gone.id());
+                    churn = true;
                 }
                 case Change.Moved moved -> {
                     if (!has.get(moved.id())) {
@@ -91,6 +111,7 @@ public final class Audience {
                         Instance left = tree.byId(moved.id());
                         if (left != null) forget(left);
                         else has.clear(moved.id());
+                        churn = true;
                     }
                 }
                 case Change.Wrote wrote -> {
@@ -109,12 +130,59 @@ public final class Audience {
                 }
             }
         }
+        if (churn) settle(sink);
+    }
+
+    private void note(Change.Wrote wrote) {
+        Instance holder = tree.byId(wrote.id());
+        if (holder == null) return;
+        PropertyDef property = holder.def().property(wrote.property());
+        if (property == null || property.type() != PropertyType.REF) return;
+        long key = (long) wrote.id() << 32 | wrote.property();
+        if (!(wrote.value() instanceof Integer target)) {
+            refs.remove(key);
+            resolved.remove(key);
+            return;
+        }
+        refs.put(key, target);
+        if (has.get(target)) {
+            resolved.add(key);
+        } else {
+            resolved.remove(key);
+            churn = true;
+        }
+    }
+
+    private void settle(Consumer<Change> out) {
+        for (Iterator<Map.Entry<Long, Integer>> it = refs.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<Long, Integer> ref = it.next();
+            long key = ref.getKey();
+            int holder = (int) (key >>> 32);
+            int property = (int) key;
+            int target = ref.getValue();
+            if (!has.get(holder) || tree.byId(holder) == null) {
+                it.remove();
+                resolved.remove(key);
+                continue;
+            }
+            if (tree.byId(target) == null) {
+                it.remove();
+                resolved.remove(key);
+                continue;
+            }
+            boolean held = has.get(target);
+            if (held == resolved.contains(key)) continue;
+            out.accept(new Change.Wrote(holder, property, held ? target : null));
+            if (held) resolved.add(key);
+            else resolved.remove(key);
+        }
     }
 
     private void baseline(Instance top, Consumer<Change> out) {
         if (top.parent() == null || has.get(top.id()) || top.serverOnly() && !seesServer) return;
         out.accept(new Change.Created(top.id(), top.def().name(), top.parent().id(), top.name()));
         has.set(top.id());
+        churn = true;
         long skip = top.def().unreplicated() | top.externalProperties();
         for (PropertyDef property : top.def().properties()) {
             if ((skip & (1L << property.index())) != 0) continue;
@@ -127,6 +195,7 @@ public final class Audience {
 
     private void forget(Instance top) {
         has.clear(top.id());
+        churn = true;
         for (Instance child : top.children()) forget(child);
     }
 
