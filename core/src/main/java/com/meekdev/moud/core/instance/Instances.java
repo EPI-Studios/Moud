@@ -73,11 +73,16 @@ public final class Instances {
     }
 
     public static void destroy(Instance i) {
-        if (i.tree == null) return;
+        if (i.tree == null || i.dying) return;
         if (i.tree.root() == i) throw new IllegalArgumentException("cannot destroy the root");
+        i.dying = true;
 
         removing(i);
-        for (int n = i.children.size() - 1; n >= 0; n--) destroy(i.children.get(n));
+        while (!i.children.isEmpty()) {
+            Instance child = i.children.getLast();
+            destroy(child);
+            i.children.remove(child);
+        }
 
         if (i.destroying != null) i.destroying.fire(i);
         if (i.parent != null) i.parent.children.remove(i);
@@ -85,9 +90,18 @@ public final class Instances {
         if (i.ancestryChanged != null) i.ancestryChanged.fire(i);
         i.tree.unindex(i);
         i.tree = null;
+        i.dying = false;
         i.dirty = 0;
         i.generation++;
         i.userdata = null;
+        i.changed = null;
+        i.childAdded = null;
+        i.destroying = null;
+        i.renamed = null;
+        i.attributeChanged = null;
+        i.ancestryChanged = null;
+        i.descendantAdded = null;
+        i.descendantRemoving = null;
     }
 
     public static void reparent(Instance i, Instance newParent) {
@@ -101,6 +115,7 @@ public final class Instances {
         if (i.parent == newParent) return;
 
         removingBranch(i);
+        if (i.tree == null || newParent.tree != i.tree || i.parent == newParent || isAncestor(i, newParent)) return;
         i.parent.children.remove(i);
         i.parent = newParent;
         newParent.children.add(i);
@@ -211,7 +226,8 @@ public final class Instances {
     public static void setNum(Instance i, PropertyDef p, double value) {
         expect(i, p, p.isNumeric());
         double clamped = p.clamp(value);
-        if (p.getNum(i) == clamped) return;
+        if (p.type() == PropertyType.INT) clamped = (int) clamped;
+        if (Double.compare(p.getNum(i), clamped) == 0 || p.getNum(i) == clamped) return;
         p.writeNum(i, clamped);
         touch(i, p);
     }

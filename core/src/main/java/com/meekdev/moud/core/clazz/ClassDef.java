@@ -160,7 +160,7 @@ public final class ClassDef<T extends Instance> {
     }
 
     private static PropertyType kindOf(Class<?> t) {
-        if (t == double.class || t == float.class) return PropertyType.NUM;
+        if (t == double.class) return PropertyType.NUM;
         if (t == int.class) return PropertyType.INT;
         if (t == boolean.class) return PropertyType.BOOL;
         if (t == String.class) return PropertyType.STRING;

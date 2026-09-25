@@ -18,6 +18,7 @@ public abstract class Instance {
     Instance parent;
     InstanceTree tree;
     long dirty;
+    boolean dying;
 
     final List<Instance> children = new ArrayList<>(0);
 
