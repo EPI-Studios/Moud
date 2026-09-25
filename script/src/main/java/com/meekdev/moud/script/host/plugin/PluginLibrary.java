@@ -163,15 +163,15 @@ final class PluginLibrary {
 
     private static Members ui(Host host, Plugins plugins) {
         return new Members("PanelUi")
-                .method("text", "(text: string) -> ()", a -> {
+                .method("text", "(text: any) -> ()", a -> {
                     plugins.drawing().text(host.text(a.get(1)));
                     return null;
                 })
-                .method("muted", "(text: string) -> ()", a -> {
+                .method("muted", "(text: any) -> ()", a -> {
                     plugins.drawing().muted(host.text(a.get(1)));
                     return null;
                 })
-                .method("heading", "(text: string) -> ()", a -> {
+                .method("heading", "(text: any) -> ()", a -> {
                     plugins.drawing().heading(host.text(a.get(1)));
                     return null;
                 })

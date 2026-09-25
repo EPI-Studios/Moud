@@ -159,7 +159,9 @@ The names are:
 `TerrainMatchSides`, `PackedScene`, `StandardMaterial3D`, `Texture2D`, `AtlasTexture`,
 `GradientTexture1D`, `StyleBoxFlat`, `GraphEdit`, `GuiVisibilityHidden`, `GuiVisibilityVisible`,
 `LineEdit`, `ScrollContainer`, `VBoxContainer`, `GridContainer`, `MarginContainer`,
-`AspectRatioContainer`, `TextureButton`.
+`AspectRatioContainer`, `TextureButton`, `PlayStartBackwards`, `Back`, `Forward`, `Loop`, `Onion`,
+`MirrorX`, `Bone`, `Skeleton3D`, `SkeletonIK3D`, `LookAtModifier3D`, `SpringBoneSimulator3D`, `Signal`,
+`Marker`, `Search`, `KeyValue`.
 
 ## Commands and shortcuts
 
@@ -197,11 +199,11 @@ A shortcut is up to three modifiers and one key, joined with `+`:
 
 | Part | Written |
 |---|---|
-| modifiers | `Ctrl` (or `Control`), `Shift`, `Alt`, in any order and any case |
+| modifiers | `Ctrl` (or `Control`, `Cmd`, `Command`), `Shift`, `Alt`, in any order and any case |
 | key | a letter `A` to `Z`, a digit `0` to `9`, or `F1` to `F12` |
 
 `Ctrl+Shift+G`, `alt+1` and `F5` are shortcuts. The modifiers have to match exactly: `Ctrl+G` does
-not fire while <kbd>Shift</kbd> is also held. Anything else, like `Ctrl+Space` or `Cmd+G`, is not a
+not fire while <kbd>Shift</kbd> is also held. Anything else, like `Ctrl+Space` or `Super+G`, is not a
 shortcut. The command stays in the menu without one, and the Output panel says
 `grid: 'Ctrl+Space' is not a shortcut, use something like Ctrl+Shift+G or F5`.
 
@@ -599,9 +601,9 @@ end)
 
 - `setting` returns nil for a key that was never set.
 - `setSetting(key, nil)` removes the key.
-- A value is a string, a number, a boolean, or a table of those. A table's keys are all strings or it
-  is a list. Anything else fails: `settings keep strings, numbers, booleans and tables of them, not a
-  Vector3`, or `settings keep tables with string keys`.
+- A value is a string, a number, a boolean, or a table of those. A table is a list or is keyed by
+  strings; a number key in a table that is not a list comes back as a string. Anything else fails:
+  `settings keep strings, numbers, booleans and tables of them, not a Vector3`.
 - `setting` reads back what `setSetting` set at once. The file is written at most once a second, and
   again when plugins stop, a plugin is unloaded or the game closes, so calling `setSetting` every
   frame is harmless.

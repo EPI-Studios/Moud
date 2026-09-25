@@ -66,6 +66,10 @@ final class PluginEdits implements EditsRef {
         return false;
     }
 
+    private void notWorld(Instance instance) {
+        if (instance == document.world()) throw new HostError("that instance is not part of the scene");
+    }
+
     void select(Instance instance) {
         chosen.add(instance);
     }
@@ -76,6 +80,7 @@ final class PluginEdits implements EditsRef {
 
     @Override
     public void write(Instance instance, PropertyDef property, Object value) {
+        notWorld(instance);
         Object wire = value;
         if (property.type() == PropertyType.INT && value instanceof Number number) wire = number.intValue();
         if (property.type() == PropertyType.REF) {
@@ -89,28 +94,33 @@ final class PluginEdits implements EditsRef {
 
     @Override
     public void rename(Instance instance, String name) {
+        notWorld(instance);
         run(new Rename(document.ref(instance.id()), name));
     }
 
     @Override
     public void reparent(Instance instance, Instance parent) {
+        notWorld(instance);
         if (!owns(parent)) throw new HostError("%s can only move to somewhere in the scene, and %s is not", instance.name(), parent.name());
         run(new Reparent(document.ref(instance.id()), document.ref(parent.id())));
     }
 
     @Override
     public void destroy(Instance instance) {
+        notWorld(instance);
         run(new Destroy(List.of(document.ref(instance.id())), "Delete"));
     }
 
     @Override
     public void tag(Instance instance, String tag, boolean on) {
+        notWorld(instance);
         if (instance.hasTag(tag) == on) return;
         run(new Tag(document.ref(instance.id()), tag, on));
     }
 
     @Override
     public void attribute(Instance instance, String name, Object value) {
+        notWorld(instance);
         run(new SetAttribute(document.ref(instance.id()), name, value, name));
     }
 
