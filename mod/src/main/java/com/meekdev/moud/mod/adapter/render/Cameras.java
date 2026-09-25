@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.amnetic.client.camera.AmneticCamera;
+import com.meekdev.amnetic.client.camera.CameraEffects;
 import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.instance.Instances;
@@ -40,6 +41,7 @@ public final class Cameras {
     public static void release() {
         AmneticCamera.clearPose();
         AmneticCamera.clearFov();
+        CameraEffects.clear();
     }
 
     private static void scripted(Camera camera) {

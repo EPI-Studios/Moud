@@ -41,6 +41,9 @@ public final class CameraApi implements CameraRef {
 
     @Override
     public CameraRef.Ray screenToRay(double x, double y) {
+        if (!AmneticCamera.isReady()) {
+            return new CameraRef.Ray(toVector3(AmneticCamera.position()), toVector3(AmneticCamera.forward()));
+        }
         var ray = AmneticCamera.screenToRay(x, y);
         return new CameraRef.Ray(toVector3(ray.origin()), toVector3(ray.direction()));
     }
