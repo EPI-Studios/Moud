@@ -12,6 +12,7 @@ final class RenderSteps {
         final String name;
         final double priority;
         final Callable fn;
+        Runnable forget = () -> { };
         boolean gone;
 
         Bound(String name, double priority, Callable fn) {
@@ -36,7 +37,7 @@ final class RenderSteps {
         next.add(one);
         next.sort(Comparator.comparingDouble(b -> b.priority));
         bound = next;
-        host.ownership().onRelease(host.ownership().current(), () -> {
+        one.forget = host.ownership().onRelease(host.ownership().current(), () -> {
             if (!one.gone) unbind(name);
         });
     }
@@ -48,6 +49,7 @@ final class RenderSteps {
             next.remove(one);
             one.gone = true;
             one.fn.release();
+            one.forget.run();
         }
         bound = next;
     }
@@ -72,6 +74,7 @@ final class RenderSteps {
         for (Bound one : bound) {
             one.gone = true;
             one.fn.release();
+            one.forget.run();
         }
         bound = List.of();
     }

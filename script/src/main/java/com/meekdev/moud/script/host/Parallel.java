@@ -211,13 +211,15 @@ public final class Parallel {
         Object owner = host.ownership().current();
         List<Binding> bound = vm.bindings.computeIfAbsent(topic, key -> new ArrayList<>());
         Binding[] binding = new Binding[1];
+        Runnable[] forget = new Runnable[1];
         Connection connection = new Connection(() -> {
             bound.remove(binding[0]);
             kept.release();
+            forget[0].run();
         });
         binding[0] = new Binding(kept, owner, parallel, connection);
         bound.add(binding[0]);
-        host.ownership().onRelease(owner, connection::disconnect);
+        forget[0] = host.ownership().onRelease(owner, connection::disconnect);
         return connection;
     }
 

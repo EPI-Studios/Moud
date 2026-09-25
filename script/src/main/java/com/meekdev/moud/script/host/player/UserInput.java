@@ -109,6 +109,7 @@ public final class UserInput {
     private final HostSignal disconnected;
     private final Map<String, InputObject> live = new HashMap<>();
     private final Map<String, Binding> bindings = new LinkedHashMap<>();
+    private final Map<String, Runnable> forgets = new HashMap<>();
     private long bound;
 
     private UserInput(Host host, DevicesRef devices) {
@@ -212,14 +213,16 @@ public final class UserInput {
         Object owner = host.ownership().current();
         Binding binding = new Binding(name, handler.retain(), priority, List.copyOf(keys), bound++, owner);
         bindings.put(name, binding);
-        host.ownership().onRelease(owner, () -> {
+        forgets.put(name, host.ownership().onRelease(owner, () -> {
             if (bindings.get(name) == binding) unbind(name);
-        });
+        }));
     }
 
     private void unbind(String name) {
         Binding old = bindings.remove(name);
         if (old != null) old.handler().release();
+        Runnable forget = forgets.remove(name);
+        if (forget != null) forget.run();
     }
 
     public boolean dispatch(DevicesRef.Event event) {

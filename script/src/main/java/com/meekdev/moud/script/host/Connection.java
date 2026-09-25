@@ -1,5 +1,7 @@
 package com.meekdev.moud.script.host;
 
+import java.util.List;
+
 public final class Connection implements HostObject {
 
     private static final Builtin DISCONNECT = new Builtin("Connection:disconnect", args -> {
@@ -39,7 +41,7 @@ public final class Connection implements HostObject {
     }
 
     static Api.Decl decl() {
-        return new Api.Decl("Connection", null, java.util.List.of(
+        return new Api.Decl("Connection", null, List.of(
                 new Api.Member("disconnect", Api.Kind.METHOD, "() -> ()"),
                 new Api.Member("connected", Api.Kind.FIELD, "boolean")));
     }

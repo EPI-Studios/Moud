@@ -32,7 +32,7 @@ public final class MessagingLibrary {
                     String topic = topic(a.string(1));
                     Listener listener = new Listener(a.callable(2).retain());
                     topics.computeIfAbsent(topic, name -> new ArrayList<>()).add(listener);
-                    host.ownership().onRelease(host.ownership().current(), () -> drop(topics, topic, listener));
+                    listener.forget = host.ownership().onRelease(host.ownership().current(), () -> drop(topics, topic, listener));
                     return new Members("Subscription").method("unsubscribe", "() -> ()", inner -> {
                         drop(topics, topic, listener);
                         return null;
@@ -46,6 +46,7 @@ public final class MessagingLibrary {
         if (listener.gone) return;
         listener.gone = true;
         listener.handler.release();
+        listener.forget.run();
         List<Listener> listeners = topics.get(topic);
         if (listeners != null) listeners.remove(listener);
     }
@@ -57,6 +58,7 @@ public final class MessagingLibrary {
 
     private static final class Listener {
         private final Callable handler;
+        private Runnable forget = () -> { };
         private boolean gone;
 
         private Listener(Callable handler) {
