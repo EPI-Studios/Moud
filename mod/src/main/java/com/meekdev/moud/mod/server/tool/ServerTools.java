@@ -14,6 +14,7 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.Budget;
 import com.meekdev.moud.mod.transport.payload.ToolPayload;
 import com.meekdev.moud.script.api.ToolRef;
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ public final class ServerTools implements ToolRef {
     private record Press(UUID player, boolean down) {}
 
     private static final Queue<Press> PRESSES = new ConcurrentLinkedQueue<>();
+    private static final Budget PRESSED = new Budget(4);
     private static final Map<UUID, Tool[]> SLOTTED = new HashMap<>();
     private static final Map<UUID, Integer> EMPTIED = new HashMap<>();
     private static final Map<Tool, Dropped> DROPPED = new WeakHashMap<>();
@@ -61,8 +63,9 @@ public final class ServerTools implements ToolRef {
     private ServerTools() {}
 
     public static void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(ToolPayload.TYPE, (payload, context) ->
-                PRESSES.add(new Press(context.player().getUUID(), payload.down())));
+        ServerPlayNetworking.registerGlobalReceiver(ToolPayload.TYPE, (payload, context) -> {
+            if (PRESSED.take(context.player().getUUID())) PRESSES.add(new Press(context.player().getUUID(), payload.down()));
+        });
     }
 
     public static void tick(MinecraftServer server, @Nullable InstanceTree tree) {
@@ -92,6 +95,7 @@ public final class ServerTools implements ToolRef {
             }
             sync(player, body);
         }
+        PRESSED.refill();
         for (Press press; (press = PRESSES.poll()) != null; ) {
             ServerPlayer player = server.getPlayerList().getPlayer(press.player());
             Character body = player == null ? null : Physics.bodies().of(player, tree);

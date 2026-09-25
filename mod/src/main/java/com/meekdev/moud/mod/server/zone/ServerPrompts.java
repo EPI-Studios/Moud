@@ -8,6 +8,7 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.zone.ProximityPrompt;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.Budget;
 import com.meekdev.moud.mod.transport.payload.PromptPayload;
 import java.util.Queue;
 import java.util.UUID;
@@ -24,15 +25,19 @@ public final class ServerPrompts {
 
     private static final double SLACK = 2;
 
+    private static final Budget BUDGET = new Budget(8);
+
     private ServerPrompts() {}
 
     public static void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(PromptPayload.TYPE, (payload, context) ->
-                HEARD.add(new Heard(context.player().getUUID(), payload.prompt(), payload.kind())));
+        ServerPlayNetworking.registerGlobalReceiver(PromptPayload.TYPE, (payload, context) -> {
+            if (BUDGET.take(context.player().getUUID())) HEARD.add(new Heard(context.player().getUUID(), payload.prompt(), payload.kind()));
+        });
     }
 
     public static void tick(MinecraftServer server) {
         InstanceTree tree = ServerScene.tree();
+        BUDGET.refill();
         for (Heard heard; (heard = HEARD.poll()) != null; ) {
             if (tree == null) continue;
             ServerPlayer player = server.getPlayerList().getPlayer(heard.player());

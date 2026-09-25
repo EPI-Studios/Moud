@@ -7,6 +7,7 @@ import com.meekdev.moud.core.nav.Walkers;
 import com.meekdev.moud.core.nav.Waypoint;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.Budget;
 import com.meekdev.moud.mod.transport.payload.PilotDownPayload;
 import com.meekdev.moud.mod.transport.payload.PilotUpPayload;
 import java.util.List;
@@ -22,16 +23,19 @@ public final class ServerPilot implements Walkers.Pilot {
     public static final ServerPilot INSTANCE = new ServerPilot();
 
     private static final Queue<UUID> CANCELLED = new ConcurrentLinkedQueue<>();
+    private static final Budget BUDGET = new Budget(2);
 
     private ServerPilot() {}
 
     public static void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(PilotUpPayload.TYPE, (payload, context) ->
-                CANCELLED.add(context.player().getUUID()));
+        ServerPlayNetworking.registerGlobalReceiver(PilotUpPayload.TYPE, (payload, context) -> {
+            if (BUDGET.take(context.player().getUUID())) CANCELLED.add(context.player().getUUID());
+        });
     }
 
     public static void tick(MinecraftServer server) {
         InstanceTree tree = ServerScene.tree();
+        BUDGET.refill();
         for (UUID id; (id = CANCELLED.poll()) != null; ) {
             ServerPlayer player = server.getPlayerList().getPlayer(id);
             Character body = player == null || tree == null ? null : Physics.bodies().of(player, tree);

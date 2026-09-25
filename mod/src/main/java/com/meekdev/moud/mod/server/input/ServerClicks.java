@@ -10,6 +10,7 @@ import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.Budget;
 import com.meekdev.moud.mod.transport.payload.ClickPayload;
 import java.util.Queue;
 import java.util.UUID;
@@ -26,15 +27,19 @@ public final class ServerClicks {
 
     private static final double SLACK = 2;
 
+    private static final Budget BUDGET = new Budget(8);
+
     private ServerClicks() {}
 
     public static void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(ClickPayload.TYPE, (payload, context) ->
-                HEARD.add(new Heard(context.player().getUUID(), payload.detector(), payload.kind())));
+        ServerPlayNetworking.registerGlobalReceiver(ClickPayload.TYPE, (payload, context) -> {
+            if (BUDGET.take(context.player().getUUID())) HEARD.add(new Heard(context.player().getUUID(), payload.detector(), payload.kind()));
+        });
     }
 
     public static void tick(MinecraftServer server) {
         InstanceTree tree = ServerScene.tree();
+        BUDGET.refill();
         for (Heard heard; (heard = HEARD.poll()) != null; ) {
             if (tree == null || !(tree.byId(heard.detector()) instanceof ClickDetector detector)) continue;
             ServerPlayer player = server.getPlayerList().getPlayer(heard.player());
