@@ -114,6 +114,12 @@ public final class ServerChat implements ChatRef {
         }
     }
 
+    public void left(ServerPlayer player) {
+        String id = player.getUUID().toString();
+        buckets.remove(player.getUUID());
+        lastSent.keySet().removeIf(member -> member.player().equals(id));
+    }
+
     public void stop() {
         typed.clear();
         kept.clear();

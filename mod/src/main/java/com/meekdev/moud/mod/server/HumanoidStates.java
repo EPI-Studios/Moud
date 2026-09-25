@@ -98,6 +98,7 @@ public final class HumanoidStates {
     private static String floor(ServerLevel level, Vector3 feet, boolean grounded) {
         if (!grounded) return AIR;
         BlockPos below = BlockPos.containing(feet.x(), feet.y() - FEET, feet.z());
+        if (!level.isLoaded(below)) return AIR;
         BlockState state = level.getBlockState(below);
         if (state.isAir()) return AIR;
         return BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();

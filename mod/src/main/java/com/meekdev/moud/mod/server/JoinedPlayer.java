@@ -15,6 +15,8 @@ import net.minecraft.server.level.ServerPlayer;
 
 final class JoinedPlayer implements PlayerRef {
 
+    private static final double MOST_SECONDS = 1.0e11;
+
     private final ServerPlayer player;
 
     JoinedPlayer(ServerPlayer player) {
@@ -60,7 +62,7 @@ final class JoinedPlayer implements PlayerRef {
     public void ban(String reason, double seconds) {
         MinecraftServer server = player.level().getServer();
         if (server != null) {
-            Date until = seconds > 0 ? Date.from(Instant.now().plusSeconds((long) seconds)) : null;
+            Date until = seconds > 0 && seconds < MOST_SECONDS ? Date.from(Instant.now().plusSeconds((long) seconds)) : null;
             server.getPlayerList().getBans().add(new UserBanListEntry(new NameAndId(player.getGameProfile()), null, "moud", until, reason));
         }
         kick(reason);
