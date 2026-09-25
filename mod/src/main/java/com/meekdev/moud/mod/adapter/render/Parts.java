@@ -154,11 +154,11 @@ public final class Parts {
                 .extraSampler("Albedo", () -> albedo(key.texture()), 2)
                 .uniform("Maps", () -> bound)
                 .uniform("Glow", () -> glow);
-        if (!maps.normal().isEmpty()) builder.extraSampler("NormalMap", () -> map(maps.normal(), true), 5);
-        if (!maps.roughness().isEmpty()) builder.extraSampler("RoughnessMap", () -> map(maps.roughness(), false), 6);
-        if (!maps.metallic().isEmpty()) builder.extraSampler("MetallicMap", () -> map(maps.metallic(), false), 7);
-        if (!maps.occlusion().isEmpty()) builder.extraSampler("OcclusionMap", () -> map(maps.occlusion(), false), 8);
-        if (!maps.emission().isEmpty()) builder.extraSampler("EmissionMap", () -> map(maps.emission(), false), 9);
+        builder.extraSampler("NormalMap", () -> map(maps.normal(), true), 5)
+                .extraSampler("RoughnessMap", () -> map(maps.roughness(), false), 6)
+                .extraSampler("MetallicMap", () -> map(maps.metallic(), false), 7)
+                .extraSampler("OcclusionMap", () -> map(maps.occlusion(), false), 8)
+                .extraSampler("EmissionMap", () -> map(maps.emission(), false), 9);
         if (key.glows() && !key.glass()) builder.glowsInGBuffer();
         builder.onRender((ctx, batch) -> renderTextured(key, ctx, batch))
                 .register(Identifier.fromNamespaceAndPath("moud", name));
