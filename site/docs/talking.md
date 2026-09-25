@@ -95,7 +95,7 @@ choice, a settings change, or anything sent before the player has spawned.
 
 ## When you don't care if it arrives
 
-An `UnreliableRemote` is a channel that trades ordering and delivery for costing nothing:
+An `UnreliableRemote` is a channel that is allowed to drop messages and deliver them out of order:
 
 ```lua
 local looking = world:add("UnreliableRemote", { name = "looking" })
@@ -103,6 +103,11 @@ local looking = world:add("UnreliableRemote", { name = "looking" })
 
 Use it for something that is continuously replaced, where the next one is along shortly: a cursor, a
 look direction, a held key. A message that is lost is a frame of staleness and no more.
+
+Today every message goes over Minecraft's own connection, which is ordered and never loses
+anything, so an `UnreliableRemote` arrives exactly like a `Remote`, costs the same, and is dropped
+only by the same per tick limit. Write your code as if any message can go missing anyway: that is
+the promise, and a later version may stop keeping them.
 
 Unreliable delivery is its own class rather than a flag on `Remote`, so a purchase cannot go down an
 unreliable channel because somebody passed the wrong boolean.
