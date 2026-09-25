@@ -5,8 +5,8 @@ them. What you build is saved into the scene's `.scene` file and loaded like any
 See [Places, modules, scenes and scripts](place.md#scenes) for the files, and
 [Physics](physics.md) for what each joint does once the place plays.
 
-This page covers moving a selection and joining parts. Each other editor feature is described on the
-page of the thing it builds.
+This page covers moving a selection, joining parts and choosing the code editor scripts open in. Each
+other editor feature is described on the page of the thing it builds.
 
 ## Moving several things at once
 
@@ -228,3 +228,44 @@ beam:add("RopeConstraint", {
 
 See [Welds](physics.md#welds) and [Constraints](physics.md#constraints) for every property these
 take.
+
+## Choosing the code editor
+
+Double clicking a script, **Open in code editor**, and the file links in Output and Export open the
+script in a code editor at the line that matters. **File > Code Editor...** picks which one. The
+choice belongs to your computer, not the place: it is kept in `~/.moud/preferences.json` and every
+place you open uses it.
+
+| Choice | What runs |
+| --- | --- |
+| Auto | the first of Zed, VS Code, VSCodium, Cursor and Sublime Text that is installed, then Notepad on Windows, the default text editor on macOS, or `xdg-open` on Linux |
+| Zed | `zed <place> <file>:<line>` |
+| VS Code, VSCodium, Cursor | `code <place> --goto <file>:<line>`, with `codium` or `cursor` |
+| Sublime Text | `subl <place> <file>:<line>` |
+| IntelliJ IDEA, WebStorm | `idea <place> --line <line> <file>`, with `webstorm` |
+| System default | `xdg-open <file>` on Linux, `open -t <file>` on macOS, `start "" <file>` on Windows, with no line |
+| Custom command | your own command |
+
+The dialog shows the command it would run for `place.toml`, and **Test** runs it. When the editor you
+chose is not installed, Output says so and names the program it looked for.
+
+Each editor is looked for on your `PATH` first, then where its installer puts it: `~/.local/bin`,
+`/snap/bin` and Flatpak on Linux, the app bundles in `/Applications` and Homebrew on macOS, and
+`%LOCALAPPDATA%\Programs` and `Program Files` on Windows. JetBrains IDEs are found through the
+launcher scripts Toolbox makes. If yours lives somewhere else, put its folder on your `PATH` or use a
+custom command with the full path.
+
+A custom command is split into words the way a shell would, with double or single quotes keeping
+spaces together, but no shell runs it, so pipes and `~` mean nothing. These are filled in:
+
+- `{file}`, the full path of the script,
+- `{line}`, the line, 1 when there is none,
+- `{folder}`, the place's root folder.
+
+With no `{file}` in it, the path goes on the end.
+
+```text
+"C:\Program Files\Notepad++\notepad++.exe" -n{line} "{file}"
+kitty -e nvim +{line} {file}
+emacsclient -n +{line} {file}
+```

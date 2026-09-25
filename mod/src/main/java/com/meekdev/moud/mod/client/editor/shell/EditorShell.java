@@ -85,6 +85,7 @@ public final class EditorShell {
     private final WorldImportDialog worldImport = new WorldImportDialog();
     private final ProjectSettingsDialog settings = new ProjectSettingsDialog(document, icons);
     private final ExportDialog export = new ExportDialog(document);
+    private final CodeEditorDialog codeEditor = new CodeEditorDialog();
     private final Commands commands = new Commands();
 
     private boolean closePrompt;
@@ -181,6 +182,7 @@ public final class EditorShell {
         commands.add(new EditorCommand("backups", "File", "Scene Backups...", null, scenes::ready, scenes::askBackups));
         commands.add(new EditorCommand("import-world", "File", "Import Minecraft World...", null, scenes::ready, worldImport::open));
         commands.add(new EditorCommand("project-settings", "File", "Project Settings...", null, scenes::ready, settings::open));
+        commands.add(new EditorCommand("code-editor", "File", "Code Editor...", null, () -> true, codeEditor::open));
         commands.add(new EditorCommand("export", "File", "Export...", Shortcut.ctrl(ImGuiKey.E, "E"), scenes::ready, export::open));
         commands.add(new EditorCommand("close-project", "File", "Close Project", null, () -> true, this::closeProject));
         commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo));
@@ -335,6 +337,7 @@ public final class EditorShell {
             worldImport.render();
             settings.render();
             export.render();
+            codeEditor.render();
             animation.renderDialogs();
             document.frame(ImGui.isAnyItemActive() || ImGui.isMouseDown(ImGuiMouseButton.Left));
         } catch (RuntimeException e) {
