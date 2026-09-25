@@ -5,6 +5,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.render.Environment;
 import com.meekdev.moud.mod.features.Feature;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
 import net.minecraft.client.Camera;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.SkyRenderer;
@@ -43,6 +44,14 @@ abstract class SkyMixin {
                                  MoonPhase moonPhase, float rainBrightness, float starBrightness, CallbackInfo ci) {
         Sky sky = Environment.sky();
         if (sky != null && !sky.celestialBodiesShown) ci.cancel();
+    }
+
+    @Inject(method = "renderSunMoonAndStars",
+            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", ordinal = 0, shift = At.Shift.AFTER))
+    private void moud$tiltBodies(PoseStack poseStack, float sunAngle, float moonAngle, float starAngle,
+                                 MoonPhase moonPhase, float rainBrightness, float starBrightness, CallbackInfo ci) {
+        float latitude = Environment.latitude();
+        if (latitude != 0) poseStack.mulPose(Axis.XP.rotationDegrees(latitude));
     }
 
     @Inject(method = "renderSun", at = @At("HEAD"), cancellable = true)

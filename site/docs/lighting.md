@@ -67,9 +67,8 @@ lighting:setMinutesAfterMidnight(6 * 60)     -- sunrise
 | `lighting:getMoonDirection()` | the other way |
 
 `geographicLatitude` tilts the sun's path: 0 sends it straight overhead at noon, 90 keeps it near the
-horizon all day. It turns the direction those two methods give, and with it the light and the shadows
-on mesh parts. It does not move the game's own sun sprite, which keeps the path it always had; a
-`sunTextureId` is drawn along the tilted path instead.
+horizon all day. It turns the direction those two methods give, and with it the light, the shadows on
+mesh parts, and the sun, moon and stars in the sky, so the sun you see is the one casting the shadows.
 
 `getSunDirection` is what you point things at when they have to follow the sun:
 

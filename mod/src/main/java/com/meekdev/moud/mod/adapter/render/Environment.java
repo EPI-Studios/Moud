@@ -70,6 +70,10 @@ public final class Environment {
         return sunDirection;
     }
 
+    public static float latitude() {
+        return lighting == null ? 0 : (float) Math.clamp(lighting.geographicLatitude, -90, 90);
+    }
+
     public static void frame() {
         InstanceTree tree = ClientScene.tree();
         lighting = Environments.lighting(tree);
