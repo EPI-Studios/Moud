@@ -6,6 +6,7 @@ import com.meekdev.moud.core.character.ViewModels;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.place.SyncedFiles;
+import com.meekdev.moud.mod.place.SyncedFiles.Stamp;
 import com.meekdev.moud.mod.transport.payload.PlaceFilePayload;
 import com.meekdev.moud.mod.transport.payload.PlaceFileUpPayload;
 import java.io.IOException;
@@ -33,6 +34,16 @@ public final class PlaceFiles {
         if (root == null) return null;
         try {
             return SyncedFiles.read(root, res);
+        } catch (IOException | IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    public static @Nullable Stamp stamp(String res) {
+        Path root = ClientPlace.root();
+        if (root == null) return null;
+        try {
+            return SyncedFiles.stamp(root, res);
         } catch (IOException | IllegalArgumentException ignored) {
             return null;
         }

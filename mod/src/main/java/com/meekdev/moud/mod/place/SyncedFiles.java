@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import org.jspecify.annotations.Nullable;
 
 public final class SyncedFiles {
@@ -20,9 +22,12 @@ public final class SyncedFiles {
     public static final List<String> EXTENSIONS = List.of("anim", "bbmodel");
     public static final int MAX_BYTES = 8 * 1024 * 1024;
 
-    private record Copy(byte @Nullable [] bytes) {}
+    public record Stamp(long size, long modified) {}
+
+    private record Copy(byte @Nullable [] bytes, long arrival) {}
 
     private static final Map<String, Copy> FROM_SERVER = new ConcurrentHashMap<>();
+    private static final AtomicLong ARRIVALS = new AtomicLong();
 
     private final Map<String, byte @Nullable []> changed = new LinkedHashMap<>();
 
@@ -99,7 +104,7 @@ public final class SyncedFiles {
     }
 
     public static void arrived(String res, byte @Nullable [] bytes) {
-        FROM_SERVER.put(res, new Copy(bytes));
+        FROM_SERVER.put(res, new Copy(bytes, ARRIVALS.incrementAndGet()));
     }
 
     public static Set<String> dropCopies() {
@@ -113,5 +118,14 @@ public final class SyncedFiles {
         if (copy != null) return copy.bytes();
         Path file = root.resolve(Res.parse(res));
         return Files.isRegularFile(file) ? Files.readAllBytes(file) : null;
+    }
+
+    public static @Nullable Stamp stamp(Path root, String res) throws IOException {
+        Copy copy = FROM_SERVER.get(res);
+        if (copy != null) return new Stamp(-1, copy.arrival());
+        Path file = root.resolve(Res.parse(res));
+        if (!Files.isRegularFile(file)) return null;
+        BasicFileAttributes attributes = Files.readAttributes(file, BasicFileAttributes.class);
+        return new Stamp(attributes.size(), attributes.lastModifiedTime().toMillis());
     }
 }

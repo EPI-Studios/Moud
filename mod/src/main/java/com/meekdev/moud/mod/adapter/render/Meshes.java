@@ -25,6 +25,7 @@ import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.PlaceFiles;
+import com.meekdev.moud.mod.place.SyncedFiles.Stamp;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -44,7 +45,7 @@ import org.jspecify.annotations.Nullable;
 
 public final class Meshes {
 
-    private record Loaded(Model model, int hash) {}
+    private record Loaded(Model model, int hash, @Nullable Stamp stamp) {}
 
     private record Playing(Animator animator, String clip) {}
 
@@ -342,7 +343,7 @@ public final class Meshes {
         if (id == null || ModelFormat.fromIdentifier(id) == null) return missing(meshId, "is not a model file");
         try {
             Model model = Models.load(id);
-            MODELS.put(slot, new Loaded(model, 0));
+            MODELS.put(slot, new Loaded(model, 0, null));
             return model;
         } catch (RuntimeException e) {
             return missing(meshId, e.getMessage());
@@ -357,10 +358,15 @@ public final class Meshes {
         Long last = CHECKED.get(slot);
         if (known != null && last != null && now - last < 1000) return known.model();
         CHECKED.put(slot, now);
+        Stamp stamp = PlaceFiles.stamp(meshId);
+        if (known != null && stamp != null && stamp.equals(known.stamp())) return known.model();
         byte[] bytes = PlaceFiles.read(meshId);
         if (bytes == null) return known != null ? known.model() : missing(meshId, "is not in the place");
         int hash = Arrays.hashCode(bytes);
-        if (known != null && known.hash() == hash) return known.model();
+        if (known != null && known.hash() == hash) {
+            MODELS.put(slot, new Loaded(known.model(), hash, stamp));
+            return known.model();
+        }
         ModelFormat format = ModelFormat.fromPath(meshId);
         if (format == null) return missing(meshId, "is not a model file");
         try {
@@ -371,7 +377,7 @@ public final class Meshes {
                     ? Models.load(AmmeshConverter.convert(bytes, PlaceFiles.idOf(meshId)), ModelFormat.AMMESH)
                     : Models.load(bytes, format);
             if (known != null) known.model().dispose();
-            MODELS.put(slot, new Loaded(model, hash));
+            MODELS.put(slot, new Loaded(model, hash, stamp));
             MISSING.remove(meshId);
             return model;
         } catch (RuntimeException e) {
