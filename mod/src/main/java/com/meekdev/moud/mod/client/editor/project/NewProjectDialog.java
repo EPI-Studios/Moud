@@ -68,7 +68,7 @@ public final class NewProjectDialog {
     }
 
     public void open() {
-        nameInput.set("");
+        nameInput.set(freeName());
         template = ProjectStore.Template.BASEPLATE;
         openRequested = true;
         focusName = true;
@@ -111,7 +111,8 @@ public final class NewProjectDialog {
             focusName = false;
         }
         boolean[] submitted = {false};
-        field(() -> submitted[0] = ImGui.inputTextWithHint("##new-project-name", "My place", nameInput, ImGuiInputTextFlags.EnterReturnsTrue));
+        field(() -> submitted[0] = ImGui.inputTextWithHint("##new-project-name", "My place", nameInput,
+                ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll));
         ImGui.dummy(0.0f, EditorScale.of(14.0f));
         HubStyle.label("Location");
         float browseWidth = EditorScale.of(96.0f);
@@ -213,6 +214,13 @@ public final class NewProjectDialog {
     private String previewPath() {
         String name = nameInput.get().trim();
         return currentParent().filter(parent -> !name.isEmpty()).map(parent -> parent.resolve(name).toString()).orElse("-");
+    }
+
+    private String freeName() {
+        Optional<Path> parent = currentParent();
+        String name = "My place";
+        for (int n = 2; parent.isPresent() && Files.exists(parent.get().resolve(name)); n++) name = "My place " + n;
+        return name;
     }
 
     private Optional<Path> currentParent() {
