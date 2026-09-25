@@ -17,6 +17,7 @@ public final class ClientTools {
 
     private static final Map<Tool, Boolean> HELD = new WeakHashMap<>();
     private static boolean pressed;
+    private static @Nullable Tool active;
 
     private static boolean holding;
 
@@ -28,6 +29,7 @@ public final class ClientTools {
 
     public static void idle() {
         holding = false;
+        release();
     }
 
     public static void tick(InstanceTree tree, @Nullable Character own) {
@@ -45,10 +47,28 @@ public final class ClientTools {
         boolean down = client.screen == null && client.options.keyAttack.isDown();
         Tool tool = own == null ? null : Tools.held(own);
         holding = tool != null;
+        if (active != tool) active = null;
         if (down == pressed) return;
         pressed = down;
+        if (!down) {
+            release();
+            return;
+        }
         if (tool == null || tool.manualActivationOnly) return;
-        Tools.activate(tool, down);
+        active = tool;
+        Tools.activate(tool, true);
+        send(true);
+    }
+
+    private static void release() {
+        Tool tool = active;
+        if (tool == null) return;
+        active = null;
+        if (tool.isAlive()) Tools.activate(tool, false);
+        send(false);
+    }
+
+    private static void send(boolean down) {
         if (ClientPlayNetworking.canSend(ToolPayload.TYPE)) ClientPlayNetworking.send(new ToolPayload(down));
     }
 }
