@@ -269,9 +269,9 @@ Methods:
 
 | Property | Type |
 |---|---|
-| `joined` | `PlayerSignal` |
-| `leaving` | `PlayerSignal` |
-| `spawned` | `PlayerSignal` |
+| `joined` | `PlayerSignal` (server) |
+| `leaving` | `PlayerSignal` (server) |
+| `spawned` | `PlayerSignal` (server) |
 | `autoSpawn` | `boolean` (server) |
 | `respawnTime` | `number` (server) |
 | `controls` | `PlayerControls` (client) |

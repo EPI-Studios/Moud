@@ -24,6 +24,7 @@ import com.meekdev.moud.script.host.Api;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
 import com.meekdev.moud.script.host.HostObject;
+import com.meekdev.moud.script.host.HostSignal;
 import com.meekdev.moud.script.host.Members;
 import com.meekdev.moud.script.host.Results;
 import com.meekdev.moud.script.host.Values;
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 public final class Players {
 
@@ -287,9 +289,9 @@ public final class Players {
         }).decl());
         InstanceTree tree = host.world().tree();
         Members players = new Members("Players")
-                .value("joined", "PlayerSignal", host.joinedSignal())
-                .value("leaving", "PlayerSignal", host.leavingSignal())
-                .value("spawned", "PlayerSignal", host.spawnedSignal())
+                .field("joined", "PlayerSignal", onServer(host, "joined", host.joinedSignal()))
+                .field("leaving", "PlayerSignal", onServer(host, "leaving", host.leavingSignal()))
+                .field("spawned", "PlayerSignal", onServer(host, "spawned", host.spawnedSignal()))
                 .method("all", "() -> { Character }", a -> bodies(bodies(tree, null, Double.POSITIVE_INFINITY, null)))
                 .method("near", "(position: Vector3, radius: number, except: Instance?) -> { Character }",
                         a -> bodies(bodies(tree, a.vector(1), a.number(2), a.instance(3, null))))
@@ -505,6 +507,13 @@ public final class Players {
             host.global("input", "Input", input);
             host.declare(input);
         }
+    }
+
+    private static Supplier<Object> onServer(Host host, String name, HostSignal signal) {
+        return () -> {
+            if (host.client()) throw new HostError("players.%s fires on the server", name);
+            return signal;
+        };
     }
 
     private static Members input(InputRef input) {

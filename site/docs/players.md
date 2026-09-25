@@ -47,7 +47,8 @@ end)
 `game.players.spawned` fires every time a player gets a new body: the first one right after
 `joined`, then after each respawn or `player:spawn()` that made a new body. A body that was only
 moved does not fire it. That makes it the place to set up a fresh body, because everything you did to
-the last one is gone:
+the last one is gone. Like `joined` and `leaving`, it fires on the server only, and reading it in a
+`LocalScript` is an error:
 
 ```lua
 game.players.spawned:connect(function(player)
