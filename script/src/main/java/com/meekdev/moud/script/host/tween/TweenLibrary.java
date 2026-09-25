@@ -15,6 +15,7 @@ import com.meekdev.moud.script.host.HostObject;
 import com.meekdev.moud.script.host.HostSignal;
 import com.meekdev.moud.script.host.InstanceAccess;
 import com.meekdev.moud.script.host.Members;
+import com.meekdev.moud.script.host.Values;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -96,9 +97,11 @@ public final class TweenLibrary {
             CFrame target;
             if (key.equals("position")) {
                 if (!(value instanceof Vector3 at)) throw new HostError("position expects a vec3");
+                Values.real(at, "position");
                 target = Transforms.localFor(instance, world.withPosition(at)).mul(CFrame.at(spatial.pivot));
             } else {
                 if (!(value instanceof CFrame turn)) throw new HostError("rotation expects a cframe");
+                Values.real(turn, "rotation");
                 target = spatial.cframe.withRotation(Transforms.localFor(instance, new CFrame(Vector3.ZERO, turn.rotation())).rotation());
             }
             return new Tween.Goal(frame, target);
@@ -120,7 +123,7 @@ public final class TweenLibrary {
     static double number(Map<String, Object> table, String key, double fallback) {
         Object value = table.get(key);
         if (value == null) return fallback;
-        if (value instanceof Number n) return n.doubleValue();
+        if (value instanceof Number n && !Double.isNaN(n.doubleValue())) return n.doubleValue();
         throw new HostError("%s expects a number", key);
     }
 

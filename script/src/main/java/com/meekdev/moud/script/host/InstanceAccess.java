@@ -138,7 +138,7 @@ public final class InstanceAccess {
             switch (key) {
                 case "position" -> {
                     frame(instance, frame, Transforms.localFor(instance,
-                            Transforms.world(instance).withPosition(expect(value, Vector3.class, "position", "a vec3")))
+                            Transforms.world(instance).withPosition(Values.real(expect(value, Vector3.class, "position", "a vec3"), "position")))
                             .mul(CFrame.at(spatial.pivot)));
                     return;
                 }
@@ -146,14 +146,15 @@ public final class InstanceAccess {
                     Quat rotation = switch (value) {
                         case Quat q -> q;
                         case CFrame c -> c.rotation();
-                        default -> throw new HostError("rotation expects a cframe or a quat");
+                        case null, default -> throw new HostError("rotation expects a cframe or a quat");
                     };
+                    Values.real(rotation, "rotation");
                     Quat local = Transforms.localFor(instance, new CFrame(Vector3.ZERO, rotation)).rotation();
                     frame(instance, frame, spatial.cframe.withRotation(local));
                     return;
                 }
                 case "worldCframe" -> {
-                    frame(instance, frame, Transforms.localFor(instance, expect(value, CFrame.class, "worldCframe", "a cframe")));
+                    frame(instance, frame, Transforms.localFor(instance, Values.real(expect(value, CFrame.class, "worldCframe", "a cframe"), "worldCframe")));
                     return;
                 }
                 default -> { }
@@ -240,14 +241,14 @@ public final class InstanceAccess {
     public static Object parse(PropertyDef property, Object value) {
         return switch (property.type()) {
             case BOOL -> value != null && !Boolean.FALSE.equals(value);
-            case INT, NUM -> expect(value, Number.class, property.name(), "a number").doubleValue();
+            case INT, NUM -> Values.real(expect(value, Number.class, property.name(), "a number").doubleValue(), property.name());
             case STRING, ASSET -> property.asset() && value instanceof ImageLibrary.Image image ? image.uri()
                     : expect(value, String.class, property.name(), "a string");
-            case VEC3 -> expect(value, Vector3.class, property.name(), "a vec3");
-            case COLOR -> expect(value, Color.class, property.name(), "a color");
-            case UDIM2 -> expect(value, UDim2.class, property.name(), "a udim2");
-            case CFRAME -> expect(value, CFrame.class, property.name(), "a cframe");
-            case QUAT -> expect(value, Quat.class, property.name(), "a quat");
+            case VEC3 -> Values.real(expect(value, Vector3.class, property.name(), "a vec3"), property.name());
+            case COLOR -> Values.real(expect(value, Color.class, property.name(), "a color"), property.name());
+            case UDIM2 -> Values.real(expect(value, UDim2.class, property.name(), "a udim2"), property.name());
+            case CFRAME -> Values.real(expect(value, CFrame.class, property.name(), "a cframe"), property.name());
+            case QUAT -> Values.real(expect(value, Quat.class, property.name(), "a quat"), property.name());
             case ENUM -> {
                 try {
                     yield Enums.parse(property.defaultValue().getClass(), expect(value, String.class, property.name(), "a string"));

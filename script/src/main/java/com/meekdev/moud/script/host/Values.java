@@ -274,6 +274,28 @@ public final class Values {
         };
     }
 
+    public static <T> T real(T value, String name) {
+        boolean nan = switch (value) {
+            case Double d -> d.isNaN();
+            case Vector3 v -> nan(v.x(), v.y(), v.z());
+            case CFrame c -> nan(c.position().x(), c.position().y(), c.position().z())
+                    || nan(c.rotation().x(), c.rotation().y(), c.rotation().z(), c.rotation().w());
+            case Quat q -> nan(q.x(), q.y(), q.z(), q.w());
+            case Color c -> nan(c.r(), c.g(), c.b(), c.a());
+            case UDim2 u -> nan(u.xScale(), u.xOffset(), u.yScale(), u.yOffset());
+            case null, default -> false;
+        };
+        if (nan) throw new HostError("%s cannot be %s", name, text(value));
+        return value;
+    }
+
+    private static boolean nan(double... values) {
+        for (double value : values) {
+            if (Double.isNaN(value)) return true;
+        }
+        return false;
+    }
+
     public static boolean isValue(Object value) {
         return value instanceof Vector3 || value instanceof CFrame || value instanceof Quat
                 || value instanceof Color || value instanceof UDim2;

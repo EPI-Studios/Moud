@@ -16,17 +16,17 @@ public final class Tasks {
 
     static void install(Host host) {
         Members task = new Members("Task")
-                .function("wait", "(seconds: number?) -> number", a -> Suspend.seconds(a.number(0, 0)))
+                .function("wait", "(seconds: number?) -> number", a -> Suspend.seconds(seconds(a, 0, 0)))
                 .function("spawn", "(handler: (...any) -> (), ...any) -> number", a -> (double) spawn(host, a.callable(0), a.from(1)))
                 .function("delay", "(seconds: number, handler: () -> ()) -> number",
-                        a -> (double) delay(host, a.number(0), a.callable(1)))
+                        a -> (double) delay(host, seconds(a, 0, 0), a.callable(1)))
                 .function("defer", "(handler: (...any) -> (), ...any) -> number", a -> (double) defer(host, a.callable(0), a.from(1)))
                 .function("cancel", "(handle: number) -> ()", a -> {
                     host.scheduler().cancel(a.integer(0));
                     return null;
                 })
-                .function("every", "(seconds: number, handler: () -> ()) -> TaskHandle", a -> every(host, a.number(0), a.callable(1)))
-                .function("after", "(seconds: number, handler: () -> ()) -> TaskHandle", a -> after(host, a.number(0), a.callable(1)))
+                .function("every", "(seconds: number, handler: () -> ()) -> TaskHandle", a -> every(host, seconds(a, 0, 0), a.callable(1)))
+                .function("after", "(seconds: number, handler: () -> ()) -> TaskHandle", a -> after(host, seconds(a, 0, 0), a.callable(1)))
                 .function("debounce", "(handler: (...any) -> (), seconds: number) -> (...any) -> ()", a -> debounce(host, a.callable(0), a.number(1)))
                 .function("throttle", "(handler: (...any) -> ...any, seconds: number) -> (...any) -> ...any", a -> throttle(host, a.callable(0), a.number(1)))
                 .function("desynchronize", "() -> ()", a -> host.parallel().desynchronize())
@@ -143,6 +143,12 @@ public final class Tasks {
             cancel.run();
             return null;
         });
+    }
+
+    private static double seconds(Args a, int at, double fallback) {
+        double seconds = a.number(at, fallback);
+        if (Double.isNaN(seconds)) throw a.error("argument %d is NaN", at + 1);
+        return seconds;
     }
 
     private static Object every(Host host, double seconds, Callable fn) {

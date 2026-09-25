@@ -6,6 +6,7 @@ import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
 import com.meekdev.moud.script.host.HostSignal;
 import com.meekdev.moud.script.host.Members;
+import com.meekdev.moud.script.host.Values;
 import java.util.LinkedHashMap;
 
 public final class InstanceAttributes {
@@ -17,13 +18,15 @@ public final class InstanceAttributes {
         Members shared = host.instances().shared();
         shared.method("setAttribute", "(name: string, value: any) -> ()", a -> {
             Instance instance = a.self();
+            String name = a.string(1);
+            Object value = Values.real(a.get(2), name);
             if (host.instances().edited(instance)) {
-                host.edits().attribute(instance, a.string(1), a.get(2));
+                host.edits().attribute(instance, name, value);
                 return null;
             }
             host.instances().checkAttribute(instance);
             try {
-                Instances.setAttribute(instance, a.string(1), a.get(2));
+                Instances.setAttribute(instance, name, value);
             } catch (IllegalArgumentException e) {
                 throw new HostError("%s", e.getMessage());
             }
