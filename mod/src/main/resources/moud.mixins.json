@@ -66,6 +66,7 @@
     "client.LookMixin",
     "client.DisconnectedDetails",
     "client.LoadingScreenMixin",
+    "client.ReloadOverlayMixin",
     "client.PauseMixin",
     "client.TitleMixin",
     "client.WindowMixin",
