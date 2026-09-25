@@ -33,7 +33,10 @@ bell.ended:connect(function() end)
   touching the music. See [Buses](#buses).
 - `fadeIn` is how many seconds the sound takes to come up to `volume`, and `stream = true` reads the
   file off disk as it plays instead of decoding it first.
-- `played` fires when the sound starts and `ended` when it finishes.
+- `played` fires when the sound starts and `ended` when it finishes. A sound made on the client
+  goes back to `playing = false` and `timePosition = 0` when it runs out. One the server plays stays
+  `playing` on the server until it calls `stop()`, because the server never hears it end; listen
+  for `ended` on the client instead.
 
 Where you parent the sound is what decides where it is heard from. `deck` above is whatever instance
 you put it in:

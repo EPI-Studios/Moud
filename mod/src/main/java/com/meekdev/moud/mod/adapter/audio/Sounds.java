@@ -36,6 +36,8 @@ public final class Sounds {
 
     private static final PropertyDef TIME_LENGTH = Classes.SOUND.property("timeLength");
     private static final PropertyDef IS_LOADED = Classes.SOUND.property("isLoaded");
+    private static final PropertyDef PLAYING = Classes.SOUND.property("playing");
+    private static final PropertyDef TIME_POSITION = Classes.SOUND.property("timePosition");
 
     private static final class Voice {
         @Nullable SoundHandle handle;
@@ -153,6 +155,11 @@ public final class Sounds {
             if (!voice.handle.isPlaying()) {
                 voice.handle = null;
                 sound.playbackLoudness = 0;
+                if (sound.id() < 0) {
+                    Instances.setBool(sound, PLAYING, false);
+                    Instances.setNum(sound, TIME_POSITION, 0);
+                    voice.wanted = false;
+                }
                 sound.ended.fire(sound);
                 continue;
             }
