@@ -2,6 +2,7 @@ package com.meekdev.moud.script.host.data;
 
 import com.meekdev.moud.core.scene.Json;
 import com.meekdev.moud.script.api.StoreRef;
+import com.meekdev.moud.script.host.Args;
 import com.meekdev.moud.script.host.Builtin;
 import com.meekdev.moud.script.host.Callable;
 import com.meekdev.moud.script.host.Host;
@@ -36,21 +37,21 @@ public final class StoreLibrary {
             return;
         }
         host.api().declare(new Members("Store")
-                .method("get", "(key: any) -> any", a -> null)
-                .method("set", "(key: any, value: any) -> ()", a -> null)
-                .method("remove", "(key: any) -> ()", a -> null)
-                .method("update", "(key: any, change: (old: any) -> any) -> any", a -> null)
+                .method("get", "(key: string | number) -> any", a -> null)
+                .method("set", "(key: string | number, value: any) -> ()", a -> null)
+                .method("remove", "(key: string | number) -> ()", a -> null)
+                .method("update", "(key: string | number, change: (old: any) -> any) -> any", a -> null)
                 .method("keys", "(prefix: string?, limit: number?) -> { string }", a -> null)
-                .method("session", "(key: any) -> StoreSession", a -> null).decl());
+                .method("session", "(key: string | number) -> StoreSession", a -> null).decl());
         host.api().declare(new Members("StoreSession")
                 .declare("data", "{ [string]: any }")
                 .method("save", "() -> ()", a -> null)
                 .method("release", "() -> ()", a -> null).decl());
         host.api().declare(new Members("OrderedStore")
-                .method("get", "(key: any) -> number?", a -> null)
-                .method("set", "(key: any, value: number) -> ()", a -> null)
-                .method("increment", "(key: any, delta: number?) -> number", a -> null)
-                .method("remove", "(key: any) -> ()", a -> null)
+                .method("get", "(key: string | number) -> number?", a -> null)
+                .method("set", "(key: string | number, value: number) -> ()", a -> null)
+                .method("increment", "(key: string | number, delta: number?) -> number", a -> null)
+                .method("remove", "(key: string | number) -> ()", a -> null)
                 .method("getSorted", "(ascending: boolean, limit: number?, min: number?, max: number?) -> { { key: string, value: number } }", a -> null).decl());
         host.global("orderedStore", "(name: string) -> OrderedStore", new Builtin("orderedStore", a -> {
             String name = a.string(0);
@@ -67,18 +68,18 @@ public final class StoreLibrary {
 
     private static Members store(Host host, StoreRef store, String name) {
         return new Members("Store")
-                .method("get", "(key: any) -> any", a -> decode(store.get(name, host.text(a.get(1)))))
-                .method("set", "(key: any, value: any) -> ()", a -> {
-                    store.set(name, host.text(a.get(1)), a.get(2) == null ? null : encode(a.get(2)));
+                .method("get", "(key: string | number) -> any", a -> decode(store.get(name, key(host, a))))
+                .method("set", "(key: string | number, value: any) -> ()", a -> {
+                    store.set(name, key(host, a), a.get(2) == null ? null : encode(a.get(2)));
                     return null;
                 })
-                .method("remove", "(key: any) -> ()", a -> {
-                    store.set(name, host.text(a.get(1)), null);
+                .method("remove", "(key: string | number) -> ()", a -> {
+                    store.set(name, key(host, a), null);
                     return null;
                 })
-                .method("update", "(key: any, change: (old: any) -> any) -> any", a -> {
+                .method("update", "(key: string | number, change: (old: any) -> any) -> any", a -> {
                     Callable change = a.callable(2);
-                    return decode(store.update(name, host.text(a.get(1)), old -> {
+                    return decode(store.update(name, key(host, a), old -> {
                         Object[] out = change.call(decode(old));
                         Object next = out == null || out.length == 0 ? null : out[0];
                         return next == null ? null : encode(next);
@@ -86,26 +87,32 @@ public final class StoreLibrary {
                 })
                 .method("keys", "(prefix: string?, limit: number?) -> { string }",
                         a -> new ArrayList<Object>(store.keys(name, a.string(1, ""), a.integer(2, 1000))))
-                .method("session", "(key: any) -> StoreSession", a -> session(host, store, name, host.text(a.get(1))));
+                .method("session", "(key: string | number) -> StoreSession", a -> session(host, store, name, key(host, a)));
+    }
+
+    private static String key(Host host, Args a) {
+        Object key = a.get(1);
+        if (key instanceof String || key instanceof Number) return host.text(key);
+        throw a.error("keys are text or numbers, not %s", Host.typeOf(key));
     }
 
     private static Members ordered(Host host, StoreRef store, String name) {
         return new Members("OrderedStore")
-                .method("get", "(key: any) -> number?", a -> number(store.get(name, host.text(a.get(1)))))
-                .method("set", "(key: any, value: number) -> ()", a -> {
-                    store.set(name, host.text(a.get(1)), encode(finite(a.number(2))));
+                .method("get", "(key: string | number) -> number?", a -> number(store.get(name, key(host, a))))
+                .method("set", "(key: string | number, value: number) -> ()", a -> {
+                    store.set(name, key(host, a), encode(finite(a.number(2))));
                     return null;
                 })
-                .method("increment", "(key: any, delta: number?) -> number", a -> {
+                .method("increment", "(key: string | number, delta: number?) -> number", a -> {
                     double delta = finite(a.number(2, 1));
-                    String next = store.update(name, host.text(a.get(1)), old -> {
+                    String next = store.update(name, key(host, a), old -> {
                         Double was = number(old);
                         return encode((was == null ? 0 : was) + delta);
                     });
                     return number(next);
                 })
-                .method("remove", "(key: any) -> ()", a -> {
-                    store.set(name, host.text(a.get(1)), null);
+                .method("remove", "(key: string | number) -> ()", a -> {
+                    store.set(name, key(host, a), null);
                     return null;
                 })
                 .method("getSorted", "(ascending: boolean, limit: number?, min: number?, max: number?) -> { { key: string, value: number } }", a -> {

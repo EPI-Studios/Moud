@@ -3572,21 +3572,21 @@ Methods:
 
 Methods:
 
-- `get(key: any): any`
-- `set(key: any, value: any): ()`
-- `remove(key: any): ()`
-- `update(key: any, change: (old: any) -> any): any`
+- `get(key: string | number): any`
+- `set(key: string | number, value: any): ()`
+- `remove(key: string | number): ()`
+- `update(key: string | number, change: (old: any) -> any): any`
 - `keys(prefix: string?, limit: number?): { string }`
-- `session(key: any): StoreSession`
+- `session(key: string | number): StoreSession`
 
 ## OrderedStore
 
 Methods:
 
-- `get(key: any): number?`
-- `set(key: any, value: number): ()`
-- `increment(key: any, delta: number?): number`
-- `remove(key: any): ()`
+- `get(key: string | number): number?`
+- `set(key: string | number, value: number): ()`
+- `increment(key: string | number, delta: number?): number`
+- `remove(key: string | number): ()`
 - `getSorted(ascending: boolean, limit: number?, min: number?, max: number?): { { key: string, value: number } }`
 
 ## MemoryStore

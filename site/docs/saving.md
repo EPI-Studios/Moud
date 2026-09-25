@@ -24,6 +24,8 @@ local new = players:update(id, function(old)
 end)
 ```
 
+- A key is text or a number. For a player's save use `player.id`, which stays the same when they
+  change their name.
 - `set(key, value)` writes the value under that key, replacing whatever was there.
 - `get(key)` reads it back, and returns `nil` when nothing has ever been written under that key. The
   usual shape is `local data = players:get(id) or { coins = 0 }`.
@@ -50,7 +52,7 @@ each other's copy of the same save.
 
 ```lua
 game.players.joined:connect(function(player)
-    local session = players:session(player.name)   -- errors when another server holds it
+    local session = players:session(player.id)     -- errors when another server holds it
     session.data.coins = (session.data.coins or 0) + 1
     session:save()
 end)
