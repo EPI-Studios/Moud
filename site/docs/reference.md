@@ -1,8 +1,8 @@
 # Reference
 
 Written out of the class registry rather than by hand, so it cannot describe a property
-that does not exist. Regenerate it by running `DumpTypes` in `script` and converting the
-file it writes.
+that does not exist. Regenerate it by running `DumpReference` in `script`, which brings every
+signature up to date and keeps the notes written beside them.
 
 A plain public field on a class is a replicated property; a public final signal is an
 event; a public final callback is a function a place assigns. Nothing is declared twice,
@@ -34,12 +34,17 @@ Methods:
 - `distanceSq(other: Vector3): number`
 - `dot(other: Vector3): number`
 - `cross(other: Vector3): Vector3`
-- `lerp(other: Vector3, t: number): Vector3`
+- `lerp(goal: Vector3, alpha: number): Vector3`
 - `angleTo(other: Vector3): number`
 - `flat(): Vector3`
 - `clampMagnitude(max: number): Vector3`
 - `abs(): Vector3`
 - `floor(): Vector3`
+- `add(other: Vector3): Vector3`
+- `sub(other: Vector3): Vector3`
+- `mul(by: number | Vector3): Vector3`
+- `div(by: number | Vector3): Vector3`
+- `neg(): Vector3`
 
 ## UDim2
 
@@ -75,9 +80,9 @@ Methods:
 
 Methods:
 
-- `slerp(other: Quat, t: number): Quat`
+- `slerp(goal: Quat, alpha: number): Quat`
 - `inverse(): Quat`
-- `rotate(v: Vector3): Vector3`
+- `rotate(vector: Vector3): Vector3`
 - `mul(other: Quat): Quat`
 - `__mul(other: Quat): Quat`
 
@@ -96,16 +101,21 @@ Methods:
 - `__mul(other: CFrame): CFrame`
 - `__mul(point: Vector3): Vector3`
 - `inverse(): CFrame`
-- `lerp(other: CFrame, t: number): CFrame`
+- `lerp(goal: CFrame, alpha: number): CFrame`
 - `toObjectSpace(other: CFrame): CFrame`
 - `toWorldSpace(other: CFrame): CFrame`
 - `pointToObjectSpace(point: Vector3): Vector3`
 - `pointToWorldSpace(point: Vector3): Vector3`
-- `vectorToObjectSpace(v: Vector3): Vector3`
-- `vectorToWorldSpace(v: Vector3): Vector3`
+- `vectorToObjectSpace(vector: Vector3): Vector3`
+- `vectorToWorldSpace(vector: Vector3): Vector3`
 - `lookAt(target: Vector3): CFrame`
+- `mul(other: CFrame): CFrame`
 
 ## Connection
+
+| Property | Type |
+|---|---|
+| `connected` | `boolean` |
 
 Methods:
 
@@ -113,45 +123,65 @@ Methods:
 
 ## ChangedSignal
 
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
 Methods:
 
 - `connect(handler: (property: string) -> ()): Connection`
 - `connectParallel(handler: (property: string) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (property: string) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (property: string) -> ()): Connection`
 
 ## InstanceSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (instance: Instance) -> ()): Connection`
 - `connectParallel(handler: (instance: Instance) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (instance: Instance) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (instance: Instance) -> ()): Connection`
 
 ## AttributeSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (name: string) -> ()): Connection`
 - `connectParallel(handler: (name: string) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (name: string) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (name: string) -> ()): Connection`
 
 ## AncestrySignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (child: Instance, parent: Instance?) -> ()): Connection`
 - `connectParallel(handler: (child: Instance, parent: Instance?) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (child: Instance, parent: Instance?) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (child: Instance, parent: Instance?) -> ()): Connection`
 
 ## AnySignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
@@ -163,93 +193,171 @@ Methods:
 
 ## NumberSignal
 
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
 Methods:
 
 - `connect(handler: (value: number) -> ()): Connection`
 - `connectParallel(handler: (value: number) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (value: number) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (value: number) -> ()): Connection`
 
 ## BoolSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (active: boolean) -> ()): Connection`
 - `connectParallel(handler: (active: boolean) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (active: boolean) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (active: boolean) -> ()): Connection`
 
 ## StringSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (value: string) -> ()): Connection`
 - `connectParallel(handler: (value: string) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (value: string) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (value: string) -> ()): Connection`
+
+## MarkerSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
+Methods:
+
+- `connect(handler: (value: any) -> ()): Connection`
+- `connectParallel(handler: (value: any) -> ()): Connection`
+- `once(handler: (value: any) -> ()): Connection`
+- `every(n: number, handler: (value: any) -> ()): Connection`
+- `wait(timeout: number?): ...any`
 
 ## StepSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (delta: number) -> ()): Connection`
 - `connectParallel(handler: (delta: number) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (delta: number) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
-
-## ReloadedSignal
-
-Methods:
-
-- `connect(handler: () -> ()): Connection`
-- `connectParallel(handler: () -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
-- `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (delta: number) -> ()): Connection`
 
 ## PlayerSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (player: Player) -> ()): Connection`
 - `connectParallel(handler: (player: Player) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (player: Player) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (player: Player) -> ()): Connection`
 
 ## ExplosionSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (part: Instance, distance: number) -> ()): Connection`
 - `connectParallel(handler: (part: Instance, distance: number) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (part: Instance, distance: number) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (part: Instance, distance: number) -> ()): Connection`
+
+## StrikeSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
+Methods:
+
+- `connect(handler: (position: Vector3) -> ()): Connection`
+- `connectParallel(handler: (position: Vector3) -> ()): Connection`
+- `once(handler: (position: Vector3) -> ()): Connection`
+- `every(n: number, handler: (position: Vector3) -> ()): Connection`
+- `wait(timeout: number?): ...any`
+
+## RemoteServerSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
+Methods:
+
+- `connect(handler: (body: Character?, ...any) -> ()): Connection`
+- `connectParallel(handler: (body: Character?, ...any) -> ()): Connection`
+- `once(handler: (body: Character?, ...any) -> ()): Connection`
+- `every(n: number, handler: (body: Character?, ...any) -> ()): Connection`
+- `wait(timeout: number?): ...any`
+
+## RemotePlayerSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
+Methods:
+
+- `connect(handler: (player: Player, ...any) -> ()): Connection`
+- `connectParallel(handler: (player: Player, ...any) -> ()): Connection`
+- `once(handler: (player: Player, ...any) -> ()): Connection`
+- `every(n: number, handler: (player: Player, ...any) -> ()): Connection`
+- `wait(timeout: number?): ...any`
 
 ## PointerSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (x: number, y: number) -> ()): Connection`
 - `connectParallel(handler: (x: number, y: number) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (x: number, y: number) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (x: number, y: number) -> ()): Connection`
 
 ## FocusLostSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (enterPressed: boolean) -> ()): Connection`
 - `connectParallel(handler: (enterPressed: boolean) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (enterPressed: boolean) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (enterPressed: boolean) -> ()): Connection`
 
 ## Player
 
@@ -319,7 +427,7 @@ Methods:
 
 | Property | Type |
 |---|---|
-| `completed` | `StepSignal` |
+| `completed` | `AnySignal` |
 
 Methods:
 
@@ -327,6 +435,8 @@ Methods:
 - `resume(): ()`
 - `cancel(): ()`
 - `state(): string`
+
+<a id="instance"></a>
 
 ## Instance
 
@@ -469,6 +579,9 @@ Extends [Spatial](#spatial).
 | `textureOffset` | `Vector3` |
 | `transparency` | `number` |
 | `velocity` | `Vector3` |
+| `castShadow` | `boolean` |
+| `studsPerTile` | `number` |
+| `texture` | `string` |
 
 Methods:
 
@@ -536,6 +649,28 @@ Extends [Spatial](#spatial).
 | `usingItem` | `boolean` |
 | `velocity` | `Vector3` |
 | `whiteFlash` | `number` |
+| `leftItemOverride` | `string` |
+| `rightItemOverride` | `string` |
+| `humanoid` | `Humanoid` |
+| `animator` | `Animator` |
+| `viewModel` | `ViewModel` |
+| `backpack` | `Backpack` |
+| `appearance` | `Appearance` |
+| `armour` | `Armour` |
+| `wings` | `Wings` |
+| `joints` | `CharacterJoints` |
+| `root` | `Attachment` |
+| `hitbox` | `Part` |
+| `head` | `BodyLimb` |
+| `torso` | `BodyLimb` |
+| `rightArm` | `BodyLimb` |
+| `leftArm` | `BodyLimb` |
+| `rightLeg` | `BodyLimb` |
+| `leftLeg` | `BodyLimb` |
+| `spinInner` | `Limb` |
+| `spinOuter` | `Limb` |
+| `rightWing` | `Limb` |
+| `leftWing` | `Limb` |
 
 Methods:
 
@@ -747,6 +882,10 @@ Methods:
 
 Extends [Instance](#instance).
 
+| Property | Type |
+|---|---|
+| `animationPlayed` | `InstanceSignal` |
+
 Methods:
 
 - `loadAnimation(animation: Instance): AnimationTrack`
@@ -773,6 +912,8 @@ Extends [Instance](#instance).
 | `speed` | `number` |
 | `timePosition` | `number` |
 | `weight` | `number` |
+| `blend` | `"normal" \| "additive"` |
+| `mask` | `string` |
 
 Methods:
 
@@ -780,7 +921,7 @@ Methods:
 - `stop(fadeTime: number?): ()`
 - `adjustSpeed(speed: number): ()`
 - `adjustWeight(weight: number, fadeTime: number?): ()`
-- `getMarkerReachedSignal(name: string): StringSignal`
+- `getMarkerReachedSignal(name: string): MarkerSignal`
 
 `timePosition` and `length` are not replicated.
 
@@ -794,6 +935,70 @@ Extends [Instance](#instance).
 |---|---|
 | `animationId` | `string` |
 
+<a id="animationcontroller"></a>
+
+## AnimationController
+
+Extends [Instance](#instance).
+
+<a id="ikcontrol"></a>
+
+## IKControl
+
+Extends [Instance](#instance).
+
+| Property | Type |
+|---|---|
+| `axis` | `Vector3` |
+| `chainRoot` | `Instance?` |
+| `enabled` | `boolean` |
+| `endEffector` | `Instance?` |
+| `offset` | `CFrame` |
+| `pole` | `Instance?` |
+| `priority` | `number` |
+| `rootWeight` | `number` |
+| `smoothTime` | `number` |
+| `target` | `Instance?` |
+| `targetCframe` | `CFrame` |
+| `type` | `"aim" \| "lookAt" \| "position" \| "transform"` |
+| `weight` | `number` |
+
+<a id="jointspring"></a>
+
+## JointSpring
+
+Extends [Instance](#instance).
+
+| Property | Type |
+|---|---|
+| `axis` | `Vector3` |
+| `damping` | `number` |
+| `enabled` | `boolean` |
+| `gravity` | `Vector3` |
+| `joint` | `Instance?` |
+| `length` | `number` |
+| `maxAngle` | `number` |
+| `stiffness` | `number` |
+| `weight` | `number` |
+
+<a id="viewmodel"></a>
+
+## ViewModel
+
+Extends [Spatial](#spatial).
+
+| Property | Type |
+|---|---|
+| `enabled` | `boolean` |
+| `fieldOfView` | `number` |
+| `model` | `string` |
+| `animator` | `Animator` |
+| `joints` | `{ [string]: Bone }` |
+
+Methods:
+
+- `isActive(): boolean`
+
 <a id="keyframesequence"></a>
 
 ## KeyframeSequence
@@ -804,6 +1009,9 @@ Extends [Instance](#instance).
 |---|---|
 | `looped` | `boolean` |
 | `priority` | `number` |
+| `blend` | `"normal" \| "additive"` |
+| `mask` | `string` |
+| `space` | `"body" \| "view"` |
 
 <a id="keyframe"></a>
 
@@ -872,6 +1080,17 @@ Extends [Instance](#instance).
 ## Attachment
 
 Extends [Spatial](#spatial).
+
+<a id="bone"></a>
+
+## Bone
+
+Extends [Attachment](#attachment).
+
+| Property | Type |
+|---|---|
+| `scale` | `Vector3` |
+| `transform` | `CFrame` |
 
 <a id="limb"></a>
 
@@ -1395,6 +1614,12 @@ Extends [Instance](#instance).
 | `shadowSoftness` | `number` |
 | `thunder` | `number` |
 | `timeScale` | `number` |
+| `blockShadowDistance` | `number` |
+| `dayCycle` | `boolean` |
+| `shadowBias` | `number` |
+| `shadowFade` | `number` |
+| `shadowNormalBias` | `number` |
+| `shadowStrength` | `number` |
 
 Methods:
 
@@ -1402,6 +1627,8 @@ Methods:
 - `setMinutesAfterMidnight(minutes: number): ()`
 - `getSunDirection(): Vector3`
 - `getMoonDirection(): Vector3`
+- `getPresetNames(): { PresetName }`
+- `applyPreset(name: PresetName, seconds: number?): ()`
 
 <a id="sky"></a>
 
@@ -1453,6 +1680,26 @@ Extends [Instance](#instance).
 | `cover` | `number` |
 | `density` | `number` |
 | `enabled` | `boolean` |
+
+<a id="weather"></a>
+
+## Weather
+
+Extends [Instance](#instance).
+
+| Property | Type |
+|---|---|
+| `struck` | `StrikeSignal` |
+| `intensity` | `number` |
+| `kind` | `"clear" \| "rain" \| "snow" \| "storm" \| "fog"` |
+| `strikePosition` | `Vector3` |
+| `strikes` | `number` |
+| `transition` | `number` |
+| `wind` | `Vector3` |
+
+Methods:
+
+- `strike(position: Vector3?): ()`
 
 <a id="cape"></a>
 
@@ -1613,7 +1860,7 @@ Extends [Instance](#instance).
 |---|---|
 | `onServer` | `RemoteServerSignal` |
 | `onServerPlayer` | `RemotePlayerSignal` |
-| `onClient` | `InstanceSignal` |
+| `onClient` | `AnySignal` |
 | `accepts` | `string` |
 
 <a id="unreliableremote"></a>
@@ -1624,8 +1871,8 @@ Extends [Remote](#remote).
 
 | Property | Type |
 |---|---|
-| `onServer` | `InstanceSignal` |
-| `onClient` | `InstanceSignal` |
+| `onServer` | `RemoteServerSignal` |
+| `onClient` | `AnySignal` |
 
 <a id="remotefunction"></a>
 
@@ -2061,6 +2308,28 @@ Extends [UIComponent](#uicomponent).
 |---|---|
 | `cornerRadius` | `UDim2` |
 
+<a id="viewportframe"></a>
+
+## ViewportFrame
+
+Extends [GuiObject](#guiobject).
+
+| Property | Type |
+|---|---|
+| `ambient` | `Color` |
+| `camera` | `Instance?` |
+| `imageColor` | `Color` |
+| `imageTransparency` | `number` |
+| `lightColor` | `Color` |
+| `lightDirection` | `Vector3` |
+| `resolutionScale` | `number` |
+| `updateRate` | `number` |
+
+Methods:
+
+- `screenRay(x: number, y: number): (Vector3, Vector3)`
+- `pick(x: number, y: number, range: number?): (Instance?, Vector3?)`
+
 <a id="sound"></a>
 
 ## Sound
@@ -2404,12 +2673,13 @@ Extends [Instance](#instance).
 | `shouldDeliver` | `((...any) -> ...any)?` |
 | `shouldSend` | `((...any) -> ...any)?` |
 | `onIncoming` | `((...any) -> ...any)?` |
-| `messageReceived` | `InstanceSignal` |
+| `messageReceived` | `ChatMessageSignal` |
 | `autoJoin` | `boolean` |
 | `color` | `Color` |
 | `displayName` | `string` |
 | `maxLength` | `number` |
 | `slowMode` | `number` |
+| `richText` | `string` |
 
 <a id="textsource"></a>
 
@@ -2422,6 +2692,7 @@ Extends [Instance](#instance).
 | `body` | `Instance?` |
 | `canSend` | `boolean` |
 | `player` | `string` |
+| `richText` | `string` |
 
 <a id="chatinputbar"></a>
 
@@ -3146,6 +3417,37 @@ Methods:
 
 Scripts inside an actor run in a VM of their own. See [Parallel Luau](parallel.md).
 
+<a id="characterjoints"></a>
+
+## CharacterJoints
+
+Extends [Folder](#folder).
+
+| Property | Type |
+|---|---|
+| `root` | `Motor` |
+| `cape` | `Motor` |
+| `spinInner` | `Motor` |
+| `spinOuter` | `Motor` |
+| `rightWing` | `Motor` |
+| `leftWing` | `Motor` |
+| `head` | `Motor` |
+| `torso` | `Motor` |
+| `rightArm` | `Motor` |
+| `leftArm` | `Motor` |
+| `rightLeg` | `Motor` |
+| `leftLeg` | `Motor` |
+
+<a id="bodylimb"></a>
+
+## BodyLimb
+
+Extends [Limb](#limb).
+
+| Property | Type |
+|---|---|
+| `overlay` | `Limb` |
+
 ## Blocks
 
 | Property | Type |
@@ -3175,13 +3477,17 @@ Methods:
 
 ## BlockChangedSignal
 
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
 Methods:
 
 - `connect(handler: (at: Vector3, block: string) -> ()): Connection`
 - `connectParallel(handler: (at: Vector3, block: string) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (at: Vector3, block: string) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (at: Vector3, block: string) -> ()): Connection`
 
 ## Tags
 
@@ -3193,33 +3499,31 @@ Methods:
 
 ## ChatCommandSignal
 
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
 Methods:
 
 - `connect(handler: (body: Character?, text: string, args: { string }) -> ()): Connection`
 - `connectParallel(handler: (body: Character?, text: string, args: { string }) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (body: Character?, text: string, args: { string }) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (body: Character?, text: string, args: { string }) -> ()): Connection`
 
 ## ChatMessageSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (message: ChatMessage) -> ()): Connection`
 - `connectParallel(handler: (message: ChatMessage) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (message: ChatMessage) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
-
-## ChatAnySignal
-
-Methods:
-
-- `connect(handler: (...any) -> ()): Connection`
-- `connectParallel(handler: (...any) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
-- `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (message: ChatMessage) -> ()): Connection`
 
 ## Chat
 
@@ -3231,13 +3535,13 @@ Methods:
 | `messageReceived` | `ChatMessageSignal` |
 | `sending` | `ChatMessageSignal` |
 | `edited` | `ChatMessageSignal` |
-| `deleted` | `ChatAnySignal` |
-| `linkClicked` | `ChatAnySignal` |
-| `bodyClicked` | `ChatAnySignal` |
+| `deleted` | `AnySignal` |
+| `linkClicked` | `AnySignal` |
+| `bodyClicked` | `AnySignal` |
 | `messageClicked` | `ChatMessageSignal` |
-| `opened` | `ChatAnySignal` |
-| `closed` | `ChatAnySignal` |
-| `typing` | `ChatAnySignal` |
+| `opened` | `AnySignal` |
+| `closed` | `AnySignal` |
+| `typing` | `AnySignal` |
 
 Methods:
 
@@ -3272,14 +3576,15 @@ Methods:
 
 - `now(): number`
 - `viewTime(body: Instance): number`
+- `rewind(time: number, query: () -> ...any): ...any`
 - `function rewind<T...>(self, time: number, query: () -> T...): T...`
 
 ## ProximityWatcher
 
 | Property | Type |
 |---|---|
-| `entered` | `ChatAnySignal` |
-| `left` | `ChatAnySignal` |
+| `entered` | `AnySignal` |
+| `left` | `AnySignal` |
 | `near` | `boolean` |
 
 Methods:
@@ -3319,12 +3624,17 @@ Methods:
 
 ## PathBlockedSignal
 
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
 Methods:
 
 - `connect(handler: (index: number) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (index: number) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (index: number) -> ()): Connection`
+- `connectParallel(handler: (index: number) -> ()): Connection`
 
 ## Debug
 
@@ -3376,12 +3686,13 @@ Methods:
 | `renderPriority` | `{ first: number, input: number, camera: number, character: number, last: number }` |
 | `stepped` | `StepSignal` |
 | `renderStepped` | `StepSignal` |
-| `reloaded` | `ReloadedSignal` |
+| `reloaded` | `AnySignal` |
 | `persist` | `{ [string]: any }` |
 | `gravity` | `number` (set on the server) |
 | `pauseRequested` | `PauseSignal` (client) |
 | `paused` | `boolean` (client) |
 | `exported` | `boolean` (client) |
+| `loading` | `Loading` |
 
 Methods:
 
@@ -3415,6 +3726,68 @@ Methods:
 - `keyOf(action: string): string`
 - `bind(action: string, key: string): ()`
 - `save(): ()`
+
+## LoadingFailedSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
+Methods:
+
+- `connect(handler: (reason: string, kind: LoadingFailure) -> ()): Connection`
+- `connectParallel(handler: (reason: string, kind: LoadingFailure) -> ()): Connection`
+- `once(handler: (reason: string, kind: LoadingFailure) -> ()): Connection`
+- `every(n: number, handler: (reason: string, kind: LoadingFailure) -> ()): Connection`
+- `wait(timeout: number?): ...any`
+
+## Loading
+
+| Property | Type |
+|---|---|
+| `phase` | `LoadingPhase` |
+| `progress` | `number` |
+| `message` | `string` |
+| `server` | `string` |
+| `hold` | `boolean` |
+| `changed` | `AnySignal` |
+| `ready` | `AnySignal` |
+| `failed` | `LoadingFailedSignal` |
+
+Methods:
+
+- `finish(): ()`
+- `retry(): ()`
+- `quit(): ()`
+- `openDownload(): ()`
+
+## WindowSizeSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
+Methods:
+
+- `connect(handler: (width: number, height: number) -> ()): Connection`
+- `connectParallel(handler: (width: number, height: number) -> ()): Connection`
+- `once(handler: (width: number, height: number) -> ()): Connection`
+- `every(n: number, handler: (width: number, height: number) -> ()): Connection`
+- `wait(timeout: number?): ...any`
+
+## WindowFocusSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
+Methods:
+
+- `connect(handler: (focused: boolean) -> ()): Connection`
+- `connectParallel(handler: (focused: boolean) -> ()): Connection`
+- `once(handler: (focused: boolean) -> ()): Connection`
+- `every(n: number, handler: (focused: boolean) -> ()): Connection`
+- `wait(timeout: number?): ...any`
 
 ## MainWindow
 
@@ -3457,6 +3830,7 @@ Methods:
 - `flash(): ()`
 - `setClipboard(text: string): ()`
 - `preventClose(): ()`
+- `screenshot(name: string?): string`
 
 ## Input
 
@@ -3475,7 +3849,7 @@ Methods:
 | `inputEnded` | `InputSignal` |
 | `gamepadConnected` | `GamepadSignal` |
 | `gamepadDisconnected` | `GamepadSignal` |
-| `mouseBehavior` | `"default" \| "lockCenter" \| "lockCurrentPosition"` |
+| `mouseBehavior` | `MouseBehavior` |
 | `mouseIconEnabled` | `boolean` |
 
 Methods:
@@ -3500,7 +3874,7 @@ Methods:
 |---|---|
 | `inputType` | `string` |
 | `keyCode` | `string` |
-| `state` | `"begin" \| "change" \| "end" \| "cancel"` |
+| `state` | `InputState` |
 | `position` | `Vector3` |
 | `delta` | `Vector3` |
 
@@ -3517,23 +3891,31 @@ Methods:
 
 ## InputSignal
 
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
 Methods:
 
 - `connect(handler: (input: InputObject, gameProcessed: boolean) -> ()): Connection`
 - `connectParallel(handler: (input: InputObject, gameProcessed: boolean) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (input: InputObject, gameProcessed: boolean) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (input: InputObject, gameProcessed: boolean) -> ()): Connection`
 
 ## GamepadSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
 
 Methods:
 
 - `connect(handler: (gamepad: number) -> ()): Connection`
 - `connectParallel(handler: (gamepad: number) -> ()): Connection`
-- `once(handler: (...any) -> ()): Connection`
+- `once(handler: (gamepad: number) -> ()): Connection`
 - `wait(timeout: number?): ...any`
-- `every(n: number, handler: (...any) -> ()): Connection`
+- `every(n: number, handler: (gamepad: number) -> ()): Connection`
 
 ## Voice
 
@@ -3598,6 +3980,20 @@ Methods:
 - `hashMap(name: string): MemoryHashMap`
 - `sortedMap(name: string): MemorySortedMap`
 - `queue(name: string, invisibilityTimeout: number?): MemoryQueue`
+
+## PauseSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
+Methods:
+
+- `connect(handler: (reason: string) -> ()): Connection`
+- `connectParallel(handler: (reason: string) -> ()): Connection`
+- `once(handler: (reason: string) -> ()): Connection`
+- `every(n: number, handler: (reason: string) -> ()): Connection`
+- `wait(timeout: number?): ...any`
 
 ## MemoryHashMap
 
@@ -3692,6 +4088,102 @@ Functions:
 `name` is `health`, `hunger`, `hotbar`, `chat`, `playerList`, `crosshair`, `experience` or `all`.
 See [The core interface](game-and-screens.md#the-core-interface).
 
+## PluginMouseSignal
+
+| Property | Type |
+|---|---|
+| `count` | `number` |
+
+Methods:
+
+- `connect(handler: (mouse: PluginMouse) -> ()): Connection`
+- `connectParallel(handler: (mouse: PluginMouse) -> ()): Connection`
+- `once(handler: (mouse: PluginMouse) -> ()): Connection`
+- `every(n: number, handler: (mouse: PluginMouse) -> ()): Connection`
+- `wait(timeout: number?): ...any`
+
+## PluginToolbar
+
+| Property | Type |
+|---|---|
+| `name` | `string` |
+
+Methods:
+
+- `button(text: string, tooltip: string?, icon: string?): PluginButton`
+
+## PluginButton
+
+| Property | Type |
+|---|---|
+| `text` | `string` |
+| `tooltip` | `string` |
+| `icon` | `string` |
+| `active` | `boolean` |
+| `enabled` | `boolean` |
+| `click` | `AnySignal` |
+
+## PluginPanel
+
+| Property | Type |
+|---|---|
+| `title` | `string` |
+| `visible` | `boolean` |
+
+Methods:
+
+- `onDraw(draw: (ui: PanelUi) -> ()): ()`
+
+## PanelUi
+
+Methods:
+
+- `text(text: string): ()`
+- `muted(text: string): ()`
+- `heading(text: string): ()`
+- `button(label: string): boolean`
+- `input(label: string, value: string): string`
+- `number(label: string, value: number, step: number?): number`
+- `slider(label: string, value: number, min: number, max: number): number`
+- `checkbox(label: string, value: boolean): boolean`
+- `color(label: string, value: Color): Color`
+- `choice(label: string, value: string, options: { string }): string`
+- `separator(): ()`
+- `sameLine(): ()`
+
+## PluginSelection
+
+| Property | Type |
+|---|---|
+| `changed` | `AnySignal` |
+
+Methods:
+
+- `get(): { Instance }`
+- `set(instances: { Instance }): ()`
+
+## Plugin
+
+| Property | Type |
+|---|---|
+| `name` | `string` |
+| `selection` | `PluginSelection` |
+| `viewportClicked` | `PluginMouseSignal` |
+| `preview` | `Instance` |
+| `active` | `boolean` |
+
+Methods:
+
+- `toolbar(name: string): PluginToolbar`
+- `command(name: string, handler: () -> ()): ()`
+- `command(name: string, shortcut: string?, handler: () -> ()): ()`
+- `panel(title: string, options: PanelOptions?): PluginPanel`
+- `recording(name: string, changes: () -> ()): ()`
+- `setting(key: string): any`
+- `setSetting(key: string, value: any): ()`
+- `mouse(): PluginMouse`
+- `activate(on: boolean): ()`
+
 ## Os
 
 Functions:
@@ -3740,7 +4232,7 @@ Methods:
 - `args(handler: (...any) -> ...any, options: { when: ((...any) -> boolean)?, once: boolean?, limit: number?, priority: number?, raw: boolean?, ordinal: number? }?): Mixin`
 - `redirect(call: JavaMethod, handler: (original: (...any) -> any, target: any, ...any) -> any, options: { when: ((...any) -> boolean)?, once: boolean?, limit: number?, priority: number?, raw: boolean?, ordinal: number? }?): Mixin`
 - `constant(value: number | string, replacement: any, options: { when: ((...any) -> boolean)?, once: boolean?, limit: number?, priority: number?, raw: boolean?, ordinal: number? }?): Mixin`
-- `variable(local: string | number, replacement: any, options: { when: ((...any) -> boolean)?, once: boolean?, limit: number?, priority: number?, raw: boolean?, ordinal: number? }?): Mixin`
+- `variable(slot: string | number, replacement: any, options: { when: ((...any) -> boolean)?, once: boolean?, limit: number?, priority: number?, raw: boolean?, ordinal: number? }?): Mixin`
 - `overload(...string | number): JavaMethod`
 - called: `Class.method(self, ...)` or `Class:staticMethod(...)`
 
@@ -3753,7 +4245,7 @@ Methods:
 
 Methods:
 
-- `changed(handler: (self: any, old: any, new: any) -> any, options: { when: ((...any) -> boolean)?, once: boolean?, limit: number?, priority: number?, raw: boolean? }?): Mixin`
+- `changed(handler: (self: any, old: any, new: any) -> any, options: { when: ((...any) -> boolean)?, once: boolean?, limit: number?, priority: number?, raw: boolean?, ordinal: number? }?): Mixin`
 
 ## MixinService
 
@@ -3978,6 +4470,14 @@ type TextAlign = "left" | "center" | "right"
 type TextOptions = { size: number?, shadow: boolean?, align: TextAlign?, wrap: number?,
     lineHeight: number?, transparency: number?, blend: ImageBlend?, bold: boolean?,
     italic: boolean?, smooth: boolean? }
+type PresetName = "clear day" | "golden hour" | "overcast" | "night" | "foggy dawn" | "snowfall" | "storm"
+type InputState = "begin" | "change" | "end" | "cancel"
+type MouseBehavior = "default" | "lockCenter" | "lockCurrentPosition"
+type CameraPlayInfo = { duration: number?, easing: string?, direction: string?, restore: boolean? }
+type LoadingPhase = "lookup" | "connecting" | "joining" | "world" | "ready"
+type LoadingFailure = "connect" | "update" | "closed" | "disconnected"
+type PluginMouse = { origin: Vector3, direction: Vector3, hit: Vector3?, normal: Vector3?, target: Instance?, over: boolean }
+type PanelOptions = { width: number?, height: number?, dock: ("float" | "left" | "right" | "bottom")? }
 ```
 
 ## Globals
@@ -4127,4 +4627,17 @@ declare task: {
     desynchronize: () -> (),
     synchronize: () -> (),
 }
+
+declare math: typeof(math) & {
+    remap: (value: number, fromMin: number, fromMax: number, toMin: number, toMax: number) -> number,
+    lerp: (a: number, b: number, t: number) -> number,
+    inverseLerp: (a: number, b: number, value: number) -> number,
+    approach: (value: number, target: number, step: number) -> number,
+    smoothDamp: (current: number, target: number, velocity: number?, smoothTime: number, dt: number, maxSpeed: number?) -> (number, number),
+    fbm: (x: number, y: number?, z: number?, octaves: number?, lacunarity: number?, gain: number?) -> number,
+    bezier: (points: { any }, t: number) -> any,
+    catmullRom: (points: { any }, t: number) -> any,
+}
+
+declare function print(...: any): ()
 ```
