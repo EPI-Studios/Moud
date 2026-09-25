@@ -40,8 +40,8 @@ public final class Payloads {
         PayloadTypeRegistry.serverboundPlay().register(PilotUpPayload.TYPE, PilotUpPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(ResyncPayload.TYPE, ResyncPayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(EditUpPayload.TYPE, EditUpPayload.CODEC.cast());
-        PayloadTypeRegistry.serverboundPlay().register(SceneEditPayload.TYPE, SceneEditPayload.CODEC.cast());
-        PayloadTypeRegistry.serverboundPlay().register(ScenePastePayload.TYPE, ScenePastePayload.CODEC.cast());
+        PayloadTypeRegistry.serverboundPlay().registerLarge(SceneEditPayload.TYPE, SceneEditPayload.CODEC.cast(), SceneEditPayload.MAX_BYTES + 16);
+        PayloadTypeRegistry.serverboundPlay().registerLarge(ScenePastePayload.TYPE, ScenePastePayload.CODEC.cast(), ScenePastePayload.MAX_CHARS * 3 + 32);
         PayloadTypeRegistry.serverboundPlay().register(SceneSavePayload.TYPE, SceneSavePayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().register(SceneFilePayload.TYPE, SceneFilePayload.CODEC.cast());
         PayloadTypeRegistry.serverboundPlay().registerLarge(PlaceFileUpPayload.TYPE, PlaceFileUpPayload.CODEC.cast(), PlaceFilePayload.MAX_BYTES);
