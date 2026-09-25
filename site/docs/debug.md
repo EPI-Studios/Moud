@@ -54,7 +54,8 @@ end)
 ```
 
 Values watched on the server are marked `(server)`, so a name watched from both sides shows twice and
-you can see them disagree.
+you can see them disagree. Reloading the place empties the list and wipes what was drawn, so a name
+your new code no longer watches does not linger.
 
 <!-- demo:debug-watch -->
 

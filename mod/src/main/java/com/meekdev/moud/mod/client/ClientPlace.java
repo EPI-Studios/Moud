@@ -150,6 +150,7 @@ public final class ClientPlace {
                     .coreGui(CoreGui.INSTANCE)
                     .devices(DEVICES);
             CoreGui.INSTANCE.reset();
+            ClientDebug.INSTANCE.clear();
             GameState.INSTANCE.reset();
             Input.resetPointer();
             Devices.reset();
