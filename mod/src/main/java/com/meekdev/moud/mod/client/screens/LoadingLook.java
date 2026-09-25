@@ -28,19 +28,22 @@ public final class LoadingLook {
         g.fill(0, 0, width, height, 0xFF000000 | Integer.parseInt(PlaceToml.config().loading().color().substring(1), 16));
     }
 
+    public static void background(GuiGraphicsExtractor g, int width, int height) {
+        backdrop(g, width, height);
+        UiImages.Image background = image(PlaceToml.config().loading().background());
+        if (background == null) return;
+        double scale = Math.max(width / (double) background.width(), height / (double) background.height());
+        int w = (int) Math.ceil(background.width() * scale);
+        int h = (int) Math.ceil(background.height() * scale);
+        int x = (width - w) / 2;
+        int y = (height - h) / 2;
+        g.blit(background.id(), x, y, x + w, y + h, 0, 1, 0, 1);
+    }
+
     public static void draw(GuiGraphicsExtractor g, int width, int height) {
         PlaceConfig config = PlaceToml.config();
         PlaceConfig.Loading loading = config.loading();
-        backdrop(g, width, height);
-        UiImages.Image background = image(loading.background());
-        if (background != null) {
-            double scale = Math.max(width / (double) background.width(), height / (double) background.height());
-            int w = (int) Math.ceil(background.width() * scale);
-            int h = (int) Math.ceil(background.height() * scale);
-            int x = (width - w) / 2;
-            int y = (height - h) / 2;
-            g.blit(background.id(), x, y, x + w, y + h, 0, 1, 0, 1);
-        }
+        background(g, width, height);
         Font font = Minecraft.getInstance().font;
         UiImages.Image logo = image(loading.logo());
         int middle = (int) (height * 0.42);

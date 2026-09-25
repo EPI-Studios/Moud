@@ -46,7 +46,7 @@ public final class PlaceMessageScreen extends Screen {
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        LoadingLook.draw(graphics, width, height);
+        LoadingLook.background(graphics, width, height);
         graphics.fill(0, 0, width, height, 0x88000000);
     }
 
