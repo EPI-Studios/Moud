@@ -31,6 +31,7 @@ public final class PlaceFiles {
 
     public static byte @Nullable [] read(String res) {
         Path root = ClientPlace.root();
+        if (root == null && LoadingPlace.showing()) root = PlaceToml.root();
         if (root == null) return null;
         try {
             return SyncedFiles.read(root, res);

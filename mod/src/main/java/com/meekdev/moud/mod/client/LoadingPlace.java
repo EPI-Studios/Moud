@@ -103,7 +103,7 @@ public final class LoadingPlace {
             MoudMod.LOG.error("could not read {}", file, e);
             return;
         }
-        Instance fresh = Instances.createRoot(new InstanceTree(), Classes.SPATIAL, "World");
+        Instance fresh = Instances.createRoot(new InstanceTree(true), Classes.SPATIAL, "World");
         Host made = new Host(fresh, Addons.classes(), true)
                 .modules(new PlaceModules(root, true))
                 .files(new PlaceFileRef(root))
