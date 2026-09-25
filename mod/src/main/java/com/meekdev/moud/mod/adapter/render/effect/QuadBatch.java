@@ -180,12 +180,14 @@ final class QuadBatch {
             }
         } finally {
             RenderState.noPolygonOffset();
-            Textures.bindSampler(0, 0);
-            Textures.bindSampler(1, 0);
+            GlState.bindTexture(1, 0);
+            GlState.bindTexture(0, 0);
             VertexArray.unbind();
             Programs.use(0);
             RenderState.depthMask(true);
             RenderState.depthTest(true);
+            RenderState.cull(true);
+            RenderState.alphaBlend();
             RenderState.blend(false);
             MainTargetFramebuffer.restore(previous);
         }
