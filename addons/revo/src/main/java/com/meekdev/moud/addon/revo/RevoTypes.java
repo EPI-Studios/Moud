@@ -13,6 +13,7 @@ final class RevoTypes {
     private static final String HEADER = Resources.text("header.rv");
     private static final Map<String, String> TYPES = Resources.table("types.properties");
     private static final Set<String> BUILTIN = Resources.words("builtins.txt");
+    static final String HOST = "__moud_host_";
 
     private RevoTypes() {}
 
@@ -25,7 +26,7 @@ final class RevoTypes {
                 String rest = text.substring("pub declare ".length());
                 int equals = rest.indexOf(" = ");
                 String name = rest.substring(0, equals);
-                out.append("const ").append(name).append(": ").append(rest.substring(equals + 3)).append(" = ").append(name).append(' ');
+                out.append("const ").append(name).append(": ").append(rest.substring(equals + 3)).append(" = ").append(HOST).append(name).append(' ');
             } else {
                 out.append(text.startsWith("pub ") ? text.substring(4) : text).append(' ');
             }

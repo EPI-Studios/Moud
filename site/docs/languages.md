@@ -48,6 +48,10 @@ end)
 - `task.wait` works inside `task.spawn`, `task.delay` or a `Script` instance, the same as in Luau. On
   the main chunk it says so instead of waiting.
 - `task.spawn` and `task.delay` take the function only, with no extra arguments after it.
+- `task.wait` is the only call that waits. Anything else that waits in Luau, such as `signal:wait()`,
+  `http` or invoking a `RemoteFunction`, is an error in Revo.
+- `task.desynchronize`, `connectParallel` and `bindToMessageParallel` do not work in Revo, so an
+  `Actor` runs its Revo scripts serially.
 - The addon embeds Revo as a native library, built with Zig from a Revo checkout next to Moud.
 
 ## Java

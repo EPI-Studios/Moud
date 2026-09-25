@@ -34,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
+import java.util.function.Supplier;
 
 final class RevoEngine implements ScriptEngine {
 
@@ -42,7 +43,7 @@ final class RevoEngine implements ScriptEngine {
     private static final String VALUE = "__moud_value";
     private static final int CACHED_STRING_LENGTH = 64;
     private static final int PUSHES_PER_SWEEP = 4096;
-    private static final String ANSI_COLOR = "\\[[0-9;]*m";
+    private static final String ANSI_COLOR = "\u001B\\[[0-9;]*m";
 
     private static final MethodHandle DISPATCH;
 
@@ -109,7 +110,7 @@ final class RevoEngine implements ScriptEngine {
         @Override
         public Object[] call(Object... args) {
             if (dropped || closed) return new Object[0];
-            return baton.onVm(() -> {
+            return onVm(() -> {
                 long fn = refGet(id);
                 long[] pushed = new long[args.length];
                 for (int n = 0; n < args.length; n++) pushed[n] = push(args[n]);
@@ -131,7 +132,7 @@ final class RevoEngine implements ScriptEngine {
         void drop() {
             if (dropped) return;
             dropped = true;
-            if (!closed) baton.onVm(() -> {
+            if (!closed) onVm(() -> {
                 refRemove(id);
                 return null;
             });
@@ -150,7 +151,7 @@ final class RevoEngine implements ScriptEngine {
         public void release() {
             if (dropped || closed) return;
             dropped = true;
-            baton.onVm(() -> {
+            onVm(() -> {
                 refRemove(id);
                 return null;
             });
@@ -161,7 +162,7 @@ final class RevoEngine implements ScriptEngine {
         this.host = host;
         Natives.load();
         host.onStep(this::tick);
-        baton.onVm(() -> {
+        onVm(() -> {
             vm = Natives.createVm();
             if (vm.address() == 0) throw new IllegalStateException("revo could not create a vm");
             refs = table();
@@ -186,6 +187,12 @@ final class RevoEngine implements ScriptEngine {
             setName(valueMeta, "__index", nativeFunction("value", args -> push(host.index(args[0], name(args[1])))));
             setName(valueMeta, "__tostring", nativeFunction("text", args -> push(host.text(args[0]))));
             setGlobal("__moud_value_meta", valueMeta);
+            setGlobal("__moud_script", nativeFunction("script", args -> {
+                long id = args.length > 0 && args[0] instanceof Number n ? n.longValue() : 0;
+                long value = refGet(id);
+                refRemove(id);
+                return value;
+            }));
             setGlobal("__moud_fiber", nativeFunction("fiber", args -> Natives.number(Natives.fiber(vm))));
             setGlobal("__moud_wake", nativeFunction("wake", args -> {
                 double seconds = args.length > 0 && args[0] instanceof Number n ? n.doubleValue() : 0;
@@ -194,7 +201,9 @@ final class RevoEngine implements ScriptEngine {
                 return Natives.NIL;
             }));
             for (Map.Entry<String, Object> global : host.globals().entrySet()) {
-                setGlobal(global.getKey(), push(global.getValue()));
+                long value = push(global.getValue());
+                setGlobal(global.getKey(), value);
+                setGlobal(RevoTypes.HOST + global.getKey(), value);
             }
             evaluate("moud", Resources.text("moud.rv"));
             keys = getGlobal("__moud_keys");
@@ -219,7 +228,7 @@ final class RevoEngine implements ScriptEngine {
 
     private void tick(double dt) {
         if (closed) return;
-        baton.onVm(() -> {
+        onVm(() -> {
             List<Wake> due = new ArrayList<>();
             for (Wake wake : wakes) {
                 wake.left -= dt;
@@ -242,6 +251,16 @@ final class RevoEngine implements ScriptEngine {
             }
             return null;
         });
+    }
+
+    private <T> T onVm(Supplier<T> job) {
+        if (baton.onVmThread()) return baton.onVm(job::get);
+        ScriptEngine before = host.enter(this);
+        try {
+            return baton.onVm(job::get);
+        } finally {
+            host.leave(before);
+        }
     }
 
     private long nativeFunction(String name, NativeBody body) {
@@ -575,12 +594,12 @@ final class RevoEngine implements ScriptEngine {
 
     @Override
     public void run(String chunk, String source) {
-        baton.onVm(() -> evaluate(chunk, typed(source)));
+        onVm(() -> evaluate(chunk, typed(source)));
     }
 
     @Override
     public Object module(String chunk, String source) {
-        return baton.onVm(() -> {
+        return onVm(() -> {
             long eval = getName(getGlobal("revo"), "eval");
             if (Natives.tag(eval) != Natives.FUNCTION) throw new HostError("this revo has no revo.eval to load modules with");
             long value = unwrap(chunk, invoke(eval, new long[] {string(source)}));
@@ -603,36 +622,39 @@ final class RevoEngine implements ScriptEngine {
 
     @Override
     public Fiber script(String chunk, String source, Instance script) {
-        baton.onVm(() -> {
-            setGlobal("script", push(script));
-            return evaluate(chunk, typed("spawn (fn() do " + source + "\nend)()"));
+        onVm(() -> {
+            long id = refPut(push(script));
+            return evaluate(chunk, typed("spawn (fn(script) do " + source + "\nend)(__moud_script(" + id + "))"));
         });
         return null;
     }
 
     @Override
     public ScriptValue table(Map<String, Object> data) {
-        return baton.onVm(() -> new Ref(refPut(push(data))));
+        return onVm(() -> new Ref(refPut(push(data))));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> read(ScriptValue table) {
         if (!(table instanceof Ref ref) || ref.dropped) return Map.of();
-        return baton.onVm(() -> read(refGet(ref.id), 0) instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of());
+        return onVm(() -> read(refGet(ref.id), 0) instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of());
     }
 
     @Override
     public void close() {
         if (closed) return;
         closed = true;
+        boolean destroyed = false;
         try {
-            baton.onVm(() -> {
+            onVm(() -> {
                 Natives.destroyVm(vm);
                 return null;
             });
+            destroyed = true;
         } catch (Throwable ignored) {
         }
         baton.close();
+        if (destroyed) arena.close();
     }
 }

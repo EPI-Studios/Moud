@@ -58,13 +58,22 @@ final class JavaEngine implements ScriptEngine {
 
     @Override
     public void run(String chunk, String source) {
-        instantiate(chunk, source, null).run();
+        PlaceScript place = instantiate(chunk, source, null);
+        try {
+            place.run();
+        } catch (RuntimeException e) {
+            throw located(chunk, e);
+        }
     }
 
     @Override
     public Object module(String chunk, String source) {
         PlaceScript module = instantiate(chunk, source, null);
-        module.run();
+        try {
+            module.run();
+        } catch (RuntimeException e) {
+            throw located(chunk, e);
+        }
         return module;
     }
 
@@ -77,9 +86,24 @@ final class JavaEngine implements ScriptEngine {
     public Fiber script(String chunk, String source, Instance script) {
         PlaceScript place = instantiate(chunk, source, script);
         return new ThreadFiber("moud-java-" + chunk, args -> {
-            place.run();
+            try {
+                place.run();
+            } catch (RuntimeException e) {
+                throw located(chunk, e);
+            }
             return null;
         });
+    }
+
+    private static RuntimeException located(String chunk, RuntimeException e) {
+        if (e instanceof ScriptError) return e;
+        String file = chunk.substring(chunk.lastIndexOf('/') + 1);
+        for (StackTraceElement frame : e.getStackTrace()) {
+            if (file.equals(frame.getFileName()) && frame.getLineNumber() > 0) {
+                return new ScriptError(chunk, "line " + frame.getLineNumber() + ": " + e, e);
+            }
+        }
+        return new ScriptError(chunk, e.toString(), e);
     }
 
     @Override
