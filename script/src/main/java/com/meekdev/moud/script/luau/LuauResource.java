@@ -32,12 +32,16 @@ final class LuauResource {
         return properties;
     }
 
-    private static String textOrNull(String name) {
+    static byte[] bytesOrNull(String name) {
         try (InputStream in = LuauResource.class.getResourceAsStream(name)) {
-            if (in == null) return null;
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            return in == null ? null : in.readAllBytes();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private static String textOrNull(String name) {
+        byte[] bytes = bytesOrNull(name);
+        return bytes == null ? null : new String(bytes, StandardCharsets.UTF_8);
     }
 }

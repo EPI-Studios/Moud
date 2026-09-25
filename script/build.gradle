@@ -15,3 +15,46 @@ tasks.withType(Test).configureEach {
     jvmArgs '--enable-native-access=ALL-UNNAMED'
     jvmArgs '-XX:+EnableDynamicAgentLoading', '-Djdk.attach.allowAttachSelf=true'
 }
+
+def zig = findProperty('zig') ?: 'zig'
+def launcherSource = file('native/lsp-launcher/launcher.c')
+def launcherOut = layout.buildDirectory.dir('native/lsp-launcher')
+def launcherTargets = ['x64': 'x86_64-windows-gnu', 'arm64': 'aarch64-windows-gnu']
+
+tasks.register('buildLspLauncher') {
+    group = 'build'
+    description = 'Builds the windows luau-lsp launcher that editors start'
+    inputs.file launcherSource
+    outputs.dir launcherOut
+    outputs.upToDateWhen { launcherOut.get().asFile.list()?.length > 0 }
+    doLast {
+        def out = launcherOut.get().asFile
+        out.deleteDir()
+        out.mkdirs()
+        try {
+            providers.exec { commandLine zig, 'version' }.result.get()
+        } catch (Exception e) {
+            logger.warn("zig not found, places on windows fall back to luau-lsp.cmd")
+            return
+        }
+        launcherTargets.each { arch, target ->
+            def object = new File(out, "launcher-${arch}.o")
+            providers.exec {
+                commandLine zig, 'cc', '-target', target, '-Os', '-fno-stack-protector', '-Wall', '-Wextra', '-c', '-o', object, launcherSource
+            }.result.get()
+            providers.exec {
+                commandLine zig, 'cc', '-target', target, '-s', '-nostdlib', '-Wl,--entry=start', '-Wl,--subsystem=console',
+                        '-o', new File(out, "luau-lsp-${arch}.exe"), object, '-lkernel32'
+            }.result.get()
+            object.delete()
+        }
+    }
+}
+
+processResources {
+    dependsOn 'buildLspLauncher'
+    from(launcherOut) {
+        include '*.exe'
+        into 'com/meekdev/moud/script/luau/project'
+    }
+}

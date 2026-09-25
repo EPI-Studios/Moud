@@ -85,13 +85,12 @@ local oops = game.world.Wall4         -- Key 'Wall4' not found
   `find`, because `instance.name` means the property.
 - Only the scene that is open in the editor is typed. A scene a script loads later is not.
 - luau-lsp only reads types when it starts, so Moud starts it for you. The settings point Zed and
-  VS Code at `.moud/luau-lsp`, which runs the real luau-lsp and quietly starts a fresh one whenever
-  the types change, handing it the files you have open. Completions and errors catch up a moment
-  after you rename or add something, without a reload. It uses the luau-lsp your editor downloaded,
-  or the one on your `PATH`.
-- VS Code on Windows can't start `.cmd` files, so there it still needs **Luau: Reload Language
-  Server** after a change. Neovim does too, unless you point luau-lsp.nvim's server command at
-  `.moud/luau-lsp`.
+  VS Code at `.moud/luau-lsp` (`.moud/luau-lsp.exe` on Windows), which runs the real luau-lsp and
+  quietly starts a fresh one whenever the types change, handing it the files you have open.
+  Completions and errors catch up a moment after you rename or add something, without a reload. It
+  uses the luau-lsp your editor downloaded, or the one on your `PATH`.
+- Neovim needs its language server restarted after a change, unless you point luau-lsp.nvim's
+  server command at `.moud/luau-lsp` (or `.moud/luau-lsp.exe`).
 
 ## Saving reloads the place
 
