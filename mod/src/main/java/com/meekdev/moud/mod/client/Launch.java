@@ -51,7 +51,7 @@ public final class Launch {
             client.setScreen(new TitleScreen());
             return;
         }
-        if (client.screen instanceof ProjectHubScreen && client.level == null && client.getSingleplayerServer() == null) {
+        if (!PlaceToml.chosenAtLaunch() && client.screen instanceof ProjectHubScreen && client.level == null && client.getSingleplayerServer() == null) {
             LevelPreload.start(client);
             Path project = projectToOpen();
             if (project != null && !started) {
