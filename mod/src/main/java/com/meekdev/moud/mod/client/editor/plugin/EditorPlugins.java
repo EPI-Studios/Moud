@@ -330,7 +330,6 @@ public final class EditorPlugins {
             Source before = sources.get(entry.getKey());
             Source source = entry.getValue();
             if (before != null && before.equals(source) && !stale.contains(entry.getKey())) continue;
-            sources.put(entry.getKey(), source);
             String code;
             try {
                 code = Files.readString(source.file());
@@ -338,6 +337,7 @@ public final class EditorPlugins {
                 Output.add(Output.Level.ERROR, SIDE, "could not read " + source.chunk() + ": " + e.getMessage());
                 continue;
             }
+            sources.put(entry.getKey(), source);
             settle(() -> loaded.load(entry.getKey(), source.chunk(), code));
             Output.add(Output.Level.SYSTEM, SIDE, (before == null ? "loaded " : "reloaded ") + entry.getKey());
         }
@@ -392,7 +392,7 @@ public final class EditorPlugins {
                 Stamp stamp = Stamp.of(file);
                 try {
                     String code = Files.readString(file);
-                    watched.put(path, stamp);
+                    watched.putIfAbsent(path, stamp);
                     return code;
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
