@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.adapter.render;
 
 import com.meekdev.amnetic.client.grade.ColorGrade;
+import com.meekdev.amnetic.client.grade.ColorGradeSettings;
 import com.meekdev.amnetic.client.ibl.Ibl;
 import com.meekdev.amnetic.client.light.Light;
 import com.meekdev.amnetic.client.light.Lights;
@@ -43,6 +44,9 @@ public final class Environment {
     private static @Nullable Runnable modelDefaults;
     private static Vector3 sunDirection = Vector3.UP;
     private static DayCycle.Tint tint = DayCycle.Tint.NEUTRAL;
+    private static float exposureBase = 1;
+    private static float exposureWritten = Float.NaN;
+    private static boolean gradeWasOn;
 
     private Environment() {}
 
@@ -173,9 +177,24 @@ public final class Environment {
     }
 
     private static void exposure(Lighting from) {
-        if (from.exposureCompensation == 0) return;
-        ColorGrade.settings().enabled(true)
-                .exposure((float) (ColorGrade.settings().exposure() * Math.pow(2, from.exposureCompensation)));
+        ColorGradeSettings grade = ColorGrade.settings();
+        if (grade.exposure() != exposureWritten) {
+            exposureBase = grade.exposure();
+            gradeWasOn = grade.isEnabled();
+        }
+        if (from.exposureCompensation == 0) {
+            releaseExposure();
+            return;
+        }
+        exposureWritten = (float) (exposureBase * Math.pow(2, from.exposureCompensation));
+        grade.enabled(true).exposure(exposureWritten);
+    }
+
+    private static void releaseExposure() {
+        if (Float.isNaN(exposureWritten)) return;
+        ColorGradeSettings grade = ColorGrade.settings();
+        if (grade.exposure() == exposureWritten) grade.enabled(gradeWasOn).exposure(exposureBase);
+        exposureWritten = Float.NaN;
     }
 
     private static void shadows(Lighting from) {
@@ -187,7 +206,6 @@ public final class Environment {
             }
             return;
         }
-        // a resource reload empties the light registry, so the sun has to be put back when that happens
         if (sun == null || !sun.isRegistered()) sun = Lights.directional(new Vector3f(0, -1, 0), 1, 1, 1, 1);
         sun.setDirection((float) -sunDirection.x(), (float) -sunDirection.y(), (float) -sunDirection.z())
                 .setIntensity((float) (from.brightness / NEUTRAL_BRIGHTNESS))
@@ -203,6 +221,7 @@ public final class Environment {
     }
 
     private static void drop() {
+        releaseExposure();
         if (sun != null) {
             sun.remove();
             sun = null;

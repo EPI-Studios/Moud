@@ -157,18 +157,14 @@ Raise `ambient` when a cave or a night in your place is too dark to play in: it 
 light, so it lifts the parts the sun never reaches without touching the ones it does. Leave it black
 and unlit corners stay black.
 
-Two of these need something else in the place before they do anything:
+A few of these reach further than they look:
 
 - `globalShadows` turns the sun shadows on by itself. A [`ShadowQuality`](rendering.md#post-effects)
   effect is only needed to change how good they look.
 - The two environment scales only reach `MeshPart`s drawn from a glTF file and parts with
   [`shading = "pbr"`](rendering.md#shading-a-part). Blocks and flat parts keep the game's own light.
-- `exposureCompensation` rides on top of a [`ColorGradeEffect`](rendering.md#post-effects), so put
-  one in the place when you use it.
-
-> [!NOTE]
-> With no `ColorGradeEffect` in the place, `exposureCompensation` leaves the picture as it was. That
-> is the usual reason a lighting property looks like it was ignored.
+- `exposureCompensation` works on its own. With a [`ColorGradeEffect`](rendering.md#post-effects) in
+  the place it multiplies that effect's `exposure` instead, so the two add up in stops.
 
 `shadowBias` and `shadowNormalBias` decide how the sun shadow sits on a surface. Too little and a
 surface shadows itself in stripes; too much and a shadow slides away from whatever casts it. The
