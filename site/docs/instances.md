@@ -24,6 +24,10 @@ The properties in that table are the same properties you could assign one at a t
 the part above is the part you would get by creating an empty one and filling it in. Leaving a
 property out gives it the class default.
 
+The editor reads the class off the name, so `part` is typed as a `Part` and needs no `:: Part` cast.
+`childrenOfClass`, `firstChildOfClass`, `firstAncestorOfClass` and `descendants` work the same way
+when you give them a class name as written.
+
 For a field of things, `addAll` makes them in one call instead of one call each:
 
 ```lua

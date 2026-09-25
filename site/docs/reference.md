@@ -340,7 +340,7 @@ Methods:
 
 Methods:
 
-- `add(className: string, properties: { [string]: any }?): Instance`
+- `add(className: string, properties: { [string]: any }?): Instance` (typed as the class named, `add("Part")` is a `Part`)
 - `addAll(className: string, properties: { { [string]: any } }): number`
 - `children(): { Instance }`
 - `find(name: string): Instance?`

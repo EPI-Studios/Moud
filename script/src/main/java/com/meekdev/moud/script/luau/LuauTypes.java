@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 public final class LuauTypes {
 
@@ -44,17 +45,17 @@ public final class LuauTypes {
             if (instanceClasses.contains(decl.name()) || decl.name().equals(ROOT)) continue;
             line(out, "declare extern type ", decl.name(), " with");
             out.append(builtInMembers(decl.name()));
-            members(out, decl);
+            members(out, decl, classes);
             end(out);
         }
 
         line(out, "declare extern type ", ROOT, " with");
         out.append(builtInMembers(ROOT));
         Api.Decl shared = api.decl(ROOT);
-        if (shared != null) members(out, shared);
+        if (shared != null) members(out, shared, classes);
         end(out);
 
-        for (ClassDef<?> def : classes.all()) classDeclaration(out, api, def);
+        for (ClassDef<?> def : classes.all()) classDeclaration(out, api, classes, def);
 
         for (Map.Entry<String, String> extension : api.extensions().entrySet()) {
             Api.Decl decl = api.decl(extension.getValue());
@@ -80,12 +81,18 @@ public final class LuauTypes {
         return out.toString();
     }
 
-    private static void members(StringBuilder out, Api.Decl decl) {
+    private static void members(StringBuilder out, Api.Decl decl, ClassRegistry classes) {
         for (Api.Member member : decl.members()) {
             switch (member.kind()) {
                 case FIELD -> line(out, INDENT, member.readOnly() ? "read " : "", member.name(), ": ", member.type());
                 case METHOD -> {
                     Signature signature = Signature.parse(member.type());
+                    if (signature.byClass()) {
+                        for (ClassDef<?> def : classes.all()) {
+                            Signature typed = signature.of(def.name());
+                            line(out, INDENT, "function ", member.name(), "(", typed.params(true), "): ", typed.returns());
+                        }
+                    }
                     line(out, INDENT, "function ", member.name(), "(", signature.params(true), "): ", signature.returns());
                 }
                 case FUNCTION -> line(out, INDENT, member.name(), ": ", member.type());
@@ -93,7 +100,7 @@ public final class LuauTypes {
         }
     }
 
-    private static void classDeclaration(StringBuilder out, Api api, ClassDef<?> def) {
+    private static void classDeclaration(StringBuilder out, Api api, ClassRegistry classes, ClassDef<?> def) {
         String parent = def.parent() == null ? ROOT : def.parent().name();
         line(out, "declare extern type ", def.name(), " extends ", parent, " with");
         PropertyDef frame = def.property("cframe");
@@ -110,7 +117,7 @@ public final class LuauTypes {
             line(out, INDENT, properties[i].name(), ": ", luau(properties[i]));
         }
         Api.Decl methods = api.decl(def.name());
-        if (methods != null) members(out, methods);
+        if (methods != null) members(out, methods, classes);
         end(out);
     }
 
@@ -165,6 +172,18 @@ public final class LuauTypes {
     }
 
     record Signature(String rawParams, String returns) {
+
+        private static final Pattern CLASS_NAME = Pattern.compile("^className: string\\??(?=,|$)");
+        private static final Pattern INSTANCE = Pattern.compile("\\bInstance\\b");
+
+        boolean byClass() {
+            return CLASS_NAME.matcher(rawParams).find() && INSTANCE.matcher(returns).find();
+        }
+
+        Signature of(String className) {
+            String params = CLASS_NAME.matcher(rawParams).replaceFirst("className: \"" + className + "\"");
+            return new Signature(params, INSTANCE.matcher(returns).replaceAll(className));
+        }
 
         static Signature parse(String type) {
             int depth = 0;
