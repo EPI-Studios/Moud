@@ -20,7 +20,7 @@ public final class Res {
             throw new IllegalArgumentException("\"" + text + "\" is not a res:// path");
         }
         String path = text.substring(SCHEME.length());
-        if (path.isEmpty() || path.startsWith("/") || path.contains("\\")) {
+        if (path.isEmpty() || path.startsWith("/") || path.contains("\\") || path.contains(":")) {
             throw new IllegalArgumentException("invalid res:// path \"" + text + "\"");
         }
         for (String segment : path.split("/", -1)) {
