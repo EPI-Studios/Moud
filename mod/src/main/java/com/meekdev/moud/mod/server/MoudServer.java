@@ -79,6 +79,7 @@ public final class MoudServer {
         ServerChat.INSTANCE.stop();
         ServerHistory.INSTANCE.clear();
         Broadcast.stop();
+        ServerPrompts.stop();
         Post.wired().forget();
         WorldTime.stopped();
         ServerWeather.stopped();
@@ -174,6 +175,7 @@ public final class MoudServer {
         Scores.left(player);
         ServerTools.clear(player);
         ServerChat.INSTANCE.left(player);
+        ServerPrompts.left(player.getUUID());
         Broadcast.forget(player.getUUID());
     }
 }

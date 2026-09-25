@@ -147,7 +147,8 @@ prompt.hidden:connect(function() end)
   `requiresLineOfSight = true` hides it when something is in the way.
 - `offset` moves the prompt off the centre of the part it is parented to, a metre up here.
 - `triggered`, `holdBegan` and `holdEnded` all fire with the body that did it, on the server, after
-  the engine has checked that the player really is close. `shown` and `hidden` fire on the client,
+  the engine has checked that the player really is close, and for a held prompt that they held it
+  for `holdDuration`, give or take a quarter of a second for lag. `shown` and `hidden` fire on the client,
   which is where you play a sound or change a cursor.
 
 A client shows the one prompt nearest to its player, floating over what it is parented to, with a
