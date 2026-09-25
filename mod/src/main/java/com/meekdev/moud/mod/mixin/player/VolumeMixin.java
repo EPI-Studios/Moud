@@ -30,7 +30,7 @@ abstract class VolumeMixin {
 
     private static Character body(Player player) {
         String owner = player.getUUID().toString();
-        Character mine = Bodies.of(ServerScene.tree(), owner);
-        return mine != null ? mine : Bodies.of(ClientScene.tree(), owner);
+        if (player.level().isClientSide()) return Bodies.of(ClientScene.tree(), owner);
+        return Bodies.of(ServerScene.tree(), owner);
     }
 }
