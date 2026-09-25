@@ -135,7 +135,10 @@ public final class ServerConnect {
                 show(client, "This game needs an update", reason, LoadingState.UPDATE);
             } else {
                 String link = result.download();
-                fail(client, "This game needs an update", reason, LoadingState.UPDATE, "Download", () -> Util.getPlatform().openUri(link));
+                fail(client, "This game needs an update", reason, LoadingState.UPDATE, "Download", () -> {
+                    MoudMod.LOG.info("opening {}", link);
+                    Util.getPlatform().openUri(link);
+                });
             }
             return;
         }

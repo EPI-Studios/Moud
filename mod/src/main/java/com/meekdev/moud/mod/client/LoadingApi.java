@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client;
 
+import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.script.api.LoadingRef;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Util;
@@ -69,7 +70,9 @@ public final class LoadingApi implements LoadingRef {
     @Override
     public void openDownload() {
         String link = ServerConnect.download();
-        if (!link.isEmpty()) Util.getPlatform().openUri(link);
+        if (link.isEmpty()) return;
+        MoudMod.LOG.info("opening {}", link);
+        Util.getPlatform().openUri(link);
     }
 
     @Override
