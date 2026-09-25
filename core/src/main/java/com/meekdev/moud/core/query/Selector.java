@@ -25,10 +25,8 @@ public final class Selector {
     public static Selector parse(String text, ClassRegistry classes) {
         List<Compound> parts = new ArrayList<>();
         List<Boolean> direct = new ArrayList<>();
-        String[] tokens = text.trim().replace(">", " > ").split("\\s+");
         boolean nextDirect = false;
-        for (String token : tokens) {
-            if (token.isEmpty()) continue;
+        for (String token : tokens(text)) {
             if (token.equals(">")) {
                 if (parts.isEmpty()) throw new IllegalArgumentException("query cannot start with >");
                 nextDirect = true;
@@ -40,6 +38,32 @@ public final class Selector {
         }
         if (parts.isEmpty()) throw new IllegalArgumentException("empty query");
         return new Selector(parts, direct);
+    }
+
+    private static List<String> tokens(String text) {
+        List<String> out = new ArrayList<>();
+        StringBuilder word = new StringBuilder();
+        boolean inside = false;
+        char quote = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (quote != 0) {
+                if (c == quote) quote = 0;
+            } else if (inside) {
+                if (c == '"' || c == '\'') quote = c;
+                else if (c == ']') inside = false;
+            } else if (c == '[') {
+                inside = true;
+            } else if (Character.isWhitespace(c) || c == '>') {
+                if (!word.isEmpty()) out.add(word.toString());
+                word.setLength(0);
+                if (c == '>') out.add(">");
+                continue;
+            }
+            word.append(c);
+        }
+        if (!word.isEmpty()) out.add(word.toString());
+        return out;
     }
 
     private static Compound compound(String token, ClassRegistry classes) {
