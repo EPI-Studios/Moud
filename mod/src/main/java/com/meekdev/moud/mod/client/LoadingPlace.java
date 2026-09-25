@@ -38,7 +38,7 @@ public final class LoadingPlace {
 
     private static final double TICK = 0.05;
     private static final double FADE_SECONDS = 0.4;
-    private static final Clock FRAME = new Clock();
+    private static final Clock FRAME = new Clock(Clock.MAX_WALL_STEP);
 
     private static @Nullable Host host;
     private static @Nullable Instance world;

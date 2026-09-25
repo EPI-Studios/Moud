@@ -568,10 +568,14 @@ public final class Host {
     }
 
     public void renderStep(double dt) {
+        renderStep(dt, dt);
+    }
+
+    public void renderStep(double dt, double elapsed) {
         instances.sweep();
         if (client) {
             instances.scripts().poll(world.tree());
-            scheduler.advance(dt);
+            scheduler.advance(elapsed);
         }
         renderBindings.beforeCamera(dt);
         for (Consumer<Double> step : renderSteps) {

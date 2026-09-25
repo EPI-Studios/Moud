@@ -35,6 +35,7 @@ import org.jspecify.annotations.Nullable;
 public final class ClientPlace {
 
     private static final Clock FRAME = new Clock();
+    private static final Clock WALL = new Clock(Clock.MAX_WALL_STEP);
 
     private static @Nullable Place place;
     private static @Nullable Instance placeWorld;
@@ -117,14 +118,16 @@ public final class ClientPlace {
         Actions.frame();
         Host host = place.host();
         double dt = FRAME.tick();
+        double elapsed = WALL.tick();
         FirstPersonView.begin(dt);
-        if (host != null) host.renderStep(dt);
+        if (host != null) host.renderStep(dt, elapsed);
         Cameras.frame(camera, partialTick);
         FirstPersonView.end(camera, dt);
         if (host != null) host.cameraUpdated();
     }
 
     private static void start(Instance world) {
+        WALL.tick();
         place = Place.client(world, Addons.classes(), host -> {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
             if (!LoadingPlace.showing()) {
