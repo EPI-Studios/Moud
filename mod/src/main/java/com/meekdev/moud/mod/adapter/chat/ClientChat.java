@@ -202,6 +202,7 @@ public final class ClientChat implements ChatRef {
     }
 
     public void sendTyped(String text) {
+        if (!ClientPlayNetworking.canSend(ChatUpPayload.TYPE)) return;
         Instance channel = target();
         LocalPlayer me = Minecraft.getInstance().player;
         ChatLine line = new ChatLine(0);
