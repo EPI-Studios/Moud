@@ -120,9 +120,12 @@ There are two ways this goes wrong, and you check them separately:
 ## Limits
 
 - Only `http://` and `https://` addresses. Anything else is an error before the call leaves.
-- 30 seconds to connect and to answer.
-- 16 MB each way. A longer body is refused; a longer answer is cut.
-- Redirects are followed.
+- 30 seconds to connect, 30 more for the answer to start, and a minute for the whole answer. A
+  request that runs out of time errors.
+- 16 MB each way. A longer body is refused before it leaves, and a longer answer is an error.
+- Redirects are followed, except from `https://` to `http://`.
+- Every address is reachable, your own machine and local network included. `httpRequests` is the
+  only switch.
 - A player is never told what the server asked or what it heard. Send it over a
   [channel](talking.md) yourself if they should see it.
 
