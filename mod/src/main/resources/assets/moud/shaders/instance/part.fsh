@@ -27,7 +27,7 @@ layout(location = 4) out vec4 GAlbedo;
 
 vec2 litBy(vec3 world, vec3 normal, vec2 fallback) {
     if (LightVolume.w < 1.0) return fallback;
-    vec3 at = (world + normal * 0.5 - LightVolume.xyz + 0.5) / LightVolume.w;
+    vec3 at = (world + normal * 0.5 - LightVolume.xyz) / LightVolume.w;
     if (any(lessThan(at, vec3(0.0))) || any(greaterThan(at, vec3(1.0)))) return fallback;
     return texture(BlockLight, at).rg * 255.0;
 }

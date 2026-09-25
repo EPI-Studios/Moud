@@ -12,7 +12,7 @@ public final class BlockLightGrid {
 
     private static final int SIZE = 32;
     private static final int MOVED = 4;
-    private static final int SLICES_PER_FRAME = 8;
+    private static final int SLICES_PER_FRAME = 4;
     private static final float LEVELS = 16f;
 
     private static final ByteBuffer PAIRS = BufferUtils.createByteBuffer(SIZE * SIZE * SIZE * 2);
@@ -22,6 +22,9 @@ public final class BlockLightGrid {
     private static int originX;
     private static int originY;
     private static int originZ;
+    private static int shownX;
+    private static int shownY;
+    private static int shownZ;
     private static int scannedY = SIZE;
     private static boolean ready;
 
@@ -35,13 +38,14 @@ public final class BlockLightGrid {
         int wantedX = eye.getX() - SIZE / 2;
         int wantedY = eye.getY() - SIZE / 2;
         int wantedZ = eye.getZ() - SIZE / 2;
-        if (!ready || far(wantedX - originX) || far(wantedY - originY) || far(wantedZ - originZ)) {
+        boolean moved = far(wantedX - originX) || far(wantedY - originY) || far(wantedZ - originZ);
+        if (scannedY >= SIZE || moved) {
             originX = wantedX;
             originY = wantedY;
             originZ = wantedZ;
             scannedY = 0;
         }
-        if (scannedY < SIZE) scan(level);
+        scan(level);
     }
 
     private static boolean far(int moved) {
@@ -56,7 +60,7 @@ public final class BlockLightGrid {
                 for (int x = 0; x < SIZE; x++) {
                     at.set(originX + x, originY + y, originZ + z);
                     int packed = LevelRenderer.getLightCoords(level, at);
-                    int slot = ((y * SIZE + z) * SIZE + x) * 2;
+                    int slot = ((z * SIZE + y) * SIZE + x) * 2;
                     PAIRS.put(slot, (byte) Math.min(255, packed & 0xFFFF));
                     PAIRS.put(slot + 1, (byte) Math.min(255, (packed >> 16) & 0xFFFF));
                 }
@@ -67,6 +71,9 @@ public final class BlockLightGrid {
         PAIRS.position(0).limit(PAIRS.capacity());
         if (texture == 0) texture = Textures.volume(SIZE, PAIRS);
         else Textures.updateVolume(texture, SIZE, PAIRS);
+        shownX = originX;
+        shownY = originY;
+        shownZ = originZ;
         ready = true;
     }
 
@@ -75,9 +82,9 @@ public final class BlockLightGrid {
     }
 
     public static float[] placed() {
-        PLACED[0] = originX;
-        PLACED[1] = originY;
-        PLACED[2] = originZ;
+        PLACED[0] = shownX;
+        PLACED[1] = shownY;
+        PLACED[2] = shownZ;
         PLACED[3] = ready ? SIZE : 0;
         return PLACED;
     }
