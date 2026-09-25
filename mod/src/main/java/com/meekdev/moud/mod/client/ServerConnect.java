@@ -31,7 +31,8 @@ public final class ServerConnect {
     private static boolean started;
     private static volatile boolean joined;
     private static boolean waiting;
-    private static Component failure = Component.empty();
+    private static String failure = "";
+    private static String download = "";
     private static final List<String> NOTES = new ArrayList<>();
 
     private ServerConnect() {}
@@ -63,6 +64,10 @@ public final class ServerConnect {
         return NOTES;
     }
 
+    public static String download() {
+        return download;
+    }
+
     public static void lost(Component reason) {
         Minecraft client = Minecraft.getInstance();
         client.setScreen(new GenericMessageScreen(Component.literal(status())));
@@ -73,7 +78,7 @@ public final class ServerConnect {
         Minecraft client = Minecraft.getInstance();
         client.setScreen(new GenericMessageScreen(Component.literal(status())));
         if (started) {
-            client.schedule(() -> disconnected(client, Component.literal("The connection closed.")));
+            client.schedule(() -> disconnected(client, Component.literal("The connection closed")));
             return;
         }
         started = true;
@@ -87,8 +92,11 @@ public final class ServerConnect {
         joined = false;
         lookup = null;
         next = 0;
-        failure = Component.literal("No server answered.");
+        failure = "No server answered";
+        download = "";
         NOTES.clear();
+        LoadingState.begin(LoadingState.LOOKUP);
+        LoadingPlace.start();
         client.setScreen(new GenericMessageScreen(Component.literal(status())));
         PlaceConfig.Host host = PlaceToml.config().host();
         Path cache = PlaceToml.root().resolve(CACHE);
@@ -97,8 +105,9 @@ public final class ServerConnect {
                 ServerLookup.Found found = ServerLookup.find(host, cache);
                 client.execute(() -> looked(client, found));
             } catch (IOException e) {
-                MoudMod.LOG.warn("the server lookup failed: {}", e.getMessage());
-                client.execute(() -> failed(client, Component.literal("The server list could not be loaded: " + e.getMessage() + ".")));
+                MoudMod.LOG.warn("the server lookup failed: {}", e.toString());
+                String why = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                client.execute(() -> failed(client, "The server list could not be loaded: " + ConnectReasons.friendly(why)));
             }
         }, "moud server lookup");
         worker.setDaemon(true);
@@ -113,25 +122,25 @@ public final class ServerConnect {
             MoudMod.LOG.warn("the server lookup failed, using the saved one: {}", found.problem());
             NOTES.add("Using the servers from last time, " + found.problem());
         }
+        download = result.download();
         if (!result.open()) {
             MoudMod.LOG.info("{} is closed: {}", name, result.message());
-            show(client, Component.literal(name), result.message().isEmpty() ? "The server is closed for now." : result.message());
+            show(client, name, result.message().isEmpty() ? "The server is closed for now." : result.message(), LoadingState.CLOSED);
             return;
         }
         if (result.outdated(version)) {
             MoudMod.LOG.info("{} {} is older than the {} the server needs", name, version, result.version());
             String reason = name + " " + result.version() + " is out, this is " + version + ". Download the new version to keep playing.";
             if (result.download().isEmpty()) {
-                show(client, Component.literal("This game needs an update"), reason);
+                show(client, "This game needs an update", reason, LoadingState.UPDATE);
             } else {
                 String link = result.download();
-                waiting = false;
-                client.setScreen(new PlaceMessageScreen(Component.literal("This game needs an update"), Component.literal(reason), "Download",
-                        () -> Util.getPlatform().openUri(link)));
+                fail(client, "This game needs an update", reason, LoadingState.UPDATE, "Download", () -> Util.getPlatform().openUri(link));
             }
             return;
         }
         if (!result.message().isEmpty()) NOTES.addFirst(result.message());
+        if (!NOTES.isEmpty()) LoadingState.message(NOTES.getFirst());
         lookup = result;
         attempt(client);
     }
@@ -144,11 +153,13 @@ public final class ServerConnect {
         }
         String address = result.servers().get(next++);
         if (!ServerAddress.isValidAddress(address)) {
-            failure = Component.literal(address + " is not a server address.");
+            failure = address + " is not a server address";
             attempt(client);
             return;
         }
         MoudMod.LOG.info("connecting to {} ({} of {})", address, next, result.servers().size());
+        LoadingState.server(address);
+        LoadingState.phase(LoadingState.CONNECTING);
         ServerData data = new ServerData(PlaceToml.config().name(), address, ServerData.Type.OTHER);
         Screen screen = new GenericMessageScreen(Component.literal(status()));
         client.setScreen(screen);
@@ -159,21 +170,28 @@ public final class ServerConnect {
         if (joined) {
             joined = false;
             MoudMod.LOG.info("disconnected: {}", reason.getString());
-            show(client, Component.literal("Disconnected"), reason.getString());
+            show(client, "Disconnected", ConnectReasons.friendly(reason.getString()), LoadingState.DISCONNECTED);
             return;
         }
-        failure = reason;
+        failure = ConnectReasons.friendly(reason.getString());
         MoudMod.LOG.info("could not connect: {}", reason.getString());
         attempt(client);
     }
 
-    private static void failed(Minecraft client, Component reason) {
-        waiting = false;
-        client.setScreen(new PlaceMessageScreen(Component.literal("Could not connect to " + PlaceToml.config().name()), reason, "Try again", () -> start(client)));
+    private static void failed(Minecraft client, String reason) {
+        show(client, "Could not connect to " + PlaceToml.config().name(), reason, LoadingState.CONNECT);
     }
 
-    private static void show(Minecraft client, Component title, String reason) {
+    private static void show(Minecraft client, String title, String reason, String kind) {
+        fail(client, title, reason, kind, "Try again", () -> start(client));
+    }
+
+    private static void fail(Minecraft client, String title, String reason, String kind, String action, Runnable run) {
         waiting = false;
-        client.setScreen(new PlaceMessageScreen(title, Component.literal(reason), "Try again", () -> start(client)));
+        if (LoadingState.fail(reason, kind)) {
+            client.setScreen(new GenericMessageScreen(Component.literal(title)));
+            return;
+        }
+        client.setScreen(new PlaceMessageScreen(Component.literal(title), Component.literal(reason), action, run));
     }
 }

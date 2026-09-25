@@ -34,6 +34,7 @@ import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.EditMode;
 import com.mojang.blaze3d.platform.Window;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -53,7 +54,7 @@ public final class Ui {
 
     private record Placed(WorldSurface surface, float width, float height, int resolution) {}
 
-    private record Pointer(float x, float y) {}
+    record Pointer(float x, float y) {}
 
     private static final class Hover {
         Set<Node> inside = Set.of();
@@ -104,15 +105,15 @@ public final class Ui {
             }
         }
         hover();
-        buttons();
-        measured();
+        buttons(NODES.values());
+        measured(NODES.values());
         focusRequests();
         pointers();
         Windows.layoutGuis();
     }
 
-    private static void buttons() {
-        for (Node node : new ArrayList<>(NODES.values())) {
+    static void buttons(Collection<Node> nodes) {
+        for (Node node : new ArrayList<>(nodes)) {
             Instance source = node.source;
             if (!source.isAlive()) continue;
             switch (source) {
@@ -130,8 +131,8 @@ public final class Ui {
         Instances.setBool(node.source, node.source.def().property("hovered"), node.hovered);
     }
 
-    private static void measured() {
-        for (Node node : NODES.values()) {
+    static void measured(Collection<Node> nodes) {
+        for (Node node : nodes) {
             if (!(node.source instanceof GuiObject object) || !object.isAlive()) continue;
             Vector3 position = new Vector3(node.scale * node.x + node.offsetX, node.scale * node.y + node.offsetY, 0);
             Vector3 size = new Vector3(node.scale * node.w, node.scale * node.h, 0);
@@ -557,7 +558,7 @@ public final class Ui {
         if (router != null && router.focused() == node) router.setFocus(null);
     }
 
-    private static Pointer pointer(Minecraft client) {
+    static Pointer pointer(Minecraft client) {
         Window window = client.getWindow();
         double across = Math.max(1, window.getScreenWidth());
         double down = Math.max(1, window.getScreenHeight());

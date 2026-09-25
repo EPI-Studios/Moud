@@ -95,6 +95,7 @@ final class Libraries {
         MessagingLibrary.install(host);
         MemoryLibrary.install(host);
         GameLibrary.install(host, game);
+        LoadingLibrary.install(host, game);
         WindowLibrary.install(host);
         CoreGuiLibrary.install(host);
         InterfaceLibrary.install(host);

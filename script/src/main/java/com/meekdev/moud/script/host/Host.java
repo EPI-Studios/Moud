@@ -24,6 +24,7 @@ import com.meekdev.moud.script.api.GameRef;
 import com.meekdev.moud.script.api.HistoryRef;
 import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.InvokeRef;
+import com.meekdev.moud.script.api.LoadingRef;
 import com.meekdev.moud.script.api.MemoryRef;
 import com.meekdev.moud.script.api.ModuleSource;
 import com.meekdev.moud.script.api.PlayerRef;
@@ -122,6 +123,7 @@ public final class Host {
     private GameRef game;
     private SettingsRef settings;
     private WindowRef window;
+    private LoadingRef loading;
     private CoreGuiRef coreGui;
     private RosterRef roster;
     private EditsRef edits;
@@ -164,6 +166,7 @@ public final class Host {
                         .game(inert(GameRef.class))
                         .settings(inert(SettingsRef.class))
                         .window(inert(WindowRef.class))
+                        .loading(inert(LoadingRef.class))
                         .coreGui(inert(CoreGuiRef.class))
                         .devices(inert(DevicesRef.class));
             } else {
@@ -255,6 +258,7 @@ public final class Host {
     public GameRef game() { return game; }
     public SettingsRef settings() { return settings; }
     public WindowRef window() { return window; }
+    public LoadingRef loading() { return loading; }
     public CoreGuiRef coreGui() { return coreGui; }
     public RosterRef roster() { return roster; }
     public EditsRef edits() { return edits; }
@@ -289,6 +293,7 @@ public final class Host {
     public Host game(GameRef game) { this.game = game; return this; }
     public Host settings(SettingsRef settings) { this.settings = settings; return this; }
     public Host window(WindowRef window) { this.window = window; return this; }
+    public Host loading(LoadingRef loading) { this.loading = loading; return this; }
     public Host coreGui(CoreGuiRef coreGui) { this.coreGui = coreGui; return this; }
     public Host roster(RosterRef roster) { this.roster = roster; return this; }
     public Host devices(DevicesRef devices) { this.devices = devices; return this; }

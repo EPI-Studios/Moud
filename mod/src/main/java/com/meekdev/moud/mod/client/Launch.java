@@ -37,6 +37,7 @@ public final class Launch {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> LevelPreload.cancel());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> LevelPreload.cancel());
         ServerConnect.install();
+        LoadingPlace.install();
     }
 
     public static @Nullable Path projectToOpen() {
@@ -76,6 +77,10 @@ public final class Launch {
         open(Minecraft.getInstance());
     }
 
+    public static void reopen() {
+        open(Minecraft.getInstance());
+    }
+
     private static boolean opened;
 
     public static boolean opened() {
@@ -85,6 +90,8 @@ public final class Launch {
     private static void open(Minecraft client) {
         opened = true;
         client.getTutorial().setStep(TutorialSteps.NONE);
+        LoadingState.begin(LoadingState.CONNECTING);
+        LoadingPlace.start();
         if (LevelPreload.open(client)) return;
         client.createWorldOpenFlows().createFreshLevel(
                 VoidLevel.NAME,

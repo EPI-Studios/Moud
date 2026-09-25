@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client;
 
+import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.adapter.audio.ResonaAudio;
 import com.meekdev.moud.mod.adapter.audio.Sounds;
@@ -44,6 +45,7 @@ import com.meekdev.moud.mod.client.input.Input;
 import com.meekdev.moud.mod.client.zone.ClientPrompts;
 import com.meekdev.moud.mod.place.Game;
 import com.meekdev.moud.mod.transport.Post;
+import java.util.List;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -114,8 +116,9 @@ public final class MoudClient implements ClientModInitializer {
             Parts.prepareFrame();
             CoreGui.INSTANCE.frame();
             Ui.frame(partialTick);
-            Sounds.frame(partialTick);
-            Videos.frame(partialTick);
+            List<InstanceTree> trees = LoadingPlace.withLoading(ClientScene.tree());
+            Sounds.frame(trees, partialTick);
+            Videos.frame(trees, partialTick);
             SceneLights.frame(partialTick);
             WeatherView.frame();
             Effects.frame();

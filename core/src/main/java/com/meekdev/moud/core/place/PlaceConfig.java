@@ -18,6 +18,7 @@ public record PlaceConfig(
         int maxPlayers,
         String server,
         String client,
+        String loadingScript,
         String scene,
         Map<String, Boolean> features,
         Loading loading,
@@ -45,12 +46,12 @@ public record PlaceConfig(
     private static final Set<String> STREAMING = Set.of("enabled", "radius");
     private static final double NEAREST = 32;
     private static final double FARTHEST = 4096;
-    private static final Set<String> ENTRY = Set.of("server", "client", "scene");
+    private static final Set<String> ENTRY = Set.of("server", "client", "loading", "scene");
     private static final Set<String> SERVER = Set.of("lookup", "address");
     private static final Set<String> LOCAL = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
 
     public static final PlaceConfig DEFAULT = new PlaceConfig("place", "place", "0.0.0", "", 16,
-            "res://server/main", "res://client/main", "", Map.of(), Loading.DEFAULT, Streaming.DEFAULT, Host.DEFAULT);
+            "res://server/main", "res://client/main", "res://client/loading", "", Map.of(), Loading.DEFAULT, Streaming.DEFAULT, Host.DEFAULT);
 
     public static PlaceConfig parse(String text) {
         Map<String, Object> root = Toml.parse(text);
@@ -59,7 +60,7 @@ public record PlaceConfig(
         }
         Map<String, Object> entry = table(root, "entry");
         for (String key : entry.keySet()) {
-            if (!ENTRY.contains(key)) throw new IllegalArgumentException("unknown [entry] setting '" + key + "', expected server, client or scene");
+            if (!ENTRY.contains(key)) throw new IllegalArgumentException("unknown [entry] setting '" + key + "', expected server, client, loading or scene");
         }
         Map<String, Boolean> features = new LinkedHashMap<>();
         for (Map.Entry<String, Object> one : table(root, "features").entrySet()) {
@@ -78,6 +79,7 @@ public record PlaceConfig(
                 (int) players,
                 path(entry, "server", DEFAULT.server),
                 path(entry, "client", DEFAULT.client),
+                path(entry, "loading", DEFAULT.loadingScript),
                 path(entry, "scene", ""),
                 Map.copyOf(features),
                 loading(table(root, "loading")),

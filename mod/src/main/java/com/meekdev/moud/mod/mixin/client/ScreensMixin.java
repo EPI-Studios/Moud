@@ -2,8 +2,10 @@ package com.meekdev.moud.mod.mixin.client;
 
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
+import com.meekdev.moud.mod.client.ConnectReasons;
 import com.meekdev.moud.mod.client.GameState;
 import com.meekdev.moud.mod.client.Launch;
+import com.meekdev.moud.mod.client.LoadingState;
 import com.meekdev.moud.mod.client.ServerConnect;
 import com.meekdev.moud.mod.client.screens.PlaceMessageScreen;
 import com.meekdev.moud.mod.client.screens.PlacePauseScreen;
@@ -13,6 +15,7 @@ import com.mojang.realmsclient.RealmsMainScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.DeathScreen;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
+import net.minecraft.client.gui.screens.GenericMessageScreen;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -80,7 +83,11 @@ abstract class ScreensMixin {
             return true;
         }
         if (screen instanceof DisconnectedScreen disconnected) {
-            client.setScreen(new PlaceMessageScreen(Component.literal("Disconnected"), ((DisconnectedDetails) disconnected).moud$details().reason()));
+            String raw = ((DisconnectedDetails) disconnected).moud$details().reason().getString();
+            MoudMod.LOG.info("disconnected: {}", raw);
+            String reason = ConnectReasons.friendly(raw);
+            if (LoadingState.fail(reason, LoadingState.DISCONNECTED)) client.setScreen(new GenericMessageScreen(Component.literal("Disconnected")));
+            else client.setScreen(new PlaceMessageScreen(Component.literal("Disconnected"), Component.literal(reason)));
             return true;
         }
         return false;

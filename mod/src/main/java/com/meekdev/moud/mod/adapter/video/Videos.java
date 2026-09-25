@@ -132,13 +132,12 @@ public final class Videos {
         return loop == null || loop.texture == 0 ? null : new int[] {loop.width, loop.height};
     }
 
-    public static void frame(float partialTick) {
+    public static void frame(List<InstanceTree> trees, float partialTick) {
         long now = System.nanoTime();
         double delta = lastFrame == 0 ? 0 : Math.min((now - lastFrame) / 1.0e9, 0.25);
         lastFrame = now;
 
-        InstanceTree tree = ClientScene.tree();
-        if (tree != null) {
+        for (InstanceTree tree : trees) {
             for (VideoFrame frame : tree.ofClass(Classes.VIDEO_FRAME)) {
                 if (Instance.outOfWorld(frame)) continue;
                 step(frame, PLAYBACKS.computeIfAbsent(frame, ignored -> new Playback()), delta, partialTick);
@@ -147,14 +146,14 @@ public final class Videos {
         Iterator<Map.Entry<VideoFrame, Playback>> gone = PLAYBACKS.entrySet().iterator();
         while (gone.hasNext()) {
             Map.Entry<VideoFrame, Playback> entry = gone.next();
-            if (tree != null && entry.getKey().isAlive() && entry.getKey().tree() == tree) continue;
+            if (entry.getKey().isAlive() && trees.contains(entry.getKey().tree())) continue;
             entry.getValue().dispose();
             gone.remove();
         }
         Iterator<Playback> loops = LOOPS.values().iterator();
         while (loops.hasNext()) {
             Playback loop = loops.next();
-            if (tree != null && now - loop.seen < UNSEEN_NANOS) {
+            if (!trees.isEmpty() && now - loop.seen < UNSEEN_NANOS) {
                 loop(loop, delta);
                 continue;
             }

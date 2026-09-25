@@ -46,6 +46,7 @@ public final class PlaceExport {
         }
         entry(root, config.server(), "server", scriptExtensions, issues);
         entry(root, config.client(), "client", scriptExtensions, issues);
+        if (!config.loadingScript().equals(PlaceConfig.DEFAULT.loadingScript())) entry(root, config.loadingScript(), "loading", scriptExtensions, issues);
         if (config.scene().isEmpty()) {
             issues.add(new Issue(Severity.WARNING, "No start scene is set, players arrive in an empty world", toml, 0));
         } else if (!Files.isRegularFile(root.resolve(Res.parse(config.scene())))) {

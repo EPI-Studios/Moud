@@ -52,12 +52,22 @@ public final class Sounds {
 
     private Sounds() {}
 
-    public static void frame(float partialTick) {
-        InstanceTree tree = ClientScene.tree();
-        if (tree == null) {
+    public static void frame(List<InstanceTree> trees, float partialTick) {
+        if (trees.isEmpty()) {
             stopAll();
             return;
         }
+        for (InstanceTree tree : trees) frame(tree, partialTick);
+        Iterator<Map.Entry<Sound, Voice>> gone = VOICES.entrySet().iterator();
+        while (gone.hasNext()) {
+            Map.Entry<Sound, Voice> entry = gone.next();
+            if (entry.getKey().isAlive() && trees.contains(entry.getKey().tree())) continue;
+            if (entry.getValue().handle != null) entry.getValue().handle.stop();
+            gone.remove();
+        }
+    }
+
+    private static void frame(InstanceTree tree, float partialTick) {
         for (SoundBus bus : tree.ofClass(Classes.SOUND_BUS)) {
             var mixed = Resona.bus(bus.bus);
             mixed.setVolume((float) bus.volume);
@@ -130,14 +140,6 @@ public final class Sounds {
             }
             sound.playbackLoudness = Math.min(1000, Math.max(0, voice.handle.loudness() * 1000));
             if (at != null) voice.handle.setPosition(ResonaAudio.vec(at));
-        }
-
-        Iterator<Map.Entry<Sound, Voice>> gone = VOICES.entrySet().iterator();
-        while (gone.hasNext()) {
-            Map.Entry<Sound, Voice> entry = gone.next();
-            if (entry.getKey().isAlive() && entry.getKey().tree() == tree) continue;
-            if (entry.getValue().handle != null) entry.getValue().handle.stop();
-            gone.remove();
         }
     }
 

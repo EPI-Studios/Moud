@@ -54,6 +54,10 @@ public final class ClientPlace {
         return place == null ? null : place.host();
     }
 
+    public static boolean running() {
+        return place != null;
+    }
+
     public static Input input() {
         return INPUT;
     }
@@ -123,8 +127,10 @@ public final class ClientPlace {
     private static void start(Instance world) {
         place = Place.client(world, Addons.classes(), host -> {
             camera = Instances.createLocal(Classes.CAMERA, world, "Camera");
-            ResonaAudio.INSTANCE.reset();
-            Sounds.stopAll();
+            if (!LoadingPlace.showing()) {
+                ResonaAudio.INSTANCE.reset();
+                Sounds.stopAll();
+            }
             WeatherView.stop();
             host.clientSide(camera, LENS, INPUT, ClientScene::own)
                     .post(Post.CLIENT)
@@ -138,6 +144,7 @@ public final class ClientPlace {
                     .game(GameState.INSTANCE)
                     .settings(PlayerSettings.INSTANCE)
                     .window(WindowApi.INSTANCE)
+                    .loading(LoadingApi.PLACE)
                     .images(ClientImageSources.INSTANCE)
                     .meshes(MeshSources.INSTANCE)
                     .coreGui(CoreGui.INSTANCE)

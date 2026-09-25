@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.mixin.client;
 
+import com.meekdev.moud.mod.client.LoadingPlace;
 import com.meekdev.moud.mod.client.screens.LoadingLook;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ConnectScreen;
@@ -20,7 +21,8 @@ abstract class LoadingScreenMixin {
         Screen self = (Screen) (Object) this;
         boolean loading = self instanceof LevelLoadingScreen || self instanceof GenericMessageScreen || self instanceof ProgressScreen || self instanceof ConnectScreen;
         if (!loading || !LoadingLook.active()) return;
-        LoadingLook.draw(graphics, self.width, self.height);
+        if (LoadingPlace.showing()) LoadingLook.backdrop(graphics, self.width, self.height);
+        else LoadingLook.draw(graphics, self.width, self.height);
         ci.cancel();
     }
 }

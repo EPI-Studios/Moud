@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.screens;
 
 import com.meekdev.moud.core.place.PlaceConfig;
 import com.meekdev.moud.mod.adapter.ui.UiImages;
+import com.meekdev.moud.mod.client.LoadingPlace;
 import com.meekdev.moud.mod.client.ServerConnect;
 import com.meekdev.moud.mod.place.Game;
 import com.meekdev.moud.mod.place.PlaceToml;
@@ -19,14 +20,18 @@ public final class LoadingLook {
     private LoadingLook() {}
 
     public static boolean active() {
-        if (Game.standalone() || ServerConnect.active()) return true;
+        if (Game.standalone() || ServerConnect.active() || LoadingPlace.showing()) return true;
         return PlaceToml.opened() && !PlaceToml.config().loading().equals(PlaceConfig.Loading.DEFAULT);
+    }
+
+    public static void backdrop(GuiGraphicsExtractor g, int width, int height) {
+        g.fill(0, 0, width, height, 0xFF000000 | Integer.parseInt(PlaceToml.config().loading().color().substring(1), 16));
     }
 
     public static void draw(GuiGraphicsExtractor g, int width, int height) {
         PlaceConfig config = PlaceToml.config();
         PlaceConfig.Loading loading = config.loading();
-        g.fill(0, 0, width, height, 0xFF000000 | Integer.parseInt(loading.color().substring(1), 16));
+        backdrop(g, width, height);
         UiImages.Image background = image(loading.background());
         if (background != null) {
             double scale = Math.max(width / (double) background.width(), height / (double) background.height());
