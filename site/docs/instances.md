@@ -95,9 +95,9 @@ thing:
 | Field | What it holds |
 |---|---|
 | `cframe` | the whole local frame, position and rotation |
-| `position` | just the position, relative to the parent |
-| `rotation` | just the rotation, turning without moving |
-| `worldCframe` | read only: the frame composed through every parent |
+| `position` | just the position, in the world |
+| `rotation` | just the rotation, in the world, turning without moving |
+| `worldCframe` | the frame composed through every parent; writing it converts back through them |
 | `pivot` | the point the frame turns about, from the middle outward |
 
 You set `pivot` so that a door turns at its hinge instead of at its middle. Without it, a rig needs an

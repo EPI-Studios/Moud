@@ -397,14 +397,15 @@ body.joints.head.scale = vec3(2,2,2) -- a big head, still joined at the neck
 The movement profile is in metres and seconds, and the engine converts to whatever the tick rate is.
 
 ```lua
-character.walkSpeed = 6
-character.jumpPower = 9        -- the speed you leave the ground at, not a height
-character.gravityScale = 1
-character.groundAcceleration = 36
-character.airDrag = 0.667      -- the fraction of speed a second of air leaves you with
-character.stepHeight = 0.6
-character.slopeLimit = 45
-character.coyoteTime = 0.15
+local h = character.humanoid
+h.walkSpeed = 6
+h.jumpPower = 9                -- the speed you leave the ground at, not a height
+h.gravityScale = 1
+h.groundAcceleration = 36
+h.airDrag = 0.667              -- the fraction of speed a second of air leaves you with
+h.stepHeight = 0.6
+h.slopeLimit = 45
+h.coyoteTime = 0.15
 ```
 
 - **`walkSpeed`** is metres a second. At 6 the body crosses six metres in a second whatever the tick

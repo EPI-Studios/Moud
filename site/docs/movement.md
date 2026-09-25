@@ -12,7 +12,7 @@ a place owns is walked by the engine with the same numbers.
 
 ```lua
 local h = body.humanoid
-h.walkSpeed = 6           h.sprintMultiplier = 1.3     h.sneakMultiplier = 0.3
+h.walkSpeed = 4.317       h.sprintMultiplier = 1.3     h.sneakMultiplier = 0.3
 h.jumpPower = 8.4         h.gravityScale = 1
 h.groundAcceleration = 52.2   h.groundDeceleration = 52.2
 h.airSpeed = 4.444        h.airAcceleration = 3.64
