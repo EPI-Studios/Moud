@@ -66,8 +66,8 @@ public final class Animators {
     }
 
     public static void step(InstanceTree tree, double dt, boolean server) {
-        for (Instance instance : tree.ofClass(Classes.TRACK)) {
-            if (instance instanceof AnimationTrack track && track.animation != null && (server || !ViewModels.inside(track))) {
+        for (Instance instance : List.copyOf(tree.ofClass(Classes.TRACK))) {
+            if (instance instanceof AnimationTrack track && track.isAlive() && track.animation != null && (server || !ViewModels.inside(track))) {
                 advance(track, dt, server);
             }
         }
@@ -107,7 +107,7 @@ public final class Animators {
             markers(track, clip, before, clip.length() + 1e-9, server);
             track.timePosition = clip.length();
             track.held(true);
-            if (!holds && authoritative) Instances.setBool(track, PLAYING, false);
+            if (!holds && authoritative && track.isAlive()) Instances.setBool(track, PLAYING, false);
             track.ended.fire(track);
             return;
         }
@@ -119,7 +119,7 @@ public final class Animators {
                 track.timePosition = 0;
                 if (track.held()) return;
                 track.held(true);
-                if (!holds && authoritative) Instances.setBool(track, PLAYING, false);
+                if (!holds && authoritative && track.isAlive()) Instances.setBool(track, PLAYING, false);
                 track.ended.fire(track);
                 return;
             }
@@ -139,14 +139,14 @@ public final class Animators {
     }
 
     public static void follow(InstanceTree tree) {
-        for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
-            if (instance instanceof Character character) apply(character);
+        for (Instance instance : List.copyOf(tree.ofClass(Classes.CHARACTER))) {
+            if (instance instanceof Character character && character.isAlive()) apply(character);
         }
     }
 
     public static void controllers(InstanceTree tree) {
-        for (Instance instance : tree.ofClass(Classes.ANIMATION_CONTROLLER)) {
-            if (instance instanceof AnimationController controller) apply(controller);
+        for (Instance instance : List.copyOf(tree.ofClass(Classes.ANIMATION_CONTROLLER))) {
+            if (instance instanceof AnimationController controller && controller.isAlive()) apply(controller);
         }
     }
 

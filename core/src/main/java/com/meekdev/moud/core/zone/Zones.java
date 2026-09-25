@@ -23,7 +23,7 @@ public final class Zones {
     private Zones() {}
 
     public static void step(InstanceTree tree, ClassRegistry classes, double now) {
-        for (Zone zone : tree.ofClass(Classes.ZONE)) {
+        for (Zone zone : List.copyOf(tree.ofClass(Classes.ZONE))) {
             if (!zone.isAlive() || ViewportFrame.inside(zone)) continue;
             Set<Instance> current = new LinkedHashSet<>();
             if (zone.enabled) {

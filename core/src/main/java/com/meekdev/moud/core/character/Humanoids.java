@@ -10,6 +10,7 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -31,8 +32,8 @@ public final class Humanoids {
     private Humanoids() {}
 
     public static void follow(InstanceTree tree, double dt) {
-        for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
-            if (instance instanceof Character character) apply(character, dt);
+        for (Instance instance : List.copyOf(tree.ofClass(Classes.CHARACTER))) {
+            if (instance instanceof Character character && character.isAlive()) apply(character, dt);
         }
     }
 
@@ -46,15 +47,17 @@ public final class Humanoids {
         if (health <= 0 && !living.stateEnabled(HumanoidState.DEAD)) health = Math.min(living.maxHealth, 0.01);
         if (health != living.health) Instances.setNum(living, HEALTH, health);
         if (health != was) living.healthChanged.fire(living);
+        if (!living.isAlive() || !character.isAlive()) return;
 
         if (health <= 0) {
-            setState(living, HumanoidState.DEAD);
             Instances.setBool(living, WALKING, false);
             Instances.setNum(character, MOVE_SPEED, 0);
+            setState(living, HumanoidState.DEAD);
             return;
         }
         if (living.state == HumanoidState.DEAD) {
             setState(living, HumanoidState.STANDING);
+            if (!living.isAlive() || !character.isAlive()) return;
         }
 
         if (!character.owner.isEmpty()) return;
