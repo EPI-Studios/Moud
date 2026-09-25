@@ -32,10 +32,11 @@ public final class Launch {
     public void install() {
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-            if (PlaceToml.chosenAtLaunch() && !features.isOn(Feature.TITLE_SCREEN)) LevelPreload.start(client);
+            if (PlaceToml.chosenAtLaunch() && !features.isOn(Feature.TITLE_SCREEN) && !ServerConnect.active()) LevelPreload.start(client);
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> LevelPreload.cancel());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> LevelPreload.cancel());
+        ServerConnect.install();
     }
 
     public static @Nullable Path projectToOpen() {

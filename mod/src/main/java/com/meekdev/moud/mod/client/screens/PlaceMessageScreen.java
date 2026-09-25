@@ -16,16 +16,24 @@ public final class PlaceMessageScreen extends Screen {
     private static final int LINE = 11;
 
     private final Component reason;
+    private final String action;
+    private final Runnable run;
 
     public PlaceMessageScreen(Component title, Component reason) {
+        this(title, reason, "Try again", () -> Launch.openProject(PlaceToml.root()));
+    }
+
+    public PlaceMessageScreen(Component title, Component reason, String action, Runnable run) {
         super(title);
         this.reason = reason;
+        this.action = action;
+        this.run = run;
     }
 
     @Override
     protected void init() {
         int y = height / 2 + 30;
-        addRenderableWidget(Button.builder(Component.literal("Try again"), button -> Launch.openProject(PlaceToml.root()))
+        addRenderableWidget(Button.builder(Component.literal(action), button -> run.run())
                 .bounds(width / 2 - BUTTON_WIDTH - 4, y, BUTTON_WIDTH, 20).build());
         addRenderableWidget(Button.builder(Component.literal("Quit"), button -> GameState.INSTANCE.quit())
                 .bounds(width / 2 + 4, y, BUTTON_WIDTH, 20).build());

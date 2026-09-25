@@ -62,6 +62,42 @@ public final class PlaceExport {
         return issues;
     }
 
+    public static List<Issue> server(Path root) {
+        Path toml = root.resolve("place.toml");
+        PlaceConfig config;
+        try {
+            if (!Files.isRegularFile(toml)) return List.of();
+            config = PlaceConfig.parse(Files.readString(toml));
+        } catch (IOException | IllegalArgumentException e) {
+            return List.of();
+        }
+        PlaceConfig.Host host = config.host();
+        if (!host.set()) return List.of();
+        if (host.lookup().isEmpty()) return List.of(new Issue(Severity.INFO, "Players connect straight to " + host.address(), toml, 0));
+        List<Issue> issues = new ArrayList<>();
+        ServerLookup.Result found;
+        try {
+            found = ServerLookup.fetch(host.lookup());
+        } catch (IOException e) {
+            issues.add(new Issue(Severity.WARNING, "The server lookup could not be read: " + e.getMessage() + ". Players can not connect until it can", toml, 0));
+            return issues;
+        }
+        if (found.servers().isEmpty()) issues.add(new Issue(Severity.INFO, "The server lookup lists no servers", toml, 0));
+        else issues.add(new Issue(Severity.INFO, "The server lookup lists " + String.join(", ", found.servers()), toml, 0));
+        if (!found.open()) {
+            issues.add(new Issue(Severity.WARNING, "The server lookup says the server is closed" + (found.message().isEmpty() ? "" : ": " + found.message()), toml, 0));
+        } else if (!found.message().isEmpty()) {
+            issues.add(new Issue(Severity.INFO, "Players see this while connecting: " + found.message(), toml, 0));
+        }
+        if (found.outdated(config.version())) {
+            issues.add(new Issue(Severity.WARNING, "The server lookup asks for version " + found.version() + ", newer than this export's " + config.version()
+                    + ". Players of this export are told to update", toml, 0));
+        } else if (!found.version().isEmpty()) {
+            issues.add(new Issue(Severity.INFO, "The server lookup asks for version " + found.version() + " or newer, this export is " + config.version(), toml, 0));
+        }
+        return issues;
+    }
+
     public static List<Path> files(Path root) throws IOException {
         Path absolute = root.toAbsolutePath().normalize();
         try (Stream<Path> walk = Files.walk(absolute, DEPTH)) {

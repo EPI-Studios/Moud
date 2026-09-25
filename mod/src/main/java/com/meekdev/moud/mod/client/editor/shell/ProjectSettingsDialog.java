@@ -82,6 +82,8 @@ final class ProjectSettingsDialog {
     private final ImString server = new ImString(256);
     private final ImString client = new ImString(256);
     private final ImString scene = new ImString(256);
+    private final ImString lookup = new ImString(512);
+    private final ImString address = new ImString(256);
     private final ImInt maxPlayers = new ImInt(16);
     private final ImString featureSearch = new ImString(64);
     private final Map<Feature, Boolean> overrides = new LinkedHashMap<>();
@@ -118,6 +120,8 @@ final class ProjectSettingsDialog {
         client.set(loaded.client());
         scene.set(loaded.scene());
         maxPlayers.set(loaded.maxPlayers());
+        lookup.set(loaded.host().lookup());
+        address.set(loaded.host().address());
         overrides.clear();
         writtenFeatureKeys.clear();
         for (Map.Entry<String, Boolean> one : loaded.features().entrySet()) {
@@ -145,6 +149,7 @@ final class ProjectSettingsDialog {
         ImGui.beginChild("##settings-body", 0, EditorScale.of(BODY_HEIGHT), false);
         if (Sections.header("General")) renderGeneral();
         if (Sections.header("Entry")) renderEntry();
+        if (Sections.header("Server")) renderServer();
         if (Sections.header("Features")) renderFeatures();
         ImGui.endChild();
         String invalid = validate();
@@ -251,6 +256,12 @@ final class ProjectSettingsDialog {
         field("Start scene", "Loaded under game.world before the server script runs", () -> pick("##scene", scene, scenes, ""));
     }
 
+    private void renderServer() {
+        Texts.muted("An exported game with one of these skips singleplayer and joins your server.");
+        field("Lookup", "A link to a JSON file listing your servers. Edit that file to move the server.", () -> input("##lookup", lookup, "https://mygame.dev/moud.json"));
+        field("Address", "Or one fixed address, without a lookup", () -> input("##address", address, "play.mygame.net"));
+    }
+
     private void renderFeatures() {
         SearchField.render("##feature-search", "Search features", featureSearch, EditorScale.of(220));
         ImGui.sameLine();
@@ -309,6 +320,8 @@ final class ProjectSettingsDialog {
             text = entry(text, "server", server.get(), PlaceConfig.DEFAULT.server());
             text = entry(text, "client", client.get(), PlaceConfig.DEFAULT.client());
             text = entry(text, "scene", scene.get(), "");
+            text = lookup.get().isBlank() ? TomlEdit.remove(text, "server", "lookup") : TomlEdit.set(text, "server", "lookup", lookup.get().strip());
+            text = address.get().isBlank() ? TomlEdit.remove(text, "server", "address") : TomlEdit.set(text, "server", "address", address.get().strip());
             for (String key : writtenFeatureKeys) text = TomlEdit.remove(text, "features", key);
             writtenFeatureKeys.clear();
             for (Map.Entry<Feature, Boolean> one : overrides.entrySet()) {
@@ -343,6 +356,14 @@ final class ProjectSettingsDialog {
         }
         String start = scene.get().strip();
         if (!start.isEmpty() && !start.endsWith(".scene")) return "The start scene should be a .scene file";
+        if (!lookup.get().isBlank() && !address.get().isBlank()) return "Use a lookup or an address, not both";
+        if (!lookup.get().isBlank()) {
+            try {
+                PlaceConfig.lookup(lookup.get().strip());
+            } catch (IllegalArgumentException e) {
+                return "The lookup must be an https:// link";
+            }
+        }
         return null;
     }
 

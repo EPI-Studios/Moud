@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.SharedConstants;
 import org.jspecify.annotations.Nullable;
@@ -63,7 +64,8 @@ final class ExportDialog {
     private volatile Stage stage = Stage.REVIEW;
     private volatile Path written;
     private volatile long writtenBytes;
-    private List<PlaceExport.Issue> issues = List.of();
+    private volatile List<PlaceExport.Issue> issues = List.of();
+    private final AtomicInteger reviews = new AtomicInteger();
     private GameExport.Plan plan = new GameExport.Plan(List.of(), 0, 0, Set.of());
     private PlaceConfig config = PlaceConfig.DEFAULT;
     private boolean open;
@@ -303,6 +305,25 @@ final class ExportDialog {
         } catch (IOException | IllegalArgumentException e) {
             config = PlaceConfig.DEFAULT;
         }
+        if (config.host().lookup().isEmpty()) {
+            issues = join(issues, PlaceExport.server(root));
+            return;
+        }
+        int review = reviews.incrementAndGet();
+        List<PlaceExport.Issue> local = issues;
+        issues = join(local, List.of(new PlaceExport.Issue(PlaceExport.Severity.INFO, "Checking the server lookup...", null, 0)));
+        Thread worker = new Thread(() -> {
+            List<PlaceExport.Issue> found = PlaceExport.server(root);
+            if (reviews.get() == review) issues = join(local, found);
+        }, "moud export lookup");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private static List<PlaceExport.Issue> join(List<PlaceExport.Issue> first, List<PlaceExport.Issue> second) {
+        List<PlaceExport.Issue> all = new ArrayList<>(first);
+        all.addAll(second);
+        return List.copyOf(all);
     }
 
     private String fileName() {

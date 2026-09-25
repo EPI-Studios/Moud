@@ -4,6 +4,7 @@ import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.GameState;
 import com.meekdev.moud.mod.client.Launch;
+import com.meekdev.moud.mod.client.ServerConnect;
 import com.meekdev.moud.mod.client.screens.PlaceMessageScreen;
 import com.meekdev.moud.mod.client.screens.PlacePauseScreen;
 import com.meekdev.moud.mod.features.Feature;
@@ -31,6 +32,10 @@ abstract class ScreensMixin {
 
     @Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
     private void moud$suppress(Screen screen, CallbackInfo ci) {
+        if (screen != null && ServerConnect.active() && connect(screen)) {
+            ci.cancel();
+            return;
+        }
         if (screen != null && Game.standalone() && exported(screen)) {
             ci.cancel();
             return;
@@ -49,6 +54,18 @@ abstract class ScreensMixin {
             return;
         }
         if (!MoudMod.features().isOn(Feature.PAUSE_MENU)) ci.cancel();
+    }
+
+    private static boolean connect(Screen screen) {
+        if (screen instanceof DisconnectedScreen disconnected) {
+            ServerConnect.lost(((DisconnectedDetails) disconnected).moud$details().reason());
+            return true;
+        }
+        if (screen instanceof TitleScreen || screen instanceof JoinMultiplayerScreen || screen instanceof SelectWorldScreen || screen instanceof RealmsMainScreen) {
+            ServerConnect.home();
+            return true;
+        }
+        return false;
     }
 
     private static boolean exported(Screen screen) {

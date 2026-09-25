@@ -1,9 +1,12 @@
 package com.meekdev.moud.core.place;
 
 import com.meekdev.moud.core.asset.Res;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,7 +21,16 @@ public record PlaceConfig(
         String scene,
         Map<String, Boolean> features,
         Loading loading,
-        Streaming streaming) {
+        Streaming streaming,
+        Host host) {
+
+    public record Host(String lookup, String address) {
+        public static final Host DEFAULT = new Host("", "");
+
+        public boolean set() {
+            return !lookup.isEmpty() || !address.isEmpty();
+        }
+    }
 
     public record Streaming(boolean enabled, double radius) {
         public static final Streaming DEFAULT = new Streaming(true, 256);
@@ -28,15 +40,17 @@ public record PlaceConfig(
         public static final Loading DEFAULT = new Loading("", "#12151c", "", "Loading", List.of());
     }
 
-    private static final List<String> TOP = List.of("name", "id", "version", "engine", "maxPlayers", "entry", "features", "loading", "streaming");
+    private static final List<String> TOP = List.of("name", "id", "version", "engine", "maxPlayers", "entry", "features", "loading", "streaming", "server");
     private static final Set<String> LOADING = Set.of("background", "color", "logo", "text", "tips");
     private static final Set<String> STREAMING = Set.of("enabled", "radius");
     private static final double NEAREST = 32;
     private static final double FARTHEST = 4096;
     private static final Set<String> ENTRY = Set.of("server", "client", "scene");
+    private static final Set<String> SERVER = Set.of("lookup", "address");
+    private static final Set<String> LOCAL = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
 
     public static final PlaceConfig DEFAULT = new PlaceConfig("place", "place", "0.0.0", "", 16,
-            "res://server/main", "res://client/main", "", Map.of(), Loading.DEFAULT, Streaming.DEFAULT);
+            "res://server/main", "res://client/main", "", Map.of(), Loading.DEFAULT, Streaming.DEFAULT, Host.DEFAULT);
 
     public static PlaceConfig parse(String text) {
         Map<String, Object> root = Toml.parse(text);
@@ -67,7 +81,38 @@ public record PlaceConfig(
                 path(entry, "scene", ""),
                 Map.copyOf(features),
                 loading(table(root, "loading")),
-                streaming(table(root, "streaming")));
+                streaming(table(root, "streaming")),
+                host(table(root, "server")));
+    }
+
+    private static Host host(Map<String, Object> table) {
+        for (String key : table.keySet()) {
+            if (!SERVER.contains(key)) throw new IllegalArgumentException("unknown [server] setting '" + key + "', expected lookup or address");
+        }
+        String lookup = text(table, "lookup", "").strip();
+        String address = text(table, "address", "").strip();
+        if (!lookup.isEmpty() && !address.isEmpty()) throw new IllegalArgumentException("[server] takes lookup or address, not both");
+        if (!lookup.isEmpty()) lookup(lookup);
+        if (!address.isEmpty() && (address.contains("://") || address.chars().anyMatch(Character::isWhitespace))) {
+            throw new IllegalArgumentException("[server] address looks like play.example.net or play.example.net:25565");
+        }
+        return new Host(lookup, address);
+    }
+
+    public static void lookup(String url) {
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("[server] lookup is not a link: " + url);
+        }
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+        if (uri.getHost() == null || !scheme.equals("https") && !scheme.equals("http")) {
+            throw new IllegalArgumentException("[server] lookup must be an https:// link");
+        }
+        if (scheme.equals("http") && !LOCAL.contains(uri.getHost().toLowerCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("[server] lookup must use https, plain http is only for localhost");
+        }
     }
 
     private static Streaming streaming(Map<String, Object> table) {

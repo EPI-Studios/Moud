@@ -30,6 +30,7 @@ loom {
             if (findProperty('place')) vmArg "-Dmoud.place=${file(findProperty('place')).absolutePath}"
             if (findProperty('join')) programArgs '--quickPlayMultiplayer', findProperty('join')
             if (findProperty('player')) programArgs '--username', findProperty('player')
+            if (findProperty('connect') != null) vmArg '-Dmoud.connect=true'
         }
         server {
             runDir devRunRelative

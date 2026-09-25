@@ -2,6 +2,7 @@ package com.meekdev.moud.mod.client.screens;
 
 import com.meekdev.moud.core.place.PlaceConfig;
 import com.meekdev.moud.mod.adapter.ui.UiImages;
+import com.meekdev.moud.mod.client.ServerConnect;
 import com.meekdev.moud.mod.place.Game;
 import com.meekdev.moud.mod.place.PlaceToml;
 import net.minecraft.client.Minecraft;
@@ -18,7 +19,7 @@ public final class LoadingLook {
     private LoadingLook() {}
 
     public static boolean active() {
-        if (Game.standalone()) return true;
+        if (Game.standalone() || ServerConnect.active()) return true;
         return PlaceToml.opened() && !PlaceToml.config().loading().equals(PlaceConfig.Loading.DEFAULT);
     }
 
@@ -50,9 +51,17 @@ public final class LoadingLook {
             g.centeredText(font, config.name(), 0, 0, WHITE);
             g.pose().popMatrix();
         }
+        String text = ServerConnect.connecting() ? ServerConnect.status() : loading.text();
         int dots = (int) (System.currentTimeMillis() / DOT_MILLIS % 4);
-        int textLeft = width / 2 - font.width(loading.text()) / 2;
-        g.text(font, loading.text() + ".".repeat(dots), textLeft, (int) (height * 0.68), WHITE);
+        int textLeft = width / 2 - font.width(text) / 2;
+        int y = (int) (height * 0.68);
+        g.text(font, text + ".".repeat(dots), textLeft, y, WHITE);
+        if (ServerConnect.connecting()) {
+            for (String note : ServerConnect.notes()) {
+                y += 14;
+                g.centeredText(font, note, width / 2, y, MUTED);
+            }
+        }
         if (!loading.tips().isEmpty()) {
             String tip = loading.tips().get((int) (System.currentTimeMillis() / TIP_MILLIS % loading.tips().size()));
             g.centeredText(font, tip, width / 2, height - 28, MUTED);
