@@ -68,6 +68,7 @@ final class VideoDecoder {
     void stop() {
         stopped = true;
         thread.interrupt();
+        if (finished) release();
     }
 
     private void decode(String name, byte[] bytes, double from, boolean withSound) {
@@ -87,10 +88,7 @@ final class VideoDecoder {
                 Frame frame;
                 while (!stopped && (frame = withSound ? grabber.grab() : grabber.grabImage()) != null) {
                     if (frame.image != null && frame.imageWidth > 0) {
-                        Picture picture = copy(frame, frame.timestamp / 1.0e6, 1.0 / rate);
-                        while (!stopped && !pictures.offer(picture, WAIT_MILLIS, TimeUnit.MILLISECONDS)) {
-                            // the sound keeps playing ahead of the pictures, so it is never left waiting behind a full picture queue
-                        }
+                        hand(copy(frame, frame.timestamp / 1.0e6, 1.0 / rate));
                     } else if (frame.samples != null && frame.samples[0] instanceof ShortBuffer samples) {
                         short[] chunk = new short[samples.remaining()];
                         samples.get(chunk);
@@ -112,6 +110,15 @@ final class VideoDecoder {
                 }
             }
             if (stopped) release();
+        }
+    }
+
+    private void hand(Picture picture) throws InterruptedException {
+        boolean taken = false;
+        try {
+            while (!stopped && !taken) taken = pictures.offer(picture, WAIT_MILLIS, TimeUnit.MILLISECONDS);
+        } finally {
+            if (!taken) MemoryUtil.memFree(picture.rgba());
         }
     }
 
