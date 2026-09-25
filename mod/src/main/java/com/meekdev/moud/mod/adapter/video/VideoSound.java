@@ -30,7 +30,6 @@ final class VideoSound implements StreamDecoder {
         return sampleRate;
     }
 
-    // a chunk the decoder has not reached yet plays as a moment of silence rather than ending the stream
     @Override
     public ShortBuffer readChunk() {
         short[] chunk = decoder.sound();

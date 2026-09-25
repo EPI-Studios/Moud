@@ -112,7 +112,6 @@ public final class Videos {
         return false;
     }
 
-    // a video named where an image goes plays muted and looped, one decoder for everything showing that file
     public static int texture(String video) {
         Playback loop = LOOPS.get(video);
         if (loop == null) {
@@ -182,7 +181,7 @@ public final class Videos {
             playback.video = frame.video;
             playback.announced = false;
             if (frame.isLoaded) Instances.setBool(frame, IS_LOADED, false);
-            if (frame.video.isEmpty()) playback.close();
+            if (frame.video.isEmpty()) playback.dispose();
             else playback.restart(frame, 0);
         }
         VideoDecoder decoder = playback.decoder;
@@ -208,7 +207,7 @@ public final class Videos {
         sound(frame, playback, decoder, partialTick);
 
         if (frame.playing && decoder.drained() && ended(playback)) {
-            if (frame.looped) {
+            if (frame.looped && playback.shown != null) {
                 playback.restart(frame, 0);
                 frame.didLoop.fire(frame);
             } else {
@@ -221,7 +220,6 @@ public final class Videos {
         frame.timePosition = playback.clock;
     }
 
-    // the sound starts with the first shown picture and follows play and pause from then on
     private static void sound(VideoFrame frame, Playback playback, VideoDecoder decoder, float partialTick) {
         VideoDecoder.Info info = decoder.info();
         if (info == null || info.channels() <= 0) return;
@@ -250,7 +248,6 @@ public final class Videos {
         }
     }
 
-    // a video on a SurfaceGui or BillboardGui sounds from the part the gui is on
     private static @Nullable Vector3 placed(VideoFrame frame, float partialTick) {
         for (Instance at = frame.parent(); at != null; at = at.parent()) {
             if (!(at instanceof SurfaceGui) && !(at instanceof BillboardGui)) continue;

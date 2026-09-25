@@ -2,7 +2,6 @@ package com.meekdev.moud.mod.adapter.video;
 
 import com.meekdev.moud.mod.MoudMod;
 
-// ffmpeg ships only with games that have a video, so every use asks first
 final class Ffmpeg {
 
     private static Boolean available;
