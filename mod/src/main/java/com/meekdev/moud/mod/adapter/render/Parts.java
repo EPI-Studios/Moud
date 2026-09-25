@@ -31,11 +31,13 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
@@ -109,7 +111,6 @@ public final class Parts {
 
     private Parts() {}
 
-    // textured parts are gathered once a frame, so each texture's mesh only drains its own list
     public static void prepareFrame() {
         for (List<Part> packed : PACKED.values()) packed.clear();
         physical = false;
@@ -180,6 +181,7 @@ public final class Parts {
         List<Part> parts = PACKED.get(key);
         if (parts == null || parts.isEmpty()) return;
         Motion motion = ClientScene.motion();
+        if (key.glass()) backToFront(parts, ctx, motion);
         for (Part part : parts) emit(ctx, batch, motion, part, true);
     }
 
@@ -243,7 +245,7 @@ public final class Parts {
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .extraSampler("BlockLight", BlockLightGrid::glId, 3)
                 .uniform("LightVolume", BlockLightGrid::placed)
-                .uniform("Shape", () -> new float[] {shapeCode(shape)})
+                .uniform("Shape", shapeUniform(shape))
                 .uniform("SunLight", Parts::sun)
                 .uniform("SunTint", Parts::sunTint)
                 .uniform("Environment", Parts::sky)
@@ -265,7 +267,7 @@ public final class Parts {
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .extraSampler("BlockLight", BlockLightGrid::glId, 3)
                 .uniform("LightVolume", BlockLightGrid::placed)
-                .uniform("Shape", () -> new float[] {shapeCode(shape)})
+                .uniform("Shape", shapeUniform(shape))
                 .uniform("SunLight", Parts::sun)
                 .uniform("SunTint", Parts::sunTint)
                 .uniform("Environment", Parts::sky)
@@ -276,6 +278,11 @@ public final class Parts {
                 .writeGBuffer(true)
                 .worldSpace()
                 .castsShadowPerInstance();
+    }
+
+    private static Supplier<float[]> shapeUniform(PartShape shape) {
+        float[] code = {shapeCode(shape)};
+        return () -> code;
     }
 
     private static float shapeCode(PartShape shape) {
@@ -327,22 +334,31 @@ public final class Parts {
     }
 
     private static final List<Part> SEE_THROUGH = new ArrayList<>();
+    private static final Map<Part, Double> DISTANCES = new IdentityHashMap<>();
 
     private static void renderTransparent(PartShape shape, InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return;
         Motion motion = ClientScene.motion();
-        var eye = ctx.cameraPos();
         SEE_THROUGH.clear();
         for (Part part : tree.ofClass(Classes.PART)) {
             if (part.shape == shape && isTransparent(part) && !ViewportFrame.inside(part)) SEE_THROUGH.add(part);
         }
-        SEE_THROUGH.sort(Comparator.comparingDouble((Part part) -> {
-            Vector3 at = motion.sample(part, ctx.deltaTick()).position();
-            double dx = at.x() - eye.x, dy = at.y() - eye.y, dz = at.z() - eye.z;
-            return dx * dx + dy * dy + dz * dz;
-        }).reversed());
+        backToFront(SEE_THROUGH, ctx, motion);
         for (Part part : SEE_THROUGH) write(shape, ctx, batch, motion, part, true, true);
+    }
+
+    private static void backToFront(List<Part> parts, InstanceRenderContext ctx, Motion motion) {
+        var eye = ctx.cameraPos();
+        DISTANCES.clear();
+        for (Part part : parts) {
+            Vector3 at = motion.sample(part, ctx.deltaTick()).position();
+            double dx = at.x() - eye.x;
+            double dy = at.y() - eye.y;
+            double dz = at.z() - eye.z;
+            DISTANCES.put(part, dx * dx + dy * dy + dz * dz);
+        }
+        parts.sort(Comparator.comparingDouble((Part part) -> DISTANCES.get(part)).reversed());
     }
 
     private static boolean isTransparent(Part part) {
