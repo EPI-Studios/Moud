@@ -8,7 +8,7 @@ uniform mat4 ViewProj;
 out vec2 vUv;
 
 void main() {
-    vec4 clip = ViewProj * vec4(Position, 1.0);
+    vec4 clip = ViewProj * vec4(Position * 1000.0, 1.0);
     gl_Position = clip.xyww;
     vUv = Uv;
 }
