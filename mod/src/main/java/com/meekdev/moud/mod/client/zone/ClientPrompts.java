@@ -16,6 +16,7 @@ import com.meekdev.moud.core.ui.HorizontalAlign;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.core.zone.ProximityPrompt;
 import com.meekdev.moud.mod.adapter.text.Argb;
+import com.meekdev.moud.mod.adapter.text.TextLayout;
 import com.meekdev.moud.mod.adapter.text.TextLook;
 import com.meekdev.moud.mod.adapter.text.TextPainter;
 import com.meekdev.moud.mod.adapter.ui.Ui;
@@ -26,7 +27,6 @@ import com.meekdev.moud.mod.client.input.Devices;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import com.meekdev.moud.mod.transport.payload.PromptPayload;
 import java.util.List;
-import java.util.Locale;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -55,13 +55,14 @@ public final class ClientPrompts {
             if (prompt == null) return;
             d.roundedRect(x, y, w, h, 6, Argb.of(prompt.backgroundColor, 1 - prompt.backgroundTransparency));
             float key = h - 12;
-            d.roundedRect(x + 6, y + 6, key, key, 4, Argb.of(prompt.keyColor, 0.9));
-            String letter = prompt.keys.split(",")[0].trim().toUpperCase(Locale.ROOT);
             TextLook dark = new TextLook(new Color(0.05f, 0.05f, 0.07f, 1), "", false, Color.BLACK, 0);
-            TextPainter.draw(d, RichText.escape(letter), x + 6, y + 6 + (key - 9) / 2, key, 9, dark, 1, HorizontalAlign.CENTER);
+            String label = RichText.escape(Actions.shortLabel(prompt.keys));
+            float keyW = Math.min(w / 2, Math.max(key, TextLayout.of(d, label, w, 9, dark.font()).width() + 8));
+            d.roundedRect(x + 6, y + 6, keyW, key, 4, Argb.of(prompt.keyColor, 0.9));
+            TextPainter.draw(d, label, x + 6, y + 6 + (key - 9) / 2, keyW, 9, dark, 1, HorizontalAlign.CENTER);
             TextLook light = new TextLook(prompt.textColor, "", true, Color.BLACK, 0);
-            float textX = x + key + 14;
-            float textW = w - key - 20;
+            float textX = x + keyW + 14;
+            float textW = w - keyW - 20;
             if (!prompt.objectText.isEmpty()) {
                 TextPainter.draw(d, "<alpha=0.7>" + RichText.escape(prompt.objectText) + "</alpha>", textX, y + 7, textW, 9, light, 1, HorizontalAlign.LEFT);
             }

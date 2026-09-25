@@ -54,6 +54,28 @@ public final class Actions {
         NAMES.putIfAbsent(code, name);
     }
 
+    private static final Map<String, String> SHORT = Map.ofEntries(
+            Map.entry("mousebutton1", "Click"),
+            Map.entry("mousebutton2", "Right click"),
+            Map.entry("mousebutton3", "Middle click"),
+            Map.entry("leftshift", "Shift"),
+            Map.entry("rightshift", "Shift"),
+            Map.entry("leftcontrol", "Ctrl"),
+            Map.entry("rightcontrol", "Ctrl"),
+            Map.entry("leftalt", "Alt"),
+            Map.entry("rightalt", "Alt"),
+            Map.entry("space", "Space"),
+            Map.entry("enter", "Enter"),
+            Map.entry("keypadenter", "Enter"),
+            Map.entry("escape", "Esc"),
+            Map.entry("backspace", "Backspace"),
+            Map.entry("delete", "Del"),
+            Map.entry("tab", "Tab"),
+            Map.entry("up", "Up"),
+            Map.entry("down", "Down"),
+            Map.entry("left", "Left"),
+            Map.entry("right", "Right"));
+
     private static final Map<String, Boolean> DOWN = new HashMap<>();
     private static final Map<InputAction, Boolean> WAS = new IdentityHashMap<>();
     private static final Set<String> UNKNOWN = new HashSet<>();
@@ -150,6 +172,15 @@ public final class Actions {
                 ? InputConstants.Type.MOUSE.getOrCreate(code & ~MOUSE)
                 : InputConstants.Type.KEYSYM.getOrCreate(code);
         return key.getDisplayName().getString();
+    }
+
+    public static String shortLabel(String keys) {
+        String name = keys.split(",")[0].trim().toLowerCase(Locale.ROOT);
+        String known = SHORT.get(name);
+        if (known != null) return known;
+        if (name.length() == 1 && keyForChar(name.charAt(0)) != null) return name.toUpperCase(Locale.ROOT);
+        Integer code = KEYS.get(name);
+        return code == null ? name.toUpperCase(Locale.ROOT) : label(code);
     }
 
     public static List<String> keysDown() {

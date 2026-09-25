@@ -155,6 +155,11 @@ A client shows the one prompt nearest to its player, floating over what it is pa
 progress bar while held. `keys` uses the same key names as `InputAction`, and like an action the
 prompt does not hear its key while a screen, a focused text box or the editor has the keyboard.
 
+The box names the first key in `keys` the way a player reads it on their keyboard: a letter or digit
+shows as itself, since it is matched by what the key types on the player's layout, `mousebutton2`
+shows as "Right click", `mousebutton1` as "Click", `leftshift` as "Shift" and `leftcontrol` as
+"Ctrl". A wide name makes the key box wider.
+
 You can ask which prompt a body would use right now:
 
 ```lua
