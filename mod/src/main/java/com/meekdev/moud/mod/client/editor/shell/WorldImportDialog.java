@@ -287,7 +287,8 @@ final class WorldImportDialog {
     private static List<Path> findSaves() {
         List<Path> roots = new ArrayList<>();
         roots.add(Minecraft.getInstance().gameDirectory.toPath().resolve("saves"));
-        roots.add(Path.of(System.getProperty("user.home"), ".minecraft", "saves"));        String appData = System.getenv("APPDATA");
+        roots.add(Path.of(System.getProperty("user.home"), ".minecraft", "saves"));
+        roots.add(Path.of(System.getProperty("user.home"), "Library", "Application Support", "minecraft", "saves"));        String appData = System.getenv("APPDATA");
         if (appData != null) roots.add(Path.of(appData, ".minecraft", "saves"));
         List<Path> found = new ArrayList<>();
         for (Path root : roots) {
