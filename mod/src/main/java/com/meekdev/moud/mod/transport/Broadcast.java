@@ -2,12 +2,14 @@ package com.meekdev.moud.mod.transport;
 
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.math.Vector3;
+import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.core.place.PlaceConfig;
 import com.meekdev.moud.mod.place.Place;
 import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.server.MoudServer;
 import com.meekdev.moud.mod.server.ServerScene;
+import com.meekdev.moud.mod.transport.payload.DeltaPayload;
 import com.meekdev.moud.mod.transport.payload.ResyncPayload;
 import com.meekdev.moud.net.replicate.Audience;
 import com.meekdev.moud.net.replicate.Change;
@@ -33,6 +35,12 @@ public final class Broadcast {
 
     private static final Queue<UUID> RESYNC = new ConcurrentLinkedQueue<>();
 
+    private static final Map<UUID, Long> RESYNCED = new HashMap<>();
+
+    private static final long RESYNC_MILLIS = 2000;
+
+    private static final int PACKET = DeltaPayload.MAX_BYTES / 2;
+
     private Broadcast() {}
 
     public static void listen() {
@@ -42,7 +50,7 @@ public final class Broadcast {
 
     public static void tick(MinecraftServer server, Consumer<Change> also) {
         if (!ServerScene.running()) return;
-        for (UUID player; (player = RESYNC.poll()) != null; ) AUDIENCES.remove(player);
+        resync();
         InstanceTree tree = ServerScene.tree();
         List<Change> batch = new ArrayList<>();
         RECORDER.follow(tree, batch::add);
@@ -59,15 +67,60 @@ public final class Broadcast {
             boolean editing = place != null && place.editing();
             double radius = streaming.enabled() && !editing ? streaming.radius() : Double.MAX_VALUE;
             audience.drain(tree, batch, focus, radius, editing, mine::add);
-            Post.wired().sendDelta(player, Codec.encode(mine, tree, Addons.classes()));
+            send(player, mine, tree);
         }
+    }
+
+    private static void resync() {
+        long now = System.currentTimeMillis();
+        List<UUID> later = new ArrayList<>();
+        for (UUID player; (player = RESYNC.poll()) != null; ) {
+            Long last = RESYNCED.get(player);
+            if (last != null && now - last < RESYNC_MILLIS) {
+                if (!later.contains(player)) later.add(player);
+                continue;
+            }
+            RESYNCED.put(player, now);
+            AUDIENCES.remove(player);
+        }
+        RESYNC.addAll(later);
+    }
+
+    private static void send(ServerPlayer player, List<Change> changes, InstanceTree tree) {
+        byte[] bytes = Codec.encode(changes, tree, Addons.classes());
+        if (bytes.length <= PACKET) {
+            Post.wired().sendDelta(player, bytes);
+            return;
+        }
+        List<Change> ordered = new ArrayList<>(changes.size());
+        for (Change change : changes) if (!(change instanceof Change.Wrote)) ordered.add(change);
+        for (Change change : changes) if (change instanceof Change.Wrote) ordered.add(change);
+        split(player, ordered, tree);
+    }
+
+    private static void split(ServerPlayer player, List<Change> changes, InstanceTree tree) {
+        byte[] bytes = Codec.encode(changes, tree, Addons.classes());
+        if (bytes.length <= PACKET) {
+            Post.wired().sendDelta(player, bytes);
+            return;
+        }
+        if (changes.size() == 1) {
+            MoudMod.LOG.warn("dropped a change of {} bytes to {}, it is over the packet limit", bytes.length, player.getGameProfile().name());
+            return;
+        }
+        int half = changes.size() / 2;
+        split(player, changes.subList(0, half), tree);
+        split(player, changes.subList(half, changes.size()), tree);
     }
 
     public static void forget(UUID player) {
         AUDIENCES.remove(player);
+        RESYNCED.remove(player);
     }
 
     public static void stop() {
         AUDIENCES.clear();
+        RESYNCED.clear();
+        RESYNC.clear();
     }
 }
