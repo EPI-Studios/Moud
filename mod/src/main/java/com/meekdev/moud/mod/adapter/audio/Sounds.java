@@ -13,6 +13,7 @@ import com.meekdev.moud.core.interp.Motion;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.resona.api.Bus;
 import com.meekdev.resona.api.PlaySettings;
 import com.meekdev.resona.api.Resona;
 import com.meekdev.resona.api.SoundHandle;
@@ -21,10 +22,12 @@ import com.meekdev.resona.bank.SoundBank;
 import com.meekdev.resona.dsp.AudioEffect;
 import com.meekdev.resona.dsp.EffectChain;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
@@ -49,6 +52,8 @@ public final class Sounds {
     }
 
     private static final Map<Sound, Voice> VOICES = new HashMap<>();
+    private static final Set<String> MIXED = new HashSet<>();
+    private static final Set<String> MIXED_NOW = new HashSet<>();
 
     private Sounds() {}
 
@@ -57,7 +62,13 @@ public final class Sounds {
             stopAll();
             return;
         }
+        MIXED_NOW.clear();
         for (InstanceTree tree : trees) frame(tree, partialTick);
+        for (String bus : MIXED) {
+            if (!MIXED_NOW.contains(bus)) unmix(bus);
+        }
+        MIXED.clear();
+        MIXED.addAll(MIXED_NOW);
         Iterator<Map.Entry<Sound, Voice>> gone = VOICES.entrySet().iterator();
         while (gone.hasNext()) {
             Map.Entry<Sound, Voice> entry = gone.next();
@@ -73,6 +84,7 @@ public final class Sounds {
             mixed.setVolume((float) bus.volume);
             mixed.setMuted(bus.muted);
             mixed.setLowPass((float) bus.lowPass);
+            MIXED_NOW.add(bus.bus);
         }
 
         Motion motion = ClientScene.motion();
@@ -101,7 +113,7 @@ public final class Sounds {
                 voice.chain = effects.isEmpty() ? null : new EffectChain();
                 if (voice.chain != null) voice.chain.set(units);
                 voice.processed = !effects.isEmpty();
-                voice.handle = start(sound, at, voice.chain);
+                voice.handle = start(sound, voice.sound, at, voice.chain);
                 voice.volume = sound.volume;
                 voice.pitch = sound.pitch;
                 voice.paused = false;
@@ -167,7 +179,8 @@ public final class Sounds {
         return null;
     }
 
-    private static @Nullable SoundHandle start(Sound sound, @Nullable Vector3 at, @Nullable EffectChain chain) {
+    private static @Nullable SoundHandle start(Sound sound, @Nullable Identifier id, @Nullable Vector3 at,
+                                               @Nullable EffectChain chain) {
         PlaySettings settings;
         if (!sound.event.isEmpty()) {
             Optional<EventDefinition> event = SoundBank.event(sound.event);
@@ -177,7 +190,6 @@ public final class Sounds {
                     .pitch(settings.pitch() * (float) sound.pitch)
                     .loop(settings.loop() || sound.looped);
         } else {
-            Identifier id = ResonaAudio.INSTANCE.sounds.id(sound.soundId);
             if (id == null) return null;
             settings = PlaySettings.of(id).bus(sound.bus).volume((float) sound.volume)
                     .pitch((float) sound.pitch).loop(sound.looped);
@@ -191,11 +203,20 @@ public final class Sounds {
         return Resona.play(settings);
     }
 
+    private static void unmix(String name) {
+        Bus bus = Resona.bus(name);
+        bus.setVolume(1);
+        bus.setMuted(false);
+        bus.setLowPass(1);
+    }
+
     public static void stopAll() {
         for (Voice voice : VOICES.values()) {
             if (voice.handle != null) voice.handle.stop();
         }
         VOICES.clear();
+        for (String bus : MIXED) unmix(bus);
+        MIXED.clear();
         SoundEffects.forget();
     }
 }
