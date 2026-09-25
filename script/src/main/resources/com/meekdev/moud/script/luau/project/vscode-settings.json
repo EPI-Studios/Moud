@@ -1,0 +1,9 @@
+// moud keeps this file in sync, delete this line to take it over
+{
+    "luau-lsp.platform.type": "standard",
+    "luau-lsp.types.definitionFiles": { "@moud": ".moud/types.d.luau" },
+    "luau-lsp.sourcemap.enabled": false,
+    "luau-lsp.completion.imports.enabled": true,
+    "luau-lsp.completion.imports.suggestServices": false,
+    "files.associations": { ".luaurc": "json", "*.scene": "json" }
+}
