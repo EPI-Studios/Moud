@@ -10,9 +10,11 @@ import com.meekdev.moud.mod.place.PlaceToml;
 import com.meekdev.moud.mod.server.VoidLevel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.AccessibilityOnboardingScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -32,7 +34,7 @@ public final class Launch {
     public void install() {
         ClientTickEvents.END_CLIENT_TICK.register(this::tick);
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
-            if (PlaceToml.chosenAtLaunch() && !features.isOn(Feature.TITLE_SCREEN) && !ServerConnect.active()) LevelPreload.start(client);
+            if (PlaceToml.chosenAtLaunch() && !features.isOn(Feature.TITLE_SCREEN) && !ServerConnect.active() && !joining()) LevelPreload.start(client);
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> LevelPreload.cancel());
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> LevelPreload.cancel());
@@ -45,10 +47,14 @@ public final class Launch {
         return project == null || project.isBlank() ? null : Path.of(project);
     }
 
+    public static boolean joining() {
+        return List.of(FabricLoader.getInstance().getLaunchArguments(true)).contains("--quickPlayMultiplayer");
+    }
+
     private void tick(Minecraft client) {
-        if (PlaceToml.chosenAtLaunch() && client.screen instanceof AccessibilityOnboardingScreen) {
+        if (PlaceToml.chosenAtLaunch() && client.screen instanceof AccessibilityOnboardingScreen onboarding) {
             client.options.onboardingAccessibilityFinished();
-            client.setScreen(new TitleScreen());
+            onboarding.onClose.run();
             return;
         }
         if (!PlaceToml.chosenAtLaunch() && client.screen instanceof ProjectHubScreen && client.level == null && client.getSingleplayerServer() == null) {
@@ -66,7 +72,7 @@ public final class Launch {
             Editor.openHub(client);
             return;
         }
-        if (started || features.isOn(Feature.TITLE_SCREEN)) return;
+        if (started || features.isOn(Feature.TITLE_SCREEN) || joining()) return;
         started = true;
         if (Game.standalone() && Files.isRegularFile(PlaceToml.root().resolve("icon.png"))) WindowApi.INSTANCE.icon("res://icon.png");
         open(client);
