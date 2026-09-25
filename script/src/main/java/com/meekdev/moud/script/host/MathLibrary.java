@@ -84,8 +84,12 @@ public final class MathLibrary {
 
         Members random = new Members("Random")
                 .function("range", "(min: number, max: number) -> number", a -> range(a.number(0), a.number(1)))
-                .function("int", "(min: number, max: number) -> number",
-                        a -> (double) ThreadLocalRandom.current().nextLong(a.integer(0), (long) a.integer(1) + 1))
+                .function("int", "(min: number, max: number) -> number", a -> {
+                    int min = a.integer(0);
+                    int max = a.integer(1);
+                    if (min > max) throw a.error("min %d is above max %d", min, max);
+                    return (double) ThreadLocalRandom.current().nextLong(min, (long) max + 1);
+                })
                 .function("chance", "(probability: number) -> boolean", a -> ThreadLocalRandom.current().nextDouble() < a.number(0))
                 .function("pick", "(list: { any }) -> any", a -> {
                     List<Object> list = a.list(0);

@@ -175,7 +175,7 @@ public final class Args {
         return switch (get(at)) {
             case List<?> l -> (List<Object>) l;
             case Map<?, ?> m when m.isEmpty() -> List.of();
-            default -> throw expected(at, "a list");
+            case null, default -> throw expected(at, "a list");
         };
     }
 
@@ -184,7 +184,7 @@ public final class Args {
         return switch (get(at)) {
             case Map<?, ?> m -> (Map<String, Object>) m;
             case List<?> l when l.isEmpty() -> Map.of();
-            default -> throw expected(at, "a table");
+            case null, default -> throw expected(at, "a table");
         };
     }
 

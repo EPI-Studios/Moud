@@ -125,6 +125,10 @@ public final class InstanceAccess {
         }
         if (key.equals("parent")) {
             if (!(value instanceof Instance parent)) throw new HostError("parent must be an instance, use destroy() to remove");
+            if (!parent.isAlive()) throw new HostError("%s cannot go under %s, it has been destroyed", instance.name(), parent.name());
+            for (Instance up = parent; up != null; up = up.parent()) {
+                if (up == instance) throw new HostError("%s cannot go inside itself", instance.name());
+            }
             if (edited(instance)) {
                 host.edits().reparent(instance, parent);
                 return;
