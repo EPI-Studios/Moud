@@ -75,7 +75,10 @@ public final class PostStack {
     }
 
     private static void draw(List<ScreenEffect> effects, boolean world) {
-        if (effects.isEmpty()) return;
+        if (effects.isEmpty()) {
+            if (world) hasPrev = false;
+            return;
+        }
         CameraSnapshot camera = CameraSnapshot.current();
         if (camera == null) return;
         if (color == null) {
