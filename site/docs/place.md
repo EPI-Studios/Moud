@@ -35,6 +35,8 @@ chat = true
   each player's own game, and `scene` is loaded under `game.world` before the server script runs, so
   the server script finds the scene's instances already there.
 - `[features]` is a list of switches, one per vanilla Minecraft feature.
+- `[server]` sends players of the exported game straight to your server instead of a world of
+  their own. See [Sending players to your server](#sending-players-to-your-server).
 
 An unknown setting is an error that lists the ones that exist.
 
@@ -234,6 +236,70 @@ Modrinth pack, since each player reads the place's scripts, scenes and assets fr
 - The server owns the game: what the server script makes is what every player sees. Player input and
   requests reach it through [remotes](talking.md), which it checks before it acts on them.
 
+### Sending players to your server
+
+A multiplayer game tells its export where the server is with a `[server]` section in `place.toml`:
+
+```toml
+[server]
+lookup = "https://mygame.dev/moud.json"
+```
+
+The exported game then skips its own world and the title screen. It shows the loading screen with
+"Connecting to" and the game's name, reads the lookup file, and joins the first server in it that
+answers. When none answers it says why, with **Try again** and **Quit**. When the server kicks the
+player or the connection drops, the game comes back to that screen instead of Minecraft's menus.
+
+`lookup` is a link to a small JSON file you host. The game reads it every time it starts, so moving
+the server to a new address is editing that file, with no new export. `lookup` must be `https://`;
+plain `http://` is only taken for `localhost`, to test. A server that never moves can skip the file:
+
+```toml
+[server]
+address = "play.mygame.net"      # or "51.12.34.56:25565"
+```
+
+The lookup file:
+
+```json
+{
+  "servers": ["play.mygame.net", "51.12.34.56:25565"],
+  "version": "1.3.0",
+  "download": "https://mygame.dev/download",
+  "message": ""
+}
+```
+
+| Key | |
+|---|---|
+| `servers` | addresses to try in order, `host` or `host:port`. A name without a port is looked up like Minecraft's server list does, so an SRV record works. A single `"address": "..."` works too |
+| `version` | the oldest game version that may join. A game whose `version` in `place.toml` is older shows **This game needs an update** with a **Download** button instead of connecting |
+| `download` | the page **Download** opens in the browser |
+| `message` | shown under "Connecting to" while the game connects, for notices like planned maintenance |
+| `open` | `false` shows only the message, with **Try again**, and does not connect. Leave it out otherwise |
+
+Keys the game does not know are skipped, so a later engine can add some without breaking old games.
+The file may be at most 64 KB, and the game waits 5 seconds for it.
+
+Any host that serves a static file over https works: GitHub Pages, a raw file in a GitHub repository,
+a gist's raw link, or your own site. Point `lookup` at the raw file, not the page that shows it.
+
+- To move the server, change `servers` and save the file. Players pick the new address up the next
+  time they start the game.
+- To ship an update players must take, export the new version, put it where `download` points, then
+  raise `version` to it.
+- For maintenance, set `message`, or `"open": false` to keep everyone out until you set it back.
+
+The game keeps the last lookup it read in `.moud/server.json` inside `moud-games/<id>`. When the
+lookup can not be reached, it connects with that copy and says so under "Connecting to". A player who
+never reached the lookup has no copy and gets the reason with **Try again**.
+
+**File > Export** reads the lookup once and lists what it found in its checks: the servers, the
+message, and a warning when the lookup asks for a newer version than the one being exported. A lookup
+it can not reach is a warning, not a stop. The same fields are under **Server** in Project Settings.
+
+The server itself ignores `[server]`: it is the server.
+
 ### From the repository
 
 Gradle starts a development server and clients that join it. The server needs a folder of its own
@@ -258,6 +324,7 @@ server-port=25570
 | `-Pplace` | the place folder, passed on as `moud.place` |
 | `-Pjoin` | `host:port` of a server to join straight away, instead of opening the title screen |
 | `-Pplayer` | the name the client plays under, so two clients on one machine are two players |
+| `-Pconnect` | connect the way an export with a `[server]` section does, through its lookup or address, to test it without exporting. Passed on as `moud.connect=true` |
 
 A relative `-PrunDir` or `-Pplace` counts from the repository's `mod` folder, so absolute paths are
 the safer choice.
