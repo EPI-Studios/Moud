@@ -38,7 +38,8 @@ import java.util.function.Supplier;
 public final class Players {
 
     private static final String[] JOINTS = {"root", "cape", "spinInner", "spinOuter", "rightWing", "leftWing", "head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg"};
-    private static final String[] LIMBS = {"head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg", "spinInner", "spinOuter", "rightWing", "leftWing"};
+    private static final String[] LIMBS = {"head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg"};
+    private static final String[] EXTRA_LIMBS = {"spinInner", "spinOuter", "rightWing", "leftWing"};
 
     private record Found(Character body, double distanceSq) {}
 
@@ -433,7 +434,9 @@ public final class Players {
         bodies.declare("joints", "CharacterJoints");
         bodies.declare("root", "Attachment");
         bodies.declare("hitbox", "Part");
-        for (String limb : LIMBS) bodies.declare(limb, "Limb");
+        host.api().declare(new Api.Decl("BodyLimb", "Limb", List.of(new Api.Member("overlay", Api.Kind.FIELD, "Limb"))));
+        for (String limb : LIMBS) bodies.declare(limb, "BodyLimb");
+        for (String limb : EXTRA_LIMBS) bodies.declare(limb, "Limb");
         bodies.method("applyImpulse", "(change: Vector3) -> ()", a -> {
             push(host, a.self(Character.class), a.vector(1), false);
             return null;
