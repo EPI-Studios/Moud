@@ -14,7 +14,7 @@ a place owns is walked by the engine with the same numbers.
 local h = body.humanoid
 h.walkSpeed = 6           h.sprintMultiplier = 1.3     h.sneakMultiplier = 0.3
 h.jumpPower = 8.4         h.gravityScale = 1
-h.groundAcceleration = 22.7   h.groundDeceleration = 22.7
+h.groundAcceleration = 52.2   h.groundDeceleration = 52.2
 h.airSpeed = 4.444        h.airAcceleration = 3.64
 h.airDrag = 0.1516        h.fallDrag = 0.6676
 h.stepHeight = 0.6        h.slopeLimit = 45           h.followSlopes = true
@@ -30,6 +30,10 @@ on, for every player who can see it.
   and `sneakMultiplier` scale it while the player sprints or sneaks.
 - **`jumpPower`** is the speed the body leaves the ground at, not a height. How high it gets falls
   out of that speed and the gravity pulling it back down.
+- **`groundAcceleration`** and **`groundDeceleration`** are how hard the body starts and stops on
+  the ground, in metres per second squared. They work like the game's own friction: every tick takes
+  the same share of the speed still to gain or lose, so a start or a stop is sharp and then settles.
+  At the default, about half the walking speed goes in the first tick after the keys are let go.
 - **`gravityScale`** is this body's own share of the pull, on top of the place's. The two multiply:
   at `game.gravity = 16` a humanoid at `gravityScale = 1` falls half as hard as it does by default,
   and one at `gravityScale = 2` falls as hard as ever. Change one body with `gravityScale`, and

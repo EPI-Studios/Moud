@@ -81,8 +81,8 @@ public final class Humanoid extends Instance {
 
     @Prop(min = 0) public double gravityScale = 1.0;
 
-    @Prop(min = 0) public double groundAcceleration = 22.7;
-    @Prop(min = 0) public double groundDeceleration = 22.7;
+    @Prop(min = 0) public double groundAcceleration = 52.2;
+    @Prop(min = 0) public double groundDeceleration = 52.2;
 
     @Prop(min = 0) public double airSpeed = 4.444;
     @Prop(min = 0) public double airAcceleration = 3.64;
