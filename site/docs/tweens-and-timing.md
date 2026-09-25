@@ -298,7 +298,7 @@ text:
 
 ```lua
 local ok, err = pcall(function() game.world:add("NotAClass") end)
-print(ok, err)   -- false   there is no class 'NotAClass'...
+print(ok, err)   -- false   there is no class called NotAClass
 ```
 
 ## Cooldowns
@@ -319,6 +319,8 @@ cooldown:reset(body, "dash")
   starts nothing.
 - `remaining(body, name)` is how much of the timer is left, in seconds.
 - `reset(body, name)` clears the timer, so the next `ready` answers true.
+- The key can be a body, a player or any other value. A player and the body they wear share one
+  timer, so it carries over a respawn. Two bodies with the same name keep their own.
 
 ## Clock
 

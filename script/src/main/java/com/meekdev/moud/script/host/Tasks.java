@@ -1,6 +1,8 @@
 package com.meekdev.moud.script.host;
 
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.engine.ScriptEngine;
+import com.meekdev.moud.script.host.player.Players;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -13,6 +15,8 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class Tasks {
+
+    private static final int TIMERS = 4096;
 
     private Tasks() {}
 
@@ -90,23 +94,31 @@ public final class Tasks {
         Map<String, Double> until = new HashMap<>();
         Members cooldown = new Members("Cooldown")
                 .method("ready", "(key: any, name: string, seconds: number) -> boolean", a -> {
-                    String id = host.text(a.get(1)) + "\0" + a.string(2);
+                    String id = timer(host, a);
                     double now = now();
                     Double ready = until.get(id);
                     if (ready != null && now < ready) return false;
+                    if (until.size() >= TIMERS) until.values().removeIf(end -> end <= now);
                     until.put(id, now + a.number(3));
                     return true;
                 })
                 .method("remaining", "(key: any, name: string) -> number", a -> {
-                    Double ready = until.get(host.text(a.get(1)) + "\0" + a.string(2));
+                    Double ready = until.get(timer(host, a));
                     return ready == null ? 0.0 : Math.max(0, ready - now());
                 })
                 .method("reset", "(key: any, name: string) -> ()", a -> {
-                    until.remove(host.text(a.get(1)) + "\0" + a.string(2));
+                    until.remove(timer(host, a));
                     return null;
                 });
         host.global("cooldown", "Cooldown", cooldown);
         host.declare(cooldown);
+    }
+
+    private static String timer(Host host, Args a) {
+        Object key = a.get(1);
+        String player = Players.idOf(key);
+        String id = player != null ? "@" + player : key instanceof Instance instance ? "#" + instance.id() : host.text(key);
+        return id + "\0" + a.string(2);
     }
 
     public static double now() {
