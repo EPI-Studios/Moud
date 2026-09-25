@@ -140,6 +140,9 @@ While a player holds a tool, pressing the left mouse button fires `activated` an
 `deactivated`. They fire in the server's scripts and in the `LocalScript`s of the player holding it.
 Other players' clients do not see the click.
 
+`deactivated` goes to the tool the press activated. If the player switches to another tool, drops it
+or loses it before letting go, no tool fires `deactivated` for that press.
+
 Nothing happens while a Minecraft screen, like the inventory or the chat, is open, or while the
 tool's `enabled` is off or its `manualActivationOnly` is on.
 

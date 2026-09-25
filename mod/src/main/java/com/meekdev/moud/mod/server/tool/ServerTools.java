@@ -52,6 +52,7 @@ public final class ServerTools implements ToolRef {
     private static final Budget PRESSED = new Budget(4);
     private static final Map<UUID, Tool[]> SLOTTED = new HashMap<>();
     private static final Map<UUID, Integer> EMPTIED = new HashMap<>();
+    private static final Map<UUID, Tool> ACTIVE = new HashMap<>();
     private static final Map<Tool, Dropped> DROPPED = new WeakHashMap<>();
     private static final long PICKUP_DELAY_MILLIS = 1000;
     private static final long DROP_GRACE_MILLIS = 4000;
@@ -94,13 +95,21 @@ public final class ServerTools implements ToolRef {
                 continue;
             }
             sync(player, body);
+            if (ACTIVE.get(player.getUUID()) != Tools.held(body)) ACTIVE.remove(player.getUUID());
         }
         PRESSED.refill();
         for (Press press; (press = PRESSES.poll()) != null; ) {
+            if (!press.down()) {
+                Tool active = ACTIVE.remove(press.player());
+                if (active != null && active.isAlive()) Tools.activate(active, false);
+                continue;
+            }
             ServerPlayer player = server.getPlayerList().getPlayer(press.player());
             Character body = player == null ? null : Physics.bodies().of(player, tree);
             Tool tool = body == null ? null : Tools.held(body);
-            if (tool != null && !tool.manualActivationOnly) Tools.activate(tool, press.down());
+            if (tool == null || tool.manualActivationOnly) continue;
+            ACTIVE.put(press.player(), tool);
+            Tools.activate(tool, true);
         }
     }
 
@@ -219,6 +228,7 @@ public final class ServerTools implements ToolRef {
 
     public static void clear(ServerPlayer player) {
         EMPTIED.remove(player.getUUID());
+        ACTIVE.remove(player.getUUID());
         Tool[] slots = SLOTTED.remove(player.getUUID());
         if (slots == null) return;
         Inventory inventory = player.getInventory();
