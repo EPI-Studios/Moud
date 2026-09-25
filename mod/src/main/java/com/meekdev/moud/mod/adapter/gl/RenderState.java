@@ -9,6 +9,10 @@ public final class RenderState {
 
     private static final float OFFSET_FACTOR = -1.0f;
     private static final float OFFSET_UNITS = -4.0f;
+    private static final int RED = 1;
+    private static final int GREEN = 2;
+    private static final int BLUE = 4;
+    private static final int ALPHA = 8;
 
     private RenderState() {}
 
@@ -65,15 +69,19 @@ public final class RenderState {
     }
 
     public static void colorMask(boolean red, boolean green, boolean blue, boolean alpha) {
+        GlStateManager._colorMask(bit(red, RED) | bit(green, GREEN) | bit(blue, BLUE) | bit(alpha, ALPHA));
         GL11.glColorMask(red, green, blue, alpha);
     }
 
     public static void polygonOffset() {
+        GlStateManager._enablePolygonOffset();
+        GlStateManager._polygonOffset(OFFSET_FACTOR, OFFSET_UNITS);
         GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
         GL11.glPolygonOffset(OFFSET_FACTOR, OFFSET_UNITS);
     }
 
     public static void noPolygonOffset() {
+        GlStateManager._disablePolygonOffset();
         GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
     }
 
@@ -92,6 +100,10 @@ public final class RenderState {
     public static void clear(float red, float green, float blue, float alpha) {
         GL11.glClearColor(red, green, blue, alpha);
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
+    }
+
+    private static int bit(boolean on, int mask) {
+        return on ? mask : 0;
     }
 
     private static void capability(int capability, boolean on) {
