@@ -1,6 +1,11 @@
 package com.meekdev.moud.script.luau;
 
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.CFrame;
+import com.meekdev.moud.core.math.Color;
+import com.meekdev.moud.core.math.Quat;
+import com.meekdev.moud.core.math.UDim2;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.err.ScriptError;
 import com.meekdev.moud.script.host.Builtin;
@@ -8,6 +13,7 @@ import com.meekdev.moud.script.host.Callable;
 import com.meekdev.moud.script.host.Fiber;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
+import com.meekdev.moud.script.host.HostObject;
 import com.meekdev.moud.script.host.Invocable;
 import com.meekdev.moud.script.host.Members;
 import com.meekdev.moud.script.host.Results;
@@ -18,6 +24,7 @@ import com.meekdev.moud.script.host.Suspend;
 import java.lang.foreign.Arena;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -47,6 +54,8 @@ final class LuauEngine implements ScriptEngine {
     private final Host host;
     private final LuaState state;
     private final Map<Builtin, Integer> builtins = new IdentityHashMap<>();
+    private final Map<String, Integer> metatables = new HashMap<>();
+    private int metatable;
     private Suspend pending;
     private LuauFiber running;
     private int resumedWith;
@@ -297,7 +306,45 @@ final class LuauEngine implements ScriptEngine {
         metamethod("__mul", s -> one(s, host.operate(Host.Op.MUL, read(s, 1, 0), read(s, 2, 0))));
         metamethod("__div", s -> one(s, host.operate(Host.Op.DIV, read(s, 1, 0), read(s, 2, 0))));
         metamethod("__unm", s -> one(s, host.operate(Host.Op.UNM, read(s, 1, 0), null)));
+        state.pushValue(-1);
+        metatable = state.ref(-1);
+        state.pop(1);
         state.setUserDataMetaTable(HOST);
+    }
+
+    private void pushMetatable(LuaState s, String type) {
+        Integer ref = metatables.get(type);
+        if (ref != null) {
+            s.getRef(ref);
+            return;
+        }
+        s.newTable();
+        s.getRef(metatable);
+        s.pushNil();
+        while (s.next(-2)) {
+            s.pushValue(-2);
+            s.insert(-2);
+            s.rawSet(-5);
+        }
+        s.pop(1);
+        s.pushString(type);
+        s.rawSetField(-2, "__type");
+        s.pushValue(-1);
+        metatables.put(type, s.ref(-1));
+        s.pop(1);
+    }
+
+    private static String typeName(Object value) {
+        return switch (value) {
+            case Vector3 v -> "Vector3";
+            case CFrame c -> "CFrame";
+            case Quat q -> "Quat";
+            case Color c -> "Color";
+            case UDim2 u -> "UDim2";
+            case Instance i -> "Instance";
+            case HostObject o -> o.typeName();
+            default -> value.getClass().getSimpleName();
+        };
     }
 
     private void metamethod(String name, ToIntFunction<LuaState> body) {
@@ -421,7 +468,11 @@ final class LuauEngine implements ScriptEngine {
                     s.rawSetField(-2, String.valueOf(entry.getKey()));
                 }
             }
-            default -> s.newUserDataTaggedWithMetatable(value, HOST);
+            default -> {
+                s.newUserDataTagged(value, HOST);
+                pushMetatable(s, typeName(value));
+                s.setMetaTable(-2);
+            }
         }
     }
 

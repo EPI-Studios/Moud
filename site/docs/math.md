@@ -8,6 +8,11 @@ plain numbers and vectors.
 
 Everything is metres and seconds, and every angle is in radians.
 
+`typeof` names these values the way it names a number or a string: `typeof(vec3(1, 2, 3))` is
+`"Vector3"`, and a frame, a rotation, a colour and a `udim2` give `"CFrame"`, `"Quat"`, `"Color"` and
+`"UDim2"`. Every instance gives `"Instance"`, so ask `part:isA("Part")` or read `className` to tell
+one kind from another. Signals and connections answer with their own names, such as `"Connection"`.
+
 ## Vectors
 
 A `Vector3` is three numbers: x and z run along the ground, y is height. The same type carries a
