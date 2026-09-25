@@ -5,7 +5,8 @@
             "settings": {
                 "ext": {
                     "roblox": { "enabled": false },
-                    "definitions": [%s]
+                    "definitions": [%s],
+                    "binary": { "path": %s }
                 },
                 "luau-lsp": {
                     "platform": { "type": "standard" },
