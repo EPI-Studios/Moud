@@ -8,11 +8,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import org.lwjgl.BufferUtils;
 
-/**
- * The block and sky light around the camera, as a volume the part shaders read by world position.
- * Minecraft only knows light per block, so a part used to take one sample for its whole surface and
- * came out flat; this lets a wall be dark indoors and lit outdoors.
- */
 public final class BlockLightGrid {
 
     private static final int SIZE = 32;
@@ -53,7 +48,6 @@ public final class BlockLightGrid {
         return Math.abs(moved) >= MOVED;
     }
 
-    // a few horizontal slices a frame, so a walk never pays for the whole volume at once
     private static void scan(Level level) {
         BlockPos.MutableBlockPos at = new BlockPos.MutableBlockPos();
         int until = Math.min(SIZE, scannedY + SLICES_PER_FRAME);
@@ -80,7 +74,6 @@ public final class BlockLightGrid {
         return texture;
     }
 
-    /** Where the volume sits and how wide it is, for the shader to turn a world position into a lookup. */
     public static float[] placed() {
         PLACED[0] = originX;
         PLACED[1] = originY;

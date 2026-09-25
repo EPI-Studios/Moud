@@ -42,8 +42,6 @@ final class SurfaceShaders {
         return part.shader + "|" + part.lightingShader + "|" + part.vertexShader;
     }
 
-    // points every material of the part's copy of the model at its shaders, and returns the values
-    // this draw hands them
     static @Nullable SurfaceInputs apply(MeshPart part, Model model) {
         ShadingModel shading = of(part);
         if (shading == null) return null;

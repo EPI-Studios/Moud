@@ -41,7 +41,6 @@ final class MeshLooks {
         return piece;
     }
 
-    // what this part changes on its model this frame, or null when it draws the file as it is
     static @Nullable ModelLook of(MeshPart part, Model model) {
         Model.Piece piece = piece(part.meshId, model);
         List<Instance> children = part.children();

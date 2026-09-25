@@ -12,14 +12,10 @@ uniform sampler2D LightMap;
 uniform sampler3D BlockLight;
 uniform vec4 LightVolume;
 
-// 1 ball, 2 cylinder along x, anything else has flat faces
 uniform float Shape;
 uniform samplerCube EnvCube;
-// xyz towards the sun, w its intensity
 uniform vec4 SunLight;
-// rgb sun colour, a exposure
 uniform vec4 SunTint;
-// diffuse scale, specular scale, the probe's last mip, whether the probe is ready
 uniform vec4 Environment;
 
 const float PI = 3.14159265359;
@@ -29,8 +25,6 @@ layout(location = 1) out vec4 GNormal;
 layout(location = 2) out vec4 GMaterial;
 layout(location = 4) out vec4 GAlbedo;
 
-// minecraft only stores light per block, so read the volume a little off the surface, the way a
-// block face takes the light of the air in front of it rather than its own
 vec2 litBy(vec3 world, vec3 normal, vec2 fallback) {
     if (LightVolume.w < 1.0) return fallback;
     vec3 at = (world + normal * 0.5 - LightVolume.xyz + 0.5) / LightVolume.w;
@@ -38,7 +32,6 @@ vec2 litBy(vec3 world, vec3 normal, vec2 fallback) {
     return texture(BlockLight, at).rg * 255.0;
 }
 
-// the true normal of a round shape, from where on the unit shape this fragment is
 vec3 shapeNormal(vec3 faceted) {
     vec3 local;
     if (Shape > 0.5 && Shape < 1.5) {
@@ -78,7 +71,6 @@ vec3 fresnelRough(float c, vec3 f0, float rough) {
     return f0 + (max(vec3(1.0 - rough), f0) - f0) * pow(clamp(1.0 - c, 0.0, 1.0), 5.0);
 }
 
-// karis' fit of the split-sum brdf, so no lookup texture is needed
 vec2 environmentBrdf(float rough, float NoV) {
     vec4 r = rough * vec4(-1.0, -0.0275, -0.572, 0.022) + vec4(1.0, 0.0425, 1.04, -0.04);
     float a004 = min(r.x * r.x, exp2(-9.28 * NoV)) * r.x + r.y;
@@ -89,8 +81,6 @@ vec3 aces(vec3 x) {
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
 }
 
-// the sun and the sky probe on a metal/roughness surface, lit and graded the way models are, with
-// minecraft's light map deciding how much daylight and torchlight reach this spot
 vec3 physical(vec3 albedo, vec3 N, vec2 lit) {
     float rough = clamp(vSurface.y, 0.045, 1.0);
     float metallic = clamp(vSurface.z, 0.0, 1.0);

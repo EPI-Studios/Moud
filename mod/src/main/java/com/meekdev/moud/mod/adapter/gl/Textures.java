@@ -72,7 +72,6 @@ public final class Textures {
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
     }
 
-    // linear hdr rgb, mipmapped, wrapping round the sides the way a panorama does
     public static int panorama(int width, int height, FloatBuffer rgb) {
         int bound = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         int texture = GL11.glGenTextures();
@@ -92,7 +91,6 @@ public final class Textures {
         if (texture != 0) GL11.glDeleteTextures(texture);
     }
 
-    // a volume of light levels the part shaders read by world position
     public static int volume(int size, ByteBuffer pairs) {
         int bound = GL11.glGetInteger(GL12.GL_TEXTURE_BINDING_3D);
         int texture = GL11.glGenTextures();

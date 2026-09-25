@@ -13,8 +13,6 @@ import org.joml.Matrix4f;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
-// the Sky's hdri: read and decoded off the render thread, then uploaded once, drawn by SkyBox and
-// handed to the renderer's sky probe so models and pbr parts are lit by it
 public final class SkyPanorama {
 
     private static String wanted = "";
@@ -30,7 +28,6 @@ public final class SkyPanorama {
         return texture;
     }
 
-    // world direction to panorama direction
     public static Matrix4f inverseTurn() {
         return INVERSE;
     }

@@ -330,8 +330,6 @@ public final class Meshes {
         return model(meshId, "");
     }
 
-    // a part with its own shaders gets its own copy of the model, because a draw reads the material
-    // when it is flushed, not when it is queued
     private static @Nullable Model model(String meshId, String variant) {
         meshId = MeshLooks.file(meshId);
         String slot = variant.isEmpty() ? meshId : meshId + "#" + variant;

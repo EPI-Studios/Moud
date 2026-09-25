@@ -46,7 +46,6 @@ void main() {
     vGlow = InstGlow;
     vSurface = InstSurface;
     vLocal = Position;
-    // the inverse transpose of a turn times a stretch, without an inverse
     mat3 m = mat3(model);
     vNormalMatrix = mat3(m[0] / dot(m[0], m[0]), m[1] / dot(m[1], m[1]), m[2] / dot(m[2], m[2]));
 }
