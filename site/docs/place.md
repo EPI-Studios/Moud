@@ -20,6 +20,7 @@ maxPlayers = 8
 [entry]
 server = "res://server/main.luau"
 client = "res://client/main.luau"
+loading = "res://client/loading.luau"   # the loading screen, before the server or the world
 scene = "res://scenes/arena.scene"     # loaded under game.world before the server script runs
 
 [features]
@@ -33,7 +34,10 @@ chat = true
   `maxPlayers` is how many players the place takes.
 - `[entry]` names the files Moud runs. `server` runs once on the server, `client` runs once inside
   each player's own game, and `scene` is loaded under `game.world` before the server script runs, so
-  the server script finds the scene's instances already there.
+  the server script finds the scene's instances already there. `loading` runs in the player's game
+  as soon as it starts, and draws the loading screen until the place is running; it is optional, and
+  `client/loading.luau` is used when it exists. See
+  [The loading screen](game-and-screens.md#the-loading-screen).
 - `[features]` is a list of switches, one per vanilla Minecraft feature.
 - `[server]` sends players of the exported game straight to your server instead of a world of
   their own. See [Sending players to your server](#sending-players-to-your-server).
@@ -248,7 +252,9 @@ lookup = "https://mygame.dev/moud.json"
 The exported game then skips its own world and the title screen. It shows the loading screen with
 "Connecting to" and the game's name, reads the lookup file, and joins the first server in it that
 answers. When none answers it says why, with **Try again** and **Quit**. When the server kicks the
-player or the connection drops, the game comes back to that screen instead of Minecraft's menus.
+player or the connection drops, the game comes back to that screen instead of Minecraft's menus. A
+[loading script](game-and-screens.md#the-loading-screen) follows each step through `game.loading`
+and can draw all of these screens itself.
 
 `lookup` is a link to a small JSON file you host. The game reads it every time it starts, so moving
 the server to a new address is editing that file, with no new export. `lookup` must be `https://`;

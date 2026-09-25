@@ -174,8 +174,152 @@ down the corner in the order they were sent.
 
 ## The loading screen
 
-Before a place's scripts can run, the world has to load. That means there is no script to configure
-the loading screen from, so you describe it in `place.toml`:
+A place draws its own loading screen with `client/loading.luau`. It runs on the player's machine the
+moment the game knows which place it is starting: before it looks up the server, before it connects,
+before there is a world. What it builds is drawn over Minecraft's connecting, loading and saving
+screens, and stays until the place is running.
+
+```lua
+-- client/loading.luau
+local world = game.world
+local loading = game.loading
+
+local gui = world:add("ScreenGui", { name = "Loading", displayOrder = 100 })
+local screen = gui:add("Frame", { size = udim2(1, 0, 1, 0), backgroundColor = color(1, 1, 1) })
+screen:add("UIGradient", { startColor = color(0.14, 0.1, 0.28), endColor = color(0.02, 0.03, 0.07), rotation = 90 })
+
+screen:add("TextLabel", {
+    position = udim2(0.5, 0, 0.35, 0), anchorX = 0.5, anchorY = 0.5,
+    size = udim2(0, 400, 0, 40), backgroundTransparency = 1,
+    text = "CRYSTAL RUN", textSize = 24, textColor = color(1, 1, 1),
+})
+
+local bar = screen:add("Frame", {
+    position = udim2(0.5, 0, 0.6, 0), anchorX = 0.5, anchorY = 0.5, size = udim2(0, 300, 0, 6),
+    backgroundColor = color(1, 1, 1), backgroundTransparency = 0.85, cornerRadius = 3,
+}) :: Frame
+local fill = bar:add("Frame", { size = udim2(0, 0, 1, 0), backgroundColor = color(0.55, 0.8, 1), cornerRadius = 3 })
+local status = screen:add("TextLabel", {
+    position = udim2(0.5, 0, 0.6, 12), anchorX = 0.5, size = udim2(0, 400, 0, 16),
+    backgroundTransparency = 1, textSize = 9, textColor = color(0.75, 0.8, 0.95),
+}) :: TextLabel
+
+local words = {
+    lookup = "Finding a server",
+    connecting = "Connecting",
+    joining = "Joining",
+    world = "Loading the world",
+    ready = "Ready",
+}
+
+local function show()
+    fill:tween({ size = udim2(loading.progress, 0, 1, 0) }, { time = 0.2 })
+    status.text = words[loading.phase]
+end
+
+loading.changed:connect(show)
+show()
+
+local panel = screen:add("Frame", {
+    position = udim2(0.5, 0, 0.62, 0), anchorX = 0.5, anchorY = 0.5, size = udim2(0, 300, 0, 90),
+    backgroundColor = color(0, 0, 0), backgroundTransparency = 0.4, cornerRadius = 6, visible = false,
+}) :: Frame
+local reason = panel:add("TextLabel", {
+    position = udim2(0, 12, 0, 10), size = udim2(1, -24, 0, 40), backgroundTransparency = 1,
+    textColor = color(1, 1, 1), textWrapped = true,
+}) :: TextLabel
+local retry = panel:add("TextButton", { position = udim2(0, 12, 1, -34), size = udim2(0.5, -16, 0, 24), text = "Try again" }) :: TextButton
+local quit = panel:add("TextButton", { position = udim2(0.5, 4, 1, -34), size = udim2(0.5, -16, 0, 24), text = "Quit" }) :: TextButton
+
+local update = false
+
+loading.failed:connect(function(why, kind)
+    update = kind == "update"
+    reason.text = why
+    retry.text = if update then "Download" else "Try again"
+    panel.visible = true
+    bar.visible = false
+    status.visible = false
+end)
+
+retry.activated:connect(function()
+    if update then
+        loading:openDownload()
+        return
+    end
+    panel.visible = false
+    bar.visible = true
+    status.visible = true
+    loading:retry()
+end)
+
+quit.activated:connect(function()
+    loading:quit()
+end)
+```
+
+- The script has its own `game.world`, which only it sees. Nothing in it is sent to the server, and
+  the place's scripts do not find it in their tree. It has the interface classes, tweens, `task`,
+  `Sound`, `require` and `window`. It has no players, no remotes and no `camera` or `input`: none of
+  them exist yet.
+- `loading.changed` fires whenever the phase, the progress, the message or the server changes, so the
+  bar above follows along without polling.
+- Connecting to `failed` means the script draws the failure itself: the engine's own screen with
+  **Try again** and **Quit** is not shown. The pointer is free on a failure, so the buttons can be
+  clicked. A script that does not connect to it keeps the engine's screen.
+- A script that errors before it finishes its first run is stopped, and the `[loading]` look below
+  takes its place.
+
+`game.loading` is there in `client/main.luau` too:
+
+| Member | |
+|---|---|
+| `phase` | `"lookup"` while the server lookup is read, `"connecting"` while it connects to a server or starts its own world, `"joining"` while it logs in, `"world"` while the world and the place arrive, then `"ready"` |
+| `progress` | from 0 to 1. It follows the world loading where Minecraft reports it, and steps with the phase otherwise |
+| `message` | the lookup's `message`, or why it failed |
+| `server` | the address being tried, empty when there is none |
+| `hold` | `false` by default. See below |
+| `changed` | fires when any of the above changes |
+| `ready` | fires once the place is running |
+| `failed` | fires with the reason and what went wrong: `"connect"`, `"update"`, `"closed"` or `"disconnected"` |
+| `finish()` | takes the loading screen away |
+| `retry()` | looks the server up and connects again, after a failure |
+| `quit()` | closes the game |
+| `openDownload()` | opens the lookup's `download` page in the browser |
+
+The reason is short and plain, like `Connection refused`, `Timed out` or `The server is full`. What
+Minecraft said exactly is in the log. A kick keeps the text the server gave it.
+
+### Keeping it up until the game is ready
+
+When the place is running, the loading screen fades out and its script stops. A game that wants to
+load more first, or play an intro under it, sets `hold`, and takes it away itself with `finish()`:
+
+```lua
+-- client/loading.luau
+game.loading.hold = true
+```
+
+```lua
+-- client/main.luau
+local music = game.world:add("Sound", { soundId = "res://sounds/theme.ogg", looped = true }) :: Sound
+
+music.loaded:once(function()
+    game.loading:finish()
+    music:play()
+end)
+```
+
+`finish()` fades the loading screen out over less than half a second, then stops its script. Until
+then it is drawn over the game. A place that sets `hold` and never calls `finish()` stays on its
+loading screen.
+
+When the player is disconnected later on, the script starts again and gets `failed` with
+`"disconnected"`, so the same panel shows why and offers to rejoin.
+
+### Without a script
+
+A place with no loading script describes its loading screen in `place.toml` instead:
 
 ```toml
 [loading]
@@ -188,10 +332,7 @@ tips = ["Crystals respawn after 10 seconds", "Double jump off walls"]   # one ev
 
 It replaces Minecraft's world loading, connecting and saving screens. While you are developing it
 shows once a `[loading]` table exists. An exported game always uses it, with the defaults when the
-table is missing.
-
-To fade in once the place is running, cover the screen with a `ScreenGui` in the start scene and tween
-it away from `client/main.luau`.
+table is missing. With a loading script, only `color` is used, as the colour behind it.
 
 ## Being kicked or disconnected
 
@@ -208,7 +349,8 @@ ban list, so they cannot come straight back. See
 [Players and bodies](players.md#arriving-spawning-and-respawning).
 
 In an exported game, a disconnected player sees the reason over the loading look, with **Try again**
-and **Quit**, instead of Minecraft's screen.
+and **Quit**, instead of Minecraft's screen. A [loading script](#the-loading-screen) connected to
+`game.loading.failed` draws that screen itself.
 
 ## Screens an exported game never shows
 
