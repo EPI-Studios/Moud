@@ -50,6 +50,7 @@ public final class MoudServer {
     public static void install() {
         Walkers.pilot(ServerPilot.INSTANCE);
         Editing.install();
+        WorldSaving.install();
         PlaceSync.install();
         ServerLifecycleEvents.SERVER_STARTED.register(MoudServer::started);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> stopped());

@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.mixin.storage;
 
+import com.meekdev.moud.mod.server.WorldSaving;
 import net.minecraft.server.PlayerAdvancements;
 import net.minecraft.stats.ServerStatsCounter;
 import org.spongepowered.asm.mixin.Mixin;
@@ -12,6 +13,6 @@ abstract class PlayerFilesMixin {
 
     @Inject(method = "save", at = @At("HEAD"), cancellable = true)
     private void moud$dropSave(CallbackInfo ci) {
-        ci.cancel();
+        if (WorldSaving.off()) ci.cancel();
     }
 }

@@ -223,9 +223,15 @@ place folder with `-Dmoud.place=/path/to/place`.
 - The server builds its world from the place, not from generated terrain. The level is empty void
   with the blocks of the start scene's `.polar` in it, and nothing else. A place with no terrain file
   gets an empty level.
-- This only happens when the server creates its world. A world folder that already exists keeps
-  whatever terrain it was made with: delete the folder `level-name` names in `server.properties`
-  (`world` by default) and start again.
+- This only happens when the server creates its world. A world folder that already exists, say one
+  a server made before without a place, keeps the generator it was made with: delete the folder
+  `level-name` names in `server.properties` (`world` by default) and start again.
+- Nothing is saved while a place runs, and nothing saved is read back. Blocks, `level.dat`, the
+  world's data files, and each player's inventory, position, stats and advancements stay as they
+  were on disk, and chunks come fresh from the generator every start. Keep what has to last with
+  a [store](saving.md), which is written. `/save-all` and stopping the server write nothing.
+- A server started without a place, and a world opened from Minecraft's singleplayer list, are plain
+  Minecraft and save as usual.
 - Nobody is kicked for flying while a place runs. The vanilla server can not see parts, so a player
   standing on one looks to it like a player floating in the air, and Moud turns that check off.
 
