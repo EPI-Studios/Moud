@@ -238,7 +238,7 @@ public final class ProjectStore {
     }
 
     private static boolean same(Path a, Path b) {
-        return absolute(a).equals(absolute(b));
+        return a.toAbsolutePath().normalize().equals(b.toAbsolutePath().normalize());
     }
 
     private static String absolute(Path path) {
