@@ -26,6 +26,9 @@ Methods:
 - `__add(other: Vector3): Vector3`
 - `__sub(other: Vector3): Vector3`
 - `__mul(scale: number): Vector3`
+- `__mul(other: Vector3): Vector3`
+- `__div(scale: number): Vector3`
+- `__div(other: Vector3): Vector3`
 - `__unm(): Vector3`
 - `distance(other: Vector3): number`
 - `distanceSq(other: Vector3): number`
@@ -76,6 +79,7 @@ Methods:
 - `inverse(): Quat`
 - `rotate(v: Vector3): Vector3`
 - `mul(other: Quat): Quat`
+- `__mul(other: Quat): Quat`
 
 ## CFrame
 
@@ -90,6 +94,7 @@ Methods:
 Methods:
 
 - `__mul(other: CFrame): CFrame`
+- `__mul(point: Vector3): Vector3`
 - `inverse(): CFrame`
 - `lerp(other: CFrame, t: number): CFrame`
 - `toObjectSpace(other: CFrame): CFrame`

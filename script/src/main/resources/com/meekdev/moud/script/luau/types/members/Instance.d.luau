@@ -1,10 +1,10 @@
     name: string
-    className: string
+    read className: string
     parent: Instance?
-    changed: ChangedSignal
-    childAdded: InstanceSignal
-    destroying: InstanceSignal
-    attributeChanged: AttributeSignal
-    ancestryChanged: AncestrySignal
-    descendantAdded: InstanceSignal
-    descendantRemoving: InstanceSignal
+    read changed: ChangedSignal
+    read childAdded: InstanceSignal
+    read destroying: InstanceSignal
+    read attributeChanged: AttributeSignal
+    read ancestryChanged: AncestrySignal
+    read descendantAdded: InstanceSignal
+    read descendantRemoving: InstanceSignal
