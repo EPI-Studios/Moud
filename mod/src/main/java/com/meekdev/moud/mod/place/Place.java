@@ -208,7 +208,7 @@ public final class Place {
     }
 
     public String saveSceneAs(String file) {
-        Res.parse(file);
+        sceneOnly(file);
         Path terrain = Blocks.terrainOf(root, sceneFile());
         Path copy = Blocks.terrainFile(root, file);
         if (terrain != null && !Files.exists(copy)) {
@@ -225,13 +225,17 @@ public final class Place {
 
     public void openScene(String file) {
         if (!editing || client) return;
-        Res.parse(file);
+        sceneOnly(file);
         clearWorld();
         openScene = file;
         edited = null;
         String text = new PlaceFileRef(root).read(file);
         sceneOnDisk = text;
         if (text != null && !text.isBlank()) Scene.load(text, world, classes);
+    }
+
+    private static void sceneOnly(String file) {
+        if (!Res.parse(file).endsWith(".scene")) throw new IllegalArgumentException(file + " is not a .scene file");
     }
 
     public void restore(String text) {
