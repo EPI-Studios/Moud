@@ -41,7 +41,7 @@ public final class Textures {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+        unpackTight();
         GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, size, size, 0, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, rgba);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
         return texture;
@@ -67,10 +67,7 @@ public final class Textures {
     public static void updateFrame(int texture, int width, int height, ByteBuffer rgba) {
         int bound = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
-        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
-        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
+        unpackTight();
         GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, rgba);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
     }
@@ -84,10 +81,7 @@ public final class Textures {
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL11.GL_REPEAT);
         GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
-        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
-        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
+        unpackTight();
         GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL30.GL_RGB16F, width, height, 0, GL11.GL_RGB, GL11.GL_FLOAT, rgb);
         GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, bound);
@@ -108,7 +102,7 @@ public final class Textures {
         GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
         GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
         GL11.glTexParameteri(GL12.GL_TEXTURE_3D, GL12.GL_TEXTURE_WRAP_R, GL12.GL_CLAMP_TO_EDGE);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+        unpackTight();
         GL12.glTexImage3D(GL12.GL_TEXTURE_3D, 0, GL30.GL_RG8, size, size, size, 0, GL30.GL_RG, GL11.GL_UNSIGNED_BYTE, pairs);
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, bound);
         return texture;
@@ -117,7 +111,7 @@ public final class Textures {
     public static void updateVolume(int texture, int size, ByteBuffer pairs) {
         int bound = GL11.glGetInteger(GL12.GL_TEXTURE_BINDING_3D);
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, texture);
-        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+        unpackTight();
         GL12.glTexSubImage3D(GL12.GL_TEXTURE_3D, 0, 0, 0, 0, size, size, size, GL30.GL_RG, GL11.GL_UNSIGNED_BYTE, pairs);
         GL11.glBindTexture(GL12.GL_TEXTURE_3D, bound);
     }
@@ -152,6 +146,7 @@ public final class Textures {
             if (width <= 0 || height <= 0 || width > largest || height > largest) return null;
             IntBuffer pixels = MemoryUtil.memAllocInt(width * height);
             try {
+                packTight();
                 GL11.glGetTexImage(GL11.GL_TEXTURE_2D, 0, GL12.GL_BGRA, GL12.GL_UNSIGNED_INT_8_8_8_8_REV, pixels);
                 int[] argb = new int[width * height];
                 pixels.get(argb);
@@ -165,8 +160,24 @@ public final class Textures {
     }
 
     public static void readPixels(int x, int y, int width, int height, ByteBuffer rgba) {
-        GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
+        packTight();
         GL11.glReadPixels(x, y, width, height, GL11.GL_RGBA, GL11.GL_UNSIGNED_BYTE, rgba);
+    }
+
+    private static void unpackTight() {
+        GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+        GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, 0);
+        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, 0);
+        GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, 0);
+        GL11.glPixelStorei(GL12.GL_UNPACK_IMAGE_HEIGHT, 0);
+        GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_IMAGES, 0);
+    }
+
+    private static void packTight() {
+        GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
+        GL11.glPixelStorei(GL11.GL_PACK_ROW_LENGTH, 0);
+        GL11.glPixelStorei(GL11.GL_PACK_SKIP_PIXELS, 0);
+        GL11.glPixelStorei(GL11.GL_PACK_SKIP_ROWS, 0);
     }
 
     public static void makeOpaque(int texture) {
