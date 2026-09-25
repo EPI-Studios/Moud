@@ -26,7 +26,15 @@ public final class StoreLibrary {
 
     public static void install(Host host) {
         StoreRef store = host.store();
-        if (store == null) return;
+        if (store == null) {
+            host.global("orderedStore", "(name: string) -> OrderedStore", new Builtin("orderedStore", a -> {
+                throw new HostError("orderedStore runs on the server");
+            }));
+            host.global("store", "(name: string) -> Store", new Builtin("store", a -> {
+                throw new HostError("store runs on the server");
+            }));
+            return;
+        }
         host.api().declare(new Members("Store")
                 .method("get", "(key: any) -> any", a -> null)
                 .method("set", "(key: any, value: any) -> ()", a -> null)

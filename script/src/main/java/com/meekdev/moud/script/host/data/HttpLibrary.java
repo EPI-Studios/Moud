@@ -19,6 +19,9 @@ import java.util.concurrent.CompletionException;
 public final class HttpLibrary {
 
     private static final Set<String> METHODS = Set.of("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS");
+    private static final String GET = "(url: string, headers: { [string]: string }?) -> HttpResponse";
+    private static final String POST = "(url: string, body: string, contentType: string?, headers: { [string]: string }?) -> HttpResponse";
+    private static final String REQUEST = "(options: { url: string, method: string?, headers: { [string]: string }?, body: string? }) -> HttpResponse";
 
     private HttpLibrary() {}
 
@@ -46,13 +49,13 @@ public final class HttpLibrary {
                     .declare("ok", "boolean")
                     .declare("body", "string")
                     .declare("headers", "{ [string]: string }").decl());
-            http.function("get", "(url: string, headers: { [string]: string }?) -> HttpResponse", a -> send(ref, "GET", a.string(0), headers(a.map(1, Map.of())), ""))
-                    .function("post", "(url: string, body: string, contentType: string?, headers: { [string]: string }?) -> HttpResponse", a -> {
+            http.function("get", GET, a -> send(ref, "GET", a.string(0), headers(a.map(1, Map.of())), ""))
+                    .function("post", POST, a -> {
                         Map<String, String> headers = headers(a.map(3, Map.of()));
                         headers.putIfAbsent("Content-Type", a.has(2) ? a.string(2) : "application/json");
                         return send(ref, "POST", a.string(0), headers, a.string(1));
                     })
-                    .function("request", "(options: { url: string, method: string?, headers: { [string]: string }?, body: string? }) -> HttpResponse", a -> {
+                    .function("request", REQUEST, a -> {
                         Map<String, Object> options = a.map(0, Map.of());
                         if (!(options.get("url") instanceof String url)) throw new HostError("http.request needs a url");
                         String method = options.get("method") instanceof String m ? m.toUpperCase(Locale.ROOT) : "GET";
@@ -61,6 +64,16 @@ public final class HttpLibrary {
                         @SuppressWarnings("unchecked")
                         Map<String, Object> given = headers instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
                         return send(ref, method, url, headers(given), options.get("body") instanceof String body ? body : "");
+                    });
+        } else {
+            http.function("get", GET, a -> {
+                        throw new HostError("http.get runs on the server");
+                    })
+                    .function("post", POST, a -> {
+                        throw new HostError("http.post runs on the server");
+                    })
+                    .function("request", REQUEST, a -> {
+                        throw new HostError("http.request runs on the server");
                     });
         }
         host.global("http", "Http", http);
