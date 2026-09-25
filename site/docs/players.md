@@ -36,7 +36,7 @@ end)
 ```
 
 - `player:spawn()` gives a player without a body a new one. A player whose body is dead gets a
-  fresh body. A living body is moved.
+  fresh body. A living body is moved. It returns the body either way.
 - With `autoSpawn` on, a body whose `humanoid` dies gets a new one after `respawnTime`. With it off,
   a dead body stays until a script calls `player:spawn()`.
 

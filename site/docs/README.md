@@ -212,8 +212,8 @@ time they sit in a menu.
 
 ```lua
 game.players.joined:connect(function(player)
-    player:spawn(vec3(0, 66, 0))
-    player.character.humanoid.walkSpeed = 6
+    local body = player:spawn(vec3(0, 66, 0))
+    body.humanoid.walkSpeed = 6
 end)
 ```
 

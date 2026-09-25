@@ -42,7 +42,7 @@ public final class LuauTypes {
             out.append('\n');
         }
         for (Api.Decl decl : api.classes()) {
-            if (instanceClasses.contains(decl.name()) || decl.name().equals(ROOT)) continue;
+            if (instanceClasses.contains(decl.name()) || decl.name().equals(ROOT) || decl.parent() != null) continue;
             line(out, "declare extern type ", decl.name(), " with");
             out.append(builtInMembers(decl.name()));
             members(out, decl, classes);
@@ -56,6 +56,12 @@ public final class LuauTypes {
         end(out);
 
         for (ClassDef<?> def : classes.all()) classDeclaration(out, api, classes, def);
+        for (Api.Decl decl : api.classes()) {
+            if (instanceClasses.contains(decl.name()) || decl.parent() == null) continue;
+            line(out, "declare extern type ", decl.name(), " extends ", decl.parent(), " with");
+            members(out, decl, classes);
+            end(out);
+        }
 
         for (Map.Entry<String, String> extension : api.extensions().entrySet()) {
             Api.Decl decl = api.decl(extension.getValue());

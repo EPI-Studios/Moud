@@ -20,11 +20,13 @@ import com.meekdev.moud.script.api.InputRef;
 import com.meekdev.moud.script.api.PlayerRef;
 import com.meekdev.moud.script.api.RosterRef;
 import com.meekdev.moud.script.api.SpawnRef;
+import com.meekdev.moud.script.host.Api;
 import com.meekdev.moud.script.host.Host;
 import com.meekdev.moud.script.host.HostError;
 import com.meekdev.moud.script.host.HostObject;
 import com.meekdev.moud.script.host.Members;
 import com.meekdev.moud.script.host.Results;
+import com.meekdev.moud.script.host.Values;
 import com.meekdev.moud.script.host.world.WorldQueries;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +35,9 @@ import java.util.function.Predicate;
 
 public final class Players {
 
+    private static final String[] JOINTS = {"root", "cape", "spinInner", "spinOuter", "rightWing", "leftWing", "head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg"};
+    private static final String[] LIMBS = {"head", "torso", "rightArm", "leftArm", "rightLeg", "leftLeg", "spinInner", "spinOuter", "rightWing", "leftWing"};
+
     private record Found(Character body, double distanceSq) {}
 
     private record Player(PlayerRef ref) implements HostObject {
@@ -40,13 +45,14 @@ public final class Players {
         private static final Members METHODS = new Members("Player")
                 .declare("name", "string")
                 .declare("id", "string")
-                .declare("character", "Instance?")
+                .declare("character", "Character?")
                 .declare("controls", "PlayerControls")
                 .declare("team", "Team?")
                 .declare("leaderstats", "Leaderstats?")
-                .method("spawn", "(position: Vector3?) -> ()", a -> {
-                    a.self(Player.class).ref().spawn(a.has(1) ? a.vector(1) : null);
-                    return null;
+                .method("spawn", "(position: Vector3?) -> Character", a -> {
+                    PlayerRef player = a.self(Player.class).ref();
+                    player.spawn(a.has(1) ? Values.real(a.vector(1), "position") : null);
+                    return player.character();
                 })
                 .method("ban", "(reason: string?, seconds: number?) -> ()", a -> {
                     a.self(Player.class).ref().ban(a.string(1, "You were banned"), a.number(2, 0));
@@ -284,31 +290,31 @@ public final class Players {
                 .value("joined", "PlayerSignal", host.joinedSignal())
                 .value("leaving", "PlayerSignal", host.leavingSignal())
                 .value("spawned", "PlayerSignal", host.spawnedSignal())
-                .method("all", "() -> { Instance }", a -> bodies(bodies(tree, null, Double.POSITIVE_INFINITY, null)))
-                .method("near", "(position: Vector3, radius: number, except: Instance?) -> { Instance }",
+                .method("all", "() -> { Character }", a -> bodies(bodies(tree, null, Double.POSITIVE_INFINITY, null)))
+                .method("near", "(position: Vector3, radius: number, except: Instance?) -> { Character }",
                         a -> bodies(bodies(tree, a.vector(1), a.number(2), a.instance(3, null))))
-                .method("nearest", "(position: Vector3, radius: number?, except: Instance?) -> (Instance?, number?)", a -> {
+                .method("nearest", "(position: Vector3, radius: number?, except: Instance?) -> (Character?, number?)", a -> {
                     List<Found> found = bodies(tree, a.vector(1), a.number(2, Double.POSITIVE_INFINITY), a.instance(3, null));
                     return found.isEmpty() ? null : Results.of(found.getFirst().body(), Math.sqrt(found.getFirst().distanceSq()));
                 })
-                .method("bodyOf", "(player: string) -> Instance?", a -> {
+                .method("bodyOf", "(player: string) -> Character?", a -> {
                     String player = a.string(1);
                     for (Character body : tree.ofClass(Classes.CHARACTER)) {
                         if (body.owner.equals(player)) return body;
                     }
                     return null;
                 })
-                .method("inBox", "(frame: CFrame, size: Vector3, except: Instance?) -> { Instance }", a -> {
+                .method("inBox", "(frame: CFrame, size: Vector3, except: Instance?) -> { Character }", a -> {
                     CFrame frame = a.cframe(1);
                     Vector3 size = a.vector(2);
                     return bodies(filtered(tree, a.instance(3, null), body -> WorldQueries.inside(frame, size, position(body))));
                 })
-                .method("inPart", "(part: Instance, except: Instance?) -> { Instance }", a -> {
+                .method("inPart", "(part: Instance, except: Instance?) -> { Character }", a -> {
                     if (!(a.get(1) instanceof Part part)) throw a.error("expects a part");
                     CFrame frame = Transforms.world(part);
                     return bodies(filtered(tree, a.instance(2, null), body -> WorldQueries.inside(frame, part.size, position(body))));
                 })
-                .method("inCone", "(position: Vector3, direction: Vector3, angle: number, range: number, except: Instance?) -> { Instance }", a -> {
+                .method("inCone", "(position: Vector3, direction: Vector3, angle: number, range: number, except: Instance?) -> { Character }", a -> {
                     Vector3 at = a.vector(1);
                     Vector3 way = a.vector(2).normalize();
                     double cos = Math.cos(Math.toRadians(a.number(3)));
@@ -320,7 +326,7 @@ public final class Players {
                     }
                     return bodies(out);
                 })
-                .method("visibleFrom", "(position: Vector3, range: number, except: Instance?) -> { Instance }", a -> {
+                .method("visibleFrom", "(position: Vector3, range: number, except: Instance?) -> { Character }", a -> {
                     Vector3 at = a.vector(1);
                     Instance except = a.instance(3, null);
                     List<Found> out = new ArrayList<>();
@@ -330,21 +336,21 @@ public final class Players {
                     }
                     return bodies(out);
                 })
-                .method("withTag", "(tag: string) -> { Instance }", a -> {
+                .method("withTag", "(tag: string) -> { Character }", a -> {
                     String tag = a.string(1);
                     return bodies(filtered(tree, null, body -> body.hasTag(tag)));
                 })
-                .method("random", "(except: Instance?) -> Instance?", a -> {
+                .method("random", "(except: Instance?) -> Character?", a -> {
                     List<Found> all = bodies(tree, null, Double.POSITIVE_INFINITY, a.instance(1, null));
                     return all.isEmpty() ? null : all.get(ThreadLocalRandom.current().nextInt(all.size())).body();
                 })
-                .method("sortedByDistance", "(position: Vector3) -> { Instance }",
+                .method("sortedByDistance", "(position: Vector3) -> { Character }",
                         a -> bodies(bodies(tree, a.vector(1), Double.POSITIVE_INFINITY, null)))
                 .method("inRange", "(a: Instance, b: Instance, range: number) -> boolean", a -> {
                     double range = a.number(3);
                     return position(a.instance(1)).sub(position(a.instance(2))).lengthSq() <= range * range;
                 })
-                .method("fromName", "(name: string) -> Instance?", a -> {
+                .method("fromName", "(name: string) -> Character?", a -> {
                     String name = a.string(1);
                     for (Character body : tree.ofClass(Classes.CHARACTER)) {
                         if (body.hasPlayer() && body.name().equalsIgnoreCase(name)) return body;
@@ -403,7 +409,7 @@ public final class Players {
         }
         if (host.controls() != null) players.value("controls", "PlayerControls", controls(host.controls()));
         if (host.camera() != null) {
-            players.method("me", "() -> Instance?", a -> {
+            players.method("me", "() -> Character?", a -> {
                 Instance character = host.own().get();
                 return character == null || !character.isAlive() ? null : character;
             });
@@ -418,7 +424,14 @@ public final class Players {
         bodies.declare("backpack", "Backpack");
         bodies.declare("appearance", "Appearance");
         bodies.declare("armour", "Armour");
-        bodies.declare("joints", "Instance");
+        bodies.declare("wings", "Wings");
+        Members joints = new Members("CharacterJoints");
+        for (String joint : JOINTS) joints.declare(joint, "Motor");
+        host.api().declare(new Api.Decl("CharacterJoints", "Folder", joints.decl().members()));
+        bodies.declare("joints", "CharacterJoints");
+        bodies.declare("root", "Attachment");
+        bodies.declare("hitbox", "Part");
+        for (String limb : LIMBS) bodies.declare(limb, "Limb");
         bodies.method("applyImpulse", "(change: Vector3) -> ()", a -> {
             push(host, a.self(Character.class), a.vector(1), false);
             return null;

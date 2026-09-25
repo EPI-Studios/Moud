@@ -252,14 +252,14 @@ Methods:
 |---|---|
 | `name` | `string` |
 | `id` | `string` |
-| `character` | `Instance?` |
+| `character` | `Character?` |
 | `controls` | `PlayerControls` |
 | `team` | `Team?` (set on the server) |
 | `leaderstats` | `Leaderstats?` |
 
 Methods:
 
-- `spawn(position: Vector3?): ()`
+- `spawn(position: Vector3?): Character` (server)
 - `kick(message: string?): ()`
 - `ban(reason: string?, seconds: number?): ()`
 - `ping(): number`
@@ -278,24 +278,24 @@ Methods:
 
 Methods:
 
-- `me(): Instance?`
-- `list(): { Player }` (server)
-- `byId(id: string): Player?` (server)
-- `playerOf(body: Instance): Player?` (server)
-- `all(): { Instance }`
-- `near(position: Vector3, radius: number, except: Instance?): { Instance }`
-- `nearest(position: Vector3, radius: number?, except: Instance?): (Instance?, number?)`
-- `bodyOf(player: string): Instance?`
+- `me(): Character?` (client)
+- `list(): { Player }`
+- `byId(id: string): Player?`
+- `playerOf(body: Instance): Player?`
+- `all(): { Character }`
+- `near(position: Vector3, radius: number, except: Instance?): { Character }`
+- `nearest(position: Vector3, radius: number?, except: Instance?): (Character?, number?)`
+- `bodyOf(player: string): Character?`
 - `count(): number`
-- `inBox(frame: CFrame, size: Vector3, except: Instance?): { Instance }`
-- `inPart(part: Instance, except: Instance?): { Instance }`
-- `inCone(position: Vector3, direction: Vector3, angle: number, range: number, except: Instance?): { Instance }`
-- `visibleFrom(position: Vector3, range: number, except: Instance?): { Instance }`
-- `withTag(tag: string): { Instance }`
-- `random(except: Instance?): Instance?`
-- `sortedByDistance(position: Vector3): { Instance }`
+- `inBox(frame: CFrame, size: Vector3, except: Instance?): { Character }`
+- `inPart(part: Instance, except: Instance?): { Character }`
+- `inCone(position: Vector3, direction: Vector3, angle: number, range: number, except: Instance?): { Character }`
+- `visibleFrom(position: Vector3, range: number, except: Instance?): { Character }`
+- `withTag(tag: string): { Character }`
+- `random(except: Instance?): Character?`
+- `sortedByDistance(position: Vector3): { Character }`
 - `inRange(a: Instance, b: Instance, range: number): boolean`
-- `fromName(name: string): Instance?`
+- `fromName(name: string): Character?`
 
 ## PlayerControls
 
@@ -393,7 +393,7 @@ Methods:
 - `getAttributeChangedSignal(name: string): AnySignal`
 - `getPropertyChangedSignal(property: string): AnySignal`
 - `tween(goals: { [string]: any }, info: TweenInfo?): Tween`
-- `getActor(): Instance?`
+- `getActor(): Actor?`
 - `fireServer(...: any): ()`
 - `fireClient(to: Instance, ...: any): ()`
 - `fireAllClients(...: any): ()`
@@ -479,7 +479,7 @@ Methods:
 - `setAngularVelocity(velocity: Vector3): ()` (server)
 - `getVelocityAtPosition(position: Vector3): Vector3` (server)
 - `getMass(): number`
-- `setNetworkOwner(player: Player?): ()` (server)
+- `setNetworkOwner(owner: (Player | Character)?): ()` (server)
 - `setNetworkOwnershipAuto(): ()` (server)
 - `isNetworkOwnershipAuto(): boolean`
 - `canSetNetworkOwnership(): (boolean, string?)`
@@ -1280,7 +1280,7 @@ Extends [Spatial](#spatial).
 
 Methods:
 
-- `players(): { Instance }`
+- `players(): { Character }`
 - `occupants(): { Instance }`
 - `contains(position: Vector3): boolean`
 
@@ -3190,8 +3190,8 @@ Methods:
 
 Methods:
 
-- `connect(handler: (body: Instance?, text: string, args: { string }) -> ()): Connection`
-- `connectParallel(handler: (body: Instance?, text: string, args: { string }) -> ()): Connection`
+- `connect(handler: (body: Character?, text: string, args: { string }) -> ()): Connection`
+- `connectParallel(handler: (body: Character?, text: string, args: { string }) -> ()): Connection`
 - `once(handler: (...any) -> ()): Connection`
 - `wait(timeout: number?): ...any`
 - `every(n: number, handler: (...any) -> ()): Connection`

@@ -185,8 +185,8 @@ end)
 ```
 
 `game.players.spawned` fires each time a player gets a body, so the two switches are set again after
-every respawn. `(player.character :: Character)` tells the type checker what the body is, which is
-what lets the editor autocomplete `humanoid`.
+every respawn. `player.character` is nil while a player has no body, and `:: Character` tells the
+type checker that inside `spawned` it is always there.
 
 ### Force fields
 

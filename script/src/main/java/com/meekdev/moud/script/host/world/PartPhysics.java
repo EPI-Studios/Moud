@@ -52,7 +52,7 @@ public final class PartPhysics {
             return host.physics().mass(part);
         });
 
-        parts.method("setNetworkOwner", "(player: Player?) -> ()", a -> {
+        parts.method("setNetworkOwner", "(owner: (Player | Character)?) -> ()", a -> {
             Part part = a.self(Part.class);
             if (host.physics() == null) throw new HostError("network ownership is set from a server Script");
             String why = host.physics().whyNotOwnable(part);

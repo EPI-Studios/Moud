@@ -37,8 +37,8 @@ world:add("Part", {
 })
 
 game.players.joined:connect(function(player)
-    player:spawn(vec3(0, 66, 0))
-    player.character.humanoid.walkSpeed = 6
+    local body = player:spawn(vec3(0, 66, 0))
+    body.humanoid.walkSpeed = 6
 end)
 ```
 
@@ -49,10 +49,10 @@ Line by line:
   which is what you want for a floor.
 - `game.players.joined` fires once for each player who connects. It exists on the server only,
   because the server is the side that knows about everyone.
-- `player:spawn(position)` gives that player a body and puts it where you asked. Two metres above the
-  floor is enough to land on it.
-- `player.character` is the body. Its `humanoid` decides how it moves, so setting `walkSpeed = 6`
-  makes that player walk six metres a second.
+- `player:spawn(position)` gives that player a body, puts it where you asked and hands it back. Two
+  metres above the floor is enough to land on it.
+- `body` is that body, the same one `player.character` returns later. Its `humanoid` decides how it
+  moves, so setting `walkSpeed = 6` makes that player walk six metres a second.
 
 <!-- demo:getting-started-spawn -->
 

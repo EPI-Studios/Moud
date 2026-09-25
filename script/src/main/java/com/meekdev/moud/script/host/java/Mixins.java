@@ -68,7 +68,7 @@ public final class Mixins {
                 .declare("enabled", "boolean").declareMethod("remove", "() -> ()").decl());
         host.api().declare(new Members("MixinGroup")
                 .declare("name", "string").declare("enabled", "boolean").declare("hooks", "{ Mixin }").declareMethod("remove", "() -> ()").decl());
-        host.api().declare(new Members("MixinState").declareMethod("ref", "(key: string) -> MixinStateRef").decl());
+        host.api().declare(new Members("MixinState").declareMethod("ref", "(key: string) -> MixinStateRef").declare("[string]", "any").decl());
         host.api().declare(new Members("MixinStateRef").declare("key", "string").declare("value", "any").decl());
         String options = "{ when: ((...any) -> boolean)?, once: boolean?, limit: number?, priority: number?, raw: boolean?, ordinal: number? }?";
         host.api().declare(new Members("JavaMethod")

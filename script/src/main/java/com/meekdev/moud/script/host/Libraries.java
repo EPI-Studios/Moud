@@ -50,9 +50,9 @@ final class Libraries {
         host.api().declare(HostSignal.decl("PlayerSignal", "(player: Player) -> ()"));
         host.api().declare(HostSignal.decl("ExplosionSignal", "(part: Instance, distance: number) -> ()"));
         host.api().declare(HostSignal.decl("StrikeSignal", "(position: Vector3) -> ()"));
-        host.api().declare(HostSignal.decl("RemoteServerSignal", "(body: Instance, ...any) -> ()"));
+        host.api().declare(HostSignal.decl("RemoteServerSignal", "(body: Character?, ...any) -> ()"));
         host.api().declare(HostSignal.decl("RemotePlayerSignal", "(player: Player, ...any) -> ()"));
-        host.api().declare(HostSignal.decl("ChatCommandSignal", "(body: Instance?, text: string, args: { string }) -> ()"));
+        host.api().declare(HostSignal.decl("ChatCommandSignal", "(body: Character?, text: string, args: { string }) -> ()"));
         host.api().declare(HostSignal.decl("ChatMessageSignal", "(message: { [string]: any }) -> ()"));
         Api.Decl scripted = HostSignal.decl("Signal", "(...any) -> ()");
         List<Api.Member> signalMembers = new ArrayList<>(scripted.members());

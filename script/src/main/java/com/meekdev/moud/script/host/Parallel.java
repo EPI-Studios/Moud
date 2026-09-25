@@ -116,7 +116,7 @@ public final class Parallel {
                 .parallel("sendMessage");
 
         host.instances().shared()
-                .method("getActor", "() -> Instance?", a -> actorOf(a.self()))
+                .method("getActor", "() -> Actor?", a -> actorOf(a.self()))
                 .parallel("getActor", "children", "find", "isA", "hasTag", "getTags", "findFirstDescendant", "descendants",
                         "childrenOfClass", "firstAncestorOfClass", "firstChildOfClass", "firstAncestor", "isDescendantOf",
                         "isAncestorOf", "getFullName", "values", "getAttribute", "getAttributes");

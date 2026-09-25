@@ -275,7 +275,7 @@ public final class Trees {
         game.value("tags", "Tags", tags);
 
         Members zones = host.instances().of(Classes.ZONE);
-        zones.method("players", "() -> { Instance }", a -> {
+        zones.method("players", "() -> { Character }", a -> {
             List<Object> out = new ArrayList<>();
             for (Instance occupant : a.self(Zone.class).occupants()) {
                 if (occupant instanceof Character body && body.hasPlayer()) out.add(occupant);
