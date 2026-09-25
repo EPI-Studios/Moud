@@ -47,6 +47,7 @@ final class HumanoidLibrary {
             if (body.hasPlayer()) {
                 Walkers.walk(body, List.of(Waypoint.walk(point)));
             } else {
+                Walkers.cancelled(body);
                 Humanoids.move(body, Vector3.ZERO);
                 Instances.setObj(living, Classes.HUMANOID.property("walkTo"), point);
                 Instances.setBool(living, Classes.HUMANOID.property("walking"), true);

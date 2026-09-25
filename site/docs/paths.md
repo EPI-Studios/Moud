@@ -37,7 +37,8 @@ local wander = game.path:randomPointNear(npc.position, 12)
 npc:walkTo(point, { partial = true })
 ```
 
-`find` gives the corners a body turns at, without the start. `partial = true` is what you want for a
+`find` gives the corners a body turns at, without the start. `randomPointNear` gives a point a body
+can reach within the radius, walking the way the options allow, or `nil`. `partial = true` is what you want for a
 wandering npc, which should set off in roughly the right direction rather than stand still because the
 target is unreachable.
 
@@ -61,7 +62,7 @@ end
 |---|---|
 | `success` | the path reaches the target |
 | `closest` | the target cannot be reached; the path ends as close to it as a body can get |
-| `noPath` | the start is not somewhere a body can stand, or nothing can be reached at all |
+| `noPath` | the start is not somewhere a body can stand, an end is not a finite point, or nothing can be reached at all |
 | `tooFar` | the search would build more than 400 tiles, see [How it is built](#how-it-is-built) |
 | `notComputed` | `compute` has not run yet |
 
@@ -142,14 +143,16 @@ local first = path:checkOcclusion(1)      -- -1 when the whole path is clear
 | `height` | 1.8 | how much room the body needs above the floor, from 0.5 to 16 |
 | `canJump` | true | step up a whole block and jump one block gaps. Off: steps of 0.6, a slab or a stair |
 | `canClimb` | true | use ladders, vines and scaffolding |
-| `spacing` | 0 | 0 gives only the corners; a number adds waypoints so none are further apart |
+| `spacing` | 0 | 0 gives only the corners; a number adds waypoints so none are further apart. At least 0.25 |
 | `costs` | | see [Costs and labels](#costs-and-labels) |
 | `partial` | false | `find` and `walkTo` only: keep a `closest` path instead of giving up |
 
 - `radius` is rounded down to a quarter metre. At 0.3 a path keeps 0.25 m from a wall, which is what
   lets a body the size of a player through a one block doorway.
 - Every different `radius`, `height` and `canJump` builds a navmesh of its own, so a place with bodies
-  of three sizes builds three. `costs`, `canClimb` and `spacing` cost nothing extra.
+  of three sizes builds three. `radius` counts to the nearest 0.05 and `height` to the nearest 0.1
+  for this, so two bodies a hair apart share one. `costs`, `canClimb` and `spacing` cost nothing
+  extra.
 
 ## Costs and labels
 

@@ -170,6 +170,7 @@ public final class Walkers {
         if (walkers == null) return;
         double dt = Double.isNaN(walkers.last) ? FIRST_STEP : Math.clamp(now - walkers.last, 0, LONGEST_STEP);
         walkers.last = now;
+        RuntimeException failure = null;
         for (Character body : new ArrayList<>(walkers.plans.keySet())) {
             Plan plan = walkers.plans.get(body);
             if (plan == null) continue;
@@ -178,11 +179,18 @@ public final class Walkers {
                 walkers.plans.remove(body);
                 continue;
             }
-            Outcome outcome = advance(body, living, plan, finder, now, dt);
+            Outcome outcome;
+            try {
+                outcome = advance(body, living, plan, finder, now, dt);
+            } catch (RuntimeException e) {
+                if (failure == null) failure = e;
+                outcome = Outcome.NO_WAY;
+            }
             if (outcome == Outcome.GOING) continue;
             walkers.plans.remove(body, plan);
             finish(body, living, outcome);
         }
+        if (failure != null) throw failure;
     }
 
     private static Outcome advance(Character body, Humanoid living, Plan plan, Finder finder, double now, double dt) {
@@ -233,7 +241,7 @@ public final class Walkers {
             plan.waypoints = null;
         }
         boolean targetMoved = plan.lastTarget == null || plan.lastTarget.sub(goal).lengthSq() > 1;
-        if (plan.waypoints == null || targetMoved && now - plan.lastRepath >= REPATH) {
+        if ((plan.waypoints == null || targetMoved) && now - plan.lastRepath >= REPATH) {
             replan(body, plan, finder, at, goal);
             plan.lastRepath = now;
             plan.lastTarget = goal;
@@ -259,12 +267,12 @@ public final class Walkers {
     private static boolean walk(Character body, Humanoid living, Plan plan, Vector3 at, double dt) {
         int index = Math.min(plan.next, plan.waypoints.size() - 1);
         Waypoint waypoint = plan.waypoints.get(index);
-        Vector3 from = index == 0 ? null : plan.waypoints.get(index - 1).position();
+        Vector3 from = index == 0 ? at : plan.waypoints.get(index - 1).position();
         if (index != plan.entered) {
             plan.entered = index;
             if (waypoint.action() == Waypoint.Action.JUMP) Instances.setBool(living, JUMP, true);
         }
-        boolean climbing = waypoint.action() == Waypoint.Action.CLIMB && from != null;
+        boolean climbing = waypoint.action() == Waypoint.Action.CLIMB;
         if (climbing && climb(body, living, from, waypoint.position(), at, dt)) return true;
         if (living.state == HumanoidState.CLIMBING) Humanoids.changeState(body, HumanoidState.STANDING);
         Vector3 target = waypoint.position();

@@ -9,13 +9,13 @@ public record Agent(double radius, double height, boolean canJump, boolean canCl
     public record Shape(double radius, double height, boolean canJump) {}
 
     public Agent {
-        radius = Math.clamp(radius, 0.1, 4);
-        height = Math.clamp(height, 0.5, 16);
-        spacing = Math.max(0, spacing);
+        radius = Double.isNaN(radius) ? 0.3 : Math.clamp(radius, 0.1, 4);
+        height = Double.isNaN(height) ? 1.8 : Math.clamp(height, 0.5, 16);
+        spacing = spacing > 0 ? Math.max(spacing, 0.25) : 0;
         costs = Map.copyOf(costs);
     }
 
     public Shape shape() {
-        return new Shape(radius, height, canJump);
+        return new Shape(Math.round(radius * 20) / 20.0, Math.round(height * 10) / 10.0, canJump);
     }
 }

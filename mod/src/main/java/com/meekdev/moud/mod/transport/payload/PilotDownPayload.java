@@ -12,18 +12,20 @@ public record PilotDownPayload(int kind, double[] waypoints) implements CustomPa
     public static final int MOVE = 3;
 
     public static final int WAYPOINT_STRIDE = 4;
+    private static final int MOST = 4096;
 
     public static final Type<PilotDownPayload> TYPE = Payloads.type("pilot_down");
 
     public static final StreamCodec<FriendlyByteBuf, PilotDownPayload> CODEC = CustomPacketPayload.codec(
             (m, out) -> {
                 out.writeVarInt(m.kind());
-                out.writeVarInt(m.waypoints().length);
-                for (double n : m.waypoints()) out.writeDouble(n);
+                int count = Math.min(m.waypoints().length, WAYPOINT_STRIDE * MOST);
+                out.writeVarInt(count);
+                for (int n = 0; n < count; n++) out.writeDouble(m.waypoints()[n]);
             },
             in -> {
                 int kind = in.readVarInt();
-                int count = Math.min(in.readVarInt(), WAYPOINT_STRIDE * 4096);
+                int count = Math.min(in.readVarInt(), WAYPOINT_STRIDE * MOST);
                 double[] waypoints = new double[count];
                 for (int n = 0; n < count; n++) waypoints[n] = in.readDouble();
                 return new PilotDownPayload(kind, waypoints);

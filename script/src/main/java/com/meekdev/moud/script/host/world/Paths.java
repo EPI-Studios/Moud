@@ -71,12 +71,14 @@ public final class Paths {
         final NavMeshes.World source;
         final HostSignal blocked;
         final HostSignal unblocked;
+        final Host host;
         final Set<Character> walkers = Collections.newSetFromMap(new WeakHashMap<>());
         Route route;
         boolean computed;
         int blockedAt = -1;
 
         Path(Host host, Agent agent, NavMeshes.World source) {
+            this.host = host;
             this.agent = agent;
             this.world = host.world();
             this.source = source;
@@ -168,7 +170,10 @@ public final class Paths {
     }
 
     private static boolean insideBody(Part part) {
-        return part.parent() instanceof Character || part.parent() != null && part.parent().parent() instanceof Character;
+        for (Instance at = part.parent(); at != null; at = at.parent()) {
+            if (at instanceof Character) return true;
+        }
+        return false;
     }
 
     private static String label(PathfindingModifier modifier) {
@@ -292,7 +297,13 @@ public final class Paths {
             paths.removeIf(held -> held.get() == null);
             for (WeakReference<Path> held : new ArrayList<>(paths)) {
                 Path path = held.get();
-                if (path != null) path.watch();
+                if (path == null) continue;
+                try {
+                    path.watch();
+                } catch (RuntimeException e) {
+                    held.clear();
+                    path.host.error("path", e);
+                }
             }
         }
     }
@@ -330,8 +341,11 @@ public final class Paths {
         };
         host.onStep(dt -> {
             watch.time += dt;
-            Walkers.step(world.tree(), finder, watch.time);
-            watch.checkPaths();
+            try {
+                Walkers.step(world.tree(), finder, watch.time);
+            } finally {
+                watch.checkPaths();
+            }
         });
 
         host.api().alias("PathOptions", "{ partial: boolean?, radius: number?, height: number?, canJump: boolean?, "
@@ -352,7 +366,10 @@ public final class Paths {
                     return mesh(world, agent).route(source, a.vector(1), a.vector(2), agent).status() == Route.Status.SUCCESS;
                 })
                 .method("randomPointNear", "(point: Vector3, radius: number, options: PathOptions?) -> Vector3?",
-                        a -> mesh(world, agent(a.get(3))).randomNear(source, a.vector(1), a.number(2), RANDOM))
+                        a -> {
+                            Agent agent = agent(a.get(3));
+                            return mesh(world, agent).randomNear(source, a.vector(1), a.number(2), RANDOM, agent);
+                        })
                 .method("create", "(options: PathOptions?) -> Path", a -> {
                     Path path = new Path(host, agent(a.get(1)), source);
                     watch.paths.add(new WeakReference<>(path));

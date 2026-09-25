@@ -73,6 +73,8 @@ public final class NavMeshes {
     private static final int VERTS_PER_POLY = 6;
     private static final int REACH_Y = 16;
     private static final int MAX_TILES = 400;
+    private static final int LOWEST = -128;
+    private static final int HIGHEST = 448;
     private static final int MAX_CORNERS = 1024;
     private static final int CORRIDOR_MARGIN = 2;
     private static final float[] EXTENTS = {1.5f, 3f, 1.5f};
@@ -212,12 +214,14 @@ public final class NavMeshes {
     }
 
     public synchronized Route route(World world, Vector3 from, Vector3 to, Agent agent) {
+        if (!finite(from) || !finite(to)) return Route.NO_PATH;
         QueryFilter filter = costs(agent);
         Route best = null;
         for (int reach = 1; ; reach += 2) {
             Set<Key> wanted = tilesAlong(from, to, reach);
-            if (wanted.size() > MAX_TILES) return best != null ? best : Route.TOO_FAR;
+            if (wanted == null) return best != null ? best : Route.TOO_FAR;
             prepare(world, wanted, from, to);
+            if (reach == 1 && nearest(from, EXTENTS, filter) == null) return Route.NO_PATH;
             Route found = search(from, to, filter, agent);
             if (found.status() == Route.Status.SUCCESS) return found;
             if (found.found()) best = found;
@@ -334,7 +338,9 @@ public final class NavMeshes {
         Set<Key> wanted = new HashSet<>();
         Vector3 at = from;
         for (Vector3 point : ahead) {
-            wanted.addAll(tilesAlong(at, point, 1));
+            Set<Key> along = tilesAlong(at, point, 1);
+            if (along == null) return -1;
+            wanted.addAll(along);
             at = point;
         }
         if (wanted.size() > MAX_TILES) return -1;
@@ -389,9 +395,15 @@ public final class NavMeshes {
         return across < ARRIVE_ACROSS && Math.abs(last.y() - to.y()) < ARRIVE_HEIGHT;
     }
 
+    private static boolean finite(Vector3 v) {
+        return Double.isFinite(v.x()) && Double.isFinite(v.y()) && Double.isFinite(v.z());
+    }
+
     private static Set<Key> tilesAlong(Vector3 a, Vector3 b, int reach) {
+        if (!finite(a) || !finite(b) || (2L * reach + 1) * (2L * reach + 1) > MAX_TILES) return null;
         Set<Key> keys = new HashSet<>();
         double length = Math.hypot(b.x() - a.x(), b.z() - a.z());
+        if (length > MAX_TILES * TILE) return null;
         int steps = Math.max(1, (int) Math.ceil(length / (TILE / 2)));
         for (int step = 0; step <= steps; step++) {
             double t = (double) step / steps;
@@ -400,7 +412,7 @@ public final class NavMeshes {
             for (int dx = -reach; dx <= reach; dx++) {
                 for (int dz = -reach; dz <= reach; dz++) keys.add(new Key(tileX + dx, tileZ + dz));
             }
-            if (keys.size() > MAX_TILES) return keys;
+            if (keys.size() > MAX_TILES) return null;
         }
         return keys;
     }
@@ -413,14 +425,20 @@ public final class NavMeshes {
         return reach >= Math.max(lastX - firstX, lastZ - firstZ);
     }
 
-    public synchronized Vector3 randomNear(World world, Vector3 centre, double range, Random random) {
+    public Vector3 randomNear(World world, Vector3 centre, double range, Random random) {
+        return randomNear(world, centre, range, random, Agent.PLAYER);
+    }
+
+    public synchronized Vector3 randomNear(World world, Vector3 centre, double range, Random random, Agent agent) {
+        if (!(range >= 0) || range > MAX_TILES * TILE) return null;
         Set<Key> wanted = tilesAlong(centre, centre, (int) Math.ceil(range / TILE));
-        if (wanted.size() > MAX_TILES) return null;
+        if (wanted == null) return null;
         prepare(world, wanted, centre, centre);
-        FindNearestPolyResult start = nearest(centre, EXTENTS, walkable);
+        QueryFilter filter = costs(agent);
+        FindNearestPolyResult start = nearest(centre, EXTENTS, filter);
         if (start == null) return null;
-        Result<FindRandomPointResult> found = query.findRandomPointAroundCircle(start.getNearestRef(),
-                start.getNearestPos(), (float) range, walkable, new NavMeshQuery.FRand(random.nextLong()));
+        Result<FindRandomPointResult> found = query.findRandomPointWithinCircle(start.getNearestRef(),
+                start.getNearestPos(), (float) range, filter, new NavMeshQuery.FRand(random.nextLong()));
         if (found.failed() || found.result == null) return null;
         return vector(found.result.getRandomPt());
     }
@@ -443,8 +461,8 @@ public final class NavMeshes {
     }
 
     private void prepare(World world, Set<Key> wanted, Vector3 a, Vector3 b) {
-        int minY = (int) Math.floor(Math.min(a.y(), b.y())) - REACH_Y;
-        int maxY = (int) Math.ceil(Math.max(a.y(), b.y())) + REACH_Y;
+        int minY = (int) Math.floor(Math.clamp(Math.min(a.y(), b.y()), LOWEST, HIGHEST)) - REACH_Y;
+        int maxY = (int) Math.ceil(Math.clamp(Math.max(a.y(), b.y()), LOWEST, HIGHEST)) + REACH_Y;
         for (Key key : wanted) {
             Tile tile = tiles.computeIfAbsent(key, k -> new Tile());
             boolean taller = !tile.built || minY < tile.minY || maxY > tile.maxY;
@@ -507,13 +525,14 @@ public final class NavMeshes {
 
         long ref = mesh.getTileRefAt(tileX, tileZ, 0);
         if (ref != 0) mesh.removeTile(ref);
-        tile.parts = parts;
-        tile.dirty = false;
-        tile.built = true;
+        tile.dirty = true;
 
         RecastBuilder.RecastBuilderResult built = new RecastBuilder().build(tileX, tileZ, () -> volumes, config, field, telemetry);
         MeshData data = meshData(built, links, tileX, tileZ);
         if (data != null) mesh.addTile(data, 0, 0);
+        tile.parts = parts;
+        tile.dirty = false;
+        tile.built = true;
     }
 
     private void rasterizeBlocks(Heightfield field, RecastBuilderConfig tileConfig, Voxels voxels, int layers) {
