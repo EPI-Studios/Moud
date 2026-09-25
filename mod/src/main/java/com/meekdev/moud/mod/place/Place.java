@@ -44,6 +44,8 @@ import org.jspecify.annotations.Nullable;
 
 public final class Place {
 
+    private static final long SCENE_TYPES_QUIET_MILLIS = 1000;
+
     private final Instance world;
     private final ClassRegistry classes;
     private final Path root;
@@ -57,6 +59,9 @@ public final class Place {
     private boolean editing;
     private boolean reloadedFully;
     private @Nullable String edited;
+    private @Nullable ScriptLanguage typesWriter;
+    private long sceneMutations;
+    private long sceneChangedAt;
 
     private Place(Instance world, ClassRegistry classes, String main, boolean client,
                   Predicate<Instance> dropped, Consumer<Host> extend) {
@@ -349,11 +354,32 @@ public final class Place {
         }
     }
 
+    public void pollSceneTypes() {
+        if (client || !editing || typesWriter == null) return;
+        long now = System.currentTimeMillis();
+        long mutations = world.tree().mutations();
+        if (mutations != sceneMutations) {
+            sceneMutations = mutations;
+            sceneChangedAt = now;
+            return;
+        }
+        if (sceneChangedAt == 0 || now - sceneChangedAt < SCENE_TYPES_QUIET_MILLIS) return;
+        sceneChangedAt = 0;
+        try {
+            typesWriter.writeScene(root, world, Place::authored);
+        } catch (IOException | RuntimeException e) {
+            MoudMod.LOG.warn("could not write the scene types", e);
+        }
+    }
+
     private void types() {
         if (client) return;
         ScriptLanguage writer = language != null ? language : pick();
         if (writer == null) writer = Languages.all().getFirst();
+        typesWriter = writer;
+        sceneMutations = world.tree().mutations();
         try {
+            if (editing) writer.writeScene(root, world, Place::authored);
             writer.writeTypes(root, Host.describe(classes), classes);
         } catch (IOException e) {
             MoudMod.LOG.warn("failed to write {} type definitions", writer.name(), e);

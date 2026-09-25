@@ -24,6 +24,7 @@ place/
   .moud/types.d.luau   generated when the place starts; never edit it
   .luaurc              the @server, @client and @shared require aliases, written once
   .zed/settings.json   points Zed's Luau server at the types, kept in sync
+  .vscode/             the same for VS Code, VSCodium, Cursor and Windsurf
 ```
 
 Two files do the work:
@@ -47,6 +48,45 @@ The rest of the folder supports those two:
 > [!NOTE]
 > There is no registration step and nothing to declare. A file that exists is a file that runs, and
 > adding a script never means editing a list somewhere else.
+
+## Editing scripts in your code editor
+
+Moud's types are read by [luau-lsp](https://github.com/JohnnyMorganz/luau-lsp), the Luau language
+server. Install it in your editor once and open the place folder, not a folder above it:
+
+- **Zed**: the Luau extension. `.zed/settings.json` already points it at the types.
+- **VS Code, VSCodium, Cursor, Windsurf**: the Luau Language Server extension
+  (`JohnnyMorganz.luau-lsp`). The editor offers it when you open the folder, because
+  `.vscode/extensions.json` recommends it, and `.vscode/settings.json` sets it up.
+- **Neovim**: [luau-lsp.nvim](https://github.com/lopi-py/luau-lsp.nvim) with
+  `platform = { type = "standard" }` and `types = { definition_files = { ["@moud"] = ".moud/types.d.luau" } }`.
+  It reads `.luaurc` on its own.
+
+Moud writes these files when the place opens. A settings file that starts with
+`// moud keeps this file in sync` belongs to Moud and is rewritten; delete that line and it is yours.
+If `.vscode/settings.json` already exists without it, Moud only adds the settings that are missing
+and never changes one you set. A file with comments in it is left alone.
+
+The types also know the open scene. While you edit, every instance you place under the world gets a
+type, a second after you stop changing things, so the editor completes `game.world.` with the names
+in your scene and flags a typo:
+
+```lua
+--!strict
+local holds = game.world.Wall1.Holds -- completes Wall1, then Holds
+local jug: Part = holds.Jug1         -- a Part, no cast
+local wall = game.world:find("Wall2") -- typed as Wall2, with its children
+local oops = game.world.Wall4         -- Key 'Wall4' not found
+```
+
+- `find` knows the name of every child, including names with spaces, so `world:find("Jug 1")` is a
+  `Part`. Any other name still returns `Instance?`, for things a script adds while the game runs.
+- A child whose name is also a property or a method, like a part called `name`, is only typed through
+  `find`, because `instance.name` means the property.
+- Only the scene that is open in the editor is typed. A scene a script loads later is not.
+- The language server reads the types when it starts. After you rename or add something, restart it
+  to see the change: **Luau: Reload Language Server** in VS Code, **editor: restart language server**
+  in Zed.
 
 ## Saving reloads the place
 

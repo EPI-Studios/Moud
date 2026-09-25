@@ -1,6 +1,7 @@
 package com.meekdev.moud.script.luau;
 
 import com.meekdev.moud.core.clazz.ClassRegistry;
+import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.script.engine.ScriptEngine;
 import com.meekdev.moud.script.engine.ScriptLanguage;
 import com.meekdev.moud.script.host.Api;
@@ -9,8 +10,15 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Predicate;
 
 public final class LuauLanguage implements ScriptLanguage {
+
+    private Path place;
+    private String types;
+    private Instance world;
+    private Predicate<Instance> keep;
+    private String scene = "";
 
     @Override
     public String name() {
@@ -31,9 +39,35 @@ public final class LuauLanguage implements ScriptLanguage {
     public void writeTypes(Path place, Api api, ClassRegistry classes) throws IOException {
         Path directory = place.resolve(".moud");
         Files.createDirectories(directory);
-        Path types = directory.resolve("types.d.luau");
-        Files.writeString(types, LuauTypes.declare(api, classes));
-        Files.writeString(directory.resolve("plugin.luau"), LuauResource.text("project/plugin.luau"));
-        LuauProject.write(place, types);
+        if (!place.equals(this.place)) world = null;
+        this.place = place;
+        types = LuauTypes.declare(api, classes);
+        scene = world == null ? "" : LuauScene.declare(types, world, keep);
+        Path file = types(place);
+        writeIfChanged(file, types + scene);
+        writeIfChanged(directory.resolve("plugin.luau"), LuauResource.text("project/plugin.luau"));
+        LuauProject.write(place, file);
+    }
+
+    @Override
+    public void writeScene(Path place, Instance world, Predicate<Instance> keep) throws IOException {
+        if (!place.equals(this.place)) types = null;
+        this.place = place;
+        this.world = world;
+        this.keep = keep;
+        if (types == null) return;
+        String next = LuauScene.declare(types, world, keep);
+        if (next.equals(scene)) return;
+        scene = next;
+        writeIfChanged(types(place), types + scene);
+    }
+
+    private static Path types(Path place) {
+        return place.resolve(".moud").resolve("types.d.luau");
+    }
+
+    private static void writeIfChanged(Path file, String text) throws IOException {
+        if (Files.isRegularFile(file) && Files.readString(file).equals(text)) return;
+        Files.writeString(file, text);
     }
 }

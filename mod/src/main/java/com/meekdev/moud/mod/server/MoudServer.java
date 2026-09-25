@@ -89,6 +89,7 @@ public final class MoudServer {
     private static void tick(MinecraftServer server) {
         if (place == null) return;
         if (place.pollReload()) respawnAll(server);
+        place.pollSceneTypes();
         PlaceSync.tick(server);
         double dt = TICK.tick();
         Host host = place.host();
