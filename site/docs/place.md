@@ -37,7 +37,8 @@ chat = true
   the server script finds the scene's instances already there. `loading` runs in the player's game
   as soon as it starts, and draws the loading screen until the place is running; it is optional, and
   `client/loading.luau` is used when it exists. See
-  [The loading screen](game-and-screens.md#the-loading-screen).
+  [The loading screen](game-and-screens.md#the-loading-screen). The same fields are under **Entry**
+  in Project Settings, which refuses a loading script that does not exist.
 - `[features]` is a list of switches, one per vanilla Minecraft feature.
 - `[server]` sends players of the exported game straight to your server instead of a world of
   their own. See [Sending players to your server](#sending-players-to-your-server).

@@ -189,18 +189,18 @@ local screen = gui:add("Frame", { size = udim2(1, 0, 1, 0), backgroundColor = co
 screen:add("UIGradient", { startColor = color(0.14, 0.1, 0.28), endColor = color(0.02, 0.03, 0.07), rotation = 90 })
 
 screen:add("TextLabel", {
-    position = udim2(0.5, 0, 0.35, 0), anchorX = 0.5, anchorY = 0.5,
+    position = udim2(0.5, 0, 0.5, -50), anchorX = 0.5, anchorY = 0.5,
     size = udim2(0, 400, 0, 40), backgroundTransparency = 1,
     text = "CRYSTAL RUN", textSize = 24, textColor = color(1, 1, 1),
 })
 
 local bar = screen:add("Frame", {
-    position = udim2(0.5, 0, 0.6, 0), anchorX = 0.5, anchorY = 0.5, size = udim2(0, 300, 0, 6),
+    position = udim2(0.5, 0, 0.5, 10), anchorX = 0.5, anchorY = 0.5, size = udim2(0, 300, 0, 6),
     backgroundColor = color(1, 1, 1), backgroundTransparency = 0.85, cornerRadius = 3,
 }) :: Frame
 local fill = bar:add("Frame", { size = udim2(0, 0, 1, 0), backgroundColor = color(0.55, 0.8, 1), cornerRadius = 3 })
 local status = screen:add("TextLabel", {
-    position = udim2(0.5, 0, 0.6, 12), anchorX = 0.5, size = udim2(0, 400, 0, 16),
+    position = udim2(0.5, 0, 0.5, 22), anchorX = 0.5, size = udim2(0, 400, 0, 16),
     backgroundTransparency = 1, textSize = 9, textColor = color(0.75, 0.8, 0.95),
 }) :: TextLabel
 
@@ -221,7 +221,7 @@ loading.changed:connect(show)
 show()
 
 local panel = screen:add("Frame", {
-    position = udim2(0.5, 0, 0.62, 0), anchorX = 0.5, anchorY = 0.5, size = udim2(0, 300, 0, 90),
+    position = udim2(0.5, 0, 0.5, 30), anchorX = 0.5, anchorY = 0.5, size = udim2(0, 300, 0, 90),
     backgroundColor = color(0, 0, 0), backgroundTransparency = 0.4, cornerRadius = 6, visible = false,
 }) :: Frame
 local reason = panel:add("TextLabel", {
@@ -260,8 +260,12 @@ end)
 
 - The script has its own `game.world`, which only it sees. Nothing in it is sent to the server, and
   the place's scripts do not find it in their tree. It has the interface classes, tweens, `task`,
-  `Sound`, `require` and `window`. It has no players, no remotes and no `camera` or `input`: none of
-  them exist yet.
+  `Sound`, `VideoFrame`, `require` and `window`. It has no players, no remotes and no `camera` or
+  `input`: none of them exist yet.
+- It shows the moment Minecraft has loaded its resources. Minecraft's own fade out is skipped, so a
+  server that answers fast never fails behind the Mojang screen.
+- `task.wait`, `task.delay` and tweens count real seconds, so they keep time while the window is in
+  the background and drawing slowly.
 - `loading.changed` fires whenever the phase, the progress, the message or the server changes, so the
   bar above follows along without polling.
 - Connecting to `failed` means the script draws the failure itself: the engine's own screen with
