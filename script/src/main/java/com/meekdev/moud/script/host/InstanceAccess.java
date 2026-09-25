@@ -247,7 +247,7 @@ public final class InstanceAccess {
 
     public static Object parse(PropertyDef property, Object value) {
         return switch (property.type()) {
-            case BOOL -> value != null && !Boolean.FALSE.equals(value);
+            case BOOL -> expect(value, Boolean.class, property.name(), "a boolean");
             case INT, NUM -> Values.real(expect(value, Number.class, property.name(), "a number").doubleValue(), property.name());
             case STRING, ASSET -> property.asset() && value instanceof ImageLibrary.Image image ? image.uri()
                     : expect(value, String.class, property.name(), "a string");
