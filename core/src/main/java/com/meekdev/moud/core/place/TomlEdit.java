@@ -16,6 +16,7 @@ public final class TomlEdit {
     }
 
     private static String change(String text, String table, String key, String replacement) {
+        if (text.startsWith("﻿")) text = text.substring(1);
         List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
         int start = 0;
         int end = lines.size();

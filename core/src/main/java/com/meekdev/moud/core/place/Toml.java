@@ -16,7 +16,7 @@ public final class Toml {
     }
 
     public static Map<String, Object> parse(String text) {
-        return new Toml(text).document();
+        return new Toml(text.startsWith("﻿") ? text.substring(1) : text).document();
     }
 
     private Map<String, Object> document() {
