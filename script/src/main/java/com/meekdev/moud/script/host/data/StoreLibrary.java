@@ -36,6 +36,7 @@ public final class StoreLibrary {
             }));
             return;
         }
+        List<Session> open = sessions(host, store);
         host.api().declare(new Members("Store")
                 .method("get", "(key: string | number) -> any", a -> null)
                 .method("set", "(key: string | number, value: any) -> ()", a -> null)
@@ -62,11 +63,11 @@ public final class StoreLibrary {
             String name = a.string(0);
             if (name.isEmpty()) throw a.error("store wants a name");
             if (name.startsWith(ORDERED)) throw a.error("a store name cannot start with '%s', that is where ordered stores keep their numbers", ORDERED);
-            return store(host, store, name);
+            return store(host, store, open, name);
         }));
     }
 
-    private static Members store(Host host, StoreRef store, String name) {
+    private static Members store(Host host, StoreRef store, List<Session> open, String name) {
         return new Members("Store")
                 .method("get", "(key: string | number) -> any", a -> decode(store.get(name, key(host, a))))
                 .method("set", "(key: string | number, value: any) -> ()", a -> {
@@ -87,7 +88,7 @@ public final class StoreLibrary {
                 })
                 .method("keys", "(prefix: string?, limit: number?) -> { string }",
                         a -> new ArrayList<Object>(store.keys(name, a.string(1, ""), a.integer(2, 1000))))
-                .method("session", "(key: string | number) -> StoreSession", a -> session(host, store, name, key(host, a)));
+                .method("session", "(key: string | number) -> StoreSession", a -> session(host, store, open, name, key(host, a)));
     }
 
     private static String key(Host host, Args a) {
@@ -138,42 +139,90 @@ public final class StoreLibrary {
         return value;
     }
 
-    private static Members session(Host host, StoreRef store, String name, String key) {
+    private static Members session(Host host, StoreRef store, List<Session> open, String name, String key) {
+        for (Session held : open) {
+            if (!held.released && held.name.equals(name) && held.key.equals(key)) throw new HostError("%s/%s already has a session open here", name, key);
+        }
         if (!store.lease(name, key, store.owner(), LEASE)) {
             throw new HostError("another server holds %s/%s, which is the save it is still writing", name, key);
         }
-        Object loaded = decode(store.get(name, key));
+        Object loaded;
+        try {
+            loaded = decode(store.get(name, key));
+            if (loaded != null && !(loaded instanceof Map<?, ?>)) throw new HostError("%s/%s holds a %s, a session needs a table", name, key, Host.typeOf(loaded));
+        } catch (RuntimeException e) {
+            store.release(name, key, store.owner());
+            throw e;
+        }
         @SuppressWarnings("unchecked")
-        Map<String, Object> initial = loaded instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
-        ScriptValue data = host.engine().table(initial);
-        boolean[] released = {false};
-        double[] waited = {0};
-        host.onStep(dt -> {
-            if (released[0]) return;
-            waited[0] += dt;
-            if (waited[0] < RENEW) return;
-            waited[0] = 0;
-            store.lease(name, key, store.owner(), LEASE);
-        });
-        Runnable save = () -> {
-            if (released[0]) throw new HostError("this session was released");
-            store.set(name, key, encode(host.engine().read(data)));
-        };
-        Members session = new Members("StoreSession");
-        session.value("data", "{ [string]: any }", data)
+        Map<String, Object> initial = loaded == null ? Map.of() : (Map<String, Object>) loaded;
+        Session session = new Session(host, store, name, key, host.engine().table(initial));
+        open.add(session);
+        return new Members("StoreSession")
+                .value("data", "{ [string]: any }", session.data)
                 .method("save", "() -> ()", a -> {
-                    save.run();
+                    session.save();
                     return null;
                 })
                 .method("release", "() -> ()", a -> {
-                    if (released[0]) return null;
-                    save.run();
-                    released[0] = true;
-                    store.release(name, key, store.owner());
-                    data.release();
+                    session.release();
                     return null;
                 });
-        return session;
+    }
+
+    private static List<Session> sessions(Host host, StoreRef store) {
+        List<Session> open = new ArrayList<>();
+        double[] waited = {0};
+        host.onStep(dt -> {
+            open.removeIf(s -> s.released);
+            waited[0] += dt;
+            if (waited[0] < RENEW) return;
+            waited[0] = 0;
+            for (Session s : open) store.lease(s.name, s.key, store.owner(), LEASE);
+        });
+        host.onClose(() -> {
+            for (Session s : open) {
+                try {
+                    s.release();
+                } catch (RuntimeException e) {
+                    host.error("session " + s.name + "/" + s.key, e);
+                    s.released = true;
+                    store.release(s.name, s.key, store.owner());
+                }
+            }
+            open.clear();
+        });
+        return open;
+    }
+
+    private static final class Session {
+        final Host host;
+        final StoreRef store;
+        final String name;
+        final String key;
+        final ScriptValue data;
+        boolean released;
+
+        Session(Host host, StoreRef store, String name, String key, ScriptValue data) {
+            this.host = host;
+            this.store = store;
+            this.name = name;
+            this.key = key;
+            this.data = data;
+        }
+
+        void save() {
+            if (released) throw new HostError("this session was released");
+            store.set(name, key, encode(host.engine().read(data)));
+        }
+
+        void release() {
+            if (released) return;
+            save();
+            released = true;
+            store.release(name, key, store.owner());
+            data.release();
+        }
     }
 
     private static Object decode(String json) {
@@ -181,7 +230,7 @@ public final class StoreLibrary {
     }
 
     public static String encode(Object value) {
-        return Json.write(check(value, 0, "the value"));
+        return Json.compact(check(value, 0, "the value"));
     }
 
     private static Object check(Object value, int depth, String where) {

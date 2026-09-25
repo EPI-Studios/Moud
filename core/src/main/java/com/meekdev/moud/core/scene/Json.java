@@ -47,6 +47,37 @@ public final class Json {
         return out.append('\n').toString();
     }
 
+    public static String compact(Object value) {
+        StringBuilder out = new StringBuilder();
+        compact(out, value);
+        return out.toString();
+    }
+
+    private static void compact(StringBuilder out, Object value) {
+        switch (value) {
+            case List<?> list -> {
+                out.append('[');
+                for (int i = 0; i < list.size(); i++) {
+                    if (i > 0) out.append(',');
+                    compact(out, list.get(i));
+                }
+                out.append(']');
+            }
+            case Map<?, ?> map -> {
+                out.append('{');
+                int i = 0;
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    if (i++ > 0) out.append(',');
+                    string(out, String.valueOf(entry.getKey()));
+                    out.append(':');
+                    compact(out, entry.getValue());
+                }
+                out.append('}');
+            }
+            case null, default -> line(out, value);
+        }
+    }
+
     private static boolean numberRow(Object value) {
         return value instanceof List<?> list && list.size() <= ROW && list.stream().allMatch(v -> v instanceof Number);
     }

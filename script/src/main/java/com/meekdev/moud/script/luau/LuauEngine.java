@@ -653,13 +653,23 @@ final class LuauEngine implements ScriptEngine {
     }
 
     private Object plain(LuaState s, int at, int depth) {
-        if (depth >= 16) return null;
+        if (depth > DEEPEST) return null;
         return switch (s.type(at)) {
             case NUMBER, INTEGER -> s.toNumber(at);
             case BOOLEAN -> s.toBoolean(at);
             case STRING -> s.toString(at);
             case USERDATA -> Values.isValue(s.toUserDataTagged(at, HOST)) ? s.toUserDataTagged(at, HOST) : null;
             case TABLE -> {
+                int length = s.len(at);
+                if (length > 0 && !keyed(s, at, length)) {
+                    List<Object> list = new ArrayList<>(length);
+                    for (int n = 1; n <= length; n++) {
+                        s.rawGetI(at, n);
+                        list.add(plain(s, s.top(), depth + 1));
+                        s.pop(1);
+                    }
+                    yield list;
+                }
                 Map<String, Object> out = new LinkedHashMap<>();
                 s.pushNil();
                 while (s.next(at)) {

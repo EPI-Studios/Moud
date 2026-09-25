@@ -35,7 +35,10 @@ end)
 - `update(key, fn)` reads the value, hands it to your function, and writes back what the function
   returns, all in one step. It returns the new value.
 
-Values are anything a table can hold: numbers, text, booleans and nested tables.
+Values are anything a table can hold: numbers, text, booleans and nested tables, up to 32 deep. A
+table is saved either as a list, when its keys are 1 to n, or as a table keyed by text; a number key
+in a keyed table comes back as text. A Vector3, an instance or a function anywhere in it is an
+error.
 
 > [!IMPORTANT]
 > Use `update` whenever the new value depends on the old one. A `get`, then some arithmetic, then a
@@ -64,13 +67,17 @@ session:release()      -- saves and lets go
 - `players:session(key)` takes the lock and loads the value. It raises an error when another server
   is already holding that key, so wrap it in `pcall` if the player should be told rather than
   dropped.
-- `session.data` is the loaded value as a plain table. Change it like any table.
+- `session.data` is the loaded value as a plain table. Change it like any table. A key that holds
+  something other than a table, such as a number written with `set`, cannot be opened as a session.
 - `session:save()` writes `data` back without letting the lock go. Call it at checkpoints, such as
   after a round.
 - `session:release()` saves and lets go, which is what you do when the player leaves.
 
+- Opening a session on a key this server already has open is an error. Release the first one.
+
 A session renews itself while it lives. A server that crashes loses its hold after a minute, so a
-save is never stuck locked by a server that is gone.
+save is never stuck locked by a server that is gone. When the place stops or hot reloads, every
+session still open is saved and released for you.
 
 <!-- demo:saving-sessions -->
 
