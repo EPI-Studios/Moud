@@ -353,8 +353,11 @@ public final class Place {
             String source = Files.readString(file);
             Mixins.loading(host, chunk, () -> host.engine().run(chunk, source));
             MoudMod.LOG.info("mixins in {} are on", chunk);
-        } catch (IOException | RuntimeException e) {
+        } catch (IOException e) {
             MoudMod.LOG.error("{} failed", chunk, e);
+        } catch (RuntimeException e) {
+            MoudMod.LOG.error("{} failed", chunk, e);
+            host.error(chunk, e);
         }
     }
 
@@ -378,7 +381,14 @@ public final class Place {
 
     private void types() {
         if (client) return;
-        ScriptLanguage writer = language != null ? language : pick();
+        ScriptLanguage writer = language;
+        if (writer == null) {
+            try {
+                writer = pick();
+            } catch (IllegalStateException e) {
+                writer = null;
+            }
+        }
         if (writer == null) writer = Languages.all().getFirst();
         typesWriter = writer;
         sceneMutations = world.tree().mutations();
@@ -424,7 +434,12 @@ public final class Place {
     private @Nullable Host load(Map<String, Object> carried) {
         if (!client && edited != null) Scene.load(edited, world, classes);
         else if (!client) scene();
-        language = pick();
+        try {
+            language = pick();
+        } catch (IllegalStateException e) {
+            Output.add(Output.Level.ERROR, client ? "client" : "server", e.getMessage());
+            language = null;
+        }
         ScriptLanguage running = language != null ? language : Languages.all().getFirst();
         String file = null;
         String source = null;
@@ -486,6 +501,7 @@ public final class Place {
                 fresh.engine().run(file, source);
             } catch (RuntimeException e) {
                 MoudMod.LOG.error("{} failed", root.resolve(file), e);
+                fresh.error(file, e);
             }
         }
         fresh.runScripts();
