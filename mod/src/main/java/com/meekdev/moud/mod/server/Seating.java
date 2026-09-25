@@ -101,7 +101,7 @@ public final class Seating {
     private static void drive(InstanceTree tree) {
         for (VehicleSeat seat : tree.ofClass(Classes.VEHICLE_SEAT)) {
             Character body = Seats.body(seat);
-            SeatPayload input = body == null || body.owner.isEmpty() ? null : INPUT.get(UUID.fromString(body.owner));
+            SeatPayload input = body == null || !body.hasPlayer() ? null : INPUT.get(UUID.fromString(body.owner));
             double throttle = input == null ? 0 : input.throttle();
             double steer = input == null ? 0 : input.steer();
             if (seat.throttle != throttle) Instances.setNum(seat, THROTTLE, throttle);

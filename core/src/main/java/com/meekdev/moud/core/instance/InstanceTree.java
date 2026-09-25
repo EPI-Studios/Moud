@@ -106,6 +106,7 @@ public final class InstanceTree {
     }
 
     public Instance byId(int id) {
+        if (id == Integer.MIN_VALUE) return null;
         Instance[] slots = id < 0 ? byLocalId : byId;
         int slot = Math.abs(id);
         if (slot >= slots.length) return null;

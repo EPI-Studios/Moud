@@ -132,7 +132,7 @@ public final class Bytes {
 
     public String readText() {
         int length = (int) readVarint();
-        if (length < 0 || at + length > size) throw new IllegalStateException("a string that long is corrupt");
+        if (length < 0 || length > size - at) throw new IllegalStateException("a string that long is corrupt");
         String value = new String(data, at, length, StandardCharsets.UTF_8);
         at += length;
         return value;
