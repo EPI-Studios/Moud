@@ -54,20 +54,31 @@ final class Precipitation {
             batch.use(QuadBatch.Layer.WORLD, EffectTextures.white());
             batch.light(light, 1, 0);
             batch.tint(RAIN, 0.35, 1);
-            for (int i = 0; i < DROPS.count(); i++) streak(batch, view, DROPS.position(i), DROPS.velocity(i));
+            double ex = eye.x();
+            double ey = eye.y();
+            double ez = eye.z();
+            for (int i = 0; i < DROPS.count(); i++) streak(batch, ex, ey, ez, i);
         }
         if (FLAKES.count() > 0) {
             batch.use(QuadBatch.Layer.WORLD, EffectTextures.of(""));
             batch.light(light, 1, 0);
             batch.tint(SNOW, 0.9, 1);
-            Vector3 right = view.right().mul(FLAKE);
-            Vector3 up = view.up().mul(FLAKE);
+            Vector3 right = view.right();
+            Vector3 up = view.up();
+            double rx = right.x() * FLAKE;
+            double ry = right.y() * FLAKE;
+            double rz = right.z() * FLAKE;
+            double ux = up.x() * FLAKE;
+            double uy = up.y() * FLAKE;
+            double uz = up.z() * FLAKE;
             for (int i = 0; i < FLAKES.count(); i++) {
-                Vector3 at = FLAKES.position(i);
-                batch.corner(at.sub(right).sub(up), 0, 1);
-                batch.corner(at.add(right).sub(up), 1, 1);
-                batch.corner(at.add(right).add(up), 1, 0);
-                batch.corner(at.sub(right).add(up), 0, 0);
+                double x = FLAKES.x(i);
+                double y = FLAKES.y(i);
+                double z = FLAKES.z(i);
+                batch.corner(x - rx - ux, y - ry - uy, z - rz - uz, 0, 1);
+                batch.corner(x + rx - ux, y + ry - uy, z + rz - uz, 1, 1);
+                batch.corner(x + rx + ux, y + ry + uy, z + rz + uz, 1, 0);
+                batch.corner(x - rx + ux, y - ry + uy, z - rz + uz, 0, 0);
             }
         }
     }
@@ -78,14 +89,31 @@ final class Precipitation {
         return new Vector3(eye.x(), roof + 1, eye.z());
     }
 
-    private static void streak(QuadBatch batch, Effects.View view, Vector3 at, Vector3 velocity) {
-        Vector3 along = velocity.mul(STREAK * 0.5);
-        Vector3 side = velocity.cross(view.eye().sub(at));
-        if (side.lengthSq() < MIN_SIDE_SQ) return;
-        side = side.normalize().mul(STREAK_WIDTH);
-        batch.corner(at.sub(side).sub(along), 0, 1);
-        batch.corner(at.add(side).sub(along), 1, 1);
-        batch.corner(at.add(side).add(along), 1, 0);
-        batch.corner(at.sub(side).add(along), 0, 0);
+    private static void streak(QuadBatch batch, double ex, double ey, double ez, int i) {
+        double x = DROPS.x(i);
+        double y = DROPS.y(i);
+        double z = DROPS.z(i);
+        double vx = DROPS.vx(i);
+        double vy = DROPS.vy(i);
+        double vz = DROPS.vz(i);
+        double tx = ex - x;
+        double ty = ey - y;
+        double tz = ez - z;
+        double sx = vy * tz - vz * ty;
+        double sy = vz * tx - vx * tz;
+        double sz = vx * ty - vy * tx;
+        double length = sx * sx + sy * sy + sz * sz;
+        if (length < MIN_SIDE_SQ) return;
+        double scale = STREAK_WIDTH / Math.sqrt(length);
+        sx *= scale;
+        sy *= scale;
+        sz *= scale;
+        double ax = vx * STREAK * 0.5;
+        double ay = vy * STREAK * 0.5;
+        double az = vz * STREAK * 0.5;
+        batch.corner(x - sx - ax, y - sy - ay, z - sz - az, 0, 1);
+        batch.corner(x + sx - ax, y + sy - ay, z + sz - az, 1, 1);
+        batch.corner(x + sx + ax, y + sy + ay, z + sz + az, 1, 0);
+        batch.corner(x - sx + ax, y - sy + ay, z - sz + az, 0, 0);
     }
 }

@@ -124,6 +124,18 @@ public final class PrecipitationField {
         return z[i];
     }
 
+    public double vx(int i) {
+        return vx[i];
+    }
+
+    public double vy(int i) {
+        return vy[i];
+    }
+
+    public double vz(int i) {
+        return vz[i];
+    }
+
     public double age(int i) {
         return age[i];
     }
