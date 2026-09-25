@@ -153,9 +153,10 @@ public final class ClassDef<T extends Instance> {
         }
         double min = opts == null ? Double.NEGATIVE_INFINITY : opts.min();
         double max = opts == null ? Double.POSITIVE_INFINITY : opts.max();
+        String group = opts == null ? "" : opts.group();
 
         return new PropertyDef(field.getName(), kind, index, replicated, driven, asset, readOnly,
-                handle.get(prototype), min, max, handle);
+                handle.get(prototype), min, max, group, handle);
     }
 
     private static PropertyType kindOf(Class<?> t) {

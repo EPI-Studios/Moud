@@ -14,13 +14,20 @@ public class Part extends Spatial {
     public PartShape shape = PartShape.BLOCK;
     public Color color = Color.WHITE;
 
-    @Prop(asset = true) public String texture = "";
+    @Prop(asset = true, group = "Texture") public String texture = "";
 
-    @Prop(min = 0.01) public double studsPerTile = 1;
-    public Vector3 textureOffset = Vector3.ZERO;
-    public PartShading shading = PartShading.FLAT;
-    @Prop(min = 0, max = 1) public double roughness = 0.5;
-    @Prop(min = 0, max = 1) public double metallic;
+    @Prop(min = 0.01, group = "Texture") public double studsPerTile = 1;
+    @Prop(group = "Texture") public Vector3 textureOffset = Vector3.ZERO;
+    @Prop(group = "PBR") public PartShading shading = PartShading.FLAT;
+    @Prop(min = 0, max = 1, group = "PBR") public double roughness = 0.5;
+    @Prop(min = 0, max = 1, group = "PBR") public double metallic;
+    @Prop(asset = true, group = "PBR") public String normalMap = "";
+    @Prop(asset = true, group = "PBR") public String roughnessMap = "";
+    @Prop(asset = true, group = "PBR") public String metallicMap = "";
+    @Prop(asset = true, group = "PBR") public String occlusionMap = "";
+    @Prop(group = "Emission") public Color emission = Color.BLACK;
+    @Prop(asset = true, group = "Emission") public String emissionMap = "";
+    @Prop(min = 0, group = "Emission") public double emissionStrength = 1;
     @Prop(min = 0, max = 1) public double transparency;
     public boolean anchored = true;
     public boolean collides = true;

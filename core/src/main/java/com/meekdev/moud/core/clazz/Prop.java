@@ -20,4 +20,6 @@ public @interface Prop {
     double min() default Double.NEGATIVE_INFINITY;
 
     double max() default Double.POSITIVE_INFINITY;
+
+    String group() default "";
 }

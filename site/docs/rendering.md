@@ -108,6 +108,71 @@ falls on.
 
 Flat and `pbr` parts are drawn together, so switching one part over costs nothing extra.
 
+### Maps on a part
+
+A `pbr` part takes more images than its colour. Each one says something about the surface at every
+point of it, so bricks get their mortar sunk in and rust shows dull on polished steel:
+
+```lua
+world:add("Part", {
+    size = vec3(4, 3, 1),
+    cframe = cframe(0, 65.5, 0),
+    texture = "res://textures/brick_color.png",
+    normalMap = "res://textures/brick_normal.png",
+    roughnessMap = "res://textures/brick_roughness.png",
+    occlusionMap = "res://textures/brick_ao.png",
+    studsPerTile = 2,
+    shading = "pbr",
+    anchored = true,
+})
+```
+
+- **`normalMap`** tilts the surface under the light, so flat faces show bumps, grooves and seams that
+  catch the sun and the lamps. It is a tangent-space map, the purple-blue kind, with green pointing
+  up the image, which is what Blender and glTF write. A map made for DirectX has green pointing down
+  and shows its bumps pushed in instead of out; flip its green channel before using it.
+- **`roughnessMap`** is a grey image, white rough and black glossy. It is used in place of
+  `roughness`.
+- **`metallicMap`** is a grey image, white metal and black not. It is used in place of `metallic`.
+- **`occlusionMap`** is a grey image that darkens the light from the sky and from torches where it is
+  dark, for the cracks and gaps that light would not reach. The sun and lamps are left as they are.
+
+Roughness, metallic and occlusion are read from the red channel, so a grey image works, and so does
+any Minecraft texture: `roughnessMap = "minecraft:block/cobblestone"` makes the stones rough and the
+gaps between them glossy. A packed image that keeps all three in its red, green and blue channels
+only works as an `occlusionMap`.
+
+Every map is laid on the way `texture` is, in world space from three directions, and `studsPerTile`
+and `textureOffset` move them all together, so the bumps stay on the bricks as the belt scrolls. A
+map takes what `texture` takes: a file in the place, an image a script drew, or a game texture. A map
+does nothing on a `"flat"` part, since a flat part is not lit by anything a map could change.
+
+Where a face runs between two of the three directions, on the slope of a wedge or around a ball,
+the image from each direction is blended in, so the bumps of two of them show at once. A map whose
+bumps line up with the edges of the part looks best on a box.
+
+Parts that share a texture and the same maps are drawn together, like parts that share a texture.
+
+### A glowing part
+
+`emission` makes a part glow, in the dark and without a light on it. `emissionStrength` multiplies
+it, and with a [`BloomEffect`](#post-effects) above 1 spills light around it:
+
+```lua
+world:add("Part", {
+    size = vec3(2, 2, 2),
+    cframe = cframe(0, 66, 0),
+    emission = color(1, 0.5, 0.1),
+    emissionStrength = 3,
+    emissionMap = "minecraft:block/redstone_lamp_on",
+    anchored = true,
+})
+```
+
+`emissionMap` multiplies the glow by an image, so only its bright parts glow, and it is laid on like
+`texture`. Black `emission`, the default, or an `emissionStrength` of 0 turns the glow off. Unlike the
+other maps, glow works on a `"flat"` part too.
+
 ## MeshPart
 
 A `MeshPart` is a part that is drawn as a 3D model instead of a box:
@@ -184,6 +249,13 @@ rack:add("MaterialOverride", {
 - **`texture`** replaces the material's colour image, and takes what every other image property
   takes. See [Images](images.md).
 - **`roughness`** and **`metallic`** replace the material's own, and `-1`, the default, keeps them.
+- **`normalMap`**, **`roughnessMap`**, **`metallicMap`** and **`occlusionMap`** replace the
+  material's images, and mean what they mean on a part: see [Maps on a part](#maps-on-a-part). A
+  roughness or metallic map is used in place of `roughness` and `metallic`, and in place of any
+  roughness and metallic the file packed into one image. A model saved without tangents still takes
+  a normal map; the tangents are worked out from its texture coordinates.
+- **`emissionMap`** replaces the material's glow image. It multiplies the glow colour, so on a
+  material that does not glow in the file, set `emission` too.
 - **`emission`** replaces the colour the material glows with, and black, the default, keeps the
   file's. **`emissionStrength`** multiplies the glow, so `0` turns it off and `4` makes it bloom. See
   [Glowing models](#glowing-models).

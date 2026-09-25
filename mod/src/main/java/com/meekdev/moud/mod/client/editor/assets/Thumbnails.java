@@ -16,7 +16,7 @@ import java.util.OptionalLong;
 import java.util.Set;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 
-final class Thumbnails {
+public final class Thumbnails {
 
     private static final int MAX_ENTRIES = 256;
     private static final int LOADS_PER_FRAME = 4;
@@ -28,7 +28,7 @@ final class Thumbnails {
     private final Set<String> failed = new HashSet<>();
     private int budget;
 
-    void beginFrame() {
+    public void beginFrame() {
         budget = LOADS_PER_FRAME;
     }
 
@@ -36,11 +36,11 @@ final class Thumbnails {
         return get(entry.path(), entry.path() + "@" + entry.modified());
     }
 
-    OptionalLong get(Path file, String key) {
+    public OptionalLong get(Path file, String key) {
         return get(() -> Files.newInputStream(file), key, false);
     }
 
-    OptionalLong get(Opener opener, String key, boolean firstFrame) {
+    public OptionalLong get(Opener opener, String key, boolean firstFrame) {
         if (failed.contains(key)) return OptionalLong.empty();
         Loaded loaded = cache.get(key);
         if (loaded == null) {
@@ -71,7 +71,7 @@ final class Thumbnails {
         }
     }
 
-    interface Opener {
+    public interface Opener {
         InputStream open() throws IOException;
     }
 

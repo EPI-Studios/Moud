@@ -26,6 +26,7 @@ import com.meekdev.moud.mod.client.editor.kit.SearchField;
 import com.meekdev.moud.mod.client.editor.kit.Sections;
 import com.meekdev.moud.mod.client.editor.kit.Texts;
 import com.meekdev.moud.mod.client.editor.style.ClassIcons;
+import com.meekdev.moud.mod.client.editor.style.EditorScale;
 import com.meekdev.moud.mod.client.editor.style.EditorStyle;
 import com.meekdev.moud.mod.client.editor.style.IconWidgets;
 import com.meekdev.moud.mod.client.editor.viewport.ViewTools;
@@ -33,6 +34,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImString;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -56,6 +58,8 @@ public final class PropertiesPanel implements Panel {
     private final ImString valueName = new ImString(64);
     private static @Nullable Map<String, Object> copiedAll;
     private @Nullable ViewTools view;
+    private static final float GROUP_GAP = 4.0f;
+    private static final List<String> GROUP_ORDER = List.of("Texture", "PBR", "Emission");
     private static final String[] VALUE_CLASSES = {"NumberValue", "StringValue", "BoolValue", "Vector3Value", "ObjectValue"};
 
     public PropertiesPanel(SceneDocument document, IconWidgets icons) {
@@ -121,7 +125,7 @@ public final class PropertiesPanel implements Panel {
                 if (targets.stream().allMatch(target -> PropertyRows.same(target, property) != null)) shared.add(property);
             }
             if (!shared.isEmpty() && Sections.header(level.name(), true, icons.textureId(ClassIcons.of(level)))) {
-                for (PropertyDef property : shared) rows.render(instance, property, targets);
+                renderGrouped(instance, shared, targets);
             }
             from = properties.length;
         }
@@ -131,6 +135,22 @@ public final class PropertiesPanel implements Panel {
             renderValues(instance);
         }
         ImGui.endDisabled();
+    }
+
+    private void renderGrouped(Instance instance, List<PropertyDef> properties, List<Instance> targets) {
+        List<String> groups = new ArrayList<>();
+        for (PropertyDef property : properties) {
+            if (property.group().isEmpty()) rows.render(instance, property, targets);
+            else if (!groups.contains(property.group())) groups.add(property.group());
+        }
+        groups.sort(Comparator.comparingInt(group -> GROUP_ORDER.contains(group) ? GROUP_ORDER.indexOf(group) : GROUP_ORDER.size()));
+        for (String group : groups) {
+            ImGui.dummy(0.0f, EditorScale.of(GROUP_GAP));
+            Sections.caption(group.toUpperCase(Locale.ROOT));
+            for (PropertyDef property : properties) {
+                if (group.equals(property.group())) rows.render(instance, property, targets);
+            }
+        }
     }
 
     private boolean matches(PropertyDef property) {

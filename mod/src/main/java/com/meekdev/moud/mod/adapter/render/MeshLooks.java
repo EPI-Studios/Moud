@@ -91,6 +91,11 @@ final class MeshLooks {
             case DEFAULT -> {}
         }
         if (!override.texture.isEmpty()) into.baseColorGlTexture(EffectTextures.of(override.texture).gl());
+        if (!override.normalMap.isEmpty()) into.normalGlTexture(EffectTextures.map(override.normalMap, true).gl());
+        if (!override.roughnessMap.isEmpty()) into.roughnessGlTexture(EffectTextures.map(override.roughnessMap, false).gl());
+        if (!override.metallicMap.isEmpty()) into.metallicGlTexture(EffectTextures.map(override.metallicMap, false).gl());
+        if (!override.occlusionMap.isEmpty()) into.occlusionGlTexture(EffectTextures.map(override.occlusionMap, false).gl());
+        if (!override.emissionMap.isEmpty()) into.emissiveGlTexture(EffectTextures.map(override.emissionMap, false).gl());
         if (override.repeatU != 1 || override.repeatV != 1 || override.offsetU != 0 || override.offsetV != 0) {
             into.uv((float) override.repeatU, (float) override.repeatV, (float) override.offsetU, (float) override.offsetV);
         }

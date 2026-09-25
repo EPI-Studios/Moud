@@ -7,6 +7,7 @@ in vec3 vWorld;
 in float vTile;
 in vec3 vOffset;
 in vec3 vSurface;
+in vec4 vGlow;
 in vec3 vLocal;
 in mat3 vNormalMatrix;
 
@@ -15,6 +16,13 @@ uniform sampler3D BlockLight;
 uniform vec4 LightVolume;
 
 uniform sampler2D Albedo;
+uniform sampler2D NormalMap;
+uniform sampler2D RoughnessMap;
+uniform sampler2D MetallicMap;
+uniform sampler2D OcclusionMap;
+uniform sampler2D EmissionMap;
+uniform vec4 Maps;
+uniform vec2 Glow;
 
 // 1 ball, 2 cylinder along x, anything else has flat faces
 uniform float Shape;
@@ -31,6 +39,7 @@ const float PI = 3.14159265359;
 out vec4 FragColor;
 layout(location = 1) out vec4 GNormal;
 layout(location = 2) out vec4 GMaterial;
+layout(location = 3) out vec4 GEmissive;
 layout(location = 4) out vec4 GAlbedo;
 
 // minecraft only stores light per block, so read the volume a little off the surface, the way a
@@ -95,9 +104,7 @@ vec3 aces(vec3 x) {
 
 // the sun and the sky probe on a metal/roughness surface, lit and graded the way models are, with
 // minecraft's light map deciding how much daylight and torchlight reach this spot
-vec3 physical(vec3 albedo, vec3 N, vec2 lit) {
-    float rough = clamp(vSurface.y, 0.045, 1.0);
-    float metallic = clamp(vSurface.z, 0.0, 1.0);
+vec3 physical(vec3 albedo, vec3 N, vec2 lit, float rough, float metallic, float occlusion, vec3 glow) {
     vec3 base = pow(albedo, vec3(2.2));
     vec3 V = normalize(-vPos);
     float NoV = max(dot(N, V), 1e-4);
@@ -129,10 +136,27 @@ vec3 physical(vec3 albedo, vec3 N, vec2 lit) {
     vec2 brdf = environmentBrdf(rough, NoV);
     vec3 diffuse = irradiance * Environment.x * base * (1.0 - Fr) * (1.0 - metallic);
     vec3 specular = reflected * Environment.y * (Fr * brdf.x + brdf.y);
-    vec3 ambient = (diffuse + specular) * daylight + base * torch * (1.0 - metallic);
+    vec3 ambient = ((diffuse + specular) * daylight + base * torch * (1.0 - metallic)) * occlusion;
 
-    vec3 color = (direct + ambient) * SunTint.a;
+    vec3 color = (direct + ambient + glow) * SunTint.a;
     return pow(aces(color), vec3(1.0 / 2.2));
+}
+
+vec4 planar(sampler2D map, vec3 at, vec3 blend) {
+    return texture(map, at.zy) * blend.x + texture(map, at.xz) * blend.y + texture(map, at.xy) * blend.z;
+}
+
+vec3 bumped(vec3 at, vec3 N, vec3 blend) {
+    vec3 x = texture(NormalMap, at.zy).xyz * 2.0 - 1.0;
+    vec3 y = texture(NormalMap, at.xz).xyz * 2.0 - 1.0;
+    vec3 z = texture(NormalMap, at.xy).xyz * 2.0 - 1.0;
+    x.y = -x.y;
+    y.y = -y.y;
+    z.y = -z.y;
+    x = vec3(x.xy + N.zy, abs(x.z) * N.x);
+    y = vec3(y.xy + N.xz, abs(y.z) * N.y);
+    z = vec3(z.xy + N.xy, abs(z.z) * N.z);
+    return normalize(x.zyx * blend.x + y.xzy * blend.y + z.xyz * blend.z);
 }
 
 void main() {
@@ -145,26 +169,36 @@ void main() {
     vec2 lit = litBy(vWorld, n, vLight);
     bool pbr = vSurface.x > 0.5;
     vec3 N = pbr ? shapeNormal(n) : n;
+    bool mapped = dot(Maps, Maps) > 0.0 || Glow.y > 0.5;
 
     // tiled in world space, so a sphere or a wedge needs no texture coordinates of its own
     vec3 at = (vWorld - vOffset) / max(vTile, 0.001);
-    vec3 blend = abs(n);
+    vec3 blend = mapped ? pow(abs(N), vec3(4.0)) : abs(n);
     blend /= max(blend.x + blend.y + blend.z, 0.0001);
-    vec4 tex = texture(Albedo, at.zy) * blend.x
-            + texture(Albedo, at.xz) * blend.y
-            + texture(Albedo, at.xy) * blend.z;
+    vec4 tex = planar(Albedo, at, blend);
 
     float alpha = vColor.a * tex.a;
     if (alpha < 0.004) discard;
 
     vec3 albedo = vColor.rgb * tex.rgb;
-    GNormal = vec4(N, 1.0);
+    vec3 glow = vec3(0.0);
+    if (Glow.x > 0.5) {
+        glow = pow(vGlow.rgb, vec3(2.2)) * vGlow.a;
+        if (Glow.y > 0.5) glow *= pow(planar(EmissionMap, at, blend).rgb, vec3(2.2));
+    }
+    GEmissive = vec4(glow, clamp(max(max(glow.r, glow.g), glow.b), 0.0, 1.0));
     if (pbr) {
-        FragColor = vec4(physical(albedo, N, lit), alpha);
-        GMaterial = vec4(clamp(vSurface.y, 0.045, 1.0), clamp(vSurface.z, 0.0, 1.0), 0.0, encodedLight(lit));
+        if (Maps.x > 0.5) N = bumped(at, N, blend);
+        float rough = clamp(Maps.y > 0.5 ? planar(RoughnessMap, at, blend).r : vSurface.y, 0.045, 1.0);
+        float metallic = clamp(Maps.z > 0.5 ? planar(MetallicMap, at, blend).r : vSurface.z, 0.0, 1.0);
+        float occlusion = Maps.w > 0.5 ? planar(OcclusionMap, at, blend).r : 1.0;
+        GNormal = vec4(N, 1.0);
+        FragColor = vec4(physical(albedo, N, lit, rough, metallic, occlusion, glow), alpha);
+        GMaterial = vec4(rough, metallic, 0.0, encodedLight(lit));
         GAlbedo = vec4(albedo, 1.0);
         return;
     }
+    GNormal = vec4(N, 1.0);
 
     float face = abs(n.y) > max(abs(n.x), abs(n.z))
             ? (n.y > 0.0 ? 1.0 : 0.5)
@@ -172,7 +206,9 @@ void main() {
     vec2 lightUv = clamp((lit / 256.0) + 0.5 / 16.0, vec2(0.5 / 16.0), vec2(15.5 / 16.0));
     vec3 light = texture(LightMap, lightUv).rgb;
 
-    FragColor = vec4(albedo * face * light, alpha);
+    vec3 shaded = albedo * face * light;
+    if (Glow.x > 0.5) shaded = pow(pow(shaded, vec3(2.2)) + glow, vec3(1.0 / 2.2));
+    FragColor = vec4(shaded, alpha);
     GMaterial = vec4(1.0, 0.0, 0.0, encodedLight(lit));
     GAlbedo = vec4(albedo * face, 1.0);
 }

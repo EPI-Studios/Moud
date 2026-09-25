@@ -15,10 +15,11 @@ public final class PropertyDef {
     private final Object defaultValue;
     private final double min;
     private final double max;
+    private final String group;
     private final VarHandle handle;
 
     PropertyDef(String name, PropertyType type, int index, boolean replicated, boolean driven,
-                        boolean asset, boolean readOnly, Object defaultValue, double min, double max, VarHandle handle) {
+                        boolean asset, boolean readOnly, Object defaultValue, double min, double max, String group, VarHandle handle) {
         this.name = name;
         this.type = type;
         this.index = index;
@@ -29,6 +30,7 @@ public final class PropertyDef {
         this.defaultValue = defaultValue;
         this.min = min;
         this.max = max;
+        this.group = group;
         this.handle = handle;
     }
 
@@ -41,6 +43,7 @@ public final class PropertyDef {
     public Object defaultValue() { return defaultValue; }
     public double min() { return min; }
     public double max() { return max; }
+    public String group() { return group; }
 
     public int index() { return index; }
 

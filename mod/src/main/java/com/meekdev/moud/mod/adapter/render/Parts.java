@@ -3,6 +3,7 @@ package com.meekdev.moud.mod.adapter.render;
 import com.meekdev.amnetic.client.ibl.Ibl;
 import com.meekdev.amnetic.client.instanced.InstanceBatch;
 import com.meekdev.amnetic.client.instanced.InstanceLayout;
+import com.meekdev.amnetic.client.instanced.InstancePacker;
 import com.meekdev.amnetic.client.instanced.InstancePhase;
 import com.meekdev.amnetic.client.instanced.InstanceRenderContext;
 import com.meekdev.amnetic.client.instanced.InstancedMesh;
@@ -33,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
@@ -55,7 +57,28 @@ public final class Parts {
     private static final Map<Textured, List<Part>> PACKED = new HashMap<>();
     private static final Set<Integer> SHARP = new HashSet<>();
 
-    private record Textured(PartShape shape, String texture, boolean glass) {}
+    private record Textured(PartShape shape, String texture, Maps maps, boolean glows, boolean glass) {}
+
+    private record Maps(String normal, String roughness, String metallic, String occlusion, String emission) {
+
+        static final Maps NONE = new Maps("", "", "", "", "");
+
+        static Maps of(Part part, boolean glows) {
+            boolean pbr = part.shading == PartShading.PBR;
+            String emission = glows ? part.emissionMap : "";
+            if (!pbr) return emission.isEmpty() ? NONE : new Maps("", "", "", "", emission);
+            Maps maps = new Maps(part.normalMap, part.roughnessMap, part.metallicMap, part.occlusionMap, emission);
+            return maps.equals(NONE) ? NONE : maps;
+        }
+
+        float[] bound() {
+            return new float[] {on(normal), on(roughness), on(metallic), on(occlusion)};
+        }
+
+        private static float on(String map) {
+            return map.isEmpty() ? 0 : 1;
+        }
+    }
 
     private static final int[] STILL_COUNTS = new int[PartShape.values().length];
     private static final int[] MOVING_COUNTS = new int[PartShape.values().length];
@@ -94,11 +117,12 @@ public final class Parts {
         if (tree == null) return;
         for (Part part : tree.ofClass(Classes.PART)) {
             if (part.shading == PartShading.PBR) physical = true;
-            if (part.texture.isEmpty() || part instanceof MeshPart || Skins.wearsSkin(part) || SpecialMeshes.drawn(part)) continue;
+            if (plain(part) || part instanceof MeshPart || Skins.wearsSkin(part) || SpecialMeshes.drawn(part)) continue;
             if (ViewportFrame.inside(part)) continue;
             boolean ghost = EditorView.ghost(part);
             if (!ghost && (!part.visible || part.transparency >= 1.0)) continue;
-            Textured key = new Textured(part.shape, part.texture, isTransparent(part));
+            boolean glows = glows(part);
+            Textured key = new Textured(part.shape, part.texture, Maps.of(part, glows), glows, isTransparent(part));
             PACKED.computeIfAbsent(key, made -> {
                 registerTextured(made);
                 return new ArrayList<>();
@@ -106,18 +130,48 @@ public final class Parts {
         }
     }
 
+    private static boolean plain(Part part) {
+        if (!part.texture.isEmpty() || glows(part)) return false;
+        return part.shading != PartShading.PBR || part.normalMap.isEmpty() && part.roughnessMap.isEmpty()
+                && part.metallicMap.isEmpty() && part.occlusionMap.isEmpty();
+    }
+
+    private static boolean glows(Part part) {
+        Color glow = part.emission;
+        return part.emissionStrength > 0 && (glow.r() > 0 || glow.g() > 0 || glow.b() > 0);
+    }
+
     private static void registerTextured(Textured key) {
         String name = "parts_tex_" + key.shape().name().toLowerCase(Locale.ROOT)
-                + (key.glass() ? "_glass_" : "_") + Integer.toHexString(key.texture().hashCode());
-        InstancedMesh.Builder<Lit> builder = key.glass() ? glass(key.shape()) : mesh(key.shape());
+                + (key.glass() ? "_glass_" : "_") + Integer.toHexString(key.texture().hashCode())
+                + (key.maps() == Maps.NONE && !key.glows() ? "" : "_" + Integer.toHexString(Objects.hash(key.maps(), key.glows())));
+        InstancedMesh.Builder<Lit> builder = key.glass() ? glass(key.shape(), key.glows()) : mesh(key.shape(), key.glows());
+        Maps maps = key.maps();
+        float[] bound = maps.bound();
+        float[] glow = {key.glows() ? 1 : 0, maps.emission().isEmpty() ? 0 : 1};
         builder.shader(Identifier.fromNamespaceAndPath("moud", "instance/part_textured"))
                 .extraSampler("Albedo", () -> albedo(key.texture()), 2)
-                .onRender((ctx, batch) -> renderTextured(key, ctx, batch))
+                .uniform("Maps", () -> bound)
+                .uniform("Glow", () -> glow);
+        if (!maps.normal().isEmpty()) builder.extraSampler("NormalMap", () -> map(maps.normal(), true), 5);
+        if (!maps.roughness().isEmpty()) builder.extraSampler("RoughnessMap", () -> map(maps.roughness(), false), 6);
+        if (!maps.metallic().isEmpty()) builder.extraSampler("MetallicMap", () -> map(maps.metallic(), false), 7);
+        if (!maps.occlusion().isEmpty()) builder.extraSampler("OcclusionMap", () -> map(maps.occlusion(), false), 8);
+        if (!maps.emission().isEmpty()) builder.extraSampler("EmissionMap", () -> map(maps.emission(), false), 9);
+        if (key.glows() && !key.glass()) builder.glowsInGBuffer();
+        builder.onRender((ctx, batch) -> renderTextured(key, ctx, batch))
                 .register(Identifier.fromNamespaceAndPath("moud", name));
     }
 
     private static int albedo(String texture) {
-        EffectTextures.Sprite sprite = EffectTextures.of(texture);
+        return sharp(texture.isEmpty() ? EffectTextures.map("", false) : EffectTextures.of(texture));
+    }
+
+    private static int map(String src, boolean normal) {
+        return sharp(EffectTextures.map(src, normal));
+    }
+
+    private static int sharp(EffectTextures.Sprite sprite) {
         if (sprite.nearest() && SHARP.add(sprite.gl())) Textures.filterNearest(sprite.gl());
         return sprite.gl();
     }
@@ -132,20 +186,39 @@ public final class Parts {
     public static void register() {
         for (PartShape shape : PartShape.values()) {
             int at = shape.ordinal();
-            mesh(shape).staticInstances().onRender((ctx, batch) -> renderStatic(shape, ctx, batch)).register(STILL[at]);
-            mesh(shape).onRender((ctx, batch) -> renderMoving(shape, ctx, batch)).register(MOVING[at]);
-            glass(shape).onRender((ctx, batch) -> renderTransparent(shape, ctx, batch)).register(GLASS[at]);
+            mesh(shape, false).staticInstances().onRender((ctx, batch) -> renderStatic(shape, ctx, batch)).register(STILL[at]);
+            mesh(shape, false).onRender((ctx, batch) -> renderMoving(shape, ctx, batch)).register(MOVING[at]);
+            glass(shape, false).onRender((ctx, batch) -> renderTransparent(shape, ctx, batch)).register(GLASS[at]);
         }
     }
 
     private static final InstanceLayout LAYOUT =
             InstanceLayout.builder().mat4(1).vec4(5).vec2(6).float1(7).float1(8).vec3(9).vec3(10).build();
+    private static final InstanceLayout GLOWING =
+            InstanceLayout.builder().mat4(1).vec4(5).vec2(6).float1(7).float1(8).vec3(9).vec3(10).vec4(11).build();
 
     private record Lit(Matrix4f transform, Vector4f color, Vector2f light, float casts, float tile,
-            Vector3f surface, Vector3f offset) {}
+            Vector3f surface, Vector3f offset, Vector4f glow) {}
+
+    private static void write(Lit inst, InstancePacker p) {
+        p.putMat4(inst.transform()).putVec4(inst.color())
+                .putVec2(inst.light().x, inst.light().y)
+                .putFloat(inst.casts()).putFloat(inst.tile())
+                .putVec3(inst.surface())
+                .putVec3(inst.offset());
+    }
+
+    private static InstancedMesh.Builder<Lit> builder(boolean glows) {
+        if (!glows) return InstancedMesh.builder(LAYOUT, Parts::write);
+        return InstancedMesh.builder(GLOWING, (inst, p) -> {
+            write(inst, p);
+            p.putVec4(inst.glow());
+        });
+    }
 
     private static final Vector3f SURFACE = new Vector3f();
     private static final Vector3f OFFSET = new Vector3f();
+    private static final Vector4f GLOW = new Vector4f();
     private static final float[] SUN = new float[4];
     private static final float[] TINT_OF_SUN = new float[4];
     private static final float[] SKY = new float[4];
@@ -164,13 +237,8 @@ public final class Parts {
         for (Identifier id : STILL) InstancedMesh.invalidate(id);
     }
 
-    private static InstancedMesh.Builder<Lit> glass(PartShape shape) {
-        return InstancedMesh.<Lit>builder(LAYOUT,
-                        (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
-                                .putVec2(inst.light().x, inst.light().y)
-                                .putFloat(inst.casts()).putFloat(inst.tile())
-                                .putVec3(inst.surface())
-                                .putVec3(inst.offset()))
+    private static InstancedMesh.Builder<Lit> glass(PartShape shape, boolean glows) {
+        return builder(glows)
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .extraSampler("BlockLight", BlockLightGrid::glId, 3)
@@ -191,13 +259,8 @@ public final class Parts {
                 .worldSpace();
     }
 
-    private static InstancedMesh.Builder<Lit> mesh(PartShape shape) {
-        return InstancedMesh.<Lit>builder(LAYOUT,
-                        (inst, p) -> p.putMat4(inst.transform()).putVec4(inst.color())
-                                .putVec2(inst.light().x, inst.light().y)
-                                .putFloat(inst.casts()).putFloat(inst.tile())
-                                .putVec3(inst.surface())
-                                .putVec3(inst.offset()))
+    private static InstancedMesh.Builder<Lit> mesh(PartShape shape, boolean glows) {
+        return builder(glows)
                 .shader(Identifier.fromNamespaceAndPath("moud", "instance/part"))
                 .extraSampler("LightMap", Parts::lightMap, 1)
                 .extraSampler("BlockLight", BlockLightGrid::glId, 3)
@@ -304,7 +367,7 @@ public final class Parts {
         if (part instanceof MeshPart) return false;
         if (Skins.wearsSkin(part)) return false;
         if (SpecialMeshes.drawn(part)) return false;
-        if (!part.texture.isEmpty()) return false;
+        if (!plain(part)) return false;
         if (ViewportFrame.inside(part)) return false;
 
         emit(ctx, batch, motion, part, cull);
@@ -331,8 +394,10 @@ public final class Parts {
         SURFACE.set(part.shading == PartShading.PBR ? 1 : 0, (float) part.roughness, (float) part.metallic);
         Vector3 offset = part.textureOffset;
         OFFSET.set((float) offset.x(), (float) offset.y(), (float) offset.z());
+        Color glow = part.emission;
+        GLOW.set(glow.r(), glow.g(), glow.b(), (float) part.emissionStrength);
         Lit instance = new Lit(MATRIX, TINT, PartLight.of(part, pos), part.castShadow ? 1 : 0,
-                (float) part.studsPerTile, SURFACE, OFFSET);
+                (float) part.studsPerTile, SURFACE, OFFSET, GLOW);
         if (cull) {
             batch.addVisible(instance, pos.x(), pos.y(), pos.z(), radius);
         } else {

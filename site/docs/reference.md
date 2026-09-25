@@ -445,12 +445,19 @@ Extends [Spatial](#spatial).
 | `color` | `Color` |
 | `density` | `number` |
 | `elasticity` | `number` |
+| `emission` | `Color` |
+| `emissionMap` | `string` |
+| `emissionStrength` | `number` |
 | `friction` | `number` |
 | `locked` | `boolean` |
 | `massless` | `boolean` |
 | `metallic` | `number` |
+| `metallicMap` | `string` |
 | `networkOwner` | `string` |
+| `normalMap` | `string` |
+| `occlusionMap` | `string` |
 | `roughness` | `number` |
+| `roughnessMap` | `string` |
 | `shading` | `"flat" \| "pbr"` |
 | `shape` | `"block" \| "ball" \| "cylinder" \| "wedge" \| "cornerWedge"` |
 | `size` | `Vector3` |
@@ -912,15 +919,20 @@ Extends [Instance](#instance).
 | `color` | `Color` |
 | `doubleSided` | `boolean` |
 | `emission` | `Color` |
+| `emissionMap` | `string` |
 | `emissionStrength` | `number` |
 | `filter` | `"default" \| "nearest" \| "linear"` |
 | `material` | `string` |
 | `metallic` | `number` |
+| `metallicMap` | `string` |
+| `normalMap` | `string` |
+| `occlusionMap` | `string` |
 | `offsetU` | `number` |
 | `offsetV` | `number` |
 | `repeatU` | `number` |
 | `repeatV` | `number` |
 | `roughness` | `number` |
+| `roughnessMap` | `string` |
 | `texture` | `string` |
 | `transparency` | `number` |
 

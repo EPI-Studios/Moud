@@ -12,6 +12,7 @@ layout(location = 6) in vec2 InstLight;
 layout(location = 8) in float InstTile;
 layout(location = 9) in vec3 InstSurface;
 layout(location = 10) in vec3 InstOffset;
+layout(location = 11) in vec4 InstGlow;
 
 uniform mat4 ProjViewMatrix;
 uniform vec3 CameraPos;
@@ -23,6 +24,7 @@ out vec2 vLight;
 out vec3 vWorld;
 out float vTile;
 out vec3 vOffset;
+out vec4 vGlow;
 out vec3 vSurface;
 out vec3 vLocal;
 out mat3 vNormalMatrix;
@@ -41,6 +43,7 @@ void main() {
     vWorld = placed.xyz;
     vTile = InstTile;
     vOffset = InstOffset;
+    vGlow = InstGlow;
     vSurface = InstSurface;
     vLocal = Position;
     // the inverse transpose of a turn times a stretch, without an inverse

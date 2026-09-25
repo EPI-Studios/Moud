@@ -1,5 +1,6 @@
 package com.meekdev.moud.mod.client.editor.panel;
 
+import com.meekdev.moud.core.asset.Res;
 import com.meekdev.moud.core.clazz.Enums;
 import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
@@ -17,6 +18,7 @@ import com.meekdev.moud.mod.client.editor.assets.AssetFiles;
 import com.meekdev.moud.mod.client.editor.assets.AssetKind;
 import com.meekdev.moud.mod.client.editor.assets.AssetScanner;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
+import com.meekdev.moud.mod.client.editor.assets.Thumbnails;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
 import com.meekdev.moud.mod.client.editor.document.ReferencePick;
@@ -34,6 +36,9 @@ import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiMouseCursor;
 import imgui.type.ImString;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -43,8 +48,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.function.UnaryOperator;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.Identifier;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.jspecify.annotations.Nullable;
@@ -63,6 +71,7 @@ public final class PropertyRows {
     private static final float QUAT_EPSILON = 0.0001f;
     private static final int STRING_CAPACITY = 512;
     private static final int REF_CHOICES = 400;
+    private static final float THUMBNAIL_PREVIEW = 128.0f;
     static final String[] UDIM_LABELS = {"scale", "px"};
     static final float[] UDIM_STEPS = {0.01f, 1.0f};
 
@@ -88,6 +97,7 @@ public final class PropertyRows {
     private final ImString hexInput = new ImString(16);
     private boolean colourOpen;
     private final ImString assetSearch = new ImString(128);
+    private final Thumbnails thumbnails = new Thumbnails();
     private static @Nullable Object copiedValue;
     private static @Nullable PropertyType copiedType;
     private static final Deque<Color> RECENT = new ArrayDeque<>();
@@ -99,6 +109,7 @@ public final class PropertyRows {
 
     public void beginFrame() {
         seen.clear();
+        thumbnails.beginFrame();
     }
 
     public void pruneStaleKeys() {
@@ -387,6 +398,10 @@ public final class PropertyRows {
         beginLabelled(label(property));
         boolean asset = property.asset();
         float buttons = asset ? ImGui.getFrameHeight() * 2 + EditorStyle.itemSpacingX() * 2 : 0;
+        if (asset && kindFor(property) == AssetKind.TEXTURE) {
+            renderThumbnail(current);
+            ImGui.sameLine();
+        }
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - buttons);
         String hint = asset ? "drop an asset or browse" : "";
         if (ImGui.inputTextWithHint("##value", hint, buffer) && !buffer.get().equals(current)) commit(instance, property, buffer.get());
@@ -433,6 +448,40 @@ public final class PropertyRows {
         ImGui.endPopup();
     }
 
+    private void renderThumbnail(String src) {
+        float size = ImGui.getFrameHeight();
+        float x = ImGui.getCursorScreenPosX();
+        float y = ImGui.getCursorScreenPosY();
+        OptionalLong image = thumbnail(src);
+        if (image.isPresent()) ImGui.image(image.getAsLong(), size, size);
+        else ImGui.dummy(size, size);
+        ImGui.getWindowDrawList().addRect(x, y, x + size, y + size, EditorStyle.COLOR_OUTLINE, EditorStyle.frameRounding());
+        if (image.isPresent() && ImGui.isItemHovered()) {
+            ImGui.beginTooltip();
+            ImGui.image(image.getAsLong(), EditorScale.of(THUMBNAIL_PREVIEW), EditorScale.of(THUMBNAIL_PREVIEW));
+            ImGui.endTooltip();
+        }
+    }
+
+    private OptionalLong thumbnail(String src) {
+        if (src.isEmpty()) return OptionalLong.empty();
+        if (src.startsWith(Res.SCHEME)) {
+            Path file = AssetFiles.root().resolve(Res.parse(src));
+            try {
+                return thumbnails.get(file, file + "@" + Files.getLastModifiedTime(file).toMillis());
+            } catch (IOException e) {
+                return OptionalLong.empty();
+            }
+        }
+        Identifier id = Identifier.tryParse(src);
+        if (id == null) return OptionalLong.empty();
+        String path = id.getPath();
+        if (!path.startsWith("textures/")) path = "textures/" + path;
+        if (!path.endsWith(".png")) path += ".png";
+        Identifier png = Identifier.fromNamespaceAndPath(id.getNamespace(), path);
+        return thumbnails.get(() -> Minecraft.getInstance().getResourceManager().open(png), "resource " + png, true);
+    }
+
     // a video plays wherever an image goes
     private static boolean shows(AssetKind wanted, AssetKind kind) {
         return kind == wanted || wanted == AssetKind.TEXTURE && kind == AssetKind.VIDEO;
@@ -443,7 +492,9 @@ public final class PropertyRows {
         if (name.contains("mesh")) return AssetKind.MODEL;
         if (name.equals("video")) return AssetKind.VIDEO;
         if (name.contains("sound")) return AssetKind.SOUND;
-        if (name.contains("image") || name.contains("skin") || name.contains("lut") || name.contains("texture")) return AssetKind.TEXTURE;
+        if (name.contains("image") || name.contains("skin") || name.contains("lut") || name.contains("texture") || name.endsWith("map")) {
+            return AssetKind.TEXTURE;
+        }
         if (name.contains("font")) return AssetKind.FONT;
         if (name.contains("shader")) return AssetKind.SHADER;
         if (name.equals("source")) return AssetKind.SCRIPT;

@@ -23,6 +23,7 @@ public final class EffectTextures {
 
     private static final Map<String, Identifier> KNOWN = new HashMap<>();
     private static Sprite white;
+    private static Sprite flat;
     private static Sprite dot;
     private static Sprite clear;
 
@@ -43,14 +44,32 @@ public final class EffectTextures {
             int gl = Videos.texture(src);
             return gl == 0 ? clear() : new Sprite(gl, false);
         }
-        if (src.startsWith(Res.SCHEME)) {
-            int gl = UiImages.texture(src);
-            return gl == 0 ? dot() : new Sprite(gl, false);
+        int gl = loaded(src);
+        return gl == 0 ? dot() : new Sprite(gl, !src.startsWith(Res.SCHEME));
+    }
+
+    public static Sprite map(String src, boolean normal) {
+        if (ImageStore.isEditable(src) || Videos.isVideo(src)) {
+            Sprite sprite = of(src);
+            if (sprite != clear()) return sprite;
+        } else if (!src.isEmpty()) {
+            int gl = loaded(src);
+            if (gl != 0) return new Sprite(gl, !src.startsWith(Res.SCHEME));
         }
+        return normal ? flat() : white();
+    }
+
+    private static int loaded(String src) {
+        if (src.startsWith(Res.SCHEME)) return UiImages.texture(src);
         Identifier id = KNOWN.computeIfAbsent(src, EffectTextures::find);
-        if (id == null) return dot();
+        if (id == null) return 0;
         AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(id);
-        return texture != null && texture.getTexture() instanceof GlTexture gl ? new Sprite(gl.glId(), true) : dot();
+        return texture != null && texture.getTexture() instanceof GlTexture gl ? gl.glId() : 0;
+    }
+
+    private static Sprite flat() {
+        if (flat == null) flat = new Sprite(Textures.upload(1, BufferUtils.createByteBuffer(4).put(new byte[] {-128, -128, -1, -1}).flip()), true);
+        return flat;
     }
 
     private static Identifier find(String src) {

@@ -10,27 +10,37 @@ public class MaterialOverride extends Instance {
 
     public Color color = Color.WHITE;
 
-    @Prop(asset = true) public String texture = "";
+    @Prop(asset = true, group = "Texture") public String texture = "";
 
-    @Prop(min = -1, max = 1) public double roughness = -1;
+    @Prop(asset = true, group = "PBR") public String normalMap = "";
 
-    @Prop(min = -1, max = 1) public double metallic = -1;
+    @Prop(asset = true, group = "PBR") public String roughnessMap = "";
 
-    public Color emission = Color.BLACK;
+    @Prop(asset = true, group = "PBR") public String metallicMap = "";
 
-    @Prop(min = 0) public double emissionStrength = 1;
+    @Prop(asset = true, group = "PBR") public String occlusionMap = "";
+
+    @Prop(asset = true, group = "Emission") public String emissionMap = "";
+
+    @Prop(min = -1, max = 1, group = "PBR") public double roughness = -1;
+
+    @Prop(min = -1, max = 1, group = "PBR") public double metallic = -1;
+
+    @Prop(group = "Emission") public Color emission = Color.BLACK;
+
+    @Prop(min = 0, group = "Emission") public double emissionStrength = 1;
 
     @Prop(min = 0, max = 1) public double transparency;
 
     public boolean doubleSided;
 
-    public TextureFilter filter = TextureFilter.DEFAULT;
+    @Prop(group = "Texture") public TextureFilter filter = TextureFilter.DEFAULT;
 
-    public double offsetU;
+    @Prop(group = "Texture") public double offsetU;
 
-    public double offsetV;
+    @Prop(group = "Texture") public double offsetV;
 
-    public double repeatU = 1;
+    @Prop(group = "Texture") public double repeatU = 1;
 
-    public double repeatV = 1;
+    @Prop(group = "Texture") public double repeatV = 1;
 }
