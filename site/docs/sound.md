@@ -206,12 +206,14 @@ script is running in, and nobody else hears any of it.
 
 ```lua
 local voice = audio.play("res://sounds/click.ogg", { volume = 1, pitch = 1.2, at = part.position })
-voice:setVolume(0.5)  voice:setPitch(0.9)  voice:fade(0, 1)  voice:fadeOut(0.5)
-voice:setPosition(vec3(0, 65, 0))  voice:isPlaying()  voice:stop()
+if voice then
+    voice:setVolume(0.5)  voice:setPitch(0.9)  voice:fade(0, 1)  voice:fadeOut(0.5)
+    voice:setPosition(vec3(0, 65, 0))  voice:isPlaying()  voice:stop()
+end
 ```
 
 - `audio.play` starts the file straight away and hands you back a voice, which is the handle to the
-  one sound now playing.
+  one sound now playing. It is nil when the sound cannot be found or cannot play.
 - `at` places it at a point in the world, and `setPosition` moves it from there while it plays.
 - `setVolume` and `setPitch` change it as it goes, and `fade` and `fadeOut` move the volume over
   time instead of jumping.

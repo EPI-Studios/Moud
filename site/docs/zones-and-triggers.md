@@ -220,7 +220,7 @@ belongs on their own screen:
 
 ```lua
 -- client: a hint while the pointer is on the lever
-local detector = world:find("Lever").ClickDetector :: ClickDetector
+local detector = (world:find("Lever") :: Part):find("ClickDetector") :: ClickDetector
 detector.mouseHoverEnter:connect(function() hint.visible = true end)
 detector.mouseHoverLeave:connect(function() hint.visible = false end)
 ```

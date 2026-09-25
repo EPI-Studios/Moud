@@ -65,7 +65,7 @@ interface for that player alone:
 camera.fov = 80
 
 game.renderStepped:connect(function()
-    camera.mode = input:down("sneak") and "thirdPerson" or "firstPerson"
+    camera.mode = if input:down("sneak") then "thirdPerson" else "firstPerson"
     camera.distance = 6
 end)
 ```

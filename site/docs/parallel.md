@@ -39,7 +39,7 @@ the main thread:
 
 ```lua
 -- server, a Script inside an Actor
-local body = script.parent:find("body")
+local body = (script.parent :: Actor):find("body") :: Part
 
 while true do
     task.desynchronize()
@@ -117,7 +117,7 @@ without calling `task.desynchronize()` first:
 
 ```lua
 -- server, a Script inside an Actor
-local body = script.parent:find("body")
+local body = (script.parent :: Actor):find("body") :: Part
 
 game.stepped:connectParallel(function(dt)
     local goal = pickGoal(body.position)          -- parallel
@@ -139,10 +139,11 @@ the topic, and the handler runs later with the message's values:
 
 ```lua
 -- server, a Script inside the "guard" Actor
-script.parent:bindToMessage("alert", function(from, position)
+local guard = script.parent :: Actor
+guard:bindToMessage("alert", function(from, position)
     print(from, "saw something at", position)
 end)
-script.parent:bindToMessageParallel("path", function(goal)
+guard:bindToMessageParallel("path", function(goal)
     local route = planRoute(goal)                 -- parallel
     task.synchronize()
     walk(route)

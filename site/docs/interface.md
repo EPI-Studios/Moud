@@ -543,14 +543,14 @@ they click to tick and untick. Both are drawn by the engine, so they work with n
 
 ```lua
 -- client
-local volume = settings:add("Slider", {
+local volume = menu:add("Slider", {
     position = udim2(0, 20, 0, 40), size = udim2(0, 200, 0, 6),
     minValue = 0, maxValue = 100, step = 5, value = 80,
 })
 volume.valueChanged:connect(function(value) music.volume = value / 100 end)
 volume.dragEnded:connect(function(value) print("saved", value) end)
 
-local subtitles = settings:add("CheckBox", { position = udim2(0, 20, 0, 70), checked = true })
+local subtitles = menu:add("CheckBox", { position = udim2(0, 20, 0, 70), checked = true })
 subtitles.toggled:connect(function(on) captions.visible = on end)
 ```
 

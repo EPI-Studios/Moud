@@ -168,7 +168,7 @@ task.spawn(function()
     while true do
         local values, id = jobs:readAsync(1)
         startMatch(values[1])
-        jobs:removeAsync(id)
+        jobs:removeAsync(id :: string)
     end
 end)
 ```

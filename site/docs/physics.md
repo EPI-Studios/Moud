@@ -175,12 +175,12 @@ multiply by its mass:
 ```lua
 -- server: kick the crate away from whoever touches it
 crate.touched:connect(function(other)
-    local away = (crate.position - other.position).unit
+    local away = (crate.position - (other :: Part).position).unit
     crate:applyImpulse((away * 6 + vec3(0, 4, 0)) * crate:getMass())
 end)
 ```
 
-- `(crate.position - other.position).unit` points from whatever touched the crate towards the crate
+- `(crate.position - (other :: Part).position).unit` points from whatever touched the crate towards the crate
   and is one metre long, so the crate always leaves in the direction it was hit from.
 - `away * 6 + vec3(0, 4, 0)` asks for six metres a second outwards and four upwards, which lifts the
   crate off the floor instead of scraping it along.

@@ -449,8 +449,8 @@ Idle and attack, faded into each other:
 
 ```lua
 -- server
-local idle = body.animator:loadAnimation(world:find("idle"))
-local attack = body.animator:loadAnimation(world:find("attack"))
+local idle = body.animator:loadAnimation(world:find("idle") :: Animation)
+local attack = body.animator:loadAnimation(world:find("attack") :: Animation)
 idle.looped = true
 attack.priority = 3
 
@@ -470,7 +470,7 @@ A mask keeps a track to some joints. It is a list of joint names in the file, or
 split by commas or spaces on a track or a sequence:
 
 ```lua
-local wave = body.animator:loadAnimation(world:find("wave"))
+local wave = body.animator:loadAnimation(world:find("wave") :: Animation)
 wave.mask = "rightArm"
 wave.priority = 3
 wave:play()
@@ -489,7 +489,7 @@ position, scaled by the track's weight. Author an additive clip as the change yo
 head turned down a little from zero.
 
 ```lua
-local nod = body.animator:loadAnimation(world:find("nod"))
+local nod = body.animator:loadAnimation(world:find("nod") :: Animation)
 nod.blend = "additive"
 nod:play()
 ```

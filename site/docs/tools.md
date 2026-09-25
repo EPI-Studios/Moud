@@ -119,8 +119,9 @@ local tool = script.parent :: Tool
 local holder: Character? = nil
 
 tool.equipped:connect(function()
-    holder = tool.parent :: Character
-    holder.rightItemOverride = "minecraft:air"
+    local body = tool.parent :: Character
+    body.rightItemOverride = "minecraft:air"
+    holder = body
 end)
 
 tool.unequipped:connect(function()

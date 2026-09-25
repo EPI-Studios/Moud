@@ -145,9 +145,10 @@ The walk runs on **distance walked**, not on time, so a body animates the same h
 frame took. To walk a body the engine does not drive, feed it ground:
 
 ```lua
+local walked = 0
 game.stepped:connect(function(dt)
-    clock += dt
-    mannequin.moveDistance = clock * 8
+    walked += dt * 8
+    mannequin.moveDistance = walked
     mannequin.moveSpeed = 1
 end)
 ```

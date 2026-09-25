@@ -62,7 +62,7 @@ local maybe = world:find("statue")   -- nil rather than an error
 
 ```lua
 for _, thing in ipairs(world:children()) do
-    if thing:isA("Character") then thing.display = "hitbox" end
+    if thing:isA("Character") then (thing :: Character).appearance.display = "hitbox" end
 end
 ```
 
@@ -220,7 +220,7 @@ A raycast fires a line from a point along a direction and tells you the first pa
 ```lua
 local part, at, distance = world:raycast(from, direction, 50)
 if part then
-    print(part.name .. " at " .. distance)
+    print(part.name, "at", distance)
 end
 ```
 
