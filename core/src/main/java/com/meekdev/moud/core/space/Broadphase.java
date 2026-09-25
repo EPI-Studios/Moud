@@ -12,9 +12,12 @@ import java.util.function.Function;
 
 public final class Broadphase {
 
+    private static final long WIDEST = 4096;
+
     private final double cell;
     private final Map<Long, List<Instance>> cells = new HashMap<>();
     private final Map<Instance, Entry> entries = new IdentityHashMap<>();
+    private final List<Instance> wide = new ArrayList<>();
 
     private int query;
 
@@ -29,20 +32,27 @@ public final class Broadphase {
     public void clear() {
         cells.clear();
         entries.clear();
+        wide.clear();
     }
 
     public boolean put(Instance instance, Aabb box) {
         Entry current = entries.get(instance);
         if (current != null && current.box.equals(box)) return false;
         remove(instance);
-        entries.put(instance, new Entry(box));
-        forEachCell(box, key -> cells.computeIfAbsent(key, k -> new ArrayList<>(4)).add(instance));
+        Entry entry = new Entry(box);
+        entries.put(instance, entry);
+        if (entry.wide) wide.add(instance);
+        else forEachCell(box, key -> cells.computeIfAbsent(key, k -> new ArrayList<>(4)).add(instance));
         return true;
     }
 
     public boolean remove(Instance instance) {
         Entry old = entries.remove(instance);
         if (old == null) return false;
+        if (old.wide) {
+            wide.remove(instance);
+            return true;
+        }
         forEachCell(old.box, key -> {
             List<Instance> list = cells.get(key);
             if (list == null) return;
@@ -62,6 +72,7 @@ public final class Broadphase {
 
     public void query(Aabb region, Consumer<Instance> out) {
         int stamp = ++query;
+        if (!wide.isEmpty()) report(wide, region, stamp, out);
         int minX = floor(region.minX());
         int maxX = floor(region.maxX());
         int minY = floor(region.minY());
@@ -96,10 +107,14 @@ public final class Broadphase {
     }
 
     private long cellSpan(int minX, int maxX, int minY, int maxY, int minZ, int maxZ) {
+        return cellSpan(minX, maxX, minY, maxY, minZ, maxZ, cells.size());
+    }
+
+    private static long cellSpan(int minX, int maxX, int minY, int maxY, int minZ, int maxZ, long limit) {
         long span = axis(minX, maxX);
-        if (span > cells.size()) return span;
+        if (span > limit) return span;
         span *= axis(minY, maxY);
-        if (span > cells.size()) return span;
+        if (span > limit) return span;
         return span * axis(minZ, maxZ);
     }
 
@@ -130,12 +145,15 @@ public final class Broadphase {
         return (x & 0x1FFFFFL) | ((y & 0x1FFFFFL) << 21) | ((z & 0x1FFFFFL) << 42);
     }
 
-    private static final class Entry {
+    private final class Entry {
         final Aabb box;
+        final boolean wide;
         int seen;
 
         Entry(Aabb box) {
             this.box = box;
+            this.wide = cellSpan(floor(box.minX()), floor(box.maxX()), floor(box.minY()), floor(box.maxY()),
+                    floor(box.minZ()), floor(box.maxZ()), WIDEST) > WIDEST;
         }
     }
 }
