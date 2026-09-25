@@ -94,7 +94,7 @@ public final class AssetReferences {
                 for (int n = 0; n < lines.size(); n++) {
                     String line = lines.get(n);
                     if (line.contains(res) || (alias != null && line.contains("\"" + alias))) {
-                        found.add(new Reference(0, root.relativize(file) + ":" + (n + 1), file, n + 1, line.strip()));
+                        found.add(new Reference(0, root.relativize(file).toString().replace('\\', '/') + ":" + (n + 1), file, n + 1, line.strip()));
                     }
                 }
             }

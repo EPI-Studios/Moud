@@ -121,7 +121,7 @@ public final class PlaceExport {
                     } catch (IllegalArgumentException e) {
                         continue;
                     }
-                    issues.add(new Issue(Severity.ERROR, root.toAbsolutePath().normalize().relativize(file.toAbsolutePath().normalize()) + ":" + (n + 1) + " points at " + res + ", which is missing", file, n + 1));
+                    issues.add(new Issue(Severity.ERROR, root.toAbsolutePath().normalize().relativize(file.toAbsolutePath().normalize()).toString().replace('\\', '/') + ":" + (n + 1) + " points at " + res + ", which is missing", file, n + 1));
                 }
             }
         }

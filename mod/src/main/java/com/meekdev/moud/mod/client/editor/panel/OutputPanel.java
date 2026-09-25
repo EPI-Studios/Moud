@@ -216,7 +216,7 @@ public final class OutputPanel implements Panel {
     }
 
     private static String where(Location location) {
-        return PlaceToml.root().relativize(location.file()) + ":" + location.line();
+        return PlaceToml.root().relativize(location.file()).toString().replace('\\', '/') + ":" + location.line();
     }
 
     private static void open(Location location) {
