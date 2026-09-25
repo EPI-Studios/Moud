@@ -408,7 +408,7 @@ public final class ServerChat implements ChatRef {
     }
 
     private static UnsupportedOperationException clientOnly(String what) {
-        return new UnsupportedOperationException("chat:" + what + " is client-only");
+        return new UnsupportedOperationException("chat:" + what + " runs on the client");
     }
 
     @Override

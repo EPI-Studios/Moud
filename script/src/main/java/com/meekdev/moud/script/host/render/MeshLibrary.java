@@ -211,7 +211,7 @@ public final class MeshLibrary {
                     String source = a.string(0);
                     EditableMesh editable = MeshStore.of(host.client()).find(source);
                     if (editable != null) return track(host, owned, editable.copy());
-                    if (host.meshes() == null) throw new HostError("meshes are loaded in a LocalScript");
+                    if (host.meshes() == null) throw new HostError("meshes are loaded on the client");
                     return waitFor(host, owned, host.meshes().load(source), source);
                 });
         host.global("meshes", "Meshes", meshes);

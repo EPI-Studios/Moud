@@ -46,7 +46,7 @@ public final class GameState implements GameRef {
 
     @Override
     public void gravity(double metresPerSecondSquared) {
-        throw new HostError("game.gravity is set in a server Script");
+        throw new HostError("game.gravity is set on the server");
     }
 
     @Override

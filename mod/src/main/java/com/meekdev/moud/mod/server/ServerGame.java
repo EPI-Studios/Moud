@@ -18,17 +18,17 @@ public final class ServerGame implements GameRef {
 
     @Override
     public void paused(boolean on) {
-        throw new HostError("game.paused is set in a LocalScript");
+        throw new HostError("game.paused is set on the client");
     }
 
     @Override
     public void quit() {
-        throw new HostError("game:quit runs in a LocalScript");
+        throw new HostError("game:quit runs on the client");
     }
 
     @Override
     public void openSettings() {
-        throw new HostError("game:openSettings runs in a LocalScript");
+        throw new HostError("game:openSettings runs on the client");
     }
 
     @Override

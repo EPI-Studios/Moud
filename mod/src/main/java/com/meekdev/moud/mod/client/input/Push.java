@@ -26,7 +26,7 @@ public final class Push implements PushRef {
 
     @Override
     public void push(Character body, Vector3 perSecond, boolean replace) {
-        if (body != ClientScene.own()) throw new HostError("a LocalScript can only push its own body, push %s from a server Script", body.name());
+        if (body != ClientScene.own()) throw new HostError("the client can only push its own body, push %s on the server", body.name());
         apply(perSecond, replace);
     }
 

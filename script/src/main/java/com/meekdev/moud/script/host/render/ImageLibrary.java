@@ -403,7 +403,7 @@ public final class ImageLibrary {
 
     private static GlyphFont font(Host host) {
         GlyphFont font = host.images() == null ? null : host.images().font();
-        if (font == null) throw new HostError("text is drawn with Minecraft's font, which only a player's game has; draw text in a LocalScript");
+        if (font == null) throw new HostError("text is drawn with Minecraft's font, which only a player's game has; draw text on the client");
         return font;
     }
 

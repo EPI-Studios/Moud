@@ -290,12 +290,12 @@ public final class ClientChat implements ChatRef {
 
     @Override
     public void addPlayer(Instance channel, Instance body) {
-        throw new UnsupportedOperationException("chat:addPlayer is server-only");
+        throw new UnsupportedOperationException("chat:addPlayer runs on the server");
     }
 
     @Override
     public void removePlayer(Instance channel, Instance body) {
-        throw new UnsupportedOperationException("chat:removePlayer is server-only");
+        throw new UnsupportedOperationException("chat:removePlayer runs on the server");
     }
 
     @Override

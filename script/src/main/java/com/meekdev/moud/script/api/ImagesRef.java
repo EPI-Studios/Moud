@@ -9,7 +9,7 @@ public interface ImagesRef {
     CompletableFuture<EditableImage> load(String source);
 
     default CompletableFuture<EditableImage> skin(String player, boolean head) {
-        return CompletableFuture.failedFuture(new IllegalStateException("skins are read in a LocalScript"));
+        return CompletableFuture.failedFuture(new IllegalStateException("skins are read on the client"));
     }
 
     default GlyphFont font() {
