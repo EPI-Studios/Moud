@@ -6,6 +6,7 @@ import com.meekdev.moud.core.clazz.Classes;
 import com.meekdev.moud.core.input.InputAction;
 import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.mod.MoudMod;
+import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.JsonResources;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -67,7 +68,7 @@ public final class Actions {
             return;
         }
         Minecraft client = Minecraft.getInstance();
-        boolean listening = client.screen == null;
+        boolean listening = !Devices.processed() && !Ui.focused();
         long window = client.getWindow().handle();
         WAS.keySet().removeIf(action -> !action.isAlive());
         for (InputAction action : tree.ofClass(Classes.INPUT_ACTION)) {
@@ -82,7 +83,8 @@ public final class Actions {
 
     private static final int[] PRINTABLE = printable();
     private static final Map<Character, Integer> TYPED = new HashMap<>();
-    private static long typedAt;
+    private static final Map<String, int[]> PARSED = new HashMap<>();
+    private static long typedAt = Long.MIN_VALUE;
 
     private static int[] printable() {
         int[] keys = new int[64];
@@ -98,17 +100,24 @@ public final class Actions {
         return Arrays.copyOf(keys, n);
     }
 
-    private static Integer keyForChar(char c) {
+    private static void layout() {
         long now = System.nanoTime();
-        if (TYPED.isEmpty() || now - typedAt > 2_000_000_000L) {
-            typedAt = now;
-            TYPED.clear();
-            for (int key : PRINTABLE) {
-                if (GLFW.glfwGetKeyScancode(key) < 0) continue;
-                String name = GLFW.glfwGetKeyName(key, 0);
-                if (name != null && name.length() == 1) TYPED.putIfAbsent(Character.toLowerCase(name.charAt(0)), key);
-            }
+        if (typedAt != Long.MIN_VALUE && now - typedAt <= 2_000_000_000L) return;
+        typedAt = now;
+        Map<Character, Integer> typed = new HashMap<>();
+        for (int key : PRINTABLE) {
+            if (GLFW.glfwGetKeyScancode(key) < 0) continue;
+            String name = GLFW.glfwGetKeyName(key, 0);
+            if (name != null && name.length() == 1) typed.putIfAbsent(Character.toLowerCase(name.charAt(0)), key);
         }
+        if (typed.equals(TYPED)) return;
+        TYPED.clear();
+        TYPED.putAll(typed);
+        PARSED.clear();
+    }
+
+    private static Integer keyForChar(char c) {
+        layout();
         return TYPED.get(Character.toLowerCase(c));
     }
 
@@ -182,6 +191,21 @@ public final class Actions {
     }
 
     private static boolean pressed(long window, String keys) {
+        layout();
+        int[] codes = PARSED.get(keys);
+        if (codes == null) {
+            codes = parse(keys);
+            if (PARSED.size() >= 256) PARSED.clear();
+            PARSED.put(keys, codes);
+        }
+        for (int code : codes) {
+            if (pressed(window, code)) return true;
+        }
+        return false;
+    }
+
+    private static int[] parse(String keys) {
+        List<Integer> codes = new ArrayList<>();
         for (String raw : keys.split(",")) {
             String name = raw.trim().toLowerCase(Locale.ROOT);
             if (name.isEmpty()) continue;
@@ -191,8 +215,8 @@ public final class Actions {
                 if (UNKNOWN.add(name)) MoudMod.LOG.warn("unknown key '{}' in input action, expected one of {}", raw.trim(), KEYS.keySet());
                 continue;
             }
-            if (pressed(window, code)) return true;
+            codes.add(code);
         }
-        return false;
+        return codes.stream().mapToInt(Integer::intValue).toArray();
     }
 }

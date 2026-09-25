@@ -71,9 +71,7 @@
     "client.WindowMixin",
     "client.FrameEndMixin",
     "client.PointerMixin",
-    "client.ToolAttackMixin",
-    "client.KeyPressMixin",
-    "client.ScrollMixin"
+    "client.ToolAttackMixin"
   ],
   "injectors": {
     "defaultRequire": 1

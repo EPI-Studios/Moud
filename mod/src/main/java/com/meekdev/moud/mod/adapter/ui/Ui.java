@@ -500,6 +500,10 @@ public final class Ui {
         return true;
     }
 
+    public static boolean focused() {
+        return focusedRouter() != null;
+    }
+
     public static boolean typed(int codepoint) {
         InputRouter router = focusedRouter();
         if (router == null) return false;

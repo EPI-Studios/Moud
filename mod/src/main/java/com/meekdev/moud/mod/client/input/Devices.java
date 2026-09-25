@@ -29,11 +29,11 @@ public final class Devices implements DevicesRef {
         Gamepads.reset();
     }
 
-    public static boolean key(int key, int action) {
+    public static boolean key(int key, int action, boolean taken) {
         Host host = ClientPlace.host();
         if (host == null || key == GLFW.GLFW_KEY_UNKNOWN) return false;
         if (action == GLFW.GLFW_REPEAT) return SUNK.contains(key);
-        return send(host, key, new Event("keyboard", Actions.name(key), state(action), position(0), Vector3.ZERO, processed()), action);
+        return send(host, key, new Event("keyboard", Actions.name(key), state(action), position(0), Vector3.ZERO, taken || processed()), action);
     }
 
     public static boolean button(int button, int action, boolean taken) {
@@ -45,10 +45,10 @@ public final class Devices implements DevicesRef {
         return send(host, code, event, action) || detector;
     }
 
-    public static boolean scroll(double amount) {
+    public static boolean scroll(double amount, boolean taken) {
         Host host = ClientPlace.host();
         if (host == null || amount == 0) return false;
-        return host.input(new Event("mouseWheel", "unknown", "change", position(Math.signum(amount)), new Vector3(0, 0, amount), processed()));
+        return host.input(new Event("mouseWheel", "unknown", "change", position(Math.signum(amount)), new Vector3(0, 0, amount), taken || processed()));
     }
 
     public static void frame(Input input) {
@@ -85,7 +85,7 @@ public final class Devices implements DevicesRef {
         return new Vector3(input.mouseX(), input.mouseY(), z);
     }
 
-    static boolean processed() {
+    public static boolean processed() {
         Minecraft client = Minecraft.getInstance();
         return client.screen != null || client.getOverlay() != null || EditMode.editing();
     }

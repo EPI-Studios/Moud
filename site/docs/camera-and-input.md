@@ -279,7 +279,8 @@ it and read `state` later. Nothing sends `cancel` yet; `inputEnded` hears it whe
 
 - a Minecraft screen is open, the chat included,
 - a loading overlay is up, or the editor is open,
-- an interface took the click,
+- an interface took the click or the wheel,
+- a text box has focus, which takes every key,
 - a [bound action](#binding-actions) sank it.
 
 Check it at the top of every handler and return early, the way the example does, or a player typing in

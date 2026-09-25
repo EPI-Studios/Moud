@@ -18,8 +18,11 @@ import com.meekdev.moud.core.zone.ProximityPrompt;
 import com.meekdev.moud.mod.adapter.text.Argb;
 import com.meekdev.moud.mod.adapter.text.TextLook;
 import com.meekdev.moud.mod.adapter.text.TextPainter;
+import com.meekdev.moud.mod.adapter.ui.Ui;
 import com.meekdev.moud.mod.client.ClientScene;
+import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.input.Actions;
+import com.meekdev.moud.mod.client.input.Devices;
 import com.meekdev.moud.mod.server.zone.ServerPrompts;
 import com.meekdev.moud.mod.transport.payload.PromptPayload;
 import java.util.List;
@@ -76,7 +79,7 @@ public final class ClientPrompts {
     public static void tick(double dt) {
         InstanceTree tree = ClientScene.tree();
         Character me = ClientScene.own();
-        ProximityPrompt next = tree == null || me == null ? null : closest(tree, me);
+        ProximityPrompt next = tree == null || me == null || EditMode.editing() ? null : closest(tree, me);
         if (next != active) {
             if (active != null) {
                 if (holding) send(active, PromptPayload.HOLD_ENDED);
@@ -89,7 +92,7 @@ public final class ClientPrompts {
             if (active != null) active.shown.fire(active);
         }
         if (active == null) return;
-        boolean down = Minecraft.getInstance().screen == null && Actions.pressed(active.keys);
+        boolean down = !Devices.processed() && !Ui.focused() && Actions.pressed(active.keys);
         if (active.holdDuration <= 0) {
             if (down && !wasDown) fire(active, me);
         } else if (down) {

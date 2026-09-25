@@ -432,8 +432,9 @@ Key names: `a`–`z`, `0`–`9`, `f1`–`f12`, `keypad0`–`keypad9`, `keypadent
 gamepad names in [Camera and input](camera-and-input.md#gamepads).
 
 The built-in actions follow the player's own key bindings: `forward`, `back`, `left`, `right`,
-`jump`, `sneak`, `sprint`, `attack`, `use`, `pointer`. A screen that is open (like the chat)
-owns the keyboard, so actions do not fire while typing.
+`jump`, `sneak`, `sprint`, `attack`, `use`, `pointer`. A screen that is open (like the chat) or a
+focused text box owns the keyboard, so actions do not fire while typing. Nor do they while the editor
+is open.
 
 ## Who may write what
 

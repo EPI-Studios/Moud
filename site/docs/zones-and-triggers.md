@@ -152,7 +152,8 @@ prompt.hidden:connect(function() end)
   which is where you play a sound or change a cursor.
 
 A client shows the one prompt nearest to its player, floating over what it is parented to, with a
-progress bar while held. `keys` uses the same key names as `InputAction`.
+progress bar while held. `keys` uses the same key names as `InputAction`, and like an action the
+prompt does not hear its key while a screen, a focused text box or the editor has the keyboard.
 
 You can ask which prompt a body would use right now:
 
