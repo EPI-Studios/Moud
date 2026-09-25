@@ -94,6 +94,7 @@ public record Quat(double x, double y, double z, double w) {
         if (f.lengthSq() < 1e-12) return IDENTITY;
         Vector3 r = f.cross(up);
         if (r.lengthSq() < 1e-12) r = f.cross(Vector3.FORWARD);
+        if (r.lengthSq() < 1e-12) r = f.cross(Vector3.UP);
         r = r.normalize();
         Vector3 u = r.cross(f);
         return fromAxes(r, u, f.neg());

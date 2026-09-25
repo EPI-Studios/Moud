@@ -174,7 +174,7 @@ public final class IKControls {
         Vector3 c = Rigs.frame(end).position();
         double lab = b.distance(a);
         double lcb = c.distance(b);
-        if (lab < 1e-9 || lcb < 1e-9) return;
+        if (lab < 1e-4 || lcb < 1e-4) return;
         double lat = Math.clamp(t.distance(a), 1e-4, lab + lcb - 1e-4);
 
         double acab0 = angle(c.sub(a), b.sub(a));
