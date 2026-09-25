@@ -199,8 +199,12 @@ A place with a video file in it also gets ffmpeg, which a [`VideoFrame`](interfa
 play it. ffmpeg is the heaviest part of the engine, so a place without videos is exported without it.
 
 > [!NOTE]
-> The engine runs Luau and physics through native libraries. The export lists the systems it found
-> them for; a game only starts on those. Today the build only carries them for Linux x64.
+> The engine runs Luau and physics through native libraries, and a game only starts on a system it
+> carries them for. The export dialog lists those systems before it builds. A game carries what the
+> engine that exported it carries: the released engine has Linux x64, Windows x64 and macOS on both
+> Intel and Apple silicon. An engine built from the repository has Luau for all four and the physics
+> libraries `./gradlew allNatives` built in `box3d-java`; build it with
+> `./gradlew :mod:build -PallPlatforms` so the Revo addon comes for every system as well.
 
 ## Running a server
 
@@ -215,6 +219,20 @@ place folder with `-Dmoud.place=/path/to/place`.
   (`world` by default) and start again.
 - Nobody is kicked for flying while a place runs. The vanilla server can not see parts, so a player
   standing on one looks to it like a player floating in the air, and Moud turns that check off.
+
+### Hosting a game
+
+A server runs an exported game the same way a player's game does: put the exported jar and Fabric
+API in the `mods` folder of a Fabric server for the same Minecraft version, and it unpacks the place
+and runs it, with no `-Dmoud.place` needed. Everyone who joins needs the same export, the jar or the
+Modrinth pack, since each player reads the place's scripts, scenes and assets from their own copy.
+
+- Leave `online-mode=true` in `server.properties` for a public server, so players sign in with their
+  Microsoft account. `false` is for testing on your own machine.
+- Players reach the server on its port, 25565 unless `server-port` says otherwise. Open that port on
+  your router, rent a server that takes Fabric mods, or run a tunnel.
+- The server owns the game: what the server script makes is what every player sees. Player input and
+  requests reach it through [remotes](talking.md), which it checks before it acts on them.
 
 ### From the repository
 
