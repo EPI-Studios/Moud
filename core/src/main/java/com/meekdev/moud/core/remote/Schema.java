@@ -8,6 +8,7 @@ import com.meekdev.moud.core.math.UDim2;
 import com.meekdev.moud.core.math.Vector3;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -65,7 +66,7 @@ public final class Schema {
                 if (word.isEmpty()) continue;
                 boolean optional = word.endsWith("?");
                 if (optional) word = word.substring(0, word.length() - 1).trim();
-                Kind kind = Kind.of(word.toLowerCase());
+                Kind kind = Kind.of(word.toLowerCase(Locale.ROOT));
                 if (kind == null) {
                     throw new IllegalArgumentException("unknown argument kind \"" + word + "\", expected bool, number, string, vec3, quat, cframe, color, udim2, instance, list or table");
                 }
@@ -95,11 +96,11 @@ public final class Schema {
             if (value == null) {
                 if (want.optional()) continue;
                 throw new IllegalArgumentException(name + ": argument " + (n + 1) + " must be "
-                        + want.kind().name().toLowerCase() + ", got nil");
+                        + want.kind().name().toLowerCase(Locale.ROOT) + ", got nil");
             }
             if (!want.kind().holds(value)) {
                 throw new IllegalArgumentException(name + ": argument " + (n + 1) + " must be "
-                        + want.kind().name().toLowerCase() + ", got " + value.getClass().getSimpleName().toLowerCase());
+                        + want.kind().name().toLowerCase(Locale.ROOT) + ", got " + value.getClass().getSimpleName().toLowerCase(Locale.ROOT));
             }
         }
     }
@@ -109,7 +110,7 @@ public final class Schema {
         StringBuilder out = new StringBuilder();
         for (int n = 0; n < takes.size(); n++) {
             if (n > 0) out.append(", ");
-            out.append(takes.get(n).kind().name().toLowerCase());
+            out.append(takes.get(n).kind().name().toLowerCase(Locale.ROOT));
             if (takes.get(n).optional()) out.append('?');
         }
         return out.toString();
