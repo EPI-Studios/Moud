@@ -21,12 +21,14 @@ final class Beams {
 
     private Beams() {}
 
-    static void draw(QuadBatch batch, Effects.View view, InstanceTree tree, float partialTick, double time) {
+    static void draw(QuadBatch batch, Effects.View view, InstanceTree tree, float partialTick, double time,
+                     boolean behindGlass) {
         for (Beam beam : tree.ofClass(Classes.BEAM)) {
             if (!beam.enabled || !attached(beam.attachment0) || !attached(beam.attachment1)) continue;
             if (ViewportFrame.inside(beam)) continue;
             CFrame from = Effects.world(beam.attachment0, partialTick);
             CFrame to = Effects.world(beam.attachment1, partialTick);
+            if (GlassCover.behind(from.position().lerp(to.position(), 0.5)) != behindGlass) continue;
             draw(batch, view, beam, from, to, time);
         }
     }

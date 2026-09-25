@@ -55,7 +55,7 @@ final class Trails {
         FOLLOWING.end();
     }
 
-    static void draw(QuadBatch batch, Effects.View view, double now) {
+    static void draw(QuadBatch batch, Effects.View view, double now, boolean behindGlass) {
         for (Map.Entry<Trail, Following> entry : FOLLOWING.runs().entrySet()) {
             Trail trail = entry.getKey();
             Following following = entry.getValue();
@@ -63,6 +63,7 @@ final class Trails {
             if (following.a == null || points.isEmpty() || trail.lifetime <= 0) continue;
             int count = points.size() + (trail.enabled ? 1 : 0);
             if (count < 2) continue;
+            if (GlassCover.behind(following.a) != behindGlass) continue;
             TrailPath.Point[] ordered = new TrailPath.Point[count];
             int at = 0;
             if (trail.enabled) {

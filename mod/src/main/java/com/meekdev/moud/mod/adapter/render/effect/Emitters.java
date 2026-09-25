@@ -97,10 +97,11 @@ final class Emitters {
         };
     }
 
-    static void draw(QuadBatch batch, Effects.View view) {
+    static void draw(QuadBatch batch, Effects.View view, boolean behindGlass) {
         for (Running run : RUNNING.runs().values()) {
             ParticleField field = run.field;
             if (field.count() == 0) continue;
+            if (GlassCover.behind(run.frame.position()) != behindGlass) continue;
             ParticleLook look = run.look;
             batch.use(QuadBatch.Layer.WORLD, EffectTextures.of(look.texture()));
             batch.light(run.light, look.lightInfluence(), look.lightEmission());

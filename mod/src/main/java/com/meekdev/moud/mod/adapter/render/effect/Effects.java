@@ -25,6 +25,7 @@ public final class Effects {
     private static final int FULL_LIGHT = 240 | 240 << 16;
 
     private static final QuadBatch BATCH = new QuadBatch();
+    private static final QuadBatch BEHIND_GLASS = new QuadBatch();
     private static final QuadBatch DECALS = new QuadBatch();
     private static long last;
     private static double clock;
@@ -34,6 +35,7 @@ public final class Effects {
 
     public static void register() {
         Pipeline.add(RenderStage.AFTER_WATER, 5, "moud decals", context -> EditorView.filled(() -> decals(context)));
+        Pipeline.add(RenderStage.AFTER_WATER, 8, "moud effects behind glass", context -> EditorView.filled(() -> behindGlass(context)));
         Pipeline.add(RenderStage.AFTER_WATER, 50, "moud effects", context -> EditorView.filled(() -> draw(context)));
         Highlights.register();
     }
@@ -64,23 +66,48 @@ public final class Effects {
         if (camera == null || tree == null || broken) return;
         try {
             float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
-            Matrix4f view = camera.view;
-            View seen = new View(new Vector3(camera.eye.x, camera.eye.y, camera.eye.z),
-                    new Vector3(view.m00(), view.m10(), view.m20()),
-                    new Vector3(view.m01(), view.m11(), view.m21()),
-                    new Vector3(-view.m02(), -view.m12(), -view.m22()));
+            View seen = view(camera);
             BATCH.begin(camera.eye.x, camera.eye.y, camera.eye.z);
-            Emitters.draw(BATCH, seen);
+            Emitters.draw(BATCH, seen, false);
             Precipitation.draw(BATCH, seen);
-            Beams.draw(BATCH, seen, tree, partialTick, clock);
-            Trails.draw(BATCH, seen, clock);
+            Beams.draw(BATCH, seen, tree, partialTick, clock, false);
+            Trails.draw(BATCH, seen, clock, false);
             Selections.draw(BATCH, tree, partialTick);
             Ropes.draw(BATCH, seen, tree, partialTick);
             BATCH.draw(camera);
+            GlassCover.clear();
         } catch (RuntimeException e) {
             broken = true;
             MoudMod.LOG.error("effects failed to draw and are off until restart", e);
         }
+    }
+
+    private static void behindGlass(FrameContext context) {
+        CameraSnapshot camera = context.camera();
+        InstanceTree tree = ClientScene.tree();
+        if (camera == null || tree == null || broken) return;
+        try {
+            float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
+            View seen = view(camera);
+            GlassCover.gather(tree, seen.eye(), partialTick);
+            if (!GlassCover.any()) return;
+            BEHIND_GLASS.begin(camera.eye.x, camera.eye.y, camera.eye.z);
+            Emitters.draw(BEHIND_GLASS, seen, true);
+            Beams.draw(BEHIND_GLASS, seen, tree, partialTick, clock, true);
+            Trails.draw(BEHIND_GLASS, seen, clock, true);
+            BEHIND_GLASS.draw(camera);
+        } catch (RuntimeException e) {
+            broken = true;
+            MoudMod.LOG.error("effects failed to draw and are off until restart", e);
+        }
+    }
+
+    private static View view(CameraSnapshot camera) {
+        Matrix4f view = camera.view;
+        return new View(new Vector3(camera.eye.x, camera.eye.y, camera.eye.z),
+                new Vector3(view.m00(), view.m10(), view.m20()),
+                new Vector3(view.m01(), view.m11(), view.m21()),
+                new Vector3(-view.m02(), -view.m12(), -view.m22()));
     }
 
     private static void decals(FrameContext context) {

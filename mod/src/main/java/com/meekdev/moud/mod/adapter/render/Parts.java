@@ -361,6 +361,10 @@ public final class Parts {
         parts.sort(Comparator.comparingDouble((Part part) -> DISTANCES.get(part)).reversed());
     }
 
+    public static boolean seeThrough(Part part) {
+        return part.visible && part.transparency > 0.001 && part.transparency < 1.0 && !ViewportFrame.inside(part);
+    }
+
     private static boolean isTransparent(Part part) {
         return part.transparency > 0.001 && part.transparency < 1.0 || EditorView.ghost(part);
     }
