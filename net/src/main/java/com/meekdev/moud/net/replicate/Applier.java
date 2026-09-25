@@ -33,6 +33,11 @@ public final class Applier {
         return world;
     }
 
+    public void clear() {
+        tree = null;
+        world = null;
+    }
+
     public void apply(Change change) {
         switch (change) {
             case Change.Reset ignored -> {

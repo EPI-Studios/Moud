@@ -79,6 +79,7 @@ public final class MoudServer {
         ServerChat.INSTANCE.stop();
         ServerHistory.INSTANCE.clear();
         Broadcast.stop();
+        Post.wired().forget();
         WorldTime.stopped();
         ServerWeather.stopped();
         Explosions.stopped();
@@ -103,16 +104,17 @@ public final class MoudServer {
         ServerChat.INSTANCE.zones(ServerScene.tree());
         NetworkOwners.tick(server, ServerScene.tree(), place.editing());
         if (Physics.level() != null) Spawning.worldSpawn(Physics.level(), ServerScene.tree());
+        Post.drainToServer(ServerScene.tree());
         Broadcast.tick(server, change -> {
             Physics.apply(ServerScene.tree(), change, server);
             ServerHistory.INSTANCE.note(ServerScene.tree(), change);
         });
+        Post.wired().flush(server);
         if (place.reloadedFully()) Post.wired().sendReloaded(server);
         ServerWeather.tick(server, !place.editing(), dt);
         WorldTime.tick(server);
         if (!place.editing()) Explosions.tick(server);
         Physics.settle(ServerScene.tree(), !place.editing());
-        Post.drainToServer(ServerScene.tree());
         ServerChat.INSTANCE.tick(server);
         ServerPrompts.tick(server);
         ServerClicks.tick(server);
@@ -148,7 +150,7 @@ public final class MoudServer {
 
         Host host = place.host();
         if (host != null) host.joined(new JoinedPlayer(player));
-        if (fresh) Spawning.announce(player);
+        if (fresh && !player.hasDisconnected()) Spawning.announce(player);
     }
 
     static void respawnAll(MinecraftServer server) {
@@ -171,6 +173,7 @@ public final class MoudServer {
         Seating.left(player);
         Scores.left(player);
         ServerTools.clear(player);
+        ServerChat.INSTANCE.left(player);
         Broadcast.forget(player.getUUID());
     }
 }

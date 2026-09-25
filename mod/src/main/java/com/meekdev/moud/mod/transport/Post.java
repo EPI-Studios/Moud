@@ -18,7 +18,10 @@ import com.meekdev.moud.mod.transport.payload.WorldPayload;
 import com.meekdev.moud.net.transport.Wire;
 import com.meekdev.moud.script.api.InvokeRef;
 import com.meekdev.moud.script.api.PostRef;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.MinecraftServer;
@@ -32,6 +35,10 @@ public final class Post {
     private static final Logger LOGGER = LoggerFactory.getLogger("moud/post");
 
     private static final Wired CARRIER = new Wired();
+
+    private static final int HELD_PER_REMOTE = 64;
+
+    private static final Map<Remote, List<Remote.Sent>> HELD = new LinkedHashMap<>();
 
     private static Supplier<String> who = () -> "";
 
@@ -80,10 +87,45 @@ public final class Post {
         CARRIER.drainCallsServer((player, kind, id, call, values) -> called(tree, player, kind, id, call, values, true));
     }
 
-    public static void drainToClient(InstanceTree tree) {
-        if (tree == null) return;
-        CARRIER.drainClient((id, args) -> deliver(tree, id, "", args, false));
-        CARRIER.drainCallsClient((player, kind, id, call, values) -> called(tree, player, kind, id, call, values, false));
+    public static void drainToClient(InstanceTree tree, long applied) {
+        if (tree == null) {
+            HELD.clear();
+            return;
+        }
+        release(tree);
+        CARRIER.drainClient(applied, (id, args) -> deliver(tree, id, "", args, false));
+        CARRIER.drainCallsClient(applied, (player, kind, id, call, values) -> called(tree, player, kind, id, call, values, false));
+    }
+
+    private static void release(InstanceTree tree) {
+        if (HELD.isEmpty()) return;
+        for (Map.Entry<Remote, List<Remote.Sent>> entry : List.copyOf(HELD.entrySet())) {
+            Remote remote = entry.getKey();
+            if (!remote.isAlive() || remote.tree() != tree) {
+                HELD.remove(remote);
+                continue;
+            }
+            if (remote.onClient.count() == 0) continue;
+            HELD.remove(remote);
+            for (Remote.Sent sent : entry.getValue()) fireOnClient(remote, sent);
+        }
+    }
+
+    private static void hold(Remote remote, Remote.Sent sent) {
+        List<Remote.Sent> held = HELD.computeIfAbsent(remote, key -> new ArrayList<>());
+        if (held.size() < HELD_PER_REMOTE) {
+            held.add(sent);
+        } else if (held.size() == HELD_PER_REMOTE) {
+            LOGGER.warn("{} has no onClient handler and {} messages waiting, dropping the rest", remote.name(), HELD_PER_REMOTE);
+        }
+    }
+
+    private static void fireOnClient(Remote remote, Remote.Sent sent) {
+        try {
+            remote.onClient.fire(sent);
+        } catch (RuntimeException e) {
+            LOGGER.warn("a handler on {} threw: {}", remote.name(), e.toString());
+        }
     }
 
     private static void deliver(InstanceTree tree, int id, String from, List<Object> args,
@@ -98,13 +140,14 @@ public final class Post {
             return;
         }
         Remote.Sent sent = new Remote.Sent(from, delivered);
+        if (!toServer) {
+            if (remote.onClient.count() == 0 || HELD.containsKey(remote)) hold(remote, sent);
+            else fireOnClient(remote, sent);
+            return;
+        }
         try {
-            if (toServer) {
-                remote.onServer.fire(sent);
-                remote.onServerPlayer.fire(sent);
-            } else {
-                remote.onClient.fire(sent);
-            }
+            remote.onServer.fire(sent);
+            remote.onServerPlayer.fire(sent);
         } catch (RuntimeException e) {
             LOGGER.warn("a handler on {} threw: {}", remote.name(), e.toString());
         }
@@ -120,8 +163,14 @@ public final class Post {
                 sent = Wired.FAILED;
                 packed = List.of("the answer could not be sent: " + e.getMessage());
             }
-            if (toServer) CARRIER.callClient(from, sent, id, call, packed);
-            else CARRIER.callServer(sent, id, call, packed);
+            try {
+                if (toServer) CARRIER.callClient(from, sent, id, call, packed);
+                else CARRIER.callServer(sent, id, call, packed);
+            } catch (IllegalArgumentException e) {
+                List<Object> why = List.of("the answer could not be sent: " + e.getMessage());
+                if (toServer) CARRIER.callClient(from, Wired.FAILED, id, call, why);
+                else CARRIER.callServer(Wired.FAILED, id, call, why);
+            }
         };
         if (!(tree.byId(id) instanceof RemoteFunction remote)) {
             if (kind == Wired.INVOKE) reply.send(RemoteFunction.Answer.failed("that remote function no longer exists"));

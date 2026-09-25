@@ -57,7 +57,7 @@ public final class ClientScene {
     public static void tick() {
         Mirror.apply(change -> ClientPhysics.apply(tree(), change));
         ClientPhysics.settle();
-        Post.drainToClient(tree());
+        Post.drainToClient(tree(), Mirror.applied());
         InstanceTree tree = tree();
         if (tree == null) return;
         Rig.follow(tree);

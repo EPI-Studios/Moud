@@ -50,6 +50,15 @@ directions are not the same shape:
 Each verb is refused on the side it doesn't belong to, by name. Calling `fireServer` on the server is
 a mistake, and being told beats a message that goes nowhere.
 
+A message leaves the server with the tree changes of the same tick, and arrives after them. An
+instance you create and then send, or a part you move and then announce, is already there when the
+client hears about it.
+
+A message that reaches a client before any script there has connected to `onClient` waits for the
+first connection, up to 64 per remote; past that the rest are dropped. That covers the usual race of
+a server firing in `joined` while the client's scripts are still starting. Once something has
+connected, a message nobody is listening to is gone.
+
 The sender is handed over, never passed. `onServer` receives the **body** of whoever sent it as its
 first argument, supplied by the engine. A player is addressed by its body here, the same way
 `game.players:me()` answers with one. A client cannot claim to be somebody else, because it never
@@ -224,14 +233,17 @@ A number, text, a flag, nothing, a `Vector3`, a `Quat`, a `CFrame`, a `Color`, a
 lists or text-keyed tables of those.
 
 An instance crosses as the id it is and is resolved on the far side; one that was destroyed on the way
-arrives as `nil`, which is the ordinary race and not an error.
+arrives as `nil`, which is the ordinary race and not an error. An `instance` in `accepts` that arrives
+as `nil` refuses the whole message, so write `instance?` when it should still arrive.
 
 Anything else is an error that names what was allowed: a function, a table with number keys mixed
 with text keys, or an instance one side made locally and the other has never heard of. None of these
 is dropped quietly.
 
 Limits: 16 arguments, 8 levels of nesting, 256 values per delivery, and 6 deliveries per channel per
-tick from any one client. Past the rate the rest of the tick is dropped and counted.
+tick from any one client. Past the rate the rest of the tick is dropped and counted. A message to the
+server holds at most 32 KB and one to a client at most 1 MB; a bigger one is an error where it is
+sent.
 
 ## Messages between scripts on one side
 

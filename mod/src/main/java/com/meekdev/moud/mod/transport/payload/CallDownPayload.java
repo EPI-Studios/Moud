@@ -6,7 +6,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record CallDownPayload(int kind, int remote, int call, byte[] values) implements CustomPacketPayload {
 
-    private static final int MAX_VALUES_BYTES = 32767;
+    public static final int MOST = 1_000_000;
 
     public static final Type<CallDownPayload> TYPE = Payloads.type("call_down");
 
@@ -17,7 +17,7 @@ public record CallDownPayload(int kind, int remote, int call, byte[] values) imp
                 out.writeVarInt(down.call());
                 out.writeByteArray(down.values());
             },
-            in -> new CallDownPayload(in.readByte(), in.readVarInt(), in.readVarInt(), in.readByteArray(MAX_VALUES_BYTES)));
+            in -> new CallDownPayload(in.readByte(), in.readVarInt(), in.readVarInt(), in.readByteArray(MOST)));
 
     @Override
     public Type<CallDownPayload> type() {

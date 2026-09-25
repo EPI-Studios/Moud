@@ -20,8 +20,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,15 +39,23 @@ public final class Wired implements Transport {
 
     private record Called(UUID from, CallUpPayload payload) {}
 
+    private record Heard<T>(long after, T payload) {}
+
+    private record Out(@Nullable UUID to, CustomPacketPayload payload) {}
+
+    private static final int QUEUED_PER_TICK = 256;
+
     @FunctionalInterface
     public interface CallSink {
         void deliver(String player, int kind, int remote, int call, List<Object> values);
     }
 
     private final Queue<Sent> up = new ConcurrentLinkedQueue<>();
-    private final Queue<RemoteDownPayload> down = new ConcurrentLinkedQueue<>();
+    private final Queue<Heard<RemoteDownPayload>> down = new ConcurrentLinkedQueue<>();
     private final Queue<Called> callsUp = new ConcurrentLinkedQueue<>();
-    private final Queue<CallDownPayload> callsDown = new ConcurrentLinkedQueue<>();
+    private final Queue<Heard<CallDownPayload>> callsDown = new ConcurrentLinkedQueue<>();
+    private final List<Out> outgoing = new ArrayList<>();
+    private final Budget queued = new Budget(QUEUED_PER_TICK);
     private final Queue<byte[]> deltas = new ConcurrentLinkedQueue<>();
     private final Queue<Long> reloads = new ConcurrentLinkedQueue<>();
     private final AtomicLong received = new AtomicLong();
@@ -55,22 +65,31 @@ public final class Wired implements Transport {
     private final Map<UUID, Integer> flooding = new HashMap<>();
 
     public void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(RemoteUpPayload.TYPE, (payload, context) ->
-                up.add(new Sent(context.player().getUUID(), payload.remote(), payload.args())));
-        ServerPlayNetworking.registerGlobalReceiver(CallUpPayload.TYPE, (payload, context) ->
-                callsUp.add(new Called(context.player().getUUID(), payload)));
+        ServerPlayNetworking.registerGlobalReceiver(RemoteUpPayload.TYPE, (payload, context) -> {
+            if (queued.take(context.player().getUUID())) up.add(new Sent(context.player().getUUID(), payload.remote(), payload.args()));
+        });
+        ServerPlayNetworking.registerGlobalReceiver(CallUpPayload.TYPE, (payload, context) -> {
+            if (queued.take(context.player().getUUID())) callsUp.add(new Called(context.player().getUUID(), payload));
+        });
     }
 
     public void listenAsClient() {
         ClientPlayNetworking.registerGlobalReceiver(RemoteDownPayload.TYPE,
-                (payload, context) -> down.add(payload));
+                (payload, context) -> down.add(new Heard<>(received.get(), payload)));
         ClientPlayNetworking.registerGlobalReceiver(CallDownPayload.TYPE,
-                (payload, context) -> callsDown.add(payload));
+                (payload, context) -> callsDown.add(new Heard<>(received.get(), payload)));
         ClientPlayNetworking.registerGlobalReceiver(DeltaPayload.TYPE, (payload, context) -> {
             received.incrementAndGet();
             deltas.add(payload.bytes());
         });
         ClientPlayNetworking.registerGlobalReceiver(PlaceReloadedPayload.TYPE, (payload, context) -> reloads.add(received.get()));
+    }
+
+    public void forgetClient() {
+        down.clear();
+        callsDown.clear();
+        deltas.clear();
+        reloads.clear();
     }
 
     public void sendDelta(ServerPlayer player, byte[] bytes) {
@@ -98,31 +117,52 @@ public final class Wired implements Transport {
 
     @Override
     public void toServer(int remote, List<Object> args, boolean reliable) {
-        ClientPlayNetworking.send(new RemoteUpPayload(remote, Args.encode(args)));
+        byte[] bytes = encode(args, RemoteUpPayload.MOST);
+        if (ClientPlayNetworking.canSend(RemoteUpPayload.TYPE)) ClientPlayNetworking.send(new RemoteUpPayload(remote, bytes));
     }
 
     @Override
     public void toClient(String player, int remote, List<Object> args, boolean reliable) {
+        byte[] bytes = encode(args, RemoteDownPayload.MOST);
         ServerPlayer who = playerOf(player);
-        if (who == null || !ServerPlayNetworking.canSend(who, RemoteDownPayload.TYPE)) return;
-        ServerPlayNetworking.send(who, new RemoteDownPayload(remote, Args.encode(args)));
+        if (who != null) outgoing.add(new Out(who.getUUID(), new RemoteDownPayload(remote, bytes)));
     }
 
     @Override
     public void toAllClients(int remote, List<Object> args, boolean reliable) {
-        MinecraftServer server = ServerScene.server();
-        if (server == null) return;
-        RemoteDownPayload payload = new RemoteDownPayload(remote, Args.encode(args));
-        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            if (ServerPlayNetworking.canSend(player, RemoteDownPayload.TYPE)) {
-                ServerPlayNetworking.send(player, payload);
+        outgoing.add(new Out(null, new RemoteDownPayload(remote, encode(args, RemoteDownPayload.MOST))));
+    }
+
+    public void flush(MinecraftServer server) {
+        if (outgoing.isEmpty()) return;
+        List<Out> batch = List.copyOf(outgoing);
+        outgoing.clear();
+        for (Out one : batch) {
+            if (one.to() == null) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) send(player, one.payload());
+                continue;
             }
+            ServerPlayer player = server.getPlayerList().getPlayer(one.to());
+            if (player != null) send(player, one.payload());
         }
+    }
+
+    private static void send(ServerPlayer player, CustomPacketPayload payload) {
+        if (ServerPlayNetworking.canSend(player, payload.type())) ServerPlayNetworking.send(player, payload);
+    }
+
+    private static byte[] encode(List<Object> args, int most) {
+        byte[] bytes = Args.encode(args);
+        if (bytes.length > most) {
+            throw new IllegalArgumentException("the message is " + bytes.length / 1000 + " KB, the limit is " + most / 1000 + " KB");
+        }
+        return bytes;
     }
 
     @Override
     public void drainServer(ServerSink sink) {
         List<Sent> batch = take(up);
+        queued.refill();
         arrived.clear();
         for (Sent one : batch) {
             int already = arrived.computeIfAbsent(one.from(), id -> new HashMap<>())
@@ -143,7 +183,11 @@ public final class Wired implements Transport {
 
     @Override
     public void drainClient(ClientSink sink) {
-        for (RemoteDownPayload one : take(down)) {
+        drainClient(Long.MAX_VALUE, sink);
+    }
+
+    public void drainClient(long applied, ClientSink sink) {
+        for (RemoteDownPayload one : upTo(down, applied)) {
             try {
                 sink.deliver(one.remote(), Args.decode(one.args()));
             } catch (RuntimeException e) {
@@ -153,14 +197,14 @@ public final class Wired implements Transport {
     }
 
     public void callServer(int kind, int remote, int call, List<Object> values) {
-        if (!ClientPlayNetworking.canSend(CallUpPayload.TYPE)) return;
-        ClientPlayNetworking.send(new CallUpPayload(kind, remote, call, Args.encode(values)));
+        byte[] bytes = encode(values, CallUpPayload.MOST);
+        if (ClientPlayNetworking.canSend(CallUpPayload.TYPE)) ClientPlayNetworking.send(new CallUpPayload(kind, remote, call, bytes));
     }
 
     public void callClient(String player, int kind, int remote, int call, List<Object> values) {
+        byte[] bytes = encode(values, CallDownPayload.MOST);
         ServerPlayer who = playerOf(player);
-        if (who == null || !ServerPlayNetworking.canSend(who, CallDownPayload.TYPE)) return;
-        ServerPlayNetworking.send(who, new CallDownPayload(kind, remote, call, Args.encode(values)));
+        if (who != null) outgoing.add(new Out(who.getUUID(), new CallDownPayload(kind, remote, call, bytes)));
     }
 
     public void drainCallsServer(CallSink sink) {
@@ -185,8 +229,8 @@ public final class Wired implements Transport {
         return counted.computeIfAbsent(from, id -> new HashMap<>()).merge(remote, 1, Integer::sum) > InProcess.PER_TICK;
     }
 
-    public void drainCallsClient(CallSink sink) {
-        for (CallDownPayload one : take(callsDown)) {
+    public void drainCallsClient(long applied, CallSink sink) {
+        for (CallDownPayload one : upTo(callsDown, applied)) {
             try {
                 sink.deliver("", one.kind(), one.remote(), one.call(), Args.decode(one.values()));
             } catch (RuntimeException e) {
@@ -202,6 +246,15 @@ public final class Wired implements Transport {
         return batch;
     }
 
+    private static <T> List<T> upTo(Queue<Heard<T>> from, long applied) {
+        List<T> batch = new ArrayList<>();
+        for (Heard<T> one = from.peek(); one != null && one.after() <= applied; one = from.peek()) {
+            from.poll();
+            batch.add(one.payload());
+        }
+        return batch;
+    }
+
     private static ServerPlayer playerOf(String uuid) {
         MinecraftServer server = ServerScene.server();
         if (server == null || uuid.isEmpty()) return null;
@@ -214,10 +267,9 @@ public final class Wired implements Transport {
 
     public void forget() {
         up.clear();
-        down.clear();
         callsUp.clear();
-        callsDown.clear();
-        deltas.clear();
+        outgoing.clear();
+        queued.refill();
         arrived.clear();
         flooding.clear();
     }

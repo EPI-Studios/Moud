@@ -31,6 +31,13 @@ public final class Mirror {
         return APPLIER;
     }
 
+    public static void disconnected() {
+        Post.wired().forgetClient();
+        APPLIER.clear();
+        resyncing = false;
+        applied = Post.wired().received();
+    }
+
     public static void apply(Consumer<Change> also) {
         Queue<byte[]> queue = Post.wired().deltas();
         int ticks = Math.max(1, queue.size() - BACKLOG + 1);

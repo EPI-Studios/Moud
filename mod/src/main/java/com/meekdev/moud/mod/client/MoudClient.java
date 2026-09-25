@@ -68,6 +68,7 @@ public final class MoudClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             Autopilot.clear();
             SeatInput.clear();
+            client.execute(Mirror::disconnected);
         });
         ChatView.install();
         ClientDebug.install();
