@@ -275,7 +275,9 @@ the whole assembly.
 
 The server does not take a report on trust. It drops a report for a part that player does not own,
 one with a number that is not finite or a rotation that is not close to a unit quaternion, one that
-puts the part more than 64 metres from the owner's body, and one faster than 400 metres a second.
+puts the part more than 64 metres from the owner's body, one faster than 400 metres a second, and
+one spinning faster than 2000 radians a second. An owner without a living body, waiting to respawn,
+is measured from where their player stands.
 Anything inside those limits is accepted, so an owner can move its parts wherever it likes within
 them. Do not give a player a part whose position decides who wins.
 

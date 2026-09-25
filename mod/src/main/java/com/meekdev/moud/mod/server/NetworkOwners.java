@@ -16,6 +16,7 @@ import com.meekdev.moud.core.part.Seat;
 import com.meekdev.moud.mod.adapter.physics.Assemblies;
 import com.meekdev.moud.mod.adapter.physics.PartBodies;
 import com.meekdev.moud.mod.adapter.physics.Physics;
+import com.meekdev.moud.mod.transport.Budget;
 import com.meekdev.moud.mod.transport.payload.OwnedPosePayload;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,6 +41,8 @@ public final class NetworkOwners {
     private static final double KEEP = 14;
     private static final double REACH = 64;
     private static final double FASTEST = 400;
+    private static final double SPIN = 2000;
+    private static final int REPORTS_PER_TICK = 4;
     private static final int FIRST_REPORT_TICKS = 100;
     private static final int QUIET_TICKS = 40;
     private static final int TAKEN_BACK_TICKS = 100;
@@ -48,14 +51,18 @@ public final class NetworkOwners {
 
     private static final Queue<Report> REPORTS = new ConcurrentLinkedQueue<>();
 
+    private static final Budget HEARD = new Budget(REPORTS_PER_TICK);
+
     private NetworkOwners() {}
 
     public static void listen() {
-        ServerPlayNetworking.registerGlobalReceiver(OwnedPosePayload.TYPE, (payload, context) ->
-                REPORTS.add(new Report(context.player().getUUID().toString(), payload)));
+        ServerPlayNetworking.registerGlobalReceiver(OwnedPosePayload.TYPE, (payload, context) -> {
+            if (HEARD.take(context.player().getUUID())) REPORTS.add(new Report(context.player().getUUID().toString(), payload));
+        });
     }
 
     static void tick(MinecraftServer server, @Nullable InstanceTree tree, boolean editing) {
+        HEARD.refill();
         if (tree == null) {
             REPORTS.clear();
             return;
@@ -69,11 +76,15 @@ public final class NetworkOwners {
             return;
         }
         Map<String, Vector3> players = new HashMap<>();
+        Map<String, Vector3> standing = new HashMap<>();
         Set<String> connected = new HashSet<>();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            connected.add(player.getUUID().toString());
+            String id = player.getUUID().toString();
+            connected.add(id);
             Character body = Physics.bodies().of(player, tree);
-            if (body != null && body.isAlive()) players.put(player.getUUID().toString(), Transforms.world(body).position());
+            Vector3 at = body != null && body.isAlive() ? Transforms.world(body).position() : null;
+            if (at != null) players.put(id, at);
+            standing.put(id, at != null ? at : new Vector3(player.getX(), player.getY(), player.getZ()));
         }
         Assemblies.build(tree);
         Set<Part> done = new HashSet<>();
@@ -83,7 +94,7 @@ public final class NetworkOwners {
             done.addAll(group);
             decide(group, players, connected);
         }
-        for (Report report = REPORTS.poll(); report != null; report = REPORTS.poll()) take(tree, report, players);
+        for (Report report = REPORTS.poll(); report != null; report = REPORTS.poll()) take(tree, report, standing);
     }
 
     public static boolean ownable(Part part) {
@@ -192,7 +203,7 @@ public final class NetworkOwners {
             Vector3 spin = new Vector3(pose.wx(), pose.wy(), pose.wz());
             double turn = Math.sqrt(pose.qx() * pose.qx() + pose.qy() * pose.qy() + pose.qz() * pose.qz() + pose.qw() * pose.qw());
             if (!finite(position) || !finite(speed) || !finite(spin) || !(turn > 0.5 && turn < 2)) continue;
-            if (position.sub(body).lengthSq() > REACH * REACH || speed.lengthSq() > FASTEST * FASTEST) continue;
+            if (position.sub(body).lengthSq() > REACH * REACH || speed.lengthSq() > FASTEST * FASTEST || spin.lengthSq() > SPIN * SPIN) continue;
             Quat rotation = new Quat(pose.qx() / turn, pose.qy() / turn, pose.qz() / turn, pose.qw() / turn);
             Instances.setObj(part, CFRAME, Transforms.localFor(part, new CFrame(position, rotation)));
             Instances.setObj(part, VELOCITY, speed);
