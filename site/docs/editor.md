@@ -5,8 +5,48 @@ them. What you build is saved into the scene's `.scene` file and loaded like any
 See [Places, modules, scenes and scripts](place.md#scenes) for the files, and
 [Physics](physics.md) for what each joint does once the place plays.
 
-This page covers moving a selection, joining parts and choosing the code editor scripts open in. Each
-other editor feature is described on the page of the thing it builds.
+This page covers undo, copying, moving a selection, joining parts and choosing the code editor
+scripts open in. Each other editor feature is described on the page of the thing it builds.
+
+## Undo, copy and paste
+
+Every change you make to the scene is one step in the history: a property typed or dragged, a
+gizmo drag, a rename, a drop in the Explorer, a paste, a group, a delete, an animation key.
+<kbd>Ctrl+Z</kbd> undoes it and <kbd>Ctrl+Y</kbd> or <kbd>Ctrl+Shift+Z</kbd> does it again. The
+history belongs to the scene that is open: opening another scene, or restoring a backup, starts a
+new one. Save and Save As keep it.
+
+Things point at each other through reference properties, such as a weld's `part0` and `part1` or a
+model's `primaryPart`. The editor keeps those links when it puts things back:
+
+- Undoing a delete points the restored things at what they pointed at, and points everything that
+  pointed at them back at them.
+- Group and Ungroup keep every link into and out of what they move.
+- A duplicate, or a copy pasted in the same scene, points at the same things outside the copy as the
+  original. Links inside the copy point inside the copy.
+
+**Copy** puts the selection on the clipboard as scene text, so it can be pasted into another scene
+or after a restart. Links to things outside the copy are only kept while the scene you copied from
+is open. **Paste** (<kbd>Ctrl+V</kbd>) puts the copy next to the selected object, in its parent, where
+the original was. **Paste Into** (<kbd>Ctrl+Shift+V</kbd>) puts it inside the selected object. The
+pasted things are selected.
+
+Selecting something in the viewport opens its parents in the Explorer and scrolls to it.
+<kbd>F</kbd> frames the selection from anywhere in the editor except a text field.
+
+### Playing and coming back
+
+Playing (<kbd>F6</kbd>) runs the place from what is in the editor, saved or not. Stopping puts the
+scene back as it was before you played, with the same selection and the same history, and nothing a
+script made is left behind. If the scene file changed on disk while you played and the scene had no
+unsaved changes, the file is loaded instead and the history starts again.
+
+### When the scene file changes on disk
+
+The editor checks the open scene file every second. If another program changed it and the scene has
+no unsaved changes, it is loaded again. If it has unsaved changes, the status bar says so and
+nothing is loaded. Saving then replaces the file, and the version on disk is kept in
+`.moud/backups`, which **File > Scene Backups...** lists.
 
 ## Moving several things at once
 
