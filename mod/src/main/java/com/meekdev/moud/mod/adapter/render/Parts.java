@@ -7,6 +7,7 @@ import com.meekdev.amnetic.client.instanced.InstancePacker;
 import com.meekdev.amnetic.client.instanced.InstancePhase;
 import com.meekdev.amnetic.client.instanced.InstanceRenderContext;
 import com.meekdev.amnetic.client.instanced.InstancedMesh;
+import com.meekdev.amnetic.client.instanced.Instances;
 import com.meekdev.amnetic.client.instanced.RenderState;
 import com.meekdev.amnetic.client.model.ModelLighting;
 import com.meekdev.moud.core.clazz.Classes;
@@ -31,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -57,6 +57,7 @@ public final class Parts {
     private static final Vector4f TINT = new Vector4f();
 
     private static final Map<Textured, List<Part>> PACKED = new HashMap<>();
+    private static final Map<Textured, Identifier> TEXTURED = new HashMap<>();
     private static final Set<Integer> SHARP = new HashSet<>();
 
     private record Textured(PartShape shape, String texture, Maps maps, boolean glows, boolean glass) {}
@@ -113,21 +114,28 @@ public final class Parts {
 
     public static void prepareFrame() {
         for (List<Part> packed : PACKED.values()) packed.clear();
+        PANES.clear();
         physical = false;
         InstanceTree tree = ClientScene.tree();
         if (tree == null) return;
         for (Part part : tree.ofClass(Classes.PART)) {
             if (part.shading == PartShading.PBR) physical = true;
-            if (plain(part) || part instanceof MeshPart || Skins.wearsSkin(part) || SpecialMeshes.drawn(part)) continue;
+            if (part instanceof MeshPart || Skins.wearsSkin(part) || SpecialMeshes.drawn(part)) continue;
+            boolean plain = plain(part);
+            boolean glass = isTransparent(part);
+            if (plain && !glass) continue;
             if (ViewportFrame.inside(part)) continue;
             boolean ghost = EditorView.ghost(part);
             if (!ghost && (!part.visible || part.transparency >= 1.0)) continue;
+            if (plain) {
+                PANES.add(new Pane(part, GLASS[part.shape.ordinal()]));
+                continue;
+            }
             boolean glows = glows(part);
-            Textured key = new Textured(part.shape, part.texture, Maps.of(part, glows), glows, isTransparent(part));
-            PACKED.computeIfAbsent(key, made -> {
-                registerTextured(made);
-                return new ArrayList<>();
-            }).add(part);
+            Textured key = new Textured(part.shape, part.texture, Maps.of(part, glows), glows, glass);
+            Identifier mesh = TEXTURED.computeIfAbsent(key, Parts::registerTextured);
+            if (glass) PANES.add(new Pane(part, mesh));
+            else PACKED.computeIfAbsent(key, made -> new ArrayList<>()).add(part);
         }
     }
 
@@ -142,7 +150,7 @@ public final class Parts {
         return part.emissionStrength > 0 && (glow.r() > 0 || glow.g() > 0 || glow.b() > 0);
     }
 
-    private static void registerTextured(Textured key) {
+    private static Identifier registerTextured(Textured key) {
         String name = "parts_tex_" + key.shape().name().toLowerCase(Locale.ROOT)
                 + (key.glass() ? "_glass_" : "_") + Integer.toHexString(key.texture().hashCode())
                 + (key.maps() == Maps.NONE && !key.glows() ? "" : "_" + Integer.toHexString(Objects.hash(key.maps(), key.glows())));
@@ -160,8 +168,11 @@ public final class Parts {
                 .extraSampler("OcclusionMap", () -> map(maps.occlusion(), false), 8)
                 .extraSampler("EmissionMap", () -> map(maps.emission(), false), 9);
         if (key.glows() && !key.glass()) builder.glowsInGBuffer();
-        builder.onRender((ctx, batch) -> renderTextured(key, ctx, batch))
-                .register(Identifier.fromNamespaceAndPath("moud", name));
+        if (key.glass()) builder.onRender(Parts::renderRun);
+        else builder.onRender((ctx, batch) -> renderTextured(key, ctx, batch));
+        Identifier id = Identifier.fromNamespaceAndPath("moud", name);
+        builder.register(id);
+        return id;
     }
 
     private static int albedo(String texture) {
@@ -181,7 +192,6 @@ public final class Parts {
         List<Part> parts = PACKED.get(key);
         if (parts == null || parts.isEmpty()) return;
         Motion motion = ClientScene.motion();
-        if (key.glass()) backToFront(parts, ctx, motion);
         for (Part part : parts) emit(ctx, batch, motion, part, true);
     }
 
@@ -190,8 +200,9 @@ public final class Parts {
             int at = shape.ordinal();
             mesh(shape, false).staticInstances().onRender((ctx, batch) -> renderStatic(shape, ctx, batch)).register(STILL[at]);
             mesh(shape, false).onRender((ctx, batch) -> renderMoving(shape, ctx, batch)).register(MOVING[at]);
-            glass(shape, false).onRender((ctx, batch) -> renderTransparent(shape, ctx, batch)).register(GLASS[at]);
+            glass(shape, false).onRender(Parts::renderRun).register(GLASS[at]);
         }
+        Instances.onPrePhase(InstancePhase.WORLD_TRANSLUCENT, Parts::drawGlass);
     }
 
     private static final InstanceLayout LAYOUT =
@@ -258,7 +269,8 @@ public final class Parts {
                         .build())
                 .phase(InstancePhase.WORLD_TRANSLUCENT)
                 .writeGBuffer(false)
-                .worldSpace();
+                .worldSpace()
+                .manual();
     }
 
     private static InstancedMesh.Builder<Lit> mesh(PartShape shape, boolean glows) {
@@ -328,37 +340,56 @@ public final class Parts {
         int emitted = 0;
         for (int n = 0; n < parts.size(); n++) {
             Part part = parts.get(n);
-            if (!motion.isMoving(part) && write(shape, ctx, batch, motion, part, false, false)) emitted++;
+            if (!motion.isMoving(part) && write(shape, ctx, batch, motion, part, false)) emitted++;
         }
         STILL_COUNTS[shape.ordinal()] = emitted;
     }
 
-    private static final List<Part> SEE_THROUGH = new ArrayList<>();
-    private static final Map<Part, Double> DISTANCES = new IdentityHashMap<>();
+    private static final class Pane {
+        final Part part;
+        final Identifier mesh;
+        double distance;
 
-    private static void renderTransparent(PartShape shape, InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
-        InstanceTree tree = ClientScene.tree();
-        if (tree == null) return;
-        Motion motion = ClientScene.motion();
-        SEE_THROUGH.clear();
-        for (Part part : tree.ofClass(Classes.PART)) {
-            if (part.shape == shape && isTransparent(part) && !ViewportFrame.inside(part)) SEE_THROUGH.add(part);
+        Pane(Part part, Identifier mesh) {
+            this.part = part;
+            this.mesh = mesh;
         }
-        backToFront(SEE_THROUGH, ctx, motion);
-        for (Part part : SEE_THROUGH) write(shape, ctx, batch, motion, part, true, true);
     }
 
-    private static void backToFront(List<Part> parts, InstanceRenderContext ctx, Motion motion) {
+    private static final List<Pane> PANES = new ArrayList<>();
+    private static final Comparator<Pane> FAR_FIRST = (a, b) -> Double.compare(b.distance, a.distance);
+    private static List<Pane> run = List.of();
+
+    private static void drawGlass(InstanceRenderContext ctx) {
+        if (PANES.isEmpty()) return;
+        Motion motion = ClientScene.motion();
         var eye = ctx.cameraPos();
-        DISTANCES.clear();
-        for (Part part : parts) {
-            Vector3 at = motion.sample(part, ctx.deltaTick()).position();
+        for (Pane pane : PANES) {
+            Vector3 at = motion.sample(pane.part, ctx.deltaTick()).position();
             double dx = at.x() - eye.x;
             double dy = at.y() - eye.y;
             double dz = at.z() - eye.z;
-            DISTANCES.put(part, dx * dx + dy * dy + dz * dz);
+            pane.distance = dx * dx + dy * dy + dz * dz;
         }
-        parts.sort(Comparator.comparingDouble((Part part) -> DISTANCES.get(part)).reversed());
+        PANES.sort(FAR_FIRST);
+        try {
+            int from = 0;
+            while (from < PANES.size()) {
+                Identifier mesh = PANES.get(from).mesh;
+                int to = from + 1;
+                while (to < PANES.size() && PANES.get(to).mesh.equals(mesh)) to++;
+                run = PANES.subList(from, to);
+                Instances.render(mesh, ctx);
+                from = to;
+            }
+        } finally {
+            run = List.of();
+        }
+    }
+
+    private static void renderRun(InstanceRenderContext ctx, InstanceBatch<Lit> batch) {
+        Motion motion = ClientScene.motion();
+        for (Pane pane : run) emit(ctx, batch, motion, pane.part, true);
     }
 
     public static boolean seeThrough(Part part) {
@@ -373,17 +404,17 @@ public final class Parts {
         Motion motion = ClientScene.motion();
         int emitted = 0;
         for (Instance instance : motion.moving()) {
-            if (instance instanceof Part part && write(shape, ctx, batch, motion, part, true, false)) emitted++;
+            if (instance instanceof Part part && write(shape, ctx, batch, motion, part, true)) emitted++;
         }
         MOVING_COUNTS[shape.ordinal()] = emitted;
     }
 
     private static boolean write(PartShape shape, InstanceRenderContext ctx, InstanceBatch<Lit> batch,
-            Motion motion, Part part, boolean cull, boolean glass) {
+            Motion motion, Part part, boolean cull) {
         if (part.shape != shape) return false;
         boolean ghost = EditorView.ghost(part);
         if (!ghost && (!part.visible || part.transparency >= 1.0)) return false;
-        if (isTransparent(part) != glass) return false;
+        if (isTransparent(part)) return false;
         if (part instanceof MeshPart) return false;
         if (Skins.wearsSkin(part)) return false;
         if (SpecialMeshes.drawn(part)) return false;
