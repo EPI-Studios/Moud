@@ -46,15 +46,21 @@ Selecting something in the viewport opens its parents in the Explorer and scroll
 
 Playing (<kbd>F6</kbd>) runs the place from what is in the editor, saved or not. Stopping puts the
 scene back as it was before you played, with the same selection and the same history, and nothing a
-script made is left behind. If the scene file changed on disk while you played and the scene had no
-unsaved changes, the file is loaded instead and the history starts again.
+script made is left behind. If the scene file changed on disk while you played, the editor asks what
+to do about it as soon as you are back, as below.
 
 ### When the scene file changes on disk
 
-The editor checks the open scene file every second. If another program changed it and the scene has
-no unsaved changes, it is loaded again. If it has unsaved changes, the status bar says so and
-nothing is loaded. Saving then replaces the file, and the version on disk is kept in
-`.moud/backups`, which **File > Scene Backups...** lists.
+The editor checks the open scene file every second. It never loads it again by itself. When another
+program has changed it, a window names the scene and offers two ways on:
+
+- **Reload from disk** loads the file and starts the history again. If you had unsaved changes, the
+  window says they will be lost, and a copy of the scene as you had it goes into `.moud/backups`.
+- **Keep mine**, or <kbd>Escape</kbd>, keeps what is in the editor. The next save replaces the file,
+  and the version it replaces is kept in `.moud/backups`.
+
+The window comes once for each change on disk. After you answer it, it stays away until the file
+changes again. **File > Scene Backups...** lists both kinds of copy.
 
 ## Moving several things at once
 

@@ -22,6 +22,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
+import imgui.flag.ImGuiPopupFlags;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
 import imgui.type.ImBoolean;
@@ -50,6 +51,7 @@ final class SceneTabs {
     private static final String OPEN_DIALOG = "##scene-open";
     private static final String BACKUPS_DIALOG = "##scene-backups";
     private static final String RECOVER_DIALOG = "##scene-recover";
+    private static final String RELOAD_PROMPT = "##scene-reload";
     private static final float DIALOG_WIDTH = 440.0f;
     private static final float LIST_HEIGHT = 260.0f;
     private static final int SEARCH_DEPTH = 8;
@@ -75,6 +77,7 @@ final class SceneTabs {
     private boolean openOpen;
     private boolean openBackups;
     private boolean openRecover;
+    private boolean answered;
     private String nameTitle = "";
     private String nameHint = "";
     private String nameConfirm = "";
@@ -160,7 +163,36 @@ final class SceneTabs {
         ImGui.endTabBar();
     }
 
+    private void renderReloadPrompt() {
+        if (!SceneLink.conflict()) answered = false;
+        if (SceneLink.conflict() && !answered && !current.isEmpty() && !ImGui.isPopupOpen("", ImGuiPopupFlags.AnyPopupId)) {
+            ImGui.openPopup(RELOAD_PROMPT);
+        }
+        if (!Dialogs.begin(RELOAD_PROMPT, DIALOG_WIDTH)) return;
+        if (!SceneLink.conflict()) ImGui.closeCurrentPopup();
+        Dialogs.title(name(current) + " changed on disk");
+        Texts.wrapped(document.dirty()
+                ? "Another program changed " + current + ". Reloading it loses the changes you have not saved here, though a copy of them is kept in File > Scene Backups..."
+                : "Another program changed " + current + ". Reload it to see that version, or keep the one in the editor.");
+        Texts.muted("Keep mine: the next save replaces the file and keeps the version on disk in backups.");
+        Dialogs.gap();
+        Dialogs.alignFooter("Keep mine", "Reload from disk");
+        if (Dialogs.button("Keep mine##disk-keep") || ImGui.isKeyPressed(ImGuiKey.Escape)) {
+            answered = true;
+            ImGui.closeCurrentPopup();
+            SceneLink.keepMine();
+        }
+        ImGui.sameLine();
+        if (Dialogs.primaryButton("Reload from disk##disk-reload", true)) {
+            answered = true;
+            ImGui.closeCurrentPopup();
+            SceneLink.reload();
+        }
+        Dialogs.end();
+    }
+
     void renderDialogs() {
+        renderReloadPrompt();
         renderSwitchPrompt();
         renderNameDialog();
         renderOpenDialog();

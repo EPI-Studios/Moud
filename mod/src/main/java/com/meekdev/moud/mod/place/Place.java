@@ -132,10 +132,6 @@ public final class Place {
     }
 
     public void edit() {
-        edit(true);
-    }
-
-    public void edit(boolean unsaved) {
         if (editing) return;
         editing = true;
         if (host != null) host.close();
@@ -143,40 +139,18 @@ public final class Place {
         clearWorld();
         if (client) return;
         ServerScene.memory().clear();
-        if (!unsaved) adoptChangedScene();
         if (edited != null) Scene.load(edited, world, classes);
         else scene();
     }
 
     public void play() {
-        play(true);
-    }
-
-    public void play(boolean unsaved) {
         if (!editing) return;
         editing = false;
         if (!client) {
             edited = Scene.save(world.children().stream().filter(Place::authored).toList());
-            if (!unsaved) adoptChangedScene();
         }
         clearWorld();
         host = load(Map.of());
-    }
-
-    private void adoptChangedScene() {
-        String path = sceneToLoad();
-        if (path.isEmpty()) return;
-        String disk;
-        try {
-            disk = new PlaceFileRef(root).read(path);
-        } catch (RuntimeException e) {
-            return;
-        }
-        if (disk == null || disk.equals(sceneOnDisk)) return;
-        sceneOnDisk = disk;
-        edited = disk;
-        MoudMod.LOG.info("{} changed on disk, using it", path);
-        Output.add(Output.Level.SYSTEM, "server", path + " changed on disk, loaded it");
     }
 
     public static final String DEFAULT_SCENE = "res://scenes/main.scene";
@@ -269,6 +243,14 @@ public final class Place {
         if (disk == null || disk.isBlank() || disk.equals(sceneOnDisk)) return null;
         sceneOnDisk = disk;
         return disk;
+    }
+
+    public @Nullable String sceneFromDisk() {
+        return new PlaceFileRef(root).read(sceneFile());
+    }
+
+    public Path keepCopy() throws IOException {
+        return SceneBackups.write(root, sceneFile(), authoredScene(), SceneBackups.Kind.BEFORE_SAVE);
     }
 
     public Path backup() throws IOException {

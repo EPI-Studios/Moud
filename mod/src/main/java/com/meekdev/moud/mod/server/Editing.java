@@ -44,6 +44,7 @@ public final class Editing {
     private static final long DISK_MILLIS = 1_000;
 
     private static boolean dirty;
+    private static boolean conflict;
     private static boolean changedSinceBackup;
     private static long backedUpAt = System.currentTimeMillis();
     private static int generation;
@@ -87,8 +88,8 @@ public final class Editing {
             send(player, edit);
             return;
         }
-        if (edit) place.edit(dirty);
-        else place.play(dirty);
+        if (edit) place.edit();
+        else place.play();
         MoudMod.LOG.info("{} switched the place to {}", player.getGameProfile().name(), edit ? "edit" : "play");
         Output.add(Output.Level.SYSTEM, "server", edit ? "stopped, back to editing" : "playing");
         MinecraftServer server = player.level().getServer();
@@ -209,6 +210,7 @@ public final class Editing {
         try {
             String file = place.saveScene();
             dirty = false;
+            conflict = false;
             MoudMod.LOG.info("{} saved the scene to {}", player.getGameProfile().name(), file);
             Output.add(Output.Level.SYSTEM, "server", "saved " + file);
             for (ServerPlayer each : player.level().getServer().getPlayerList().getPlayers()) status(each, "saved " + file);
@@ -236,25 +238,9 @@ public final class Editing {
         diskCheckedAt = System.currentTimeMillis();
         Place place = MoudServer.place();
         if (place == null || !place.editing()) return;
-        String disk = place.changedOnDisk();
-        if (disk == null) return;
-        String message;
-        if (dirty) {
-            message = place.sceneFile() + " changed on disk, saving replaces it and keeps it in backups";
-        } else {
-            try {
-                Scene.paste(disk, Instances.createRoot(new InstanceTree(), Classes.FOLDER, "Check"), Addons.classes());
-                place.restore(disk);
-            } catch (RuntimeException e) {
-                message = "could not reload " + place.sceneFile() + ": " + e.getMessage();
-                Output.add(Output.Level.WARN, "editor", message);
-                for (ServerPlayer each : server.getPlayerList().getPlayers()) status(each, message);
-                return;
-            }
-            generation++;
-            changedSinceBackup = false;
-            message = "loaded " + place.sceneFile() + " again, it changed on disk";
-        }
+        if (place.changedOnDisk() == null) return;
+        conflict = true;
+        String message = place.sceneFile() + " changed on disk";
         MoudMod.LOG.info(message);
         Output.add(Output.Level.SYSTEM, "server", message);
         for (ServerPlayer each : server.getPlayerList().getPlayers()) status(each, message);
@@ -264,9 +250,9 @@ public final class Editing {
         Place place = editable(player);
         if (place == null) return;
         MinecraftServer server = player.level().getServer();
-        if (action == SceneFilePayload.CLEAN) {
-            if (!dirty) return;
-            dirty = false;
+        if (action == SceneFilePayload.CLEAN || action == SceneFilePayload.KEEP) {
+            if (action == SceneFilePayload.CLEAN) dirty = false;
+            else conflict = false;
             for (ServerPlayer each : server.getPlayerList().getPlayers()) status(each, "");
             return;
         }
@@ -294,9 +280,19 @@ public final class Editing {
                     dirty = true;
                     yield "restored " + backup.getFileName() + ", save to keep it";
                 }
+                case SceneFilePayload.RELOAD -> {
+                    String disk = place.sceneFromDisk();
+                    if (disk == null || disk.isBlank()) throw new IllegalStateException("it is empty");
+                    Scene.paste(disk, Instances.createRoot(new InstanceTree(), Classes.FOLDER, "Check"), Addons.classes());
+                    Path kept = dirty ? place.keepCopy() : null;
+                    place.restore(disk);
+                    dirty = false;
+                    yield "loaded " + place.sceneFile() + " from disk" + (kept == null ? "" : ", yours is in backups as " + kept.getFileName());
+                }
                 default -> throw new IllegalStateException("unknown scene action " + action);
             };
-            if (action == SceneFilePayload.OPEN || action == SceneFilePayload.RESTORE) generation++;
+            if (action != SceneFilePayload.TERRAIN) conflict = false;
+            if (action == SceneFilePayload.OPEN || action == SceneFilePayload.RESTORE || action == SceneFilePayload.RELOAD) generation++;
             changedSinceBackup = false;
             if (action == SceneFilePayload.OPEN || action == SceneFilePayload.RESTORE) MoudServer.respawnAll(server);
             MoudMod.LOG.info("{} {}", player.getGameProfile().name(), message);
@@ -307,6 +303,7 @@ public final class Editing {
                 case SceneFilePayload.OPEN -> "open ";
                 case SceneFilePayload.SAVE_AS -> "save ";
                 case SceneFilePayload.TERRAIN -> "load the terrain of ";
+                case SceneFilePayload.RELOAD -> "reload ";
                 default -> "restore ";
             };
             reject(player, "could not " + verb + path + ": " + e.getMessage());
@@ -328,7 +325,7 @@ public final class Editing {
     static void status(ServerPlayer player, String message) {
         Place place = MoudServer.place();
         if (place == null || !ServerPlayNetworking.canSend(player, SceneStatusPayload.TYPE)) return;
-        ServerPlayNetworking.send(player, new SceneStatusPayload(dirty, place.sceneFile(), message, generation));
+        ServerPlayNetworking.send(player, new SceneStatusPayload(dirty, place.sceneFile(), message, generation, conflict));
     }
 
     private static void send(ServerPlayer player, boolean editing) {

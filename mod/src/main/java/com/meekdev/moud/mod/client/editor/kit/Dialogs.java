@@ -56,14 +56,21 @@ public final class Dialogs {
                 + Math.max(0.0f, ImGui.getContentRegionAvailX() - buttons));
     }
 
+    public static void alignFooter(String... labels) {
+        float buttons = ImGui.getStyle().getItemSpacingX() * (labels.length - 1);
+        for (String label : labels) buttons += buttonWidth(label);
+        ImGui.setCursorPosX(ImGui.getCursorPosX()
+                + Math.max(0.0f, ImGui.getContentRegionAvailX() - buttons));
+    }
+
     public static boolean button(String label) {
-        return ImGui.button(label, buttonWidth(), Toolbars.buttonHeight());
+        return ImGui.button(label, buttonWidth(label), Toolbars.buttonHeight());
     }
 
     public static boolean primaryButton(String label, boolean enabled) {
         pushAccent();
         Disabled.push(!enabled);
-        boolean pressed = ImGui.button(label, buttonWidth(), Toolbars.buttonHeight());
+        boolean pressed = ImGui.button(label, buttonWidth(label), Toolbars.buttonHeight());
         Disabled.pop(!enabled);
         ImGui.popStyleColor(ACCENT_COLOR_COUNT);
         return pressed && enabled;
@@ -71,6 +78,12 @@ public final class Dialogs {
 
     public static float buttonWidth() {
         return EditorScale.of(BUTTON_WIDTH);
+    }
+
+    private static float buttonWidth(String label) {
+        int hidden = label.indexOf("##");
+        String shown = hidden < 0 ? label : label.substring(0, hidden);
+        return Math.max(buttonWidth(), ImGui.calcTextSizeX(shown) + ImGui.getStyle().getFramePaddingX() * 2.0f);
     }
 
     private static void center(float width, float height) {

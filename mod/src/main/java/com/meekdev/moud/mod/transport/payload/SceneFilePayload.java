@@ -11,6 +11,8 @@ public record SceneFilePayload(int action, String path) implements CustomPacketP
     public static final int RESTORE = 2;
     public static final int TERRAIN = 3;
     public static final int CLEAN = 4;
+    public static final int RELOAD = 5;
+    public static final int KEEP = 6;
 
     public static final Type<SceneFilePayload> TYPE = Payloads.type("scene_file");
 

@@ -15,6 +15,7 @@ public final class SceneLink {
     private static final long MESSAGE_NANOS = 6_000_000_000L;
 
     private static boolean dirty;
+    private static boolean conflict;
     private static int generation;
     private static String file = "";
     private static String message = "";
@@ -34,6 +35,7 @@ public final class SceneLink {
 
     private static void receive(SceneStatusPayload status) {
         dirty = status.dirty();
+        conflict = status.conflict();
         generation = status.generation();
         file = status.file();
         if (!status.message().isEmpty()) local(status.message());
@@ -47,6 +49,10 @@ public final class SceneLink {
 
     public static boolean dirty() {
         return dirty;
+    }
+
+    public static boolean conflict() {
+        return conflict;
     }
 
     public static String file() {
@@ -89,6 +95,14 @@ public final class SceneLink {
 
     static void clean() {
         file(SceneFilePayload.CLEAN, "");
+    }
+
+    public static void reload() {
+        file(SceneFilePayload.RELOAD, "");
+    }
+
+    public static void keepMine() {
+        file(SceneFilePayload.KEEP, "");
     }
 
     public static void reloadTerrain() {
