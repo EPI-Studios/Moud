@@ -72,9 +72,9 @@
     "fix": "Check the spelling and the reference for {1}. Properties are camelCase, like walkSpeed."
   },
   {
-    "pattern": "(\\w+) wants one of ([\\w, ]+)",
+    "pattern": "(\\w+): unknown value '([^']*)', expected one of ([\\w, ]+)",
     "title": "Not an allowed value for {1}",
-    "why": "It only takes: {2}.",
+    "why": "'{2}' is not one of: {3}.",
     "fix": "Use one of those, written exactly."
   },
   {
