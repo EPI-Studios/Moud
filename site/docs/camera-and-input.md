@@ -141,7 +141,8 @@ playback:stop()
 - Passing a table as the second argument overrides the path's own `duration`, `easing` and
   `direction` for this playback, leaving the instance alone.
 - `camera:play` switches the camera to `scriptable` and, when the playback ends, back to the mode it
-  had. Pass `restore = false` to leave it in `scriptable` instead.
+  had. Pass `restore = false` to leave it in `scriptable` instead. The player's first person arm is
+  hidden while it plays, as it is in any `scriptable` shot.
 - `finished` fires whether the path ran out or something stopped it, so read `completed` before you
   treat it as the end of a cutscene.
 - Playing another path on the same camera stops the first one.

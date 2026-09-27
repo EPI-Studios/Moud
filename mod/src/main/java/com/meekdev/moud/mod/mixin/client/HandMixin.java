@@ -22,7 +22,7 @@ abstract class HandMixin {
 
     @Inject(method = "renderHandsWithItems", at = @At("HEAD"), cancellable = true)
     private void moud$suppress(float tickDelta, PoseStack pose, SubmitNodeCollector collector, LocalPlayer player, int light, CallbackInfo ci) {
-        if (FirstPersonView.draw(pose, collector, player, light)) {
+        if (!FirstPersonView.ownEyes() || FirstPersonView.draw(pose, collector, player, light)) {
             ci.cancel();
             return;
         }

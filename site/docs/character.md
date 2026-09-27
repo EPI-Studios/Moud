@@ -233,6 +233,10 @@ body.appearance.firstPerson = "none"  -- nothing
   switch on the arm always shows, for `"none"` too. See [the place file](place.md).
 - `"body"` hides the arm even with the switch on, because the body is drawn instead.
 - A player with no body sees no arm, unless the `hand` switch is on.
+- The arm and a view model only show while the camera is the player's own eye: `firstPerson` mode,
+  with `camera.subject` left `nil` or set to the player's own body. A `scriptable` camera, a
+  `camera:play` flyover, `thirdPerson` or a subject that is someone else hides them, `hand` switch
+  or not.
 
 <!-- demo:character-firstperson -->
 

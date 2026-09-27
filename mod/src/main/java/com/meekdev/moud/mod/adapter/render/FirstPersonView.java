@@ -12,6 +12,8 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Quat;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.render.Camera;
+import com.meekdev.moud.core.render.CameraMode;
+import com.meekdev.moud.mod.client.ClientPlace;
 import com.meekdev.moud.mod.client.ClientScene;
 import com.meekdev.moud.mod.client.EditMode;
 import com.meekdev.moud.mod.client.PlaceFiles;
@@ -83,6 +85,19 @@ public final class FirstPersonView {
         view.cframe = holder == null ? camera.cframe : Transforms.world(holder).inverse().mul(camera.cframe);
         ViewModels.solve(view, dt);
         offset = Skins.inside() ? ViewModels.offset(view) : CFrame.IDENTITY;
+    }
+
+    public static boolean ownEyes() {
+        Camera camera = ClientPlace.camera();
+        if (camera == null) return true;
+        if (camera.mode != CameraMode.FIRST_PERSON) return false;
+        Instance subject = camera.subject;
+        if (subject == null || !subject.isAlive()) return true;
+        Character body = ClientScene.own();
+        for (Instance at = subject; at != null; at = at.parent()) {
+            if (at == body) return true;
+        }
+        return false;
     }
 
     public static CFrame cameraOffset() {
