@@ -34,7 +34,9 @@ chat = true
   `maxPlayers` is how many players the place takes.
 - `[entry]` names the files Moud runs. `server` runs once on the server, `client` runs once inside
   each player's own game, and `scene` is loaded under `game.world` before the server script runs, so
-  the server script finds the scene's instances already there. `loading` runs in the player's game
+  the server script finds the scene's instances already there. Without `scene`,
+  `scenes/main.scene` is loaded when it exists, so an empty `place.toml` still starts in the scene
+  a new place comes with. `loading` runs in the player's game
   as soon as it starts, and draws the loading screen until the place is running; it is optional, and
   `client/loading.luau` is used when it exists. See
   [The loading screen](game-and-screens.md#the-loading-screen). The same fields are under **Entry**

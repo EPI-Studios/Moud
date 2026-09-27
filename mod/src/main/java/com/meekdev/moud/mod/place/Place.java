@@ -188,7 +188,10 @@ public final class Place {
     }
 
     private String sceneToLoad() {
-        return openScene != null ? openScene : PlaceToml.config().scene();
+        if (openScene != null) return openScene;
+        String path = PlaceToml.config().scene();
+        if (!path.isEmpty()) return path;
+        return Files.isRegularFile(root.resolve(Res.parse(DEFAULT_SCENE))) ? DEFAULT_SCENE : "";
     }
 
     public String saveScene() {
