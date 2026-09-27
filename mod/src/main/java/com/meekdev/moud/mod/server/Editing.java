@@ -264,6 +264,12 @@ public final class Editing {
         Place place = editable(player);
         if (place == null) return;
         MinecraftServer server = player.level().getServer();
+        if (action == SceneFilePayload.CLEAN) {
+            if (!dirty) return;
+            dirty = false;
+            for (ServerPlayer each : server.getPlayerList().getPlayers()) status(each, "");
+            return;
+        }
         try {
             String message = switch (action) {
                 case SceneFilePayload.OPEN -> {

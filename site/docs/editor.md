@@ -20,6 +20,10 @@ you undid it, so the thing that changed is the one the Properties panel shows. T
 history belongs to the scene that is open: opening another scene, or restoring a backup, starts a
 new one. Save and Save As keep it.
 
+Undoing back to where you last saved counts as saved: the **Unsaved** mark in the status bar and the
+dot on the scene tab go away, and closing or switching scenes does not ask. Redoing or making another
+change brings them back.
+
 Things point at each other through reference properties, such as a weld's `part0` and `part1` or a
 model's `primaryPart`. The editor keeps those links when it puts things back:
 

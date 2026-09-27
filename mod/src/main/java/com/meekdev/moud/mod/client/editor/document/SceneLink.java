@@ -87,6 +87,10 @@ public final class SceneLink {
         file(SceneFilePayload.SAVE_AS, scene);
     }
 
+    static void clean() {
+        file(SceneFilePayload.CLEAN, "");
+    }
+
     public static void reloadTerrain() {
         file(SceneFilePayload.TERRAIN, "");
     }

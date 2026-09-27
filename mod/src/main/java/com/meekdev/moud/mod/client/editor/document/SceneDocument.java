@@ -92,6 +92,7 @@ public final class SceneDocument {
     private List<Integer> selectedBeforePlay = List.of();
     private boolean returning;
     private long returnedAt;
+    private int saveFailures;
 
     private record Arrival(ScenePastedPayload pasted, long at) {}
 
@@ -227,6 +228,11 @@ public final class SceneDocument {
             landing.clear();
             gathering = false;
             returning = false;
+            if (dirty()) history.unsaved();
+        }
+        if (saveFailures != SceneLink.saveFailures()) {
+            saveFailures = SceneLink.saveFailures();
+            history.unsaved();
         }
         if (returning && !comeBack()) return;
         for (ScenePastedPayload pasted = SceneLink.takePasted(); pasted != null; pasted = SceneLink.takePasted()) {
@@ -274,6 +280,7 @@ public final class SceneDocument {
             if (System.nanoTime() - returnedAt < ARRIVAL_NANOS) return false;
             returning = false;
             history.clear();
+            if (dirty()) history.unsaved();
             selection.reset();
             return true;
         }
@@ -957,7 +964,18 @@ public final class SceneDocument {
     }
 
     public void save() {
+        history.markSaved();
         SceneLink.save();
+    }
+
+    public void saveAs(String scene) {
+        history.markSaved();
+        SceneLink.saveAs(scene);
+    }
+
+    void cleaned() {
+        if (world() == null) return;
+        afterPastes(SceneLink::clean);
     }
 
     Map<Instance, List<Instance>> groupByParent(List<InstanceRef> roots) {

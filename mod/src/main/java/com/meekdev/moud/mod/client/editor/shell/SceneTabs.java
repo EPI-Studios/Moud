@@ -223,7 +223,7 @@ final class SceneTabs {
             String res = AssetFiles.res(target);
             if (res == null) return;
             tabs.add(res);
-            SceneLink.saveAs(res);
+            document.saveAs(res);
         });
     }
 

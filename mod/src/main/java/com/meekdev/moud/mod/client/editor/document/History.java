@@ -17,6 +17,8 @@ public final class History {
     private final Deque<Entry> undoStack = new ArrayDeque<>();
     private final Deque<Entry> redoStack = new ArrayDeque<>();
     private final SceneDocument document;
+    private int serial;
+    private int saved;
 
     History(SceneDocument document) {
         this.document = document;
@@ -51,8 +53,9 @@ public final class History {
         }
         if (continues) {
             top.forward = edit;
+            top.state = ++serial;
         } else {
-            undoStack.push(new Entry(edit, inverse, edit.gesture(), before));
+            undoStack.push(new Entry(edit, inverse, edit.gesture(), before, ++serial));
             while (undoStack.size() > MAX_ENTRIES) undoStack.pollLast();
         }
         redoStack.clear();
@@ -63,8 +66,9 @@ public final class History {
         Entry top = undoStack.peek();
         if (top != null && top.open && edit.gesture() != null && Objects.equals(edit.gesture(), top.gesture)) {
             top.forward = edit;
+            top.state = ++serial;
         } else {
-            undoStack.push(new Entry(edit, inverse, edit.gesture(), selected()));
+            undoStack.push(new Entry(edit, inverse, edit.gesture(), selected(), ++serial));
             while (undoStack.size() > MAX_ENTRIES) undoStack.pollLast();
         }
         redoStack.clear();
@@ -92,6 +96,7 @@ public final class History {
         if (!swap(entry, entry.inverse)) return;
         redoStack.push(entry);
         select(entry.before);
+        if (atSaved()) document.cleaned();
     }
 
     public void redo() {
@@ -100,6 +105,24 @@ public final class History {
         if (!swap(entry, entry.forward)) return;
         undoStack.push(entry);
         select(entry.after);
+        if (atSaved()) document.cleaned();
+    }
+
+    void markSaved() {
+        saved = state();
+    }
+
+    void unsaved() {
+        saved = -1;
+    }
+
+    boolean atSaved() {
+        return saved == state();
+    }
+
+    private int state() {
+        Entry top = undoStack.peek();
+        return top == null ? 0 : top.state;
     }
 
     private List<InstanceRef> selected() {
@@ -135,6 +158,7 @@ public final class History {
     public void clear() {
         undoStack.clear();
         redoStack.clear();
+        saved = 0;
     }
 
     public Optional<String> undoLabel() {
@@ -156,8 +180,10 @@ public final class History {
         final List<InstanceRef> before;
         List<InstanceRef> after;
         boolean open;
+        int state;
 
-        Entry(Edit forward, Edit inverse, @Nullable String gesture, List<InstanceRef> before) {
+        Entry(Edit forward, Edit inverse, @Nullable String gesture, List<InstanceRef> before, int state) {
+            this.state = state;
             this.forward = forward;
             this.inverse = inverse;
             this.gesture = gesture;
