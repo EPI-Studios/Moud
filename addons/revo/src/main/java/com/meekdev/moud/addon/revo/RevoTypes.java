@@ -37,7 +37,8 @@ final class RevoTypes {
     static String declare(Api api, ClassRegistry classes) {
         Set<String> records = new HashSet<>();
         for (Api.Decl decl : api.classes()) {
-            if (classes.find(decl.name()) == null && !decl.name().equals("Instance")) records.add(decl.name());
+            if (classes.find(decl.name()) != null || decl.name().equals("Instance")) continue;
+            if (decl.members().stream().noneMatch(member -> member.name().startsWith("["))) records.add(decl.name());
         }
         StringBuilder out = new StringBuilder(32768);
         out.append(HEADER);
