@@ -344,8 +344,7 @@ server-port=25570
 | `-Pplayer` | the name the client plays under, so two clients on one machine are two players |
 | `-Pconnect` | connect the way an export with a `[server]` section does, through its lookup or address, to test it without exporting. Passed on as `moud.connect=true` |
 
-A relative `-PrunDir` or `-Pplace` counts from the repository's `mod` folder, so absolute paths are
-the safer choice.
+A relative `-PrunDir` or `-Pplace` counts from the repository root.
 
 ## Scripts as instances
 
