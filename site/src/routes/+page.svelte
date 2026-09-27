@@ -2,6 +2,7 @@
   import DocSidebar from "$lib/components/DocSidebar.svelte"
   import PageIcon from "$lib/components/PageIcon.svelte"
   import Icon from "$lib/components/Icon.svelte"
+  import GetMoud from "$lib/components/GetMoud.svelte"
 
   let { data } = $props()
 </script>
@@ -29,6 +30,7 @@
         builds a tree of instances, which the engine draws, collides and sends to every player. These
         pages cover that tree, every class in it, and how the server and each client share it.
       </p>
+      <GetMoud />
 
       <h2 id="first-place">Your first place</h2>
       <p>

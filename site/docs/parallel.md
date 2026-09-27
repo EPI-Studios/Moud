@@ -79,6 +79,8 @@ while a worker does.
 
 A script that desynchronizes in step 4 or 5 runs in the next tick's parallel phase.
 
+<!-- demo:parallel-phases -->
+
 ## What works in parallel
 
 A script in parallel can read the world but not change it. Writing a property, or calling anything
@@ -209,6 +211,8 @@ for team, score in scores do print(team, score) end
 - `update` may call `fn` more than once when another actor writes the key at the same time, so keep
   `fn` free of anything else.
 - Writing a frozen table is an error: "this SharedTable is frozen".
+
+<!-- demo:parallel-shared -->
 
 > [!NOTE]
 > Shared tables live on one side. The server has its own and each client has its own, like

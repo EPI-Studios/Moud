@@ -27,6 +27,8 @@ walked by their client, see [Players and bodies](players.md#moving-bodies).
 - Both take the options below as their last argument: `npc:walkTo(point, { radius = 1 })`,
   `npc:follow(target, 3, { canClimb = false })`.
 
+<!-- demo:paths-walk -->
+
 ## Asking for a path
 
 ```lua
@@ -180,6 +182,8 @@ local path = game.path:create({
 - There are 58 labels to go round, counting block names, modifier labels and link labels together.
   Past that a new one is plain ground.
 - Costs below 0.01 count as 0.01.
+
+<!-- demo:paths-costs -->
 
 ## PathfindingModifier
 
