@@ -13,20 +13,23 @@ import java.util.List;
 
 final class GlassCover {
 
-    private record Pane(CFrame frame, Vector3 half, Vector3 eye) {}
+    private record Pane(CFrame frame, Vector3 half, Vector3 eye, double radius) {}
 
     private static final double FLAT = 1.0e-9;
     private static final List<Pane> PANES = new ArrayList<>();
+    private static Vector3 seenFrom = Vector3.ZERO;
 
     private GlassCover() {}
 
     static void gather(InstanceTree tree, Vector3 eye, float partialTick) {
         PANES.clear();
+        seenFrom = eye;
         Motion motion = ClientScene.motion();
         for (Part part : tree.ofClass(Classes.PART)) {
             if (!Parts.seeThrough(part)) continue;
             CFrame frame = motion.sample(part, partialTick);
-            PANES.add(new Pane(frame, part.size.mul(0.5), frame.pointToObject(eye)));
+            Vector3 half = part.size.mul(0.5);
+            PANES.add(new Pane(frame, half, frame.pointToObject(eye), half.length()));
         }
     }
 
@@ -39,10 +42,27 @@ final class GlassCover {
     }
 
     static boolean behind(Vector3 at) {
+        double dx = at.x() - seenFrom.x();
+        double dy = at.y() - seenFrom.y();
+        double dz = at.z() - seenFrom.z();
+        double length = dx * dx + dy * dy + dz * dz;
         for (Pane pane : PANES) {
+            if (!near(pane, dx, dy, dz, length)) continue;
             if (crosses(pane, pane.frame().pointToObject(at))) return true;
         }
         return false;
+    }
+
+    private static boolean near(Pane pane, double dx, double dy, double dz, double length) {
+        Vector3 centre = pane.frame().position();
+        double cx = centre.x() - seenFrom.x();
+        double cy = centre.y() - seenFrom.y();
+        double cz = centre.z() - seenFrom.z();
+        double t = length > 0 ? Math.clamp((cx * dx + cy * dy + cz * dz) / length, 0, 1) : 0;
+        double ox = cx - dx * t;
+        double oy = cy - dy * t;
+        double oz = cz - dz * t;
+        return ox * ox + oy * oy + oz * oz <= pane.radius() * pane.radius();
     }
 
     private static boolean crosses(Pane pane, Vector3 to) {
