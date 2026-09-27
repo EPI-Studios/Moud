@@ -559,7 +559,7 @@ final class LuauEngine implements ScriptEngine {
         byte[] bytecode = compile(chunk, source);
         ScriptEngine before = host.enter(this);
         try {
-            state.load(chunk, bytecode);
+            state.load("@" + chunk, bytecode);
             state.call(0, 0);
         } finally {
             host.leave(before);
@@ -582,7 +582,7 @@ final class LuauEngine implements ScriptEngine {
         int before = state.top();
         ScriptEngine entered = host.enter(this);
         try {
-            state.load(chunk, bytecode);
+            state.load("@" + chunk, bytecode);
             if (script != null) push(state, script);
             state.call(script == null ? 0 : 1, -1);
         } catch (LuaError e) {
@@ -591,7 +591,7 @@ final class LuauEngine implements ScriptEngine {
             if (why != null && (why.contains("attempt to yield across") || why.contains("cannot wait here"))) {
                 throw new HostError("res://%s yielded while loading, modules cannot yield at load time", chunk);
             }
-            throw new HostError("res://%s: %s", chunk, why);
+            throw new HostError("res://%s", why != null && why.startsWith(chunk + ":") ? why : chunk + ": " + why);
         } finally {
             host.leave(entered);
         }
@@ -627,7 +627,7 @@ final class LuauEngine implements ScriptEngine {
         LuaState thread = state.newThread();
         int threadRef = state.ref(-1);
         state.pop(1);
-        thread.load(chunk, bytecode);
+        thread.load("@" + chunk, bytecode);
         return new LuauFiber(thread, threadRef, new Object[] {script}, false);
     }
 
