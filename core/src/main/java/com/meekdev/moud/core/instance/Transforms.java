@@ -10,6 +10,7 @@ public final class Transforms {
     public static CFrame world(Instance i) {
         CFrame local = local(i);
         Instance parent = i.parent();
+        while (parent != null && !(parent instanceof Spatial)) parent = parent.parent();
         if (parent == null) return local;
         return world(parent).mul(local);
     }

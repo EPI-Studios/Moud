@@ -113,13 +113,14 @@ public final class Motion {
         if (known != null) return known;
         CFrame local = localAt(instance, alpha);
         Instance parent = instance.parent();
+        while (parent != null && !(parent instanceof Spatial)) parent = parent.parent();
         CFrame world = parent == null ? local : compose(parent, alpha).mul(local);
         composed.put(instance, world);
         return world;
     }
 
     private CFrame localAt(Instance instance, double alpha) {
-        CFrame now = live.get(instance);
+        CFrame now = live.isEmpty() ? null : live.get(instance);
         if (now != null) return now;
         Track track = tracks.get(instance);
         return track == null ? Transforms.local(instance) : (CFrame) track.sampleAt(alpha);
