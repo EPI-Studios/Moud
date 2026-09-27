@@ -1,5 +1,7 @@
 # Moud
 
+<a href="https://discord.gg/ruNs3cMqKB"><img alt="discord" height="48" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/social/discord-plural_vector.svg"></a>
+
 Moud is a game engine that runs inside Minecraft. You write a game in Luau, Moud runs it while
 Minecraft is running, and you ship the result as a mod. Everything your code creates lives in a tree
 of instances that the engine draws, collides and replicates for you.
