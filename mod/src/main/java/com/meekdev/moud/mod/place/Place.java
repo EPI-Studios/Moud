@@ -124,6 +124,7 @@ public final class Place {
     }
 
     private @Nullable String sceneOnDisk;
+    private long diskStamp;
     private @Nullable String openScene;
 
     public boolean editing() {
@@ -243,6 +244,28 @@ public final class Place {
         clearWorld();
         edited = null;
         Scene.load(text, world, classes);
+    }
+
+    public @Nullable String changedOnDisk() {
+        if (!editing || client) return null;
+        Path file = root.resolve(Res.parse(sceneFile()));
+        long stamp;
+        try {
+            stamp = Files.getLastModifiedTime(file).toMillis();
+        } catch (IOException e) {
+            return null;
+        }
+        if (stamp == diskStamp) return null;
+        diskStamp = stamp;
+        String disk;
+        try {
+            disk = new PlaceFileRef(root).read(sceneFile());
+        } catch (RuntimeException e) {
+            return null;
+        }
+        if (disk == null || disk.isBlank() || disk.equals(sceneOnDisk)) return null;
+        sceneOnDisk = disk;
+        return disk;
     }
 
     public Path backup() throws IOException {
