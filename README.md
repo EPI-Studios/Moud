@@ -39,8 +39,8 @@ game.players.joined:connect(function(player)
 end)
 ```
 
-[docs/getting-started.md](docs/getting-started.md) walks through a whole place from there, and
-[docs/README.md](docs/README.md) indexes the rest.
+[site/docs/getting-started.md](site/docs/getting-started.md) walks through a whole place from there,
+and [site/docs/README.md](site/docs/README.md) indexes the rest.
 
 ## The editor
 
@@ -56,21 +56,25 @@ picking, an assets panel, an animation workspace over `.anim` clips, and plugins
 | `script/` | the scripting api, described once for every language, and the Luau adapter |
 | `net/` | the packets the client and server send each other |
 | `mod/` | the Fabric mod: rendering, physics, audio, input and the editor |
-| `addons/revo/`, `addons/java/` | language addons, and the example of how to write one |
-| `docs/` | the engine documentation |
+| `addons/revo/`, `addons/java/` | language addons, each with an example place in `example/place` |
+| `site/docs/` | the engine documentation, which the docs website builds its pages from |
 
 ## Other languages
 
 A place is Luau by default, but the engine under it does not know Luau. Every global, instance,
 signal and hook is described once and handed to whichever language runs the place. Moud picks the
 language from the entry file it finds, so `server/main.rv` makes a Revo place. See
-[docs/languages.md](docs/languages.md).
+[site/docs/languages.md](site/docs/languages.md).
 
 ## Building
 
 You need JDK 25 and these repos cloned next to this one, each built once: `Amnetic`, `Bkun`,
 `Resona`, `polar`, `box3d-java`. Pass `-PamneticJar=/path/to/amnetic.jar` and the like if you keep
 them somewhere else.
+
+The mod ships the Revo addon, which builds its native library with [zig](https://ziglang.org) from a
+`revo` checkout next to this repo, so every build needs both. Pass `-Pzig=/path/to/zig` if zig is not
+on your `PATH`.
 
 ```
 ./gradlew build
@@ -79,11 +83,13 @@ them somewhere else.
 The client and server run through Loom, with the run directory at `../Moud-run`:
 
 ```
+./gradlew :mod:runClient
 ./gradlew :mod:runClient -Pplace=/path/to/place
 ./gradlew :mod:runServer -Pplace=/path/to/place
 ```
 
-`-Pplayer=name` names the player and `-Pjoin=host:port` joins a server on start.
+Without `-Pplace` the client opens the project hub, where you create a place or open one. With it,
+the client goes straight into that place, and the editor opens over it with <kbd>Right Shift</kbd>.
 
-The Revo addon builds its native library with [zig](https://ziglang.org) from a `revo` checkout next
-to this repo. It is only needed if you build `addons:revo`.
+`-Pplayer=name` names the player, `-Pjoin=host:port` joins a server on start, and `-PrunDir=path`
+uses another run directory.
