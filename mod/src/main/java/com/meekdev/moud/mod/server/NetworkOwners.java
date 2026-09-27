@@ -91,7 +91,7 @@ public final class NetworkOwners {
         for (Part part : List.copyOf(tree.ofClass(Classes.PART))) {
             if (done.contains(part)) continue;
             List<Part> group = Assemblies.of(part);
-            done.addAll(group);
+            if (group.size() > 1) done.addAll(group);
             decide(group, players, connected);
         }
         for (Report report = REPORTS.poll(); report != null; report = REPORTS.poll()) take(tree, report, standing);
