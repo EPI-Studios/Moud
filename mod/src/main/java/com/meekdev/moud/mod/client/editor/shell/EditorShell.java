@@ -160,6 +160,7 @@ public final class EditorShell {
     public EditorShell() {
         addCommands();
         document.spawnPoint(viewport::spawnPoint);
+        document.snapStep(viewport::snapStep);
         EditMode.onLeave(document::leaving);
         document.meshSizes(Meshes::naturalSize);
         viewport.header(scenes::renderTabs);
@@ -260,7 +261,7 @@ public final class EditorShell {
 
     private void paste() {
         if (animation.active()) animation.paste();
-        else document.pasteText(ImGui.getClipboardText());
+        else document.pasteAt(ImGui.getClipboardText(), viewport.pointUnderMouse());
     }
 
     private void duplicate() {

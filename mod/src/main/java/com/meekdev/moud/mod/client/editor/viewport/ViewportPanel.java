@@ -660,6 +660,17 @@ public final class ViewportPanel implements Panel, ViewTools {
         return best < SPAWN_REACH ? from.add(direction.mul(best)) : from.add(direction.mul(SPAWN_FALLBACK));
     }
 
+    public @Nullable Vector3 pointUnderMouse() {
+        if (!hovered || view.width() <= 0) return null;
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        return surfaceAt(view.rayOrigin(mouseX, mouseY), view.rayDirection(mouseX, mouseY));
+    }
+
+    public double snapStep() {
+        return gizmoState.snapEnabled() ? gizmoState.gridStep() : 0;
+    }
+
     public boolean flying() {
         return lookGesture || orbitGesture;
     }

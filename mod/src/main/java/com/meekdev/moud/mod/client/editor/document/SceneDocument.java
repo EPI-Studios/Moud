@@ -61,6 +61,7 @@ import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -78,6 +79,7 @@ public final class SceneDocument {
     private final Map<Integer, Paste> waiting = new HashMap<>();
     private final Landing landing = new Landing();
     private Supplier<Vector3> spawnPoint = () -> Vector3.ZERO;
+    private DoubleSupplier snapStep = () -> 0;
     private int generation;
     private Function<String, @Nullable Vector3> meshSize = id -> null;
     private BiFunction<String, Instance, @Nullable Rigged> rigs = (res, holder) -> null;
@@ -86,6 +88,8 @@ public final class SceneDocument {
     private boolean gathering;
     private final Deque<Arrival> arrivals = new ArrayDeque<>();
     private @Nullable String copiedText;
+    private @Nullable String lastPasted;
+    private int repeats;
     private List<Relink> copiedLinks = List.of();
 
     private List<Placed> beforePlay = List.of();
@@ -122,6 +126,10 @@ public final class SceneDocument {
 
     public void spawnPoint(Supplier<Vector3> source) {
         spawnPoint = source;
+    }
+
+    public void snapStep(DoubleSupplier source) {
+        snapStep = source;
     }
 
     public @Nullable InstanceTree tree() {
@@ -551,6 +559,7 @@ public final class SceneDocument {
         for (InstanceRef root : selectedRoots()) roots.add(find(root));
         if (roots.isEmpty()) return null;
         copiedText = snapshot(roots);
+        repeats = 0;
         copiedLinks = relinks(roots, 0, false);
         return copiedText;
     }
@@ -560,6 +569,14 @@ public final class SceneDocument {
     }
 
     public void pasteText(@Nullable String text, boolean into) {
+        paste(text, into, null);
+    }
+
+    public void pasteAt(@Nullable String text, @Nullable Vector3 at) {
+        paste(text, false, at);
+    }
+
+    private void paste(@Nullable String text, boolean into, @Nullable Vector3 at) {
         if (text == null || !text.stripLeading().startsWith(SCENE_TEXT_START) || !text.contains("\"instances\"")) {
             SceneLink.local("The clipboard does not hold scene instances");
             return;
@@ -568,7 +585,67 @@ public final class SceneDocument {
         Instance parent = !editable(primary) ? world() : into ? primary : primary.parent();
         if (parent == null) return;
         List<Relink> links = text.equals(copiedText) ? copiedLinks : List.of();
-        history.execute(Paste.fresh(text, ref(parent.id()), into ? "Paste into" : "Paste", links));
+        String placed = text;
+        if (!into && !inViewport(parent)) {
+            if (at == null) {
+                repeats = text.equals(lastPasted) ? repeats + 1 : 1;
+                lastPasted = text;
+            }
+            try {
+                placed = shifted(text, parent, at, snapStep.getAsDouble(), at == null ? repeats : 0);
+            } catch (RuntimeException e) {
+                placed = text;
+            }
+        }
+        history.execute(Paste.fresh(placed, ref(parent.id()), into ? "Paste into" : "Paste", links));
+    }
+
+    private String shifted(String text, Instance parent, @Nullable Vector3 at, double step, int nudges) {
+        InstanceTree scratch = new InstanceTree();
+        Instance holder = Instances.createRoot(scratch, Classes.FOLDER, "Scratch");
+        List<Instance> roots = Scene.paste(text, holder, Addons.classes());
+        CFrame parentWorld = Transforms.world(parent);
+        double[] box = {Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE};
+        for (Instance root : roots) bound(root, parentWorld, box);
+        if (box[0] > box[3]) return text;
+        Vector3 offset;
+        if (at != null) {
+            offset = new Vector3(at.x() - (box[0] + box[3]) * 0.5, at.y() - box[1], at.z() - (box[2] + box[5]) * 0.5);
+            if (step > 0) offset = new Vector3(Math.round(offset.x() / step) * step, offset.y(), Math.round(offset.z() / step) * step);
+        } else {
+            double nudge = (step > 0 ? step : 1) * nudges;
+            offset = new Vector3(nudge, 0, nudge);
+        }
+        CFrame move = parentWorld.inverse().mul(CFrame.at(offset)).mul(parentWorld);
+        for (Instance root : roots) {
+            if (root instanceof Spatial spatial) spatial.cframe = move.mul(spatial.cframe);
+        }
+        return snapshot(roots);
+    }
+
+    private static void bound(Instance instance, CFrame parentWorld, double[] box) {
+        if (instance instanceof Spatial) {
+            CFrame world = parentWorld.mul(Transforms.world(instance));
+            Vector3 half = Vector3.ZERO;
+            if (instance instanceof Part part) {
+                Vector3 size = part.size.mul(0.5);
+                Vector3 right = world.rightVector();
+                Vector3 up = world.upVector();
+                Vector3 look = world.lookVector();
+                half = new Vector3(
+                        Math.abs(right.x()) * size.x() + Math.abs(up.x()) * size.y() + Math.abs(look.x()) * size.z(),
+                        Math.abs(right.y()) * size.x() + Math.abs(up.y()) * size.y() + Math.abs(look.y()) * size.z(),
+                        Math.abs(right.z()) * size.x() + Math.abs(up.z()) * size.y() + Math.abs(look.z()) * size.z());
+            }
+            Vector3 at = world.position();
+            box[0] = Math.min(box[0], at.x() - half.x());
+            box[1] = Math.min(box[1], at.y() - half.y());
+            box[2] = Math.min(box[2], at.z() - half.z());
+            box[3] = Math.max(box[3], at.x() + half.x());
+            box[4] = Math.max(box[4], at.y() + half.y());
+            box[5] = Math.max(box[5], at.z() + half.z());
+        }
+        for (Instance child : instance.children()) bound(child, parentWorld, box);
     }
 
     public void insertBuilt(List<Instance> roots, String label) {

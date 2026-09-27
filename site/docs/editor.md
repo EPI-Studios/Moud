@@ -35,9 +35,17 @@ model's `primaryPart`. The editor keeps those links when it puts things back:
 
 **Copy** puts the selection on the clipboard as scene text, so it can be pasted into another scene
 or after a restart. Links to things outside the copy are only kept while the scene you copied from
-is open. **Paste** (<kbd>Ctrl+V</kbd>) puts the copy next to the selected object, in its parent, where
-the original was. **Paste Into** (<kbd>Ctrl+Shift+V</kbd>) puts it inside the selected object. The
-pasted things are selected.
+is open. **Paste** (<kbd>Ctrl+V</kbd>) puts the copy next to the selected object, in its parent. Where it
+lands depends on the mouse:
+
+- Over the viewport, the copy sits on whatever is under the mouse: the bottom of its box on the
+  surface, its middle under the pointer. The things in it keep their places around each other. With
+  snapping on, it moves across by whole grid steps, so a copy of something on the grid stays on it.
+- Anywhere else, such as the Explorer or the Edit menu, it goes where the original was, one grid step
+  along X and Z, or one stud with snapping off, so you can see it. Pasting the same copy again moves each one a step further.
+
+**Paste Into** (<kbd>Ctrl+Shift+V</kbd>) puts it inside the selected object, exactly where the
+original was. The pasted things are selected.
 
 Selecting something in the viewport opens its parents in the Explorer and scrolls to it.
 <kbd>F</kbd> frames the selection from anywhere in the editor except a text field.
