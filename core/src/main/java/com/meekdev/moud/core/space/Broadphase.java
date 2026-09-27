@@ -38,11 +38,15 @@ public final class Broadphase {
     public boolean put(Instance instance, Aabb box) {
         Entry current = entries.get(instance);
         if (current != null && current.box.equals(box)) return false;
-        remove(instance);
         Entry entry = new Entry(box);
+        if (current != null && current.sameCells(entry)) {
+            current.box = box;
+            return true;
+        }
+        remove(instance);
         entries.put(instance, entry);
         if (entry.wide) wide.add(instance);
-        else forEachCell(box, key -> cells.computeIfAbsent(key, k -> new ArrayList<>(4)).add(instance));
+        else entry.forEachCell(key -> cells.computeIfAbsent(key, k -> new ArrayList<>(4)).add(instance));
         return true;
     }
 
@@ -53,7 +57,7 @@ public final class Broadphase {
             wide.remove(instance);
             return true;
         }
-        forEachCell(old.box, key -> {
+        old.forEachCell(key -> {
             List<Instance> list = cells.get(key);
             if (list == null) return;
             list.remove(instance);
@@ -127,16 +131,6 @@ public final class Broadphase {
         return entry == null ? null : entry.box;
     }
 
-    private void forEachCell(Aabb box, Consumer<Long> out) {
-        for (int x = floor(box.minX()); x <= floor(box.maxX()); x++) {
-            for (int y = floor(box.minY()); y <= floor(box.maxY()); y++) {
-                for (int z = floor(box.minZ()); z <= floor(box.maxZ()); z++) {
-                    out.accept(key(x, y, z));
-                }
-            }
-        }
-    }
-
     private int floor(double v) {
         return (int) Math.floor(v / cell);
     }
@@ -146,14 +140,40 @@ public final class Broadphase {
     }
 
     private final class Entry {
-        final Aabb box;
+        Aabb box;
         final boolean wide;
+        final int minX;
+        final int minY;
+        final int minZ;
+        final int maxX;
+        final int maxY;
+        final int maxZ;
         int seen;
 
         Entry(Aabb box) {
             this.box = box;
-            this.wide = cellSpan(floor(box.minX()), floor(box.maxX()), floor(box.minY()), floor(box.maxY()),
-                    floor(box.minZ()), floor(box.maxZ()), WIDEST) > WIDEST;
+            minX = floor(box.minX());
+            minY = floor(box.minY());
+            minZ = floor(box.minZ());
+            maxX = floor(box.maxX());
+            maxY = floor(box.maxY());
+            maxZ = floor(box.maxZ());
+            wide = cellSpan(minX, maxX, minY, maxY, minZ, maxZ, WIDEST) > WIDEST;
+        }
+
+        boolean sameCells(Entry other) {
+            return wide == other.wide && minX == other.minX && minY == other.minY && minZ == other.minZ
+                    && maxX == other.maxX && maxY == other.maxY && maxZ == other.maxZ;
+        }
+
+        void forEachCell(Consumer<Long> out) {
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        out.accept(key(x, y, z));
+                    }
+                }
+            }
         }
     }
 }
