@@ -340,7 +340,7 @@ public final class Parts {
         int emitted = 0;
         for (int n = 0; n < parts.size(); n++) {
             Part part = parts.get(n);
-            if (!motion.isMoving(part) && write(shape, ctx, batch, motion, part, false)) emitted++;
+            if (part.shape == shape && !motion.isMoving(part) && write(shape, ctx, batch, motion, part, false)) emitted++;
         }
         STILL_COUNTS[shape.ordinal()] = emitted;
     }
