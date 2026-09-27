@@ -15,7 +15,7 @@ def siblingJar = { String dir, String name, String version, String property ->
     return f
 }
 
-def devRun = file(findProperty('runDir') ?: "${rootDir}/../Moud-run")
+def devRun = rootProject.file(findProperty('runDir') ?: "${rootDir}/../Moud-run")
 def devRunRelative = projectDir.toPath().relativize(devRun.toPath()).toString()
 
 loom {
@@ -27,7 +27,7 @@ loom {
             vmArg '--enable-native-access=ALL-UNNAMED'
             vmArg '-XX:+EnableDynamicAgentLoading'
             vmArg '-Djdk.attach.allowAttachSelf=true'
-            if (findProperty('place')) vmArg "-Dmoud.place=${file(findProperty('place')).absolutePath}"
+            if (findProperty('place')) vmArg "-Dmoud.place=${rootProject.file(findProperty('place')).absolutePath}"
             if (findProperty('join')) programArgs '--quickPlayMultiplayer', findProperty('join')
             if (findProperty('player')) programArgs '--username', findProperty('player')
             if (findProperty('connect') != null) vmArg '-Dmoud.connect=true'
@@ -37,7 +37,7 @@ loom {
             vmArg '--enable-native-access=ALL-UNNAMED'
             vmArg '-XX:+EnableDynamicAgentLoading'
             vmArg '-Djdk.attach.allowAttachSelf=true'
-            if (findProperty('place')) vmArg "-Dmoud.place=${file(findProperty('place')).absolutePath}"
+            if (findProperty('place')) vmArg "-Dmoud.place=${rootProject.file(findProperty('place')).absolutePath}"
             programArgs '--nogui'
         }
     }

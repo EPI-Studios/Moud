@@ -159,4 +159,9 @@ What the engine gets from the host, all language neutral:
   scheduler.
 
 The Revo addon (`addons/revo`) is the example to copy for a language with its own VM, and the Java
-addon (`addons/java`) for one that compiles to the JVM. Each has an example place in `example/place`.
+addon (`addons/java`) for one that compiles to the JVM. Each has an example place in `example/place`,
+which you run from the repository like any other place:
+
+```
+./gradlew :mod:runClient -Pplace=addons/revo/example/place
+```
