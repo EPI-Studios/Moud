@@ -32,7 +32,7 @@ public final class Touches {
     private void run(InstanceTree tree) {
         List<Part> listening = new ArrayList<>();
         for (Part part : tree.ofClass(Classes.PART)) {
-            if (takesPart(part) && (part.touched.count() > 0 || part.touchEnded.count() > 0)) listening.add(part);
+            if ((part.touched.count() > 0 || part.touchEnded.count() > 0) && takesPart(part)) listening.add(part);
         }
         if (listening.isEmpty() && touching.isEmpty()) return;
 
