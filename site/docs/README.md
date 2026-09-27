@@ -282,9 +282,10 @@ rate is, and the engine does the dividing.
 <!-- demo:color -->
 
 > [!TIP]
-> Press <kbd>Right Shift</kbd> in game to open the overlay. It lists the errors your scripts have
-> raised, along with what the renderer and the physics currently think, which is the quickest way to
-> tell whether your place is wrong or the engine is. See [Debugging](debug.md).
+> Press <kbd>Right Shift</kbd> in game to open the editor. Its **Output** panel lists what your
+> scripts printed and every error they raised, and **Window → Renderer Tools** shows what the
+> renderer and the physics currently think, which is the quickest way to tell whether your place is
+> wrong or the engine is. See [Debugging](debug.md).
 
 ## Browse the docs
 

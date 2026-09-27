@@ -217,7 +217,7 @@ return mixin "zoom" {
   changes `view.size`, which the camera hooks in the same state read.
 
 > [!TIP]
-> The **mixins** tab of the <kbd>Right Shift</kbd> overlay lists every hook: side, file, calls and
+> The **mixins** tab under the editor's **Window → Renderer Tools** lists every hook: side, file, calls and
 > milliseconds per second, errors, and a switch to turn one off live. That is how you find the hook
 > that is costing you frames. `mixin.hooks()` gives the same list to a script.
 

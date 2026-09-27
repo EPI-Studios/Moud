@@ -2,7 +2,7 @@
 
 When a place does not do what you meant, you need to see what it actually did. Moud gives you six
 ways to look: printing to the log, drawing shapes in the world, watching values on the screen,
-measuring what queries and scripts cost, timing each render pass, and the in-game overlay. Most of them hang off
+measuring what queries and scripts cost, timing each render pass, and the editor's panels. Most of them hang off
 `game.debug`, which exists on both sides.
 
 ## print
@@ -145,16 +145,24 @@ called, and stops two seconds after the last call. With it off the passes run un
 asked of the graphics card. The same list, with the stage column, is in the editor under **Window → Renderer
 Tools → Info → Profiler**.
 
-## The overlay
+## Output and the inspector tabs
 
-<kbd>Right Shift</kbd> opens the in-game overlay with script errors and what the renderer and physics
-currently think. Its **mixins** tab lists every hook a place put on the game, with calls and time per
-second, errors, and a switch to turn one off (see [mixins](mixins.md)).
+<kbd>Right Shift</kbd> opens the editor over the running place. Its **Output** panel lists prints,
+script errors and warnings, with a filter for each and a link to the file and line of each error.
+
+**Window → Renderer Tools** opens the inspector. Its **moud** tabs show what the engine currently
+thinks:
+
+- **place** counts the parts in the tree and the ones drawn, the collision boxes, your own body and
+  the script's sleeping tasks, and lists the most recent errors.
+- **tree** shows the instance tree as this client holds it.
+- **mixins** lists every hook a place put on the game, with calls and time per second, errors, and a
+  switch to turn one off (see [mixins](mixins.md)).
 
 > [!TIP]
-> The overlay is the quickest way to tell whether your place is wrong or the engine is. If your
-> script raised, the error is listed there with the rest; if it did not, what the renderer and the
-> physics report tells you where the value actually went.
+> These are the quickest way to tell whether your place is wrong or the engine is. If your script
+> raised, the error is in Output; if it did not, what the renderer and the physics report tells you
+> where the value actually went.
 
 ## Seeing collisions
 

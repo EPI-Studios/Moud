@@ -6,7 +6,9 @@ project.
 
 ## Create a place
 
-**New project** in the project hub offers three starts:
+Start Moud and the title screen opens the project hub. From the repository, that is
+`./gradlew :mod:runClient` with no `-Pplace`. **New project** asks for a name, a folder (`Moud` in
+your home folder unless you pick another) and one of three starts:
 
 - **Baseplate** gives you a 128 m floor to build on. Use it when you want to try something out
   straight away.
@@ -19,6 +21,13 @@ project.
 
 Each template is a folder of ordinary files. Nothing in it is generated at build time, so you can
 read and change every part of it.
+
+Pick **Empty** for this page, so the floor you stand on is the one your script makes. **Create**
+opens the new place in the editor. Its `server/main.luau` and `client/main.luau` only print a line
+each; the next two sections replace them. Right click the project in the hub and choose
+**Show the folder** to find the files, and see
+[Editing scripts in your code editor](README.md#editing-scripts-in-your-code-editor) to set up
+completion for them.
 
 ## Write the server script
 
@@ -79,6 +88,10 @@ against.
 That is a whole place. There is no registration step and nothing to declare: a file that exists is a
 file that runs.
 
+Press **Play** at the top of the editor, or <kbd>F6</kbd>, and you land on the floor in first person.
+Hold sneak to see yourself from behind. <kbd>F6</kbd> again, or <kbd>Right Shift</kbd>, goes back to
+editing.
+
 ## Change something while it runs
 
 Save any file in the place and Moud restarts it. Everything the place created is destroyed and made
@@ -126,13 +139,23 @@ that has to look smooth on `renderStepped`, which runs often enough to follow th
 
 ## Waiting without blocking
 
-`task` lets a script wait without stopping the tick that everyone else is on:
+`task` lets a script wait without stopping the tick that everyone else is on. Added to the server
+script, this makes a lantern next to the spawn blink:
 
 ```lua
+local lantern = world:add("Part", {
+    name = "lantern",
+    size = vec3(1, 1, 1),
+    cframe = cframe(0, 66, -4),
+    anchored = true,
+})
+
 task.spawn(function()
     while true do
-        task.wait(0.6)
         lantern.color = color(1, 0.88, 0.5)
+        task.wait(0.6)
+        lantern.color = color(0.3, 0.25, 0.2)
+        task.wait(0.6)
     end
 end)
 
@@ -156,12 +179,12 @@ back to a default:
 
 ```lua
 camera.mode = "birdseye"
--- error: mode wants one of firstPerson, thirdPerson, scriptable
+-- error: mode: unknown value 'birdseye', expected one of firstPerson, thirdPerson, scriptable
 ```
 
-Errors are listed in the in-game overlay, which opens with <kbd>Right Shift</kbd>. The overlay also
-shows what the renderer and the physics currently think, so it tells you whether the place is wrong
-or the engine is.
+Errors show up in the editor's **Output** panel: press <kbd>Right Shift</kbd> to open the editor
+over the running game. They are also written to the game log, `logs/latest.log`. See
+[Debugging](debug.md) for what else the editor tells you about the running place.
 
 ## Next steps
 
