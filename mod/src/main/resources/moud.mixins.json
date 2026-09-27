@@ -71,6 +71,7 @@
     "client.TitleMixin",
     "client.WindowMixin",
     "client.FrameEndMixin",
+    "client.ImGuiFrameMixin",
     "client.PointerMixin",
     "client.ToolAttackMixin"
   ],
