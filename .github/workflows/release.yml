@@ -9,8 +9,6 @@ permissions:
 
 env:
   AMNETIC: Meekiavelique/Amnetic@main
-  BKUN: Meekiavelique/Bkun@box3d
-  RESONA: Meekiavelique/Resona@master
   POLAR: Meekiavelique/polar@fabric
   BOX3D: Meekiavelique/box3d-java@main
   REVO: if-not-nil/revo@efeb3b4
@@ -39,18 +37,14 @@ jobs:
 
       - name: clone the sibling repos
         shell: bash
-        env:
-          TOKEN: ${{ secrets.SIBLINGS_TOKEN || github.token }}
         run: |
           clone() {
             local repo="${1%@*}" ref="${1#*@}" dir="$2"
-            git clone -q "https://x-access-token:${TOKEN}@github.com/${repo}.git" "$dir"
+            git clone -q "https://github.com/${repo}.git" "$dir"
             git -C "$dir" checkout -q "$ref"
             git -C "$dir" submodule update -q --init --recursive
           }
           clone "$AMNETIC" Amnetic
-          clone "$BKUN" Bkun
-          clone "$RESONA" Resona
           clone "$POLAR" polar
           clone "$BOX3D" box3d-java
           clone "$REVO" revo
@@ -69,14 +63,6 @@ jobs:
       - name: box3d natives for every platform
         working-directory: box3d-java
         run: ./gradlew allNatives build -x test
-
-      - name: bkun
-        working-directory: Bkun
-        run: ./gradlew build -x test
-
-      - name: resona
-        working-directory: Resona
-        run: ./gradlew build -x test
 
       - name: polar
         working-directory: polar

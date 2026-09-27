@@ -7,10 +7,12 @@ base {
 }
 
 def siblingJar = { String dir, String name, String version, String property ->
-    def f = file(findProperty(property) ?: "${rootDir}/../${dir}/build/libs/${name}-${version}.jar")
+    def jar = "${name}-${version}.jar"
+    def f = file(findProperty(property) ?: "${rootDir}/../${dir}/build/libs/${jar}")
+    if (!f.exists() && !findProperty(property)) f = file("${rootDir}/lib/${jar}")
     if (!f.exists()) {
-        throw new GradleException("moud needs ${name} at ${f}. build the ${dir} repo "
-                + "next to this one, or pass -P${property}=/path/to/${name}.jar")
+        throw new GradleException("moud needs ${name}. build the ${dir} repo next to this one, "
+                + "put ${jar} in lib/, or pass -P${property}=/path/to/${name}.jar")
     }
     return f
 }
