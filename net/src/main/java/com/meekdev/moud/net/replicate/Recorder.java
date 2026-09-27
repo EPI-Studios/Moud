@@ -4,6 +4,9 @@ import com.meekdev.moud.core.clazz.PropertyDef;
 import com.meekdev.moud.core.clazz.PropertyType;
 import com.meekdev.moud.core.instance.Instance;
 import com.meekdev.moud.core.instance.InstanceTree;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -49,6 +52,14 @@ public final class Recorder {
             }
         });
 
+        List<Instance> ordered = new ArrayList<>();
+        tree.drainOrdered(id -> {
+            Instance instance = tree.byId(id);
+            if (instance != null && instance.parent() != null && !ordered.contains(instance)) ordered.add(instance);
+        });
+        ordered.sort(Comparator.comparingInt(instance -> instance.parent().children().indexOf(instance)));
+        for (Instance instance : ordered) out.accept(new Change.Ordered(instance.id(), before(instance)));
+
         tree.drainRenamed(id -> {
             Instance instance = tree.byId(id);
             if (id <= before && instance != null && instance.parent() != null) out.accept(new Change.Renamed(id, instance.name()));
@@ -73,6 +84,14 @@ public final class Recorder {
                 out.accept(new Change.Wrote(instance.id(), property.index(), read(instance, property)));
             }
         });
+    }
+
+    private static int before(Instance instance) {
+        List<Instance> siblings = instance.parent().children();
+        for (int at = siblings.indexOf(instance) - 1; at >= 0; at--) {
+            if (siblings.get(at).id() > 0) return siblings.get(at).id();
+        }
+        return 0;
     }
 
     static Object read(Instance instance, PropertyDef property) {

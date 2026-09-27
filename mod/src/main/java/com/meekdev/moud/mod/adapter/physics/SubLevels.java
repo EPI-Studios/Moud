@@ -249,6 +249,7 @@ public final class SubLevels {
             case Change.Moved moved -> refreshBranch(moved.id());
             case Change.Tagged ignored -> { }
             case Change.Renamed ignored -> { }
+            case Change.Ordered ignored -> { }
             case Change.Attributed ignored -> { }
         }
     }
@@ -366,6 +367,7 @@ public final class SubLevels {
             case Change.Destroyed ignored -> -1;
             case Change.Tagged ignored -> -1;
             case Change.Renamed ignored -> -1;
+            case Change.Ordered ignored -> -1;
             case Change.Attributed ignored -> -1;
         };
         if (id < 0) return;

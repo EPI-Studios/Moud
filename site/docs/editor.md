@@ -72,7 +72,29 @@ changes again. **File > Scene Backups...** lists both kinds of copy.
 
 ## The Explorer
 
-The Explorer shows the scene as a tree, each object inside its parent.
+The Explorer shows the scene as a tree, each object inside its parent, in the order they are kept in
+the scene file. Scripts see the same order in `children()`, and some things depend on it: a
+`CameraPath` follows its attachments in that order, and a `UIListLayout` uses it for siblings with
+the same `layoutOrder`.
+
+### Dragging rows
+
+Drag a row, or several selected rows, and drop it:
+
+- **on the middle of a row** to put it inside that object, at the end. The row is outlined.
+- **on the top or bottom edge of a row** to put it just before or after that object, in the same
+  parent. A line shows where it goes. On the bottom edge of an open row with children, the line is
+  indented and the drop goes first inside it.
+- **below the last row** to put it at the end of the scene, outside everything.
+
+Dragged things keep their place in the world, and several dragged together keep their order. One drop
+is one step in the history, however many rows it moved, and undo puts each back at its old place
+among its old siblings.
+
+Other steps keep the order too. Undoing a delete puts things back where they were among their
+siblings, not at the end. **Group** puts the new model where the first grouped object was, with the
+objects inside in the order they had. **Ungroup** puts the children where the group was. **Duplicate**
+puts the copies just after the originals, and **Paste** just after the selected object.
 
 ### Filtering
 

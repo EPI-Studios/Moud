@@ -19,8 +19,10 @@ import com.meekdev.moud.core.ui.ViewportFrame;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.editor.assets.AssetsPanel;
 import com.meekdev.moud.mod.client.editor.command.Shortcut;
+import com.meekdev.moud.mod.client.editor.document.Arrange;
 import com.meekdev.moud.mod.client.editor.document.Batch;
 import com.meekdev.moud.mod.client.editor.document.Edit;
+import com.meekdev.moud.mod.client.editor.document.InstanceRef;
 import com.meekdev.moud.mod.client.editor.document.Rename;
 import com.meekdev.moud.mod.client.editor.document.Reparent;
 import com.meekdev.moud.mod.client.editor.document.SceneDocument;
@@ -43,6 +45,7 @@ import imgui.ImGuiListClipper;
 import imgui.callback.ImListClipperCallback;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiDragDropFlags;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
@@ -52,6 +55,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
@@ -87,8 +91,12 @@ public final class ExplorerPanel implements Panel {
     private static final int INDENT_GUIDE_COLOR = EditorStyle.rgba(255, 255, 255, 26);
     private static final int FILTER_CAPACITY = 128;
     private static final int RENAME_CAPACITY = 256;
+    private static final float EDGE_SHARE = 0.25f;
+    private static final float LINE_DOT = 2.5f;
 
     private record Row(Instance instance, int depth, boolean hasChildren) {}
+
+    private enum Drop { BEFORE, INTO, AFTER, FIRST }
 
     private final SceneDocument document;
     private final IconWidgets icons;
@@ -102,6 +110,9 @@ public final class ExplorerPanel implements Panel {
     private int revealed;
     private int scrollTo;
     private boolean focusRename;
+    private float lineLeft;
+    private float lineRight;
+    private float lineY = -1.0f;
     private final ImString renameInput = new ImString(RENAME_CAPACITY);
 
     public ExplorerPanel(SceneDocument document, IconWidgets icons, Runnable onFrameRequested) {
@@ -278,12 +289,14 @@ public final class ExplorerPanel implements Panel {
             return;
         }
         scrollToRevealed();
+        lineY = -1.0f;
         ImGuiListClipper.forEach(rows.size(), new ImListClipperCallback() {
             @Override
             public void accept(int index) {
                 renderRow(rows.get(index), index);
             }
         });
+        drawInsertLine();
         if (!rows.getFirst().hasChildren()) {
             Texts.muted("The scene is empty.");
             Texts.muted("Right click or use the add button to insert an instance.");
@@ -371,22 +384,23 @@ public final class ExplorerPanel implements Panel {
         if (ImGui.isItemHovered() && !editable) ImGui.setTooltip(instance.def().name() + ", made by the engine, not saved");
         if (editable) {
             renderRowDragSource(instance);
-            renderRowDropTarget(instance);
+            renderRowDropTarget(row);
             renderRowContextMenu(instance);
         }
     }
 
-    private void renderRootDrop(Instance world) {
+    private void renderRootDrop(Instance world, boolean last) {
         if (!ImGui.beginDragDropTarget()) return;
         Integer dropped = ImGui.acceptDragDropPayload(PAYLOAD_INSTANCE, Integer.class);
-        if (dropped != null) moveInto(dropped, world.id());
+        if (dropped != null && last) place(moving(dropped), world, null);
+        else if (dropped != null) moveInto(dropped, world.id());
         String asset = ImGui.acceptDragDropPayload(AssetsPanel.PAYLOAD, String.class);
         if (asset != null) document.placeAsset(asset, world.id(), null);
         ImGui.endDragDropTarget();
     }
 
     private void renderRootDropAndMenu(Instance world) {
-        renderRootDrop(world);
+        renderRootDrop(world, false);
         if (ImGui.beginPopupContextItem("explorer-root-menu")) {
             renderRootMenu(world);
             ImGui.endPopup();
@@ -459,29 +473,107 @@ public final class ExplorerPanel implements Panel {
         ImGui.endDragDropSource();
     }
 
-    private void renderRowDropTarget(Instance target) {
+    private void renderRowDropTarget(Row row) {
+        Instance target = row.instance();
         if (!ImGui.beginDragDropTarget()) return;
-        Integer dropped = ImGui.acceptDragDropPayload(PAYLOAD_INSTANCE, Integer.class);
-        if (dropped != null) moveInto(dropped, target.id());
+        Drop zone = ImGui.getDragDropPayload(PAYLOAD_INSTANCE) == null ? Drop.INTO : zone(row);
+        if (zone != Drop.INTO) markInsertLine(zone);
+        Integer dropped = ImGui.acceptDragDropPayload(PAYLOAD_INSTANCE, zone == Drop.INTO ? 0 : ImGuiDragDropFlags.AcceptNoDrawDefaultRect, Integer.class);
+        if (dropped != null) {
+            switch (zone) {
+                case INTO -> moveInto(dropped, target.id());
+                case BEFORE -> place(moving(dropped), target.parent(), target);
+                case AFTER -> place(moving(dropped), target.parent(), following(target));
+                case FIRST -> place(moving(dropped), target, target.children().isEmpty() ? null : target.children().getFirst());
+            }
+        }
         String asset = ImGui.acceptDragDropPayload(AssetsPanel.PAYLOAD, String.class);
         if (asset != null) document.placeAsset(asset, target.id(), target instanceof Spatial ? Transforms.world(target).position() : null);
         ImGui.endDragDropTarget();
     }
 
-    private void moveInto(int dropped, int parent) {
-        List<Integer> moving = new ArrayList<>();
-        if (document.selection().isSelected(dropped)) document.selectedRoots().forEach(root -> moving.add(root.id()));
-        else moving.add(dropped);
+    private Drop zone(Row row) {
+        float top = ImGui.getItemRectMinY();
+        float bottom = ImGui.getItemRectMaxY();
+        float edge = (bottom - top) * EDGE_SHARE;
+        float mouse = ImGui.getMousePosY();
+        if (mouse < top + edge) return Drop.BEFORE;
+        if (mouse <= bottom - edge) return Drop.INTO;
+        boolean open = row.hasChildren() && (!filter().empty() || !collapsed.contains(row.instance().id()));
+        return open ? Drop.FIRST : Drop.AFTER;
+    }
+
+    private void markInsertLine(Drop zone) {
+        float gap = ImGui.getStyle().getItemSpacingY() * 0.5f;
+        lineLeft = ImGui.getItemRectMinX() + (zone == Drop.FIRST ? EditorStyle.indentSpacing() : 0.0f);
+        lineRight = ImGui.getItemRectMaxX();
+        lineY = zone == Drop.BEFORE ? ImGui.getItemRectMinY() - gap : ImGui.getItemRectMaxY() + gap;
+    }
+
+    private void drawInsertLine() {
+        if (lineY < 0.0f || ImGui.getDragDropPayload(PAYLOAD_INSTANCE) == null) return;
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float dot = EditorScale.of(LINE_DOT);
+        drawList.addLine(lineLeft + dot, lineY, lineRight, lineY, EditorStyle.COLOR_ACCENT, EditorScale.ofAtLeastOne(MARKER_WIDTH));
+        drawList.addCircle(lineLeft + dot, lineY, dot, EditorStyle.COLOR_ACCENT, 0, EditorScale.ofAtLeastOne(MARKER_WIDTH * 0.75f));
+    }
+
+    private List<Instance> moving(int dropped) {
+        List<Instance> moving = new ArrayList<>();
+        if (document.selection().isSelected(dropped)) {
+            document.selectedRoots().forEach(root -> moving.add(document.find(root)));
+        } else if (document.find(dropped) != null) {
+            moving.add(document.find(dropped));
+        }
+        return moving;
+    }
+
+    private @Nullable Instance following(Instance instance) {
+        List<Instance> siblings = instance.parent().children();
+        int at = siblings.indexOf(instance);
+        return at + 1 < siblings.size() ? siblings.get(at + 1) : null;
+    }
+
+    private void moveInto(int dropped, int parentId) {
+        Instance parent = document.find(parentId);
+        if (parent == null) return;
+        List<Instance> moving = moving(dropped);
+        moving.removeIf(moved -> moved.parent() == parent);
+        place(moving, parent, null);
+    }
+
+    private void place(List<Instance> picked, @Nullable Instance parent, @Nullable Instance next) {
+        if (parent == null) return;
+        List<Instance> moving = new ArrayList<>();
+        for (Instance moved : document.inTreeOrder(picked)) {
+            if (document.editable(moved) && moved != parent && !isAncestor(moved.id(), parent.id())) moving.add(moved);
+        }
+        if (moving.isEmpty()) return;
+        while (next != null && moving.contains(next)) next = following(next);
+        String label = moving.size() == 1 ? "Move " + moving.getFirst().name() : "Move " + moving.size();
         List<Edit> edits = new ArrayList<>();
-        for (int id : moving) {
-            Instance moved = document.find(id);
-            if (moved == null || id == parent || isAncestor(id, parent) || moved.parent() == document.find(parent)) continue;
-            edits.add(new Reparent(document.ref(id), document.ref(parent)));
-            Edit placed = keepPlace(id, parent);
+        Set<Instance> left = new LinkedHashSet<>();
+        for (Instance moved : moving) {
+            if (moved.parent() != parent) left.add(moved.parent());
+        }
+        for (Instance from : left) {
+            if (from == document.world() || document.editable(from)) edits.add(new Arrange(document.ref(from.id()), document.childRefs(document.ref(from.id())), label));
+        }
+        for (Instance moved : moving) {
+            if (moved.parent() == parent) continue;
+            edits.add(new Reparent(document.ref(moved.id()), document.ref(parent.id())));
+            Edit placed = keepPlace(moved.id(), parent.id());
             if (placed != null) edits.add(placed);
         }
-        if (edits.isEmpty()) return;
-        document.history().execute(edits.size() == 1 ? edits.getFirst() : new Batch("Move", edits));
+        List<InstanceRef> order = new ArrayList<>();
+        for (Instance child : parent.children()) {
+            if (child == next) moving.forEach(moved -> order.add(document.ref(moved.id())));
+            if (document.editable(child) && !moving.contains(child)) order.add(document.ref(child.id()));
+        }
+        if (next == null) moving.forEach(moved -> order.add(document.ref(moved.id())));
+        if (left.isEmpty() && order.equals(document.childRefs(document.ref(parent.id())))) return;
+        edits.add(new Arrange(document.ref(parent.id()), order, label));
+        document.history().execute(new Batch(label, edits));
     }
 
     private @Nullable Edit keepPlace(int id, int parentId) {
@@ -586,7 +678,7 @@ public final class ExplorerPanel implements Panel {
             renderRootMenu(world);
             ImGui.endPopup();
         }
-        if (world != null) renderRootDrop(world);
+        if (world != null) renderRootDrop(world, true);
     }
 
     private void handleShortcuts() {

@@ -47,6 +47,7 @@ public final class Applier {
             case Change.Created created -> create(created);
             case Change.Wrote wrote -> write(wrote);
             case Change.Moved moved -> move(moved);
+            case Change.Ordered ordered -> order(ordered);
             case Change.Destroyed destroyed -> {
                 Instance instance = tree == null ? null : tree.byId(destroyed.id());
                 if (instance != null) Instances.destroy(instance);
@@ -82,6 +83,14 @@ public final class Applier {
         Instance parent = moved.parent() == world.id() ? world : tree.byId(moved.parent());
         if (instance == null || parent == null || instance.parent() == parent) return;
         Instances.reparent(instance, parent);
+    }
+
+    private void order(Change.Ordered ordered) {
+        if (tree == null) return;
+        Instance instance = tree.byId(ordered.id());
+        Instance before = ordered.after() == 0 ? null : tree.byId(ordered.after());
+        if (instance == null || instance.parent() == null || ordered.after() != 0 && (before == null || before.parent() != instance.parent())) return;
+        Instances.placeAfter(instance, before);
     }
 
     private void write(Change.Wrote wrote) {

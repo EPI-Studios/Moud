@@ -65,6 +65,7 @@ public final class InstanceTree {
     private final IdList removed = new IdList();
     private final IdList moved = new IdList();
     private final IdList renamed = new IdList();
+    private final IdList ordered = new IdList();
     private Instance[] scratch = new Instance[32];
     private SpatialIndex spatial;
 
@@ -169,6 +170,10 @@ public final class InstanceTree {
         moved.drain(visitor);
     }
 
+    public void drainOrdered(IntConsumer visitor) {
+        ordered.drain(visitor);
+    }
+
     public void drainRenamed(IntConsumer visitor) {
         renamed.drain(visitor);
     }
@@ -193,6 +198,10 @@ public final class InstanceTree {
 
     void markMoved(Instance i) {
         moved.add(i.id);
+    }
+
+    void markOrdered(Instance i) {
+        if (!mirror) ordered.add(i.id);
     }
 
     void markRenamed(Instance i) {

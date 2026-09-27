@@ -125,6 +125,9 @@ public final class Audience {
                 case Change.Renamed renamed -> {
                     if (has.get(renamed.id())) out.accept(renamed);
                 }
+                case Change.Ordered ordered -> {
+                    if (has.get(ordered.id())) out.accept(ordered);
+                }
                 case Change.Attributed attributed -> {
                     if (has.get(attributed.id())) out.accept(attributed);
                 }

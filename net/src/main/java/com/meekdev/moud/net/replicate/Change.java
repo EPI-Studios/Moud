@@ -10,6 +10,8 @@ public sealed interface Change {
 
     record Moved(int id, int parent) implements Change {}
 
+    record Ordered(int id, int after) implements Change {}
+
     record Destroyed(int id) implements Change {}
 
     record Tagged(int id, String tag, boolean added) implements Change {}

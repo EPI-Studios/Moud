@@ -48,6 +48,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -399,6 +400,73 @@ public final class SceneDocument {
         }
     }
 
+    void order(InstanceRef target, @Nullable InstanceRef after) {
+        editableOrThrow(target);
+        apply(new Change.Ordered(target.id, after == null ? 0 : after.id));
+    }
+
+    void arrange(InstanceRef parentRef, List<InstanceRef> wanted) {
+        Instance parent = require(parentRef);
+        List<Instance> now = new ArrayList<>();
+        for (Instance child : parent.children()) {
+            if (editable(child)) now.add(child);
+        }
+        List<Instance> order = new ArrayList<>();
+        for (InstanceRef ref : wanted) {
+            Instance child = find(ref);
+            if (editable(child) && child.parent() == parent && !order.contains(child)) order.add(child);
+        }
+        for (int n = 0; n < order.size(); n++) {
+            Instance child = order.get(n);
+            if (n < now.size() && now.get(n) == child) continue;
+            order(ref(child.id()), n == 0 ? null : ref(order.get(n - 1).id()));
+            now.remove(child);
+            now.add(n, child);
+        }
+    }
+
+    public List<InstanceRef> childRefs(InstanceRef parentRef) {
+        Instance parent = require(parentRef);
+        List<InstanceRef> children = new ArrayList<>();
+        for (Instance child : parent.children()) {
+            if (editable(child)) children.add(ref(child.id()));
+        }
+        return children;
+    }
+
+    Spot spotBefore(Instance instance) {
+        List<Instance> siblings = instance.parent().children();
+        for (int at = siblings.indexOf(instance) - 1; at >= 0; at--) {
+            if (siblings.get(at).id() > 0) return new Spot(ref(siblings.get(at).id()));
+        }
+        return new Spot(null);
+    }
+
+    void settle(Paste paste) {
+        InstanceRef after = paste.spot() == null ? null : paste.spot().after();
+        for (InstanceRef root : paste.roots()) {
+            Instance placed = find(root);
+            Instance before = after == null ? null : find(after);
+            if (!editable(placed) || after != null && (before == null || before.parent() != placed.parent())) return;
+            order(root, after);
+            after = root;
+        }
+    }
+
+    public List<Instance> inTreeOrder(List<Instance> instances) {
+        Map<Instance, int[]> paths = new IdentityHashMap<>();
+        for (Instance instance : instances) paths.put(instance, path(instance));
+        List<Instance> sorted = new ArrayList<>(instances);
+        sorted.sort((a, b) -> Arrays.compare(paths.get(a), paths.get(b)));
+        return sorted;
+    }
+
+    private static int[] path(Instance instance) {
+        List<Integer> steps = new ArrayList<>();
+        for (Instance at = instance; at.parent() != null; at = at.parent()) steps.addFirst(at.parent().children().indexOf(at));
+        return steps.stream().mapToInt(Integer::intValue).toArray();
+    }
+
     void paste(Paste paste) {
         int token = SceneLink.paste(paste.text(), paste.parent().id);
         waiting.put(token, paste);
@@ -548,7 +616,9 @@ public final class SceneDocument {
         Map<Instance, List<Instance>> byParent = groupByParent(selectedRoots());
         List<Edit> pastes = new ArrayList<>();
         for (Map.Entry<Instance, List<Instance>> group : byParent.entrySet()) {
-            pastes.add(Paste.fresh(snapshot(group.getValue()), ref(group.getKey().id()), "Duplicate", relinks(group.getValue(), 0, false)));
+            List<Instance> members = inTreeOrder(group.getValue());
+            pastes.add(Paste.fresh(snapshot(members), ref(group.getKey().id()), "Duplicate", relinks(members, 0, false),
+                    new Spot(ref(members.getLast().id()))));
         }
         if (pastes.isEmpty()) return;
         history.execute(pastes.size() == 1 ? pastes.getFirst() : new Batch("Duplicate", pastes));
@@ -585,6 +655,7 @@ public final class SceneDocument {
         Instance parent = !editable(primary) ? world() : into ? primary : primary.parent();
         if (parent == null) return;
         List<Relink> links = text.equals(copiedText) ? copiedLinks : List.of();
+        Spot spot = !into && editable(primary) ? new Spot(ref(primary.id())) : null;
         String placed = text;
         if (!into && !inViewport(parent)) {
             if (at == null) {
@@ -597,7 +668,7 @@ public final class SceneDocument {
                 placed = text;
             }
         }
-        history.execute(Paste.fresh(placed, ref(parent.id()), into ? "Paste into" : "Paste", links));
+        history.execute(Paste.fresh(placed, ref(parent.id()), into ? "Paste into" : "Paste", links, spot));
     }
 
     private String shifted(String text, Instance parent, @Nullable Vector3 at, double step, int nudges) {
@@ -987,8 +1058,9 @@ public final class SceneDocument {
 
     public void group() {
         List<InstanceRef> roots = selectedRoots();
-        List<Instance> members = new ArrayList<>();
-        for (InstanceRef root : roots) members.add(find(root));
+        List<Instance> found = new ArrayList<>();
+        for (InstanceRef root : roots) found.add(find(root));
+        List<Instance> members = inTreeOrder(found);
         if (members.isEmpty() || members.getFirst().parent() == null) return;
         Instance parent = members.getFirst().parent();
         String text;
@@ -1003,7 +1075,7 @@ public final class SceneDocument {
             SceneLink.local("Could not group: " + e.getMessage());
             return;
         }
-        history.execute(new Batch(roots.size() == 1 ? "Group" : "Group " + roots.size(), List.of(Paste.fresh(text, ref(parent.id()), "Group", relinks(members, 1, true)), new Destroy(roots, "Group"))));
+        history.execute(new Batch(roots.size() == 1 ? "Group" : "Group " + roots.size(), List.of(Paste.fresh(text, ref(parent.id()), "Group", relinks(members, 1, true), spotBefore(members.getFirst())), new Destroy(roots, "Group"))));
         selection.clear();
     }
 
@@ -1022,7 +1094,7 @@ public final class SceneDocument {
                 SceneLink.local("Could not ungroup " + group.name() + ": " + e.getMessage());
                 continue;
             }
-            edits.add(Paste.fresh(text, ref(group.parent().id()), "Ungroup", relinks(new ArrayList<>(group.children()), 0, true)));
+            edits.add(Paste.fresh(text, ref(group.parent().id()), "Ungroup", relinks(new ArrayList<>(group.children()), 0, true), spotBefore(group)));
             edits.add(new Destroy(List.of(root), "Ungroup"));
         }
         if (edits.isEmpty()) return;

@@ -29,6 +29,7 @@ public final class Codec {
     private static final int TAGGED = 4;
     private static final int RENAMED = 5;
     private static final int ATTRIBUTED = 6;
+    private static final int ORDERED = 7;
 
     private Codec() {}
 
@@ -66,6 +67,11 @@ public final class Codec {
                     out.u8(MOVED);
                     out.zigzag(moved.id());
                     out.zigzag(moved.parent());
+                }
+                case Change.Ordered ordered -> {
+                    out.u8(ORDERED);
+                    out.zigzag(ordered.id());
+                    out.zigzag(ordered.after());
                 }
                 case Change.Destroyed gone -> {
                     out.u8(DESTROYED);
@@ -180,6 +186,7 @@ public final class Codec {
                 }
                 case MOVED -> changes.add(
                         new Change.Moved((int) in.readZigzag(), (int) in.readZigzag()));
+                case ORDERED -> changes.add(new Change.Ordered((int) in.readZigzag(), (int) in.readZigzag()));
                 case DESTROYED -> changes.add(new Change.Destroyed((int) in.readZigzag()));
                 case TAGGED -> changes.add(new Change.Tagged((int) in.readZigzag(), in.readText(), in.readU8() == 1));
                 case RENAMED -> changes.add(new Change.Renamed((int) in.readZigzag(), in.readText()));

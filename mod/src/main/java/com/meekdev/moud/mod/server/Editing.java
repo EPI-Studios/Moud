@@ -155,6 +155,13 @@ public final class Editing {
                 if (parent != world && !sceneOwned(parent, world)) yield "the new parent is not part of the scene";
                 yield null;
             }
+            case Change.Ordered ordered -> {
+                Instance instance = tree.byId(ordered.id());
+                Instance before = ordered.after() == 0 ? null : tree.byId(ordered.after());
+                if (!sceneOwned(instance, world)) yield "that instance is not part of the scene";
+                if (ordered.after() != 0 && (before == null || before.parent() != instance.parent())) yield "those are not side by side";
+                yield null;
+            }
             case Change.Destroyed destroyed -> sceneOwned(tree.byId(destroyed.id()), world) ? null : "that instance is not part of the scene";
             case Change.Tagged tagged -> sceneOwned(tree.byId(tagged.id()), world) ? null : "that instance is not part of the scene";
             case Change.Attributed attributed -> sceneOwned(tree.byId(attributed.id()), world) ? null : "that instance is not part of the scene";

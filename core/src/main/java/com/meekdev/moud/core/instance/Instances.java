@@ -126,6 +126,20 @@ public final class Instances {
         addedBranch(i);
     }
 
+    public static void placeAfter(Instance i, Instance before) {
+        if (i.tree == null) throw new IllegalStateException(i + " is destroyed");
+        if (i.parent == null) throw new IllegalArgumentException("cannot order the root");
+        if (before != null && before.parent != i.parent) throw new IllegalArgumentException(before + " is not beside " + i);
+        List<Instance> siblings = i.parent.children;
+        int at = before == null ? 0 : siblings.indexOf(before) + 1;
+        int from = siblings.indexOf(i);
+        if (before == i || from == at) return;
+        siblings.remove(from);
+        siblings.add(from < at ? at - 1 : at, i);
+        i.tree.structureEpoch++;
+        i.tree.markOrdered(i);
+    }
+
     public static <T> T quietly(InstanceTree tree, Supplier<T> build) {
         boolean held = tree.hierarchyHeld;
         tree.hierarchyHeld = true;
