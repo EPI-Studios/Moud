@@ -1,0 +1,141 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  AMNETIC: Meekiavelique/Amnetic@main
+  BKUN: Meekiavelique/Bkun@box3d
+  RESONA: Meekiavelique/Resona@master
+  POLAR: Meekiavelique/polar@fabric
+  BOX3D: Meekiavelique/box3d-java@main
+  REVO: if-not-nil/revo@efeb3b4
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: Moud
+
+      - name: the tag matches mod_version
+        id: version
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(sed -n 's/^mod_version=//p' Moud/gradle.properties)
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match mod_version=$version in gradle.properties"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: clone the sibling repos
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.SIBLINGS_TOKEN || github.token }}
+        run: |
+          clone() {
+            local repo="${1%@*}" ref="${1#*@}" dir="$2"
+            git clone -q "https://x-access-token:${TOKEN}@github.com/${repo}.git" "$dir"
+            git -C "$dir" checkout -q "$ref"
+            git -C "$dir" submodule update -q --init --recursive
+          }
+          clone "$AMNETIC" Amnetic
+          clone "$BKUN" Bkun
+          clone "$RESONA" Resona
+          clone "$POLAR" polar
+          clone "$BOX3D" box3d-java
+          clone "$REVO" revo
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: box3d natives for every platform
+        working-directory: box3d-java
+        run: ./gradlew allNatives build -x test
+
+      - name: bkun
+        working-directory: Bkun
+        run: ./gradlew build -x test
+
+      - name: resona
+        working-directory: Resona
+        run: ./gradlew build -x test
+
+      - name: polar
+        working-directory: polar
+        run: ./gradlew build -x test
+
+      - name: amnetic
+        working-directory: Amnetic
+        run: |
+          ./gradlew :26.1.2:jar
+          mkdir -p build/libs
+          cp versions/26.1.2/build/libs/amnetic-*+26.1.2.jar build/libs/amnetic-1.0-SNAPSHOT.jar
+
+      - name: moud for every platform
+        working-directory: Moud
+        run: ./gradlew :mod:build -PallPlatforms -x test
+
+      - name: name the jar
+        shell: bash
+        run: |
+          mkdir out
+          cp Moud/mod/build/libs/moud-${{ steps.version.outputs.version }}.jar out/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: moud
+          path: out/*.jar
+
+  natives:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: actions/download-artifact@v4
+        with:
+          name: moud
+      - name: load every native for this platform
+        shell: bash
+        run: java --enable-native-access=ALL-UNNAMED .github/scripts/LoadNatives.java moud-*.jar
+
+  release:
+    needs: [build, natives]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: moud
+      - name: publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" moud-*.jar \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Moud ${{ needs.build.outputs.version }}" \
+            --generate-notes
