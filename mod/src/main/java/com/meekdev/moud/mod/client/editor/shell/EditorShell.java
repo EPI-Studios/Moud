@@ -186,8 +186,10 @@ public final class EditorShell {
         commands.add(new EditorCommand("code-editor", "File", "Code Editor...", null, () -> true, codeEditor::open));
         commands.add(new EditorCommand("export", "File", "Export...", Shortcut.ctrl(ImGuiKey.E, "E"), scenes::ready, export::open));
         commands.add(new EditorCommand("close-project", "File", "Close Project", null, () -> true, this::closeProject));
-        commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo));
-        commands.add(new EditorCommand("redo", "Edit", "Redo", Shortcut.ctrl(ImGuiKey.Y, "Y"), this::canRedo, this::redo));
+        commands.add(new EditorCommand("undo", "Edit", "Undo", Shortcut.ctrl(ImGuiKey.Z, "Z"), this::canUndo, this::undo)
+                .named(() -> document.history().undoLabel().map(step -> "Undo " + step).orElse("Undo")));
+        commands.add(new EditorCommand("redo", "Edit", "Redo", Shortcut.ctrl(ImGuiKey.Y, "Y"), this::canRedo, this::redo)
+                .named(() -> document.history().redoLabel().map(step -> "Redo " + step).orElse("Redo")));
         commands.add(new EditorCommand("redo-shift", "Edit", "Redo", Shortcut.ctrlShift(ImGuiKey.Z, "Z"), this::canRedo, this::redo).hidden());
         commands.add(new EditorCommand("copy", "Edit", "Copy", Shortcut.ctrl(ImGuiKey.C, "C"), this::canEditSelection, this::copy));
         commands.add(new EditorCommand("paste", "Edit", "Paste", Shortcut.ctrl(ImGuiKey.V, "V"), EditMode::allowed, this::paste));

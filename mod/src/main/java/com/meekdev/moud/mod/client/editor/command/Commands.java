@@ -27,7 +27,7 @@ public final class Commands {
             for (EditorCommand command : menu.getValue()) {
                 if (!command.inMenu()) continue;
                 String shortcut = command.shortcut() == null ? "" : command.shortcut().label();
-                if (ImGui.menuItem(command.label() + "###" + command.id(), shortcut, false, command.available().getAsBoolean())) {
+                if (ImGui.menuItem(command.shown() + "###" + command.id(), shortcut, false, command.available().getAsBoolean())) {
                     command.action().run();
                 }
             }

@@ -200,7 +200,7 @@ final class TransformGizmo {
                 edits.addAll(scaleWrites(instance, parent, world, start, factor));
                 scaleBelow(instance, world, about, factor, edits);
             }
-            document.history().execute(new Batch("Scale", edits));
+            document.history().execute(new Batch(named("Scale"), edits));
             return;
         }
         Matrix4f delta = new Matrix4f(moved).mul(new Matrix4f(gizmoStart).invert());
@@ -219,8 +219,12 @@ final class TransformGizmo {
             CFrame world = new CFrame(position, turn.mul(start.world().rotation()).normalize());
             edits.addAll(Frames.worldWrites(document, instance, world, null));
         }
-        String label = state.tool() == GizmoState.Tool.ROTATE ? "Rotate" : "Move";
-        document.history().execute(new Batch(label, edits));
+        document.history().execute(new Batch(named(state.tool() == GizmoState.Tool.ROTATE ? "Rotate" : "Move"), edits));
+    }
+
+    private String named(String verb) {
+        Instance only = moving.size() == 1 ? document.find(moving.getFirst()) : null;
+        return only == null ? verb : verb + " " + only.name();
     }
 
     private void scaleBelow(Instance at, CFrame world, Vector3 about, Vector3 factor, List<Edit> edits) {

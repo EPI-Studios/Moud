@@ -18,6 +18,6 @@ public record Rename(InstanceRef target, String name) implements Edit {
 
     @Override
     public String label() {
-        return "Rename";
+        return "Rename " + name;
     }
 }

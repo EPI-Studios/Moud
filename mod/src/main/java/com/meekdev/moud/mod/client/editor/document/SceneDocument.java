@@ -525,7 +525,7 @@ public final class SceneDocument {
     public void deleteSelected() {
         List<InstanceRef> roots = selectedRoots();
         if (roots.isEmpty()) return;
-        history.execute(new Destroy(roots, roots.size() == 1 ? "Delete" : "Delete " + roots.size()));
+        history.execute(new Destroy(roots, roots.size() == 1 ? "Delete " + find(roots.getFirst()).name() : "Delete " + roots.size()));
         selection.clear();
     }
 
