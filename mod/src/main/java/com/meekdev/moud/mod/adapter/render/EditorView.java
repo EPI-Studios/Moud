@@ -49,7 +49,9 @@ public final class EditorView {
     }
 
     public static void ghosts(boolean on) {
+        if (ghosts == on) return;
         ghosts = on;
+        Parts.invalidateStatic();
     }
 
     public static boolean ghost(Part part) {

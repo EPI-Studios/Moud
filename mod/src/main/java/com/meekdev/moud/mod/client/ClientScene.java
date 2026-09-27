@@ -21,6 +21,7 @@ import com.meekdev.moud.mod.adapter.physics.ClientPhysics;
 import com.meekdev.moud.mod.adapter.physics.OwnedBodies;
 import com.meekdev.moud.mod.adapter.physics.PlayerMirror;
 import com.meekdev.moud.mod.adapter.render.PartLight;
+import com.meekdev.moud.mod.adapter.render.Parts;
 import com.meekdev.moud.mod.adapter.render.Skins;
 import com.meekdev.moud.mod.addon.Addons;
 import com.meekdev.moud.mod.client.tool.ClientTools;
@@ -38,7 +39,7 @@ public final class ClientScene {
 
     private static final double TICK_SECONDS = 0.05;
 
-    private static final Motion MOTION = new Motion();
+    private static final Motion MOTION = new Motion(Parts.LOOKS);
 
     private ClientScene() {}
 
@@ -92,7 +93,7 @@ public final class ClientScene {
         MOTION.drain(tree);
         for (Part part : tree.ofClass(Classes.PART)) {
             if (part instanceof Limb || ViewportFrame.inside(part)) continue;
-            PartLight.refresh(part, MOTION.sample(part).position());
+            if (PartLight.refresh(part, MOTION.sample(part).position()) && !MOTION.isMoving(part)) MOTION.stillChanged();
         }
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
             PartLight.refresh(instance, MOTION.sample(instance).position());

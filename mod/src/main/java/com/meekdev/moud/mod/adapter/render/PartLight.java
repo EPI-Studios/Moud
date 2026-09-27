@@ -23,13 +23,17 @@ public final class PartLight {
         return known != null ? known : FULL;
     }
 
-    public static void refresh(Instance part, Vector3 at) {
+    public static boolean refresh(Instance part, Vector3 at) {
         Level level = Minecraft.getInstance().level;
-        if (level == null) return;
+        if (level == null) return false;
         int packed = LevelRenderer.getLightCoords(level,
                 BlockPos.containing(at.x(), at.y(), at.z()));
-        BY_PART.computeIfAbsent(part, p -> new Vector2f())
-                .set(packed & 0xFFFF, (packed >> 16) & 0xFFFF);
+        float block = packed & 0xFFFF;
+        float sky = (packed >> 16) & 0xFFFF;
+        Vector2f known = BY_PART.get(part);
+        if (known != null && known.x == block && known.y == sky) return false;
+        BY_PART.computeIfAbsent(part, p -> new Vector2f()).set(block, sky);
+        return true;
     }
 
     public static void forget(Instance part) {

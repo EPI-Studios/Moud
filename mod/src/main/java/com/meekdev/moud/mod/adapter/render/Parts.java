@@ -48,6 +48,10 @@ import org.joml.Vector4f;
 
 public final class Parts {
 
+    public static final Set<String> LOOKS = Set.of("size", "shape", "color", "texture", "studsPerTile",
+            "textureOffset", "shading", "roughness", "metallic", "normalMap", "roughnessMap", "metallicMap",
+            "occlusionMap", "emission", "emissionMap", "emissionStrength", "transparency", "visible", "castShadow");
+
     private static final Identifier[] STILL = ids("parts_still");
     private static final Identifier[] MOVING = ids("parts_moving");
     private static final Identifier[] GLASS = ids("parts_glass");
