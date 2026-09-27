@@ -12,6 +12,7 @@ import com.meekdev.moud.core.instance.InstanceTree;
 import com.meekdev.moud.core.instance.Stage;
 import com.meekdev.moud.core.instance.Stages;
 import com.meekdev.moud.core.interp.Motion;
+import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.query.Touches;
 import com.meekdev.moud.core.ui.ViewportFrame;
@@ -96,7 +97,8 @@ public final class ClientScene {
             if (PartLight.refresh(part, MOTION.sample(part).position()) && !MOTION.isMoving(part)) MOTION.stillChanged();
         }
         for (Instance instance : tree.ofClass(Classes.CHARACTER)) {
-            PartLight.refresh(instance, MOTION.sample(instance).position());
+            if (!(instance instanceof Character body)) continue;
+            PartLight.refresh(body, MOTION.sample(body).pointToWorld(new Vector3(0, body.height * body.scale * 0.5, 0)));
         }
     }
 
