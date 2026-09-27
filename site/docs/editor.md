@@ -15,7 +15,8 @@ gizmo drag, a rename, a drop in the Explorer, a paste, a group, a delete, an ani
 <kbd>Ctrl+Z</kbd> undoes it and <kbd>Ctrl+Y</kbd> or <kbd>Ctrl+Shift+Z</kbd> does it again. The
 **Edit** menu names the step either would take, such as **Undo Move Crate** or **Redo Rename Lamp**. A
 move, rotate, scale, delete or rename of one thing names it; one of several says how many or just
-what it did. The
+what it did. Undo also selects what was selected before the step, and redo what was selected when
+you undid it, so the thing that changed is the one the Properties panel shows. The
 history belongs to the scene that is open: opening another scene, or restoring a backup, starts a
 new one. Save and Save As keep it.
 

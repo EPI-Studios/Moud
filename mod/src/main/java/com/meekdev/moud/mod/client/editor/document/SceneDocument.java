@@ -919,8 +919,8 @@ public final class SceneDocument {
             SceneLink.local("Could not group: " + e.getMessage());
             return;
         }
-        selection.clear();
         history.execute(new Batch(roots.size() == 1 ? "Group" : "Group " + roots.size(), List.of(Paste.fresh(text, ref(parent.id()), "Group", relinks(members, 1, true)), new Destroy(roots, "Group"))));
+        selection.clear();
     }
 
     public void ungroup() {
@@ -942,8 +942,8 @@ public final class SceneDocument {
             edits.add(new Destroy(List.of(root), "Ungroup"));
         }
         if (edits.isEmpty()) return;
-        selection.clear();
         history.execute(new Batch("Ungroup", edits));
+        selection.clear();
     }
 
     private void relocate(List<Instance> members, Instance parent, Instance into) {

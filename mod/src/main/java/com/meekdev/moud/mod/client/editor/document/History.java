@@ -3,7 +3,9 @@ package com.meekdev.moud.mod.client.editor.document;
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.place.Output;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
@@ -34,6 +36,7 @@ public final class History {
         Entry top = undoStack.peek();
         boolean continues = top != null && top.open && edit.gesture() != null && Objects.equals(edit.gesture(), top.gesture);
         Edit inverse = null;
+        List<InstanceRef> before = selected();
         if (!continues) {
             try {
                 inverse = edit.invert(document);
@@ -49,7 +52,7 @@ public final class History {
         if (continues) {
             top.forward = edit;
         } else {
-            undoStack.push(new Entry(edit, inverse, edit.gesture()));
+            undoStack.push(new Entry(edit, inverse, edit.gesture(), before));
             while (undoStack.size() > MAX_ENTRIES) undoStack.pollLast();
         }
         redoStack.clear();
@@ -61,7 +64,7 @@ public final class History {
         if (top != null && top.open && edit.gesture() != null && Objects.equals(edit.gesture(), top.gesture)) {
             top.forward = edit;
         } else {
-            undoStack.push(new Entry(edit, inverse, edit.gesture()));
+            undoStack.push(new Entry(edit, inverse, edit.gesture(), selected()));
             while (undoStack.size() > MAX_ENTRIES) undoStack.pollLast();
         }
         redoStack.clear();
@@ -85,8 +88,10 @@ public final class History {
         Entry entry = undoStack.poll();
         if (entry == null) return;
         entry.open = false;
+        entry.after = selected();
         if (!swap(entry, entry.inverse)) return;
         redoStack.push(entry);
+        select(entry.before);
     }
 
     public void redo() {
@@ -94,6 +99,23 @@ public final class History {
         if (entry == null) return;
         if (!swap(entry, entry.forward)) return;
         undoStack.push(entry);
+        select(entry.after);
+    }
+
+    private List<InstanceRef> selected() {
+        List<InstanceRef> refs = new ArrayList<>();
+        for (int id : document.selection().all()) refs.add(document.ref(id));
+        return refs;
+    }
+
+    private void select(List<InstanceRef> refs) {
+        document.afterPastes(() -> {
+            List<Integer> ids = new ArrayList<>();
+            for (InstanceRef ref : refs) {
+                if (document.find(ref) != null) ids.add(ref.id());
+            }
+            document.selection().set(ids);
+        });
     }
 
     private boolean swap(Entry entry, Edit run) {
@@ -131,12 +153,16 @@ public final class History {
         Edit forward;
         Edit inverse;
         final @Nullable String gesture;
+        final List<InstanceRef> before;
+        List<InstanceRef> after;
         boolean open;
 
-        Entry(Edit forward, Edit inverse, @Nullable String gesture) {
+        Entry(Edit forward, Edit inverse, @Nullable String gesture, List<InstanceRef> before) {
             this.forward = forward;
             this.inverse = inverse;
             this.gesture = gesture;
+            this.before = before;
+            this.after = before;
             this.open = gesture != null;
         }
     }
