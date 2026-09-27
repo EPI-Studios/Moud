@@ -86,7 +86,7 @@ public final class Scheduler {
                 out = task.waiting.waiter().poll(dt);
             } catch (RuntimeException e) {
                 stop(task);
-                host.error("task " + task.id, e);
+                report(task, e);
                 continue;
             }
             if (out == null) continue;
@@ -155,7 +155,16 @@ public final class Scheduler {
 
     void failed(Task task, RuntimeException e) {
         finish(task);
-        host.error("task " + task.id, e);
+        report(task, e);
+    }
+
+    private void report(Task task, RuntimeException e) {
+        Object before = host.ownership().enter(task.owner);
+        try {
+            host.error("task " + task.id, e);
+        } finally {
+            host.ownership().leave(before);
+        }
     }
 
     private void finish(Task task) {
