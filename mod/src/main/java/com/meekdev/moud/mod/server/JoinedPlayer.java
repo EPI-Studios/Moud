@@ -1,6 +1,7 @@
 package com.meekdev.moud.mod.server;
 
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.mod.adapter.physics.Physics;
 import com.meekdev.moud.script.api.ControlsRef;
@@ -41,6 +42,11 @@ final class JoinedPlayer implements PlayerRef {
     @Override
     public void spawn(Vector3 position) {
         Spawning.spawn(player, position);
+    }
+
+    @Override
+    public void spawn(CFrame at) {
+        Spawning.spawn(player, at);
     }
 
     @Override

@@ -372,7 +372,7 @@ Methods:
 
 Methods:
 
-- `spawn(position: Vector3?): Character` (server)
+- `spawn(at: (Vector3 | CFrame)?): Character` (server)
 - `kick(message: string?): ()`
 - `ban(reason: string?, seconds: number?): ()`
 - `ping(): number`

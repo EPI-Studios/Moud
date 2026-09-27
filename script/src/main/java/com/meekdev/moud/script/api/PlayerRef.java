@@ -1,6 +1,7 @@
 package com.meekdev.moud.script.api;
 
 import com.meekdev.moud.core.instance.Instance;
+import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 
 public interface PlayerRef {
@@ -12,6 +13,10 @@ public interface PlayerRef {
     Instance character();
 
     void spawn(Vector3 position);
+
+    default void spawn(CFrame at) {
+        spawn(at.position());
+    }
 
     ControlsRef controls();
 

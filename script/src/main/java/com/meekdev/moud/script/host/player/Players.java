@@ -52,9 +52,10 @@ public final class Players {
                 .declare("controls", "PlayerControls")
                 .declare("team", "Team?")
                 .declare("leaderstats", "Leaderstats?")
-                .method("spawn", "(position: Vector3?) -> Character", a -> {
+                .method("spawn", "(at: (Vector3 | CFrame)?) -> Character", a -> {
                     PlayerRef player = a.self(Player.class).ref();
-                    player.spawn(a.has(1) ? Values.real(a.vector(1), "position") : null);
+                    if (a.get(1) instanceof CFrame at) player.spawn(Values.real(at, "at"));
+                    else player.spawn(a.has(1) ? Values.real(a.vector(1), "position") : null);
                     return player.character();
                 })
                 .method("ban", "(reason: string?, seconds: number?) -> ()", a -> {

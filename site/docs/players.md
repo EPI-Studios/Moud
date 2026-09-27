@@ -31,12 +31,17 @@ game.players.joined:connect(function(player)
     task.delay(2, function()
         player:spawn()                          -- on a SpawnLocation
         -- player:spawn(vec3(10, 66, 4))        -- or exactly here
+        -- player:spawn(cframe.lookAt(vec3(10, 66, 4), vec3(0, 66, 0)))   -- here, facing the middle
     end)
 end)
 ```
 
 - `player:spawn()` gives a player without a body a new one. A player whose body is dead gets a
   fresh body. A living body is moved. It returns the body either way.
+- Where the player faces comes from what you pass. With nothing, they stand on a SpawnLocation
+  facing its front, its `lookVector`, and looking level. With a `vec3` they keep the way they were
+  already facing. With a `CFrame` they stand at its position and look along its `lookVector`, up
+  and down included.
 - With `autoSpawn` on, a body whose `humanoid` dies gets a new one after `respawnTime`. With it off,
   a dead body stays until a script calls `player:spawn()`.
 

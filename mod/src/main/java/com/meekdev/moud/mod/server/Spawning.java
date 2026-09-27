@@ -67,7 +67,14 @@ public final class Spawning {
         }
     }
 
-    private record Point(Vector3 position, double yawDegrees) {}
+    private record Point(Vector3 position, double yawDegrees, double pitchDegrees) {
+
+        static Point facing(Vector3 position, Vector3 look) {
+            double yaw = Math.toDegrees(Math.atan2(-look.x(), look.z()));
+            double pitch = Math.toDegrees(-Math.asin(Math.clamp(look.y() / Math.max(look.length(), 1e-9), -1, 1)));
+            return new Point(position, yaw, pitch);
+        }
+    }
 
     private static Rules rules = new Rules();
     private static final Map<UUID, Double> dead = new HashMap<>();
@@ -87,15 +94,23 @@ public final class Spawning {
     }
 
     static void spawn(ServerPlayer player, @Nullable Vector3 at) {
+        spawnAt(player, at == null ? null : new Point(at, player.getYRot(), player.getXRot()));
+    }
+
+    static void spawn(ServerPlayer player, CFrame at) {
+        spawnAt(player, Point.facing(at.position(), at.lookVector()));
+    }
+
+    private static void spawnAt(ServerPlayer player, @Nullable Point at) {
         if (place(player, at)) announce(player);
     }
 
-    static boolean place(ServerPlayer player, @Nullable Vector3 at) {
+    static boolean place(ServerPlayer player, @Nullable Point at) {
         Instance world = ServerScene.world();
         InstanceTree tree = ServerScene.tree();
         if (world == null || tree == null) return false;
         boolean fresh = false;
-        Point point = at != null ? new Point(at, player.getYRot()) : point(tree, Teams.of(player));
+        Point point = at != null ? at : point(tree, Teams.of(player));
         Character character = Physics.bodies().of(player, tree);
         if (character != null && Rig.humanoid(character) instanceof Humanoid humanoid && humanoid.state == HumanoidState.DEAD) {
             Physics.bodies().release(player);
@@ -109,7 +124,7 @@ public final class Spawning {
             Teams.mirror(player);
             fresh = true;
         }
-        player.teleportTo(player.level(), point.position().x(), point.position().y(), point.position().z(), Set.of(), (float) point.yawDegrees(), player.getXRot(), true);
+        player.teleportTo(player.level(), point.position().x(), point.position().y(), point.position().z(), Set.of(), (float) point.yawDegrees(), (float) point.pitchDegrees(), true);
         Characters.place(character, point.position(), point.yawDegrees());
         dead.remove(player.getUUID());
         if (waiting.remove(player.getUUID())) send(player);
@@ -125,7 +140,7 @@ public final class Spawning {
     static void respawned(ServerPlayer player) {
         InstanceTree tree = ServerScene.tree();
         if (tree == null) return;
-        if (Physics.bodies().of(player, tree) != null || rules.autoSpawn) spawn(player, null);
+        if (Physics.bodies().of(player, tree) != null || rules.autoSpawn) spawnAt(player, null);
         else hold(player);
         send(player);
     }
@@ -134,7 +149,7 @@ public final class Spawning {
         InstanceTree tree = ServerScene.tree();
         if (tree == null) return;
         Point point = point(tree, Teams.of(player));
-        player.teleportTo(player.level(), point.position().x(), point.position().y(), point.position().z(), Set.of(), (float) point.yawDegrees(), player.getXRot(), true);
+        player.teleportTo(player.level(), point.position().x(), point.position().y(), point.position().z(), Set.of(), (float) point.yawDegrees(), (float) point.pitchDegrees(), true);
         waiting.add(player.getUUID());
         send(player);
     }
@@ -160,7 +175,7 @@ public final class Spawning {
                 continue;
             }
             double since = dead.merge(player.getUUID(), dt, Double::sum);
-            if (rules.autoSpawn && since >= rules.respawnTime) spawn(player, null);
+            if (rules.autoSpawn && since >= rules.respawnTime) spawnAt(player, null);
         }
     }
 
@@ -220,12 +235,11 @@ public final class Spawning {
             if (Teams.allowed(location, team)) open.add(location);
         }
         if (open.isEmpty()) open = anyTeam;
-        if (open.isEmpty()) return new Point(FALLBACK, 0);
+        if (open.isEmpty()) return new Point(FALLBACK, 0, 0);
         SpawnLocation chosen = open.get(ThreadLocalRandom.current().nextInt(open.size()));
         CFrame frame = Transforms.world(chosen);
         Vector3 top = frame.mul(CFrame.at(0, chosen.size.y() * 0.5, 0)).position();
-        Vector3 facing = frame.vectorToWorld(new Vector3(0, 0, -1));
-        double yaw = Math.toDegrees(Math.atan2(-facing.x(), facing.z()));
-        return new Point(top, yaw);
+        Vector3 look = frame.lookVector();
+        return Point.facing(top, new Vector3(look.x(), 0, look.z()));
     }
 }
