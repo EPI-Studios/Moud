@@ -25,67 +25,109 @@ public final class MeshSources implements MeshesRef {
 
     public static final MeshSources INSTANCE = new MeshSources();
 
+    private static final int POSITION_OFFSET = 0;
+    private static final int NORMAL_OFFSET = 3;
+    private static final int UV_OFFSET = 6;
+
+    private record Point(float x, float y, float z) {
+        static Point of(Vector3f position) {
+            return new Point(plainZero(position.x), plainZero(position.y), plainZero(position.z));
+        }
+
+        private static float plainZero(float value) {
+            return value == 0 ? 0f : value;
+        }
+    }
+
+    private record VertexIndices(int[] positions, int[] normals, int[] uvs) {
+        VertexIndices(int count) {
+            this(new int[count], new int[count], new int[count]);
+        }
+    }
+
     private MeshSources() {}
 
     @Override
     public CompletableFuture<EditableMesh> load(String source) {
         if (!source.startsWith(Res.SCHEME) || source.contains("#")) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("meshes.load reads a res:// model file or an editable mesh, not " + source));
+            return refuse("meshes.load reads a res:// model file or an editable mesh, not " + source);
         }
         ModelFormat format = ModelFormat.fromPath(source);
         if (format == null || format == ModelFormat.OBJ) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException(source + " is not a glTF, ammesh or bbmodel file"));
+            return refuse(source + " is not a glTF, ammesh or bbmodel file");
         }
         byte[] bytes = PlaceFiles.read(source);
-        if (bytes == null) return CompletableFuture.failedFuture(new IllegalArgumentException("there is no " + source));
+        if (bytes == null) {
+            return refuse("there is no " + source);
+        }
         return CompletableFuture.supplyAsync(() -> fromModel(parse(bytes, format, source)));
+    }
+
+    private static CompletableFuture<EditableMesh> refuse(String message) {
+        return CompletableFuture.failedFuture(new IllegalArgumentException(message));
     }
 
     private static ModelIR parse(byte[] bytes, ModelFormat format, String source) {
         return switch (format) {
             case GLTF -> AmmeshReader.read(AmmeshConverter.convert(bytes, PlaceFiles.idOf(source)));
-            case BBMODEL -> BbmodelParser.parse(BbmodelImport.modernize(new String(bytes, StandardCharsets.UTF_8))
-                    .getBytes(StandardCharsets.UTF_8), source);
+            case BBMODEL -> BbmodelParser.parse(modernBbmodel(bytes), source);
             default -> AmmeshReader.read(bytes);
         };
     }
 
+    private static byte[] modernBbmodel(byte[] bytes) {
+        String json = new String(bytes, StandardCharsets.UTF_8);
+        return BbmodelImport.modernize(json).getBytes(StandardCharsets.UTF_8);
+    }
+
     static EditableMesh fromModel(ModelIR model) {
         EditableMesh mesh = new EditableMesh();
-        Map<List<Float>, Integer> vertexAt = new HashMap<>();
-        for (ModelIR.Part part : model.parts()) addPart(mesh, part, model.materials(), vertexAt);
+        Map<Point, Integer> welded = new HashMap<>();
+        for (ModelIR.Part part : model.parts()) addPart(mesh, part, model.materials(), welded);
         mesh.removeUnused();
         return mesh;
     }
 
-    private static void addPart(EditableMesh mesh, ModelIR.Part part, List<ModelIR.Material> materials, Map<List<Float>, Integer> vertexAt) {
+    private static void addPart(EditableMesh mesh, ModelIR.Part part, List<ModelIR.Material> materials, Map<Point, Integer> welded) {
+        VertexIndices indices = addVertices(mesh, part, welded);
+        int color = addColor(mesh, part, materials);
+        addTriangles(mesh, part, indices, color);
+    }
+
+    private static VertexIndices addVertices(EditableMesh mesh, ModelIR.Part part, Map<Point, Integer> welded) {
         int count = part.vertexCount();
-        int[] vertex = new int[count];
-        int[] normal = new int[count];
-        int[] uv = new int[count];
-        Matrix3f turn = part.transform.normal(new Matrix3f());
+        VertexIndices indices = new VertexIndices(count);
+        Matrix3f normalTransform = part.transform.normal(new Matrix3f());
         Vector3f position = new Vector3f();
-        Vector3f facing = new Vector3f();
+        Vector3f normal = new Vector3f();
         float[] data = part.vertices;
         for (int n = 0; n < count; n++) {
             int base = n * ModelIR.VERTEX_STRIDE_FLOATS;
-            part.transform.transformPosition(position.set(data[base], data[base + 1], data[base + 2]));
-            turn.transform(facing.set(data[base + 3], data[base + 4], data[base + 5])).normalize();
-            vertex[n] = weld(mesh, vertexAt, position);
-            normal[n] = mesh.addNormal(new Vector3(facing.x, facing.y, facing.z));
-            uv[n] = mesh.addUV(data[base + 6], data[base + 7]);
+            int positionAt = base + POSITION_OFFSET;
+            int normalAt = base + NORMAL_OFFSET;
+            int uvAt = base + UV_OFFSET;
+            part.transform.transformPosition(position.set(data[positionAt], data[positionAt + 1], data[positionAt + 2]));
+            normalTransform.transform(normal.set(data[normalAt], data[normalAt + 1], data[normalAt + 2])).normalize();
+            indices.positions()[n] = weld(mesh, welded, position);
+            indices.normals()[n] = mesh.addNormal(new Vector3(normal.x, normal.y, normal.z));
+            indices.uvs()[n] = mesh.addUV(data[uvAt], data[uvAt + 1]);
         }
+        return indices;
+    }
 
-        int color = addColor(mesh, part, materials);
-        int corners = part.hasIndices() ? part.indices.length : count;
+    private static void addTriangles(EditableMesh mesh, ModelIR.Part part, VertexIndices indices, int color) {
+        int[] positions = indices.positions();
+        int[] normals = indices.normals();
+        int[] uvs = indices.uvs();
+        int corners = part.hasIndices() ? part.indices.length : part.vertexCount();
         for (int first = 0; first + 2 < corners; first += 3) {
             int a = corner(part, first);
             int b = corner(part, first + 1);
             int c = corner(part, first + 2);
-            if (vertex[a] == vertex[b] || vertex[b] == vertex[c] || vertex[a] == vertex[c]) continue;
-            int face = mesh.addTriangle(vertex[a], vertex[b], vertex[c]);
-            mesh.face(Kind.NORMAL, face, new int[] {normal[a], normal[b], normal[c]});
-            mesh.face(Kind.UV, face, new int[] {uv[a], uv[b], uv[c]});
+            if (positions[a] == positions[b] || positions[b] == positions[c] || positions[a] == positions[c]) continue;
+            int face = mesh.addTriangle(positions[a], positions[b], positions[c]);
+            mesh.face(Kind.NORMAL, face, new int[] {normals[a], normals[b], normals[c]});
+            mesh.face(Kind.UV, face, new int[] {uvs[a], uvs[b], uvs[c]});
             mesh.face(Kind.COLOR, face, new int[] {color, color, color});
         }
     }
@@ -101,20 +143,12 @@ public final class MeshSources implements MeshesRef {
         return part.hasIndices() ? part.indices[n] : n;
     }
 
-    private static int weld(EditableMesh mesh, Map<List<Float>, Integer> vertexAt, Vector3f position) {
-        List<Float> key = weldKey(position);
-        Integer known = vertexAt.get(key);
+    private static int weld(EditableMesh mesh, Map<Point, Integer> welded, Vector3f position) {
+        Point point = Point.of(position);
+        Integer known = welded.get(point);
         if (known != null) return known;
-        int made = mesh.addVertex(new Vector3(position.x, position.y, position.z));
-        vertexAt.put(key, made);
-        return made;
-    }
-
-    private static List<Float> weldKey(Vector3f position) {
-        return List.of(plainZero(position.x), plainZero(position.y), plainZero(position.z));
-    }
-
-    private static float plainZero(float value) {
-        return value == 0 ? 0f : value;
+        int added = mesh.addVertex(new Vector3(position.x, position.y, position.z));
+        welded.put(point, added);
+        return added;
     }
 }
