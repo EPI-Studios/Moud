@@ -166,7 +166,7 @@ A body is **never** drawn as flat boxes. The engine takes the first sheet it fin
 what the place asked for, then the skin of the player who drives the body, then the game's own.
 
 ```lua
-statue.appearance.skin = "minecraft:textures/entity/player/wide/alex.png"
+statue.appearance.skin = "minecraft:textures/entity/player/slim/alex.png"
 statue.appearance.slim = true
 ```
 
