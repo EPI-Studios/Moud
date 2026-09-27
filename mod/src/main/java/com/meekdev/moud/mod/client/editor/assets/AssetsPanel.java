@@ -87,6 +87,7 @@ public final class AssetsPanel implements Panel {
     private List<AssetEntry> entries = List.of();
     private long scannedAt;
     private boolean grid = true;
+    private int focusedFrame = -1;
     private @Nullable AssetKind typeFilter;
     private @Nullable Path revealTarget;
     private boolean openNameDialog;
@@ -824,8 +825,14 @@ public final class AssetsPanel implements Panel {
         Dialogs.end();
     }
 
+    public boolean hasFocus() {
+        return focusedFrame == ImGui.getFrameCount();
+    }
+
     private void handleDeleteShortcut() {
-        if (!ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows) || ImGui.getIO().getWantTextInput()) return;
+        if (!ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows)) return;
+        focusedFrame = ImGui.getFrameCount();
+        if (ImGui.getIO().getWantTextInput()) return;
         if (ImGui.isKeyPressed(ImGuiKey.Delete, false) && !selection.isEmpty()) askDelete(List.copyOf(selection));
         if (ImGui.isKeyPressed(ImGuiKey.F2, false) && selection.size() == 1) askRename(selection.iterator().next());
     }

@@ -160,6 +160,7 @@ public final class EditorShell {
     public EditorShell() {
         addCommands();
         document.spawnPoint(viewport::spawnPoint);
+        EditMode.onLeave(document::leaving);
         document.meshSizes(Meshes::naturalSize);
         viewport.header(scenes::renderTabs);
         properties.viewTools(viewport);
@@ -190,10 +191,13 @@ public final class EditorShell {
         commands.add(new EditorCommand("redo-shift", "Edit", "Redo", Shortcut.ctrlShift(ImGuiKey.Z, "Z"), this::canRedo, this::redo).hidden());
         commands.add(new EditorCommand("copy", "Edit", "Copy", Shortcut.ctrl(ImGuiKey.C, "C"), this::canEditSelection, this::copy));
         commands.add(new EditorCommand("paste", "Edit", "Paste", Shortcut.ctrl(ImGuiKey.V, "V"), EditMode::allowed, this::paste));
+        commands.add(new EditorCommand("paste-into", "Edit", "Paste Into", Shortcut.ctrlShift(ImGuiKey.V, "V"),
+                () -> EditMode.allowed() && !animation.active() && hasPrimary(), () -> document.pasteText(ImGui.getClipboardText(), true)));
         commands.add(new EditorCommand("duplicate", "Edit", "Duplicate", Shortcut.ctrl(ImGuiKey.D, "D"), this::canEditSelection, this::duplicate));
         commands.add(new EditorCommand("rename", "Edit", "Rename", Shortcut.key(ImGuiKey.F2, "F2"),
-                this::hasPrimary, () -> explorer.beginRename(document.primary().id())));
-        commands.add(new EditorCommand("delete", "Edit", "Delete", Shortcut.key(ImGuiKey.Delete, "Del"), this::canEditSelection, this::delete));
+                () -> hasPrimary() && !assets.hasFocus(), () -> explorer.beginRename(document.primary().id())));
+        commands.add(new EditorCommand("delete", "Edit", "Delete", Shortcut.key(ImGuiKey.Delete, "Del"),
+                () -> canEditSelection() && !assets.hasFocus(), this::delete));
         commands.add(new EditorCommand("group", "Edit", "Group", Shortcut.ctrl(ImGuiKey.G, "G"), this::hasRoots, document::group));
         commands.add(new EditorCommand("ungroup", "Edit", "Ungroup", Shortcut.ctrl(ImGuiKey.U, "U"), this::hasRoots, document::ungroup));
         commands.add(new EditorCommand("rotate-y", "Edit", "Rotate 90° around Y", Shortcut.ctrl(ImGuiKey.R, "R"),
@@ -217,7 +221,8 @@ public final class EditorShell {
         commands.add(new EditorCommand("select-forward", "Select", "Next Selection", Shortcut.alt(ImGuiKey.RightArrow, "Right"),
                 () -> document.selection().canGoForward(), () -> document.selection().goForward()));
         commands.add(new EditorCommand("select-class", "Select", "Select Same Class", null, this::hasPrimary, this::selectSameClass));
-        commands.add(new EditorCommand("frame", "Edit", "Frame Selection", null, this::hasSelection, viewport::frameSelection));
+        commands.add(new EditorCommand("frame", "Edit", "Frame Selection", Shortcut.key(ImGuiKey.F, "F"),
+                () -> hasSelection() && !animation.active(), viewport::frameSelection));
         commands.add(new EditorCommand("play", "Place", "Play", null, EditMode::allowed, () -> EditMode.request(false)));
         commands.add(new EditorCommand("animation", "Window", "Animation Editor", Shortcut.ctrlShift(ImGuiKey.A, "A"),
                 this::hasWorld, this::toggleAnimation));

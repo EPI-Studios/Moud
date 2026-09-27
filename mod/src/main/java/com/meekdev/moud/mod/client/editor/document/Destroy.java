@@ -23,7 +23,7 @@ public record Destroy(List<InstanceRef> roots, String label) implements Edit {
             List<InstanceRef> all = new ArrayList<>();
             document.collect(instance, all);
             restores.add(new Paste(document.snapshot(List.of(instance)), document.ref(instance.parent().id()),
-                    new ArrayList<>(List.of(root)), all, false, "Restore"));
+                    new ArrayList<>(List.of(root)), all, false, "Restore", document.relinks(List.of(instance), 0, true)));
         }
         return restores.size() == 1 ? restores.getFirst() : new Batch("Restore", restores);
     }

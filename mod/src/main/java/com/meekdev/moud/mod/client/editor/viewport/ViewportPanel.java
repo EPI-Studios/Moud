@@ -247,7 +247,6 @@ public final class ViewportPanel implements Panel, ViewTools {
             boolean gizmoBusy = renderGizmo() || cubeBusy;
             handlePicking(gizmoBusy, drawList);
             drawList.popClipRect();
-            handleFrameShortcut();
             handleToolHotkeys();
         } else {
             Texts.muted("Waiting for the camera");
@@ -622,11 +621,6 @@ public final class ViewportPanel implements Panel, ViewTools {
         if (wheel == 0.0f) return;
         if (rightHeld) camera.applyZoom(wheel);
         else camera.applyDolly(wheel);
-    }
-
-    private void handleFrameShortcut() {
-        if (!hovered || ImGui.getIO().getWantTextInput() || !ImGui.isKeyPressed(ImGuiKey.F, false)) return;
-        frameSelection();
     }
 
     public boolean hoveredLately() {

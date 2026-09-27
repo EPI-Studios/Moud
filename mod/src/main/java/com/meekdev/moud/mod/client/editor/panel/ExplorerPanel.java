@@ -100,6 +100,8 @@ public final class ExplorerPanel implements Panel {
     private int anchor = -1;
     private int seenLoads = -1;
     private int renaming;
+    private int revealed;
+    private int scrollTo;
     private boolean focusRename;
     private final ImString renameInput = new ImString(RENAME_CAPACITY);
 
@@ -129,6 +131,7 @@ public final class ExplorerPanel implements Panel {
         }
         renderHeader();
         ImGui.separator();
+        revealSelection();
         rebuildRows();
         renderRows();
         renderBackgroundDropZone();
@@ -208,6 +211,31 @@ public final class ExplorerPanel implements Panel {
         ImGui.endMenu();
     }
 
+    private void revealSelection() {
+        int primary = document.selection().primary().orElse(0);
+        if (primary == revealed) return;
+        revealed = primary;
+        Instance instance = document.find(primary);
+        if (instance == null) return;
+        for (Instance at = instance.parent(); at != null; at = at.parent()) collapsed.remove(at.id());
+        scrollTo = primary;
+    }
+
+    private void scrollToRevealed() {
+        if (scrollTo == 0) return;
+        int target = scrollTo;
+        scrollTo = 0;
+        for (int n = 0; n < rows.size(); n++) {
+            if (rows.get(n).instance().id() != target) continue;
+            float top = ImGui.getCursorPosY() + n * ImGui.getTextLineHeightWithSpacing();
+            float height = ImGui.getWindowHeight();
+            if (top < ImGui.getScrollY() || top > ImGui.getScrollY() + height - ImGui.getTextLineHeightWithSpacing() * 2) {
+                ImGui.setScrollY(Math.max(0.0f, top - height * 0.5f));
+            }
+            return;
+        }
+    }
+
     private String query() {
         return filterInput.get().replace("\0", "").strip().toLowerCase(Locale.ROOT);
     }
@@ -250,6 +278,7 @@ public final class ExplorerPanel implements Panel {
             Texts.muted("Nothing matches the filter.");
             return;
         }
+        scrollToRevealed();
         ImGuiListClipper.forEach(rows.size(), new ImListClipperCallback() {
             @Override
             public void accept(int index) {
@@ -410,6 +439,7 @@ public final class ExplorerPanel implements Panel {
         if (ImGui.getIO().getKeyCtrl()) document.selection().toggle(id);
         else document.selection().select(id);
         anchor = id;
+        revealed = document.selection().primary().orElse(0);
     }
 
     private void selectRange(int index) {
@@ -420,6 +450,7 @@ public final class ExplorerPanel implements Panel {
         if (from < 0) return;
         document.selection().clear();
         for (int n = Math.min(from, index); n <= Math.max(from, index); n++) document.selection().add(rows.get(n).instance().id());
+        revealed = document.selection().primary().orElse(0);
     }
 
     private void renderRowDragSource(Instance instance) {
@@ -439,10 +470,13 @@ public final class ExplorerPanel implements Panel {
     }
 
     private void moveInto(int dropped, int parent) {
-        List<Integer> moving = document.selection().isSelected(dropped) ? document.selection().all() : List.of(dropped);
+        List<Integer> moving = new ArrayList<>();
+        if (document.selection().isSelected(dropped)) document.selectedRoots().forEach(root -> moving.add(root.id()));
+        else moving.add(dropped);
         List<Edit> edits = new ArrayList<>();
         for (int id : moving) {
-            if (id == parent || isAncestor(id, parent)) continue;
+            Instance moved = document.find(id);
+            if (moved == null || id == parent || isAncestor(id, parent) || moved.parent() == document.find(parent)) continue;
             edits.add(new Reparent(document.ref(id), document.ref(parent)));
             Edit placed = keepPlace(id, parent);
             if (placed != null) edits.add(placed);
@@ -521,6 +555,7 @@ public final class ExplorerPanel implements Panel {
         if (ImGui.menuItem("Duplicate", Shortcut.ctrlLabel("D"))) document.duplicateSelected();
         if (ImGui.menuItem("Copy", Shortcut.ctrlLabel("C"))) copy(document);
         if (ImGui.menuItem("Paste", Shortcut.ctrlLabel("V"))) document.pasteText(ImGui.getClipboardText());
+        if (ImGui.menuItem("Paste into", Shortcut.ctrlLabel("Shift+V"))) document.pasteText(ImGui.getClipboardText(), true);
         Instance world = document.world();
         if (world != null && instance.parent() != world && ImGui.menuItem("Move to top")) moveInto(instance.id(), world.id());
         if (ImGui.beginMenu("Select")) {
@@ -558,7 +593,6 @@ public final class ExplorerPanel implements Panel {
     private void handleShortcuts() {
         if (!ImGui.isWindowFocused() || ImGui.getIO().getWantTextInput()) return;
         if (ImGui.isKeyPressed(ImGuiKey.Escape, false)) document.selection().clear();
-        if (ImGui.isKeyPressed(ImGuiKey.F, false)) onFrameRequested.run();
     }
 
     public static void copy(SceneDocument document) {

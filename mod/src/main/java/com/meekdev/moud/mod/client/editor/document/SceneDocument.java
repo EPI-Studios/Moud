@@ -46,9 +46,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -67,6 +70,7 @@ import org.jspecify.annotations.Nullable;
 public final class SceneDocument {
 
     private static final String SCENE_TEXT_START = "{";
+    private static final long ARRIVAL_NANOS = 5_000_000_000L;
 
     private final Selection selection = new Selection();
     private final History history = new History(this);
@@ -80,6 +84,18 @@ public final class SceneDocument {
     private @Nullable InstanceTree seen;
     private int loads;
     private boolean gathering;
+    private final Deque<Arrival> arrivals = new ArrayDeque<>();
+    private @Nullable String copiedText;
+    private List<Relink> copiedLinks = List.of();
+
+    private List<Placed> beforePlay = List.of();
+    private List<Integer> selectedBeforePlay = List.of();
+    private boolean returning;
+    private long returnedAt;
+
+    private record Arrival(ScenePastedPayload pasted, long at) {}
+
+    private record Placed(int id, String kind, String name) {}
 
     public Selection selection() {
         return selection;
@@ -204,15 +220,81 @@ public final class SceneDocument {
             selection.reset();
             history.clear();
             refs.clear();
+            arrivals.clear();
+            copiedText = null;
+            copiedLinks = List.of();
             waiting.clear();
             landing.clear();
             gathering = false;
+            returning = false;
         }
-        for (ScenePastedPayload pasted = SceneLink.takePasted(); pasted != null; pasted = SceneLink.takePasted()) landed(pasted);
+        if (returning && !comeBack()) return;
+        for (ScenePastedPayload pasted = SceneLink.takePasted(); pasted != null; pasted = SceneLink.takePasted()) {
+            arrivals.add(new Arrival(pasted, System.nanoTime()));
+        }
+        while (!arrivals.isEmpty() && (arrived(arrivals.peek().pasted()) || System.nanoTime() - arrivals.peek().at() > ARRIVAL_NANOS)) {
+            landed(arrivals.poll().pasted());
+        }
         landing.landed(waiting.keySet(), e -> SceneLink.local("Could not connect: " + e.getMessage()));
         selection.keep(id -> find(id) != null);
         selection.record();
         history.settle(gestureHeld);
+    }
+
+    public void leaving() {
+        beforePlay = placed();
+        selectedBeforePlay = selection.all();
+        returning = !beforePlay.isEmpty();
+        returnedAt = 0;
+    }
+
+    private List<Placed> placed() {
+        List<Placed> order = new ArrayList<>();
+        Instance world = world();
+        if (world != null) placed(world, order);
+        return order;
+    }
+
+    private void placed(Instance at, List<Placed> into) {
+        for (Instance child : at.children()) {
+            if (!editable(child)) continue;
+            into.add(new Placed(child.id(), child.def().name(), child.name()));
+            placed(child, into);
+        }
+    }
+
+    private boolean comeBack() {
+        if (returnedAt == 0) returnedAt = System.nanoTime();
+        List<Placed> now = placed();
+        boolean same = now.size() == beforePlay.size() && now.getFirst().id() != beforePlay.getFirst().id();
+        for (int n = 0; same && n < now.size(); n++) {
+            same = now.get(n).kind().equals(beforePlay.get(n).kind()) && now.get(n).name().equals(beforePlay.get(n).name());
+        }
+        if (!same) {
+            if (System.nanoTime() - returnedAt < ARRIVAL_NANOS) return false;
+            returning = false;
+            history.clear();
+            selection.reset();
+            return true;
+        }
+        returning = false;
+        Map<Integer, Integer> moved = new HashMap<>();
+        for (int n = 0; n < now.size(); n++) moved.put(beforePlay.get(n).id(), now.get(n).id());
+        List<InstanceRef> kept = new ArrayList<>(refs.values());
+        refs.clear();
+        for (InstanceRef ref : kept) {
+            Integer next = moved.get(ref.id);
+            if (next != null) ref.id = next;
+            if (ref.id != 0) refs.put(ref.id, ref);
+        }
+        List<Integer> chosen = new ArrayList<>();
+        for (int id : selectedBeforePlay) {
+            Integer next = moved.get(id);
+            if (next != null) chosen.add(next);
+        }
+        selection.reset();
+        selection.set(chosen);
+        return true;
     }
 
     public Object read(InstanceRef target, int property) {
@@ -315,6 +397,73 @@ public final class SceneDocument {
         if (waiting.values().stream().anyMatch(Paste::select)) gathering = true;
     }
 
+    private boolean arrived(ScenePastedPayload pasted) {
+        for (int id : pasted.all()) {
+            if (find(id) == null) return false;
+        }
+        return true;
+    }
+
+    void relink(Paste paste) {
+        for (Relink link : paste.relinks()) {
+            InstanceRef holder = link.holder(paste.all());
+            InstanceRef value = link.value(paste.all());
+            Instance at = holder == null ? null : find(holder);
+            Instance target = value == null ? null : find(value);
+            if (!editable(at) || !editable(target)) continue;
+            PropertyDef property = at.def().property(link.property());
+            if (property == null || property.getObj(at) == target) continue;
+            try {
+                write(holder, link.property(), target.id());
+            } catch (RuntimeException e) {
+                SceneLink.local("Could not reconnect " + at.name() + "." + property.name() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    List<Relink> relinks(List<Instance> roots, int offset, boolean inbound) {
+        Map<Instance, Integer> inside = new IdentityHashMap<>();
+        for (Instance root : roots) number(root, inside, offset);
+        List<Relink> links = new ArrayList<>();
+        for (Map.Entry<Instance, Integer> entry : inside.entrySet()) {
+            for (PropertyDef property : references(entry.getKey())) {
+                if (!(property.getObj(entry.getKey()) instanceof Instance target) || !target.isAlive()) continue;
+                Integer at = inside.get(target);
+                if (at != null) links.add(new Relink(null, entry.getValue(), property.index(), null, at));
+                else if (editable(target)) links.add(new Relink(null, entry.getValue(), property.index(), ref(target.id()), -1));
+            }
+        }
+        Instance world = world();
+        if (inbound && world != null) pointingIn(world, inside, links);
+        return links;
+    }
+
+    private void pointingIn(Instance at, Map<Instance, Integer> inside, List<Relink> links) {
+        for (Instance child : at.children()) {
+            if (inside.containsKey(child)) continue;
+            if (editable(child)) {
+                for (PropertyDef property : references(child)) {
+                    Integer target = property.getObj(child) instanceof Instance pointed ? inside.get(pointed) : null;
+                    if (target != null) links.add(new Relink(ref(child.id()), -1, property.index(), null, target));
+                }
+            }
+            pointingIn(child, inside, links);
+        }
+    }
+
+    private static List<PropertyDef> references(Instance instance) {
+        List<PropertyDef> found = new ArrayList<>();
+        for (PropertyDef property : instance.def().properties()) {
+            if (property.type() == PropertyType.REF && !property.readOnly() && !property.driven()) found.add(property);
+        }
+        return found;
+    }
+
+    private static void number(Instance instance, Map<Instance, Integer> into, int offset) {
+        into.put(instance, offset + into.size());
+        for (Instance child : instance.children()) number(child, into, offset);
+    }
+
     private void landed(ScenePastedPayload pasted) {
         Paste paste = waiting.remove(pasted.token());
         try {
@@ -384,7 +533,7 @@ public final class SceneDocument {
         Map<Instance, List<Instance>> byParent = groupByParent(selectedRoots());
         List<Edit> pastes = new ArrayList<>();
         for (Map.Entry<Instance, List<Instance>> group : byParent.entrySet()) {
-            pastes.add(Paste.fresh(snapshot(group.getValue()), ref(group.getKey().id()), "Duplicate"));
+            pastes.add(Paste.fresh(snapshot(group.getValue()), ref(group.getKey().id()), "Duplicate", relinks(group.getValue(), 0, false)));
         }
         if (pastes.isEmpty()) return;
         history.execute(pastes.size() == 1 ? pastes.getFirst() : new Batch("Duplicate", pastes));
@@ -393,18 +542,26 @@ public final class SceneDocument {
     public @Nullable String copySelected() {
         List<Instance> roots = new ArrayList<>();
         for (InstanceRef root : selectedRoots()) roots.add(find(root));
-        return roots.isEmpty() ? null : snapshot(roots);
+        if (roots.isEmpty()) return null;
+        copiedText = snapshot(roots);
+        copiedLinks = relinks(roots, 0, false);
+        return copiedText;
     }
 
     public void pasteText(@Nullable String text) {
+        pasteText(text, false);
+    }
+
+    public void pasteText(@Nullable String text, boolean into) {
         if (text == null || !text.stripLeading().startsWith(SCENE_TEXT_START) || !text.contains("\"instances\"")) {
             SceneLink.local("The clipboard does not hold scene instances");
             return;
         }
         Instance primary = primary();
-        Instance parent = editable(primary) && primary.parent() != null ? primary.parent() : world();
+        Instance parent = !editable(primary) ? world() : into ? primary : primary.parent();
         if (parent == null) return;
-        history.execute(Paste.fresh(text, ref(parent.id()), "Paste"));
+        List<Relink> links = text.equals(copiedText) ? copiedLinks : List.of();
+        history.execute(Paste.fresh(text, ref(parent.id()), into ? "Paste into" : "Paste", links));
     }
 
     public void insertBuilt(List<Instance> roots, String label) {
@@ -738,7 +895,7 @@ public final class SceneDocument {
                 SceneLink.local("Could not copy: " + e.getMessage());
                 return;
             }
-            pastes.add(new Paste(text, ref(group.getKey().id()), new ArrayList<>(), new ArrayList<>(), select, label));
+            pastes.add(new Paste(text, ref(group.getKey().id()), new ArrayList<>(), new ArrayList<>(), select, label, relinks(group.getValue(), 0, false)));
         }
         if (pastes.isEmpty()) return;
         history.execute(pastes.size() == 1 ? pastes.getFirst() : new Batch(label, pastes));
@@ -763,7 +920,7 @@ public final class SceneDocument {
             return;
         }
         selection.clear();
-        history.execute(new Batch(roots.size() == 1 ? "Group" : "Group " + roots.size(), List.of(Paste.fresh(text, ref(parent.id()), "Group"), new Destroy(roots, "Group"))));
+        history.execute(new Batch(roots.size() == 1 ? "Group" : "Group " + roots.size(), List.of(Paste.fresh(text, ref(parent.id()), "Group", relinks(members, 1, true)), new Destroy(roots, "Group"))));
     }
 
     public void ungroup() {
@@ -781,7 +938,7 @@ public final class SceneDocument {
                 SceneLink.local("Could not ungroup " + group.name() + ": " + e.getMessage());
                 continue;
             }
-            edits.add(Paste.fresh(text, ref(group.parent().id()), "Ungroup"));
+            edits.add(Paste.fresh(text, ref(group.parent().id()), "Ungroup", relinks(new ArrayList<>(group.children()), 0, true)));
             edits.add(new Destroy(List.of(root), "Ungroup"));
         }
         if (edits.isEmpty()) return;

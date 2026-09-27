@@ -25,6 +25,7 @@ public final class EditMode {
     private static CameraType cameraBefore = CameraType.FIRST_PERSON;
     private static Supplier<Screen> screens = () -> null;
     private static @Nullable Screen shown;
+    private static Runnable leaving = () -> { };
 
     private EditMode() {}
 
@@ -37,6 +38,10 @@ public final class EditMode {
             if (editing && client.screen instanceof PauseScreen) show(client);
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> apply(false, false)));
+    }
+
+    public static void onLeave(Runnable run) {
+        leaving = run;
     }
 
     public static boolean editing() {
@@ -59,6 +64,7 @@ public final class EditMode {
     private static void apply(boolean nowEditing, boolean nowAllowed) {
         allowed = nowAllowed;
         if (nowEditing == editing) return;
+        if (!nowEditing) leaving.run();
         editing = nowEditing;
         Minecraft minecraft = Minecraft.getInstance();
         if (editing) {
