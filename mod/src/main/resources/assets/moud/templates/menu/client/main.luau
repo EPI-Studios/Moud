@@ -12,7 +12,7 @@ local function button(parent: Instance, text: string, y: number): TextButton
         cornerRadius = 8,
         borderSize = 1,
         borderColor = color(0.35, 0.4, 0.5),
-    }) :: TextButton
+    })
     made.mouseEnter:connect(function()
         made:tween({ size = udim2.fromOffset(214, 36) }, { time = 0.12, easing = "back", direction = "out" })
     end)
@@ -33,8 +33,7 @@ local function title(parent: Instance, text: string, y: number)
     })
 end
 
--- the main menu
-local menuGui = world:add("ScreenGui", { name = "MainMenu", displayOrder = 10 }) :: ScreenGui
+local menuGui = world:add("ScreenGui", { name = "MainMenu", displayOrder = 10 })
 local panel = menuGui:add("Frame", {
     position = udim2(0, 40, 0.5, 0),
     anchorY = 0.5,
@@ -42,14 +41,13 @@ local panel = menuGui:add("Frame", {
     backgroundColor = color(0.06, 0.07, 0.1),
     backgroundTransparency = 0.25,
     cornerRadius = 12,
-}) :: Frame
+})
 title(panel, "My Game", 20)
 local play = button(panel, "Play", 80)
 local menuSettings = button(panel, "Settings", 124)
 local menuQuit = button(panel, "Quit", 168)
 
--- the pause menu, opened with Escape once playing
-local pauseGui = world:add("ScreenGui", { name = "PauseMenu", displayOrder = 20, enabled = false }) :: ScreenGui
+local pauseGui = world:add("ScreenGui", { name = "PauseMenu", displayOrder = 20, enabled = false })
 pauseGui:add("Frame", { size = udim2.fromScale(1, 1), backgroundColor = color(0, 0, 0), backgroundTransparency = 0.45 })
 local card = pauseGui:add("Frame", {
     position = udim2(0.5, 0, 0.5, 0),
@@ -57,7 +55,7 @@ local card = pauseGui:add("Frame", {
     size = udim2.fromOffset(260, 210),
     backgroundColor = color(0.06, 0.07, 0.1),
     cornerRadius = 12,
-}) :: Frame
+})
 title(card, "Paused", 18)
 local resume = button(card, "Resume", 64)
 local pauseSettings = button(card, "Settings", 108)

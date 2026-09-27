@@ -1,6 +1,5 @@
 local world = game.world
 
--- players wait in the main menu without a body until they press Play
 game.players.autoSpawn = false
 game.players.respawnTime = 3
 
