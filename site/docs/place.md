@@ -179,7 +179,8 @@ before this keeps its `world.polar` at the root, and only the start scene uses i
 
 - **File > Import Minecraft World** turns a Java Edition world (any version, it is upgraded on the
   way) into the open scene's `.polar`. One scene holds one terrain, so importing replaces it; the
-  old file goes to `.moud/backups`.
+  old file goes to `.moud/backups`. The import is a step in the scene's history: **Edit > Undo**
+  puts the old terrain back, and redo the imported one.
 - Opening a scene in the editor swaps the terrain around you. Renaming, moving, duplicating or
   deleting a scene in Assets takes its `.polar` along.
 - Only finished chunks are imported. Block entities such as chest contents are left out.

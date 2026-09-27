@@ -2,7 +2,9 @@ package com.meekdev.moud.mod.client.editor.shell;
 
 import com.meekdev.moud.mod.MoudMod;
 import com.meekdev.moud.mod.client.ClientPlace;
+import com.meekdev.moud.mod.client.editor.document.SceneDocument;
 import com.meekdev.moud.mod.client.editor.document.SceneLink;
+import com.meekdev.moud.mod.client.editor.document.SwapTerrain;
 import com.meekdev.moud.mod.client.editor.files.UserPaths;
 import com.meekdev.moud.mod.client.editor.kit.Dialogs;
 import com.meekdev.moud.mod.client.editor.kit.Notices;
@@ -62,9 +64,13 @@ final class WorldImportDialog {
     private int estimate = -1;
     private boolean everything;
     private volatile boolean loadWhenDone;
+    private volatile @Nullable SwapTerrain undo;
     private String scene = "";
+    private final SceneDocument document;
 
-    WorldImportDialog() {}
+    WorldImportDialog(SceneDocument document) {
+        this.document = document;
+    }
 
     void open() {
         if (stage == Stage.RUNNING) {
@@ -79,7 +85,10 @@ final class WorldImportDialog {
     void render() {
         if (loadWhenDone) {
             loadWhenDone = false;
-            if (scene.equals(SceneLink.file())) SceneLink.reloadTerrain();
+            if (scene.equals(SceneLink.file())) {
+                SceneLink.reloadTerrain();
+                if (undo != null) document.history().record(undo, undo);
+            }
         }
         if (open) {
             ImGui.openPopup(DIALOG);
@@ -148,7 +157,7 @@ final class WorldImportDialog {
             if (estimate > LARGE) Texts.colored(EditorStyle.COLOR_WARNING, "That is a lot of terrain. The whole place loads it into memory, a smaller area starts faster.");
             Path root = ClientPlace.root();
             if (root != null && !open.isEmpty() && Blocks.terrainOf(root, open) != null) {
-                Texts.colored(EditorStyle.COLOR_WARNING, name(open) + " already has terrain. It is moved into .moud/backups before being replaced.");
+                Texts.colored(EditorStyle.COLOR_WARNING, name(open) + " already has terrain. It is moved into .moud/backups before being replaced, and Undo puts it back.");
             }
         }
         Dialogs.gap();
@@ -201,6 +210,7 @@ final class WorldImportDialog {
         scene = SceneLink.file();
         cancel.set(false);
         progress.set(null);
+        undo = null;
         stage = Stage.RUNNING;
         String into = scene;
         Thread worker = new Thread(() -> run(root, into, source, plan), "moud world import");
@@ -220,12 +230,13 @@ final class WorldImportDialog {
             Files.createDirectories(target.getParent());
             Files.write(temporary, bytes);
             Path existing = Blocks.terrainOf(root, into);
+            Path kept = SceneBackups.folder(root).resolve(name(into) + "-" + LocalDateTime.now().format(STAMP) + ".polar");
             if (existing != null) {
-                Path backups = SceneBackups.folder(root);
-                Files.createDirectories(backups);
-                Files.move(existing, backups.resolve(name(into) + "-" + LocalDateTime.now().format(STAMP) + ".polar"), StandardCopyOption.REPLACE_EXISTING);
+                Files.createDirectories(kept.getParent());
+                Files.move(existing, kept, StandardCopyOption.REPLACE_EXISTING);
             }
             Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+            undo = new SwapTerrain(target, kept, "Import " + source.getFileName());
             String summary = String.format(Locale.ROOT, "%d chunks of %s from %s, %.1f MB, in %.1f s.",
                     polar.chunks().size(), plan.dimension().label(), source.getFileName(), bytes.length / 1_048_576.0,
                     (System.currentTimeMillis() - began) / 1000.0);

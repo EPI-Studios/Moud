@@ -11,7 +11,8 @@ scripts open in. Each other editor feature is described on the page of the thing
 ## Undo, copy and paste
 
 Every change you make to the scene is one step in the history: a property typed or dragged, a
-gizmo drag, a rename, a drop in the Explorer, a paste, a group, a delete, an animation key.
+gizmo drag, a rename, a drop in the Explorer, a paste, a group, a delete, an animation key, a
+Minecraft world imported as the terrain.
 <kbd>Ctrl+Z</kbd> undoes it and <kbd>Ctrl+Y</kbd> or <kbd>Ctrl+Shift+Z</kbd> does it again. The
 **Edit** menu names the step either would take, such as **Undo Move Crate** or **Redo Rename Lamp**. A
 move, rotate, scale, delete or rename of one thing names it; one of several says how many or just
