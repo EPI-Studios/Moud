@@ -9,7 +9,6 @@ import com.meekdev.moud.core.math.CFrame;
 import com.meekdev.moud.core.math.Vector3;
 import com.meekdev.moud.core.part.Part;
 import com.meekdev.moud.core.space.Broadphase;
-import java.util.ArrayList;
 import java.util.List;
 
 public final class SpatialIndex {
@@ -35,14 +34,12 @@ public final class SpatialIndex {
         if (builtAt != tree.structureEpoch()) {
             grid.clear();
             for (Part part : tree.ofClass(Classes.PART)) put(part);
-            tree.spatialTouched.clear();
+            if (!tree.spatialTouched.isEmpty()) tree.takeSpatialTouched();
             builtAt = tree.structureEpoch();
             return;
         }
         if (tree.spatialTouched.isEmpty()) return;
-        List<Instance> touched = new ArrayList<>(tree.spatialTouched);
-        tree.spatialTouched.clear();
-        for (Instance instance : touched) {
+        for (Instance instance : tree.takeSpatialTouched()) {
             if (instance.isAlive()) refresh(instance);
         }
     }

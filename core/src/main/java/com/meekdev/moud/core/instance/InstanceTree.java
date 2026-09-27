@@ -40,7 +40,7 @@ public final class InstanceTree {
         }
     }
 
-    public final Set<Instance> spatialTouched = Collections.newSetFromMap(new IdentityHashMap<>());
+    public Set<Instance> spatialTouched = Collections.newSetFromMap(new IdentityHashMap<>());
 
     final boolean mirror;
     int nextId = 1;
@@ -94,6 +94,12 @@ public final class InstanceTree {
 
     public long structureEpoch() {
         return structureEpoch;
+    }
+
+    public Set<Instance> takeSpatialTouched() {
+        Set<Instance> taken = spatialTouched;
+        spatialTouched = Collections.newSetFromMap(new IdentityHashMap<>());
+        return taken;
     }
 
     public SpatialIndex spatial() {
