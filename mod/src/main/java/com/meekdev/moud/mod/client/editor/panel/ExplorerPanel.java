@@ -53,7 +53,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
@@ -151,7 +150,7 @@ public final class ExplorerPanel implements Panel {
         if (ImGui.isItemHovered()) ImGui.setTooltip("Delete");
         ImGui.endDisabled();
         ImGui.sameLine();
-        SearchField.render("##explorer-filter", "Filter", filterInput, ImGui.getContentRegionAvailX());
+        SearchField.render("##explorer-filter", "Filter: name, t:Class", filterInput, ImGui.getContentRegionAvailX());
     }
 
     public int insertParent() {
@@ -236,31 +235,31 @@ public final class ExplorerPanel implements Panel {
         }
     }
 
-    private String query() {
-        return filterInput.get().replace("\0", "").strip().toLowerCase(Locale.ROOT);
+    private ExplorerFilter filter() {
+        return ExplorerFilter.parse(filterInput.get().replace("\0", ""));
     }
 
     private void rebuildRows() {
         rows.clear();
         Instance world = document.world();
         if (world == null) return;
-        String query = query();
+        ExplorerFilter filter = filter();
         boolean any = world.children().stream().anyMatch(child -> child.id() >= 0);
         rows.add(new Row(world, 0, any));
-        if (!query.isEmpty() || !collapsed.contains(world.id())) {
-            for (Instance child : world.children()) collect(child, 1, query);
+        if (!filter.empty() || !collapsed.contains(world.id())) {
+            for (Instance child : world.children()) collect(child, 1, filter);
         }
     }
 
-    private boolean collect(Instance instance, int depth, String query) {
+    private boolean collect(Instance instance, int depth, ExplorerFilter filter) {
         if (instance.id() < 0) return false;
         int at = rows.size();
-        boolean matches = query.isEmpty() || instance.name().toLowerCase(Locale.ROOT).contains(query);
+        boolean matches = filter.empty() || filter.matches(instance);
         boolean hasChildren = instance.children().stream().anyMatch(child -> child.id() >= 0);
         rows.add(new Row(instance, depth, hasChildren));
         boolean childMatched = false;
-        if (!query.isEmpty() || !collapsed.contains(instance.id())) {
-            for (Instance child : instance.children()) childMatched |= collect(child, depth + 1, query);
+        if (!filter.empty() || !collapsed.contains(instance.id())) {
+            for (Instance child : instance.children()) childMatched |= collect(child, depth + 1, filter);
         }
         if (!matches && !childMatched) {
             rows.subList(at, rows.size()).clear();
@@ -274,7 +273,7 @@ public final class ExplorerPanel implements Panel {
             Texts.muted("No scene is loaded yet.");
             return;
         }
-        if (rows.size() == 1 && !query().isEmpty()) {
+        if (rows.size() == 1 && !filter().empty()) {
             Texts.muted("Nothing matches the filter.");
             return;
         }

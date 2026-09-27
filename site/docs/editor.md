@@ -62,6 +62,28 @@ program has changed it, a window names the scene and offers two ways on:
 The window comes once for each change on disk. After you answer it, it stays away until the file
 changes again. **File > Scene Backups...** lists both kinds of copy.
 
+## The Explorer
+
+The Explorer shows the scene as a tree, each object inside its parent.
+
+### Filtering
+
+The field at the top keeps the rows whose name contains what you type, along with their parents so
+you can see where they are. Case does not matter. A word starting with `t:` or `c:` filters by class
+instead, the way Godot's scene tree does:
+
+| Filter | Shows |
+|---|---|
+| `crate` | everything whose name contains `crate` |
+| `t:Part` | parts, and every class built on `Part`, such as `MeshPart` and `Seat` |
+| `t:light` | every class whose name contains `light`: `PointLight`, `SpotLight`, `AreaLight`, `Lighting` |
+| `t:Sound,Zone` | sounds and zones |
+| `t:Part t:Attachment` | parts and attachments, the same as `t:Part,Attachment` |
+| `t:Part door` | parts whose name contains `door` |
+
+The words that are not classes are read together, so `red door` matches `Red Door 2` but not
+`Door Red`.
+
 ## Moving several things at once
 
 Select several things with <kbd>Ctrl</kbd> or <kbd>Shift</kbd> click, or drag a box over them, and the
